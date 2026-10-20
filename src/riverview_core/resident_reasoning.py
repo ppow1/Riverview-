@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.19
+# Revision: 1.0.20
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -26,6 +26,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Accept bounded advisory input separately from verified knowledge
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Add typed model-selected external advisory intent at the existing reasoning boundary
 # Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Keep escalated candidates out of final plan state and bind exact review subject
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Persist bounded per-step artifact identity, media type, paths, and acceptance requirements
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
 # History: .riverview-backups/manifest.jsonl
@@ -65,6 +66,33 @@ class ReasoningStatus(str, Enum):
 
 
 @dataclass(frozen=True)
+class ArtifactRequirement:
+    """One assignment-authorized output bound to a relative repository path."""
+
+    name: str
+    path: str
+    media_type: str
+    acceptance_criteria: tuple[str, ...]
+    max_bytes: int = 32768
+
+    def __post_init__(self):
+        if (not isinstance(self.name, str) or
+                not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", self.name) or
+                not isinstance(self.path, str) or not self.path or len(self.path) > 240 or
+                self.path.startswith("/") or "\\" in self.path or
+                any(part in {"", ".", "..", ".git"} for part in self.path.split("/")) or
+                not re.fullmatch(r"[A-Za-z0-9._/-]+", self.path) or
+                self.media_type not in {"text/markdown", "text/plain", "application/json",
+                                        "text/csv", "application/xml"} or
+                not isinstance(self.acceptance_criteria, tuple) or
+                not 1 <= len(self.acceptance_criteria) <= 12 or
+                any(not isinstance(item, str) or not item.strip() or len(item) > 1000
+                    for item in self.acceptance_criteria) or
+                type(self.max_bytes) is not int or not 1 <= self.max_bytes <= 32768):
+            raise ValueError("artifact requirement is outside its bounded contract")
+
+
+@dataclass(frozen=True)
 class PlanStep:
     step_id: str
     objective: str
@@ -75,6 +103,7 @@ class PlanStep:
     test_targets: tuple[str, ...] = ()
     repository_reference: str | None = None
     repository_revision: str | None = None
+    artifact_requirements: tuple[ArtifactRequirement, ...] = ()
 
     def __post_init__(self):
         if self.execution_capability not in {
@@ -95,10 +124,25 @@ class PlanStep:
                     not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", self.repository_revision) or
                     not safe(self.authorized_paths) or not safe(self.test_targets) or
                     any(not path.startswith("tests/") for path in self.test_targets) or
-                    not set(self.test_targets) <= set(self.authorized_paths)):
+                    not set(self.test_targets) <= set(self.authorized_paths) or
+                    self.artifact_requirements):
                 raise ValueError("source-change plan step requires a pinned repository and bounded paths and test targets")
         elif self.authorized_paths or self.test_targets or self.repository_reference is not None or self.repository_revision is not None:
             raise ValueError("bounded artifact steps cannot carry source-change target scope")
+        if (not isinstance(self.artifact_requirements, tuple) or
+                len(self.artifact_requirements) > 8 or
+                any(not isinstance(item, ArtifactRequirement)
+                    for item in self.artifact_requirements) or
+                len({item.name for item in self.artifact_requirements}) !=
+                    len(self.artifact_requirements) or
+                len({item.path for item in self.artifact_requirements}) !=
+                    len(self.artifact_requirements)):
+            raise ValueError("plan step artifact requirements are invalid")
+        if (self.execution_capability == "engineering.codex-cli-artifact.v1" and
+                not self.artifact_requirements):
+            # Planning may be provisional, but dispatch validation below must
+            # require a concrete contract before assignment.create is reached.
+            pass
 
 @dataclass(frozen=True)
 class ExternalEscalationIntent:

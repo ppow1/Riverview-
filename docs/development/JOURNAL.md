@@ -1,8 +1,21 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.174
+**Document Revision:** 1.0.175
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
+**Changed:** 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Supersede historical fixed-output adapter with persisted dynamic multi-artifact contracts
+
+## 2026-10-20 UTC — RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001
+
+The historical fixed-output behavior described in the October 16 entry below
+was replaced. A Codex Engineering assignment now binds its own output names,
+paths, supported media types, per-artifact acceptance requirements and size
+limits. The durable dispatch record carries the contract; execution accepts
+only its exact paths; independent verification checks every artifact; recovery
+and Grace review process the same set. No universal filename remains in an
+executable path. The existing S3 assignment's three recovery decisions remain
+exhausted and unchanged; any retry disposition requires separate Steward
+authorization.
 **Changed:** 2026-10-17 UTC | M33-REGISTRATION-RETIREMENT-AUTHORIZED | Record exact temporary database scope, guarded retirement, permission cleanup, and production acceptance
 **Changed:** 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Add OAuth resource-server validation and verify Secure MCP Tunnel path
 **Changed:** 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Resolve resident principal from the active office binding and connect typed external escalation to durable exchange

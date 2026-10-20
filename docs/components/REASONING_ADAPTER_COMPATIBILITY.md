@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/REASONING_ADAPTER_COMPATIBILITY.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.0
+File Revision: 1.0.1
+Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Describe assignment-defined artifact sets instead of a generated fixed filename
 Purpose: Record verified response-format boundaries across reasoning transports
 Authority: Provider output is data; only institutional contracts authorize actions
 Execution Model: Fixture-backed source and test compatibility audit
@@ -61,8 +62,9 @@ exactly one choice.
 `src/riverview_core/resident_execution/codex_cli.py` starts `codex exec` with a
 strict JSON output schema and output-last-message file. It routes process
 stdout/stderr to `DEVNULL`; it does not capture terminal text or parse Codex
-event-stream records. It separately verifies the generated `deliverable.md`,
-the bounded changed-path set, and process status. Tests in
+event-stream records. It separately verifies that each contract-named output,
+its declared media type, and the complete bounded changed-path set match the
+persisted assignment, as well as process status. Tests in
 `tests/test_codex_cli_adapter.py` cover schema/artifact validation, failure,
 timeout, and workspace boundaries. This contract is task-specific; it is not a
 general reasoning response parser.

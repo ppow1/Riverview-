@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Expose the durable advisory exchange through authenticated MCP Streamable HTTP
 # Execution Model: Request-driven, sessionless HTTP JSON-RPC adapter
 # Observability: Sanitized request outcomes; authoritative exchange state remains PostgreSQL
@@ -18,6 +18,7 @@
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-TYPED-REVIEW-SUBJECT | Validate and preserve the complete typed PlanProposal/PlanStep subject
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Map durable expiration to an explicit non-success MCP result
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Add explicit Steward-originated Comms5 operations without constructing provider OAuth identity
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Preserve typed per-step artifact requirements in review subjects
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_mcp.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -56,7 +57,7 @@ from .external_reasoning import (
     DurableExternalReasoningExchange, ExchangeConflict, ExchangeError,
     ExchangeExpired, ExchangeNotFound, ExchangeUnauthorized,
 )
-from ..resident_reasoning import PlanProposal, PlanStep
+from ..resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
 
 
 MCP_PATH = "/mcp"
@@ -521,18 +522,36 @@ class ExternalReasoningMCPAdapter:
             allowed_step_keys = set(PlanStep.__dataclass_fields__)
             normalized_steps = []
             for step in proposal["steps"]:
-                if not isinstance(step, Mapping) or set(step) != allowed_step_keys:
+                if not isinstance(step, Mapping) or frozenset(step) not in {
+                        frozenset(allowed_step_keys),
+                        frozenset(allowed_step_keys - {"artifact_requirements"})}:
                     raise ValueError
                 step_data = dict(step)
-                for field in ("acceptance_criteria", "depends_on", "authorized_paths", "test_targets"):
+                has_artifacts = "artifact_requirements" in step_data
+                fields = ["acceptance_criteria", "depends_on", "authorized_paths", "test_targets"]
+                if has_artifacts:
+                    fields.append("artifact_requirements")
+                for field in fields:
                     values = step_data[field]
                     if not isinstance(values, (list, tuple)):
                         raise ValueError
-                    step_data[field] = tuple(values)
+                    if field == "artifact_requirements":
+                        step_data[field] = tuple(ArtifactRequirement(
+                            item["name"], item["path"], item["media_type"],
+                            tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
+                            if isinstance(item, Mapping) else item for item in values)
+                    else:
+                        step_data[field] = tuple(values)
                 normalized_steps.append(PlanStep(**step_data))
             validated_proposal = PlanProposal(proposal["summary"], tuple(normalized_steps), 0)
+            normalized_steps_data = []
+            for original, step in zip(proposal["steps"], validated_proposal.steps):
+                record = asdict(step)
+                if "artifact_requirements" not in original:
+                    record.pop("artifact_requirements", None)
+                normalized_steps_data.append(record)
             normalized_proposal = {"summary": validated_proposal.summary,
-                "steps": [asdict(step) for step in validated_proposal.steps]}
+                "steps": normalized_steps_data}
         except (TypeError, ValueError, KeyError):
             raise ValueError("review_subject_invalid") from None
         digest_input = {"subject_id": subject_id, "revision": subject["revision"],

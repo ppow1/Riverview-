@@ -2,11 +2,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.14
+# Revision: 1.2.15
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Resolve Codex assignment provenance through the durable proposal-step link when sibling steps are dispatched concurrently.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Separate independent artifact integrity/provenance checks from Grace's substantive acceptance review and expose only a digest-verified bounded artifact snapshot.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Validate source execution against dispatch-time target snapshot, checkout HEAD, and verifier result provenance.
-# Purpose: Adapt bounded Codex production and independent Markdown verification to CME
+# Purpose: Adapt bounded Codex artifact production and independent contract verification to CME
 # Execution Model: Existing leased worker action and independent verifier contract
 # Observability: Persisted artifact location, digest, criteria and verifier evidence
 # Dependencies: Codex CLI adapter; PostgreSQL objective/attempt/verification records
@@ -25,6 +25,7 @@
 # Changed: 2026-10-17 UTC | RV-GRACE-ACCEPTANCE-CRITERIA-001 | Verify Codex artifacts against criteria resolved from the durable dispatched objective step
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Attach only durable same-assignment correction guidance while preserving the pinned step and exact acceptance criteria
 # Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-ROLE-SEPARATION-001 | Keep independent checks on artifact integrity, provenance, scope and structure; defer substantive criteria to Grace with digest-verified artifact text
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Bind action and independent verifier to dispatched multi-artifact requirements
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_codex_workflow.py
 # History: Git
@@ -36,13 +37,16 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from dataclasses import asdict
 from pathlib import Path
 import re
 import stat
 from collections.abc import Mapping
+import xml.etree.ElementTree as ET
 
 from ..worker_adapter.knowledge import KnowledgeStatus
 from ..worker_adapter.verifier import VerificationResult, VerificationStatus
+from ..resident_reasoning import ArtifactRequirement
 from .codex_cli import CAPABILITY, CodexAssignment, CodexCLIExecutionAdapter
 from .codex_source_change import (CAPABILITY as SOURCE_CHANGE_CAPABILITY,
     CodexSourceChangeAdapter, CodexSourceChangeAssignment, CodexSourceChangeResult,
@@ -153,6 +157,10 @@ class CodexWorkAction:
             repository_revision=repository_revision,
             task_scope=task_scope,
             acceptance_criteria=tuple(step["acceptance_criteria"]),
+            artifact_requirements=tuple(ArtifactRequirement(
+                item["name"], item["path"], item["media_type"],
+                tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
+                for item in step["artifact_requirements"]),
             timeout_seconds=self.timeout_seconds, artifact_revision=artifact_revision,
             rework_verification_id=rework_verification_id)
         result = self.adapter.execute(request)
@@ -161,7 +169,7 @@ class CodexWorkAction:
                                      execution_started=result.execution_started)
         artifact_path = self.adapter.artifact_root / result.artifact_name
         return {
-            "status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.deliverable.v2",
+            "status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.artifacts.v3",
             "capability": CAPABILITY, "assignment_id": assignment["id"],
             "objective_id": objective_id, "artifact_name": result.artifact_name,
             "artifact_path": str(artifact_path),
@@ -172,6 +180,11 @@ class CodexWorkAction:
             "repository_revision": result.repository_revision,
             "source_artifact_name": result.source_artifact_name,
             "changed_files": list(result.changed_files),
+            "artifacts": list(result.artifacts),
+            "artifact_contract": [{"name": item.name, "path": item.path,
+                "media_type": item.media_type,
+                "acceptance_criteria": list(item.acceptance_criteria),
+                "max_bytes": item.max_bytes} for item in request.artifact_requirements],
             "acceptance_criteria": list(request.acceptance_criteria),
             "rework_verification_id": result.rework_verification_id,
             "detail_code": result.detail_code,
@@ -210,169 +223,178 @@ class CodexWorkAction:
             repository_revision=repository_revision)
 
 
-class CodexMarkdownVerifier:
-    """Independently reopen artifact and verify assignment binding, digest and contract."""
+class CodexArtifactVerifier:
+    """Independently verify every persisted assignment-defined artifact."""
 
-    REVISION = "1.0.2"
-    MAX_BYTES = 32 * 1024
+    REVISION = "1.0.4"
     MAX_GRACE_REVIEW_BYTES = 12 * 1024
-
-    _NAME = re.compile(r"^codex-[0-9a-f]{64}(?:-r[0-9a-f]{12})?\.md$")
+    _NAME = re.compile(r"^codex-[0-9a-f]{64}(?:-r[0-9a-f]{12})?/[0-9a-f]{12}$")
 
     def __init__(self, artifact_root: str | Path, pipeline=None):
         self.artifact_root = Path(artifact_root)
         if pipeline is not None and not callable(
                 getattr(pipeline, "proposal_step_for_assignment", None)):
-            raise ValueError("persisted objective-step criteria resolver is required")
+            raise ValueError("persisted objective-step artifact resolver is required")
         self.pipeline = pipeline
 
-    def verify(self, assignment, attempt, result):
-        name = result.get("artifact_name") if isinstance(result, dict) else None
-        attempt_id = attempt.get("attempt_id", "unknown")
-        evidence = (f"urn:rv:worker-attempt:{attempt_id}",)
-        criteria = {
-            "attempt_succeeded": attempt.get("status") == "succeeded",
-            "executor_capability_matches": attempt.get("capability") == CAPABILITY,
-            "result_is_codex_deliverable": isinstance(result, dict) and
-                result.get("status") == "SUCCEEDED" and
-                result.get("artifact_schema") == "rv.codex-cli.deliverable.v2" and
-                result.get("capability") == CAPABILITY,
-            "artifact_path_is_assignment_bound": False,
-            "artifact_owner_mode_and_size_valid": False,
-            "artifact_digest_matches": False,
-            "markdown_deliverable_matches_objective": False,
-            "authorized_acceptance_criteria_bound": False,
-            "source_provenance_is_pinned": False,
-            "repository_provenance_is_pinned": False,
-        }
-        raw = None
-        assignment_key = hashlib.sha256(assignment["id"].encode("utf-8")).hexdigest()
-        rework_verification_id = result.get("rework_verification_id") if isinstance(result, dict) else None
-        if rework_verification_id is not None:
-            instruction = (self.pipeline.latest_rework_instruction(assignment["id"])
-                           if self.pipeline is not None else None)
-            expected_revision = hashlib.sha256(str(rework_verification_id).encode("utf-8")).hexdigest()[:12]
-            if (not instruction or instruction.get("verification_id") != rework_verification_id or
-                    instruction.get("acceptance_criteria_sha256") != hashlib.sha256(
-                        json.dumps(list(result.get("acceptance_criteria", ())), ensure_ascii=False,
-                            sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()):
-                expected_revision = None
-            expected_name = (f"codex-{assignment_key}-r{expected_revision}.md"
-                             if expected_revision else "")
-        else:
-            expected_name = f"codex-{assignment_key}.md"
-        path = self.artifact_root / expected_name
-        criteria["artifact_path_is_assignment_bound"] = bool(
-            expected_name and name == expected_name and self._NAME.fullmatch(str(name)) and
-            result.get("artifact_path") == str(path))
+    @staticmethod
+    def _valid_media(raw, media_type):
+        if not raw:
+            return False
         try:
-            root_info = self.artifact_root.lstat()
-            safe_root = (stat.S_ISDIR(root_info.st_mode) and
-                not self.artifact_root.is_symlink() and
-                root_info.st_uid == os.geteuid() and
-                stat.S_IMODE(root_info.st_mode) == 0o700 and
-                self.artifact_root.resolve() == self.artifact_root.absolute())
-            if safe_root and criteria["artifact_path_is_assignment_bound"]:
-                fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-                try:
-                    info = os.fstat(fd)
-                    criteria["artifact_owner_mode_and_size_valid"] = (
-                        stat.S_ISREG(info.st_mode) and info.st_uid == os.geteuid() and
-                        stat.S_IMODE(info.st_mode) == 0o600 and
-                        0 < info.st_size <= self.MAX_BYTES)
-                    raw = os.read(fd, self.MAX_BYTES + 1)
-                finally:
-                    os.close(fd)
-                criteria["artifact_digest_matches"] = bool(
-                    raw is not None and len(raw) <= self.MAX_BYTES and
-                    len(raw) == result.get("artifact_bytes") and
-                    hashlib.sha256(raw).hexdigest() == result.get("artifact_sha256"))
-                if criteria["artifact_digest_matches"]:
-                    body = raw.decode("utf-8")
-                    criteria["markdown_deliverable_matches_objective"] = bool(
-                        body.startswith("# ") and assignment.get("objective_ref") ==
-                        result.get("objective_id") and body.strip())
-                    expected_criteria = result.get("acceptance_criteria")
-                    if self.pipeline is not None:
-                        step = self.pipeline.proposal_step_for_assignment(
-                            assignment.get("objective_ref"), assignment.get("id"))
-                        expected_criteria = (step.get("acceptance_criteria")
-                                             if isinstance(step, Mapping) else None)
-                    # The verifier confirms that the executor's criteria snapshot
-                    # exactly matches the immutable assigned step. It does not
-                    # decide whether prose substantively satisfies those criteria;
-                    # Grace's bound reasoning model receives the artifact below.
-                    criteria["authorized_acceptance_criteria_bound"] = bool(
-                        isinstance(expected_criteria, (list, tuple)) and expected_criteria and
-                        all(isinstance(item, str) and item.strip()
-                            for item in expected_criteria) and
-                        ("acceptance_criteria" not in result or
-                         list(result.get("acceptance_criteria", ())) == list(expected_criteria)))
-                    evidence += ("workspace://" + name,
-                                 "sha256:" + result["artifact_sha256"])
-            criteria["source_provenance_is_pinned"] = bool(
-                re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}",
-                             str(result.get("source_revision", ""))) and
-                re.fullmatch(r"[0-9a-f]{64}",
-                             str(result.get("source_sha256", ""))))
-        except (OSError, UnicodeError, ValueError):
-            pass
-        criteria["repository_provenance_is_pinned"] = bool(
-            isinstance(result, dict) and
-            re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}",
-                         str(result.get("repository_revision", ""))))
-        accepted = all(criteria.values())
-        return VerificationResult(
-            VerificationStatus.ACCEPTED if accepted else VerificationStatus.REJECTED,
-            criteria, evidence if raw is not None else evidence[:1], self.REVISION,
-            ("Codex artifact integrity, provenance, authorization scope and required structure verified; "
-             "substantive acceptance criteria remain for Grace's review") if accepted else
-            "Codex Markdown artifact failed independent integrity, provenance, scope or structure verification")
+            body = raw.decode("utf-8")
+            if media_type in {"text/plain", "text/markdown"}:
+                return bool(body.strip())
+            if media_type == "application/json":
+                json.loads(body)
+                return True
+            if media_type == "text/csv":
+                import csv
+                return bool(next(csv.reader(body.splitlines()), []))
+            if media_type == "application/xml":
+                ET.fromstring(body)
+                return True
+        except (UnicodeError, ValueError, json.JSONDecodeError, StopIteration, ET.ParseError):
+            return False
+        return False
 
-    def read_artifact_for_grace_review(self, assignment_id, result):
-        """Return bounded artifact text only after repeating its persisted integrity checks."""
-        if (not isinstance(assignment_id, str) or not isinstance(result, Mapping) or
-                result.get("status") != "SUCCEEDED" or
-                result.get("artifact_schema") != "rv.codex-cli.deliverable.v2" or
-                result.get("capability") != CAPABILITY or
-                result.get("assignment_id") != assignment_id or
-                result.get("source_artifact_name") != "deliverable.md" or
-                result.get("changed_files") != ["deliverable.md"]):
-            raise ValueError("verified Codex artifact identity is required for Grace review")
+    def _open_verified(self, entry, assignment_id, rework_id=None):
+        name = entry.get("storage_name")
+        if not isinstance(name, str) or not self._NAME.fullmatch(name):
+            raise ValueError("artifact storage identity is invalid")
         key = hashlib.sha256(assignment_id.encode("utf-8")).hexdigest()
-        rework_id = result.get("rework_verification_id")
         suffix = ("-r" + hashlib.sha256(rework_id.encode("utf-8")).hexdigest()[:12]
-                  if isinstance(rework_id, str) and rework_id else "")
-        expected_name = f"codex-{key}{suffix}.md"
-        expected_path = self.artifact_root / expected_name
-        if (result.get("artifact_name") != expected_name or
-                result.get("artifact_path") != str(expected_path) or
-                type(result.get("artifact_bytes")) is not int or
-                not 0 < result["artifact_bytes"] <= self.MAX_GRACE_REVIEW_BYTES or
-                not re.fullmatch(r"[0-9a-f]{64}", str(result.get("artifact_sha256", "")))):
-            raise ValueError("Codex artifact exceeds Grace review bounds or identity")
-        root_info = self.artifact_root.lstat()
-        if (not stat.S_ISDIR(root_info.st_mode) or self.artifact_root.is_symlink() or
-                root_info.st_uid != os.geteuid() or stat.S_IMODE(root_info.st_mode) != 0o700 or
-                self.artifact_root.resolve() != self.artifact_root.absolute()):
-            raise ValueError("Codex artifact root is not protected for Grace review")
-        fd = os.open(expected_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+                  if isinstance(rework_id, str) else "")
+        expected = f"codex-{key}{suffix}/{hashlib.sha256(entry['name'].encode('utf-8')).hexdigest()[:12]}"
+        if name != expected:
+            raise ValueError("artifact storage identity is not assignment-bound")
+        directory, basename = name.split("/", 1)
+        root_fd = os.open(self.artifact_root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) |
+                          getattr(os, "O_NOFOLLOW", 0))
+        try:
+            directory_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) |
+                                   getattr(os, "O_NOFOLLOW", 0), dir_fd=root_fd)
+        finally:
+            os.close(root_fd)
+        try:
+            fd = os.open(basename, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=directory_fd)
+        finally:
+            os.close(directory_fd)
         try:
             info = os.fstat(fd)
             if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or
                     stat.S_IMODE(info.st_mode) != 0o600 or
-                    info.st_size != result["artifact_bytes"] or
-                    info.st_size > self.MAX_GRACE_REVIEW_BYTES):
-                raise ValueError("Codex artifact protection metadata changed before Grace review")
-            raw = os.read(fd, self.MAX_GRACE_REVIEW_BYTES + 1)
+                    type(entry.get("bytes")) is not int or
+                    not 0 < info.st_size == entry["bytes"] <= 32768):
+                raise ValueError("artifact protection metadata is invalid")
+            raw = os.read(fd, 32769)
         finally:
             os.close(fd)
-        if (len(raw) != result["artifact_bytes"] or
-                hashlib.sha256(raw).hexdigest() != result["artifact_sha256"]):
-            raise ValueError("Codex artifact digest changed before Grace review")
-        return {"artifact_name": expected_name,
-                "sha256": result["artifact_sha256"],
-                "body": raw.decode("utf-8")}
+        if (len(raw) != entry["bytes"] or
+                hashlib.sha256(raw).hexdigest() != entry.get("sha256") or
+                not self._valid_media(raw, entry.get("media_type"))):
+            raise ValueError("artifact integrity or declared type check failed")
+        return raw
+
+    def verify(self, assignment, attempt, result):
+        result = result if isinstance(result, dict) else {}
+        step = (self.pipeline.proposal_step_for_assignment(
+            assignment.get("objective_ref"), assignment.get("id"))
+            if self.pipeline is not None else None)
+        contract = step.get("artifact_requirements") if isinstance(step, Mapping) else None
+        entries = result.get("artifacts")
+        criteria = {
+            "attempt_succeeded": attempt.get("status") == "succeeded",
+            "executor_capability_matches": attempt.get("capability") == CAPABILITY,
+            "worker_report_succeeded": result.get("status") == "SUCCEEDED",
+            "result_schema_matches": result.get("artifact_schema") == "rv.codex-cli.artifacts.v3",
+            "assignment_and_objective_match": result.get("assignment_id") == assignment.get("id") and
+                result.get("objective_id") == assignment.get("objective_ref"),
+            "artifact_contract_matches_persisted_assignment": False,
+            "all_required_artifacts_integrity_and_type_verified": False,
+            "artifact_path_projection_matches_contract": False,
+            "authorized_acceptance_criteria_bound": False,
+            "source_provenance_is_pinned": bool(
+                re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(result.get("source_revision", ""))) and
+                re.fullmatch(r"[0-9a-f]{64}", str(result.get("source_sha256", "")))),
+            "repository_provenance_is_pinned": bool(
+                re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}",
+                             str(result.get("repository_revision", "")))),
+        }
+        evidence = (f"urn:rv:worker-attempt:{attempt.get('attempt_id', 'unknown')}",)
+        try:
+            root_info = self.artifact_root.lstat()
+            safe_root = (stat.S_ISDIR(root_info.st_mode) and not self.artifact_root.is_symlink() and
+                root_info.st_uid == os.geteuid() and stat.S_IMODE(root_info.st_mode) == 0o700 and
+                self.artifact_root.resolve() == self.artifact_root.absolute())
+            if not safe_root or not isinstance(contract, list) or not contract or not isinstance(entries, list):
+                raise ValueError("persisted artifact contract unavailable")
+            criteria["artifact_contract_matches_persisted_assignment"] = (
+                result.get("artifact_contract") == contract and len(entries) == len(contract) and
+                len({item.get("name") for item in entries if isinstance(item, dict)}) == len(entries) and
+                {item.get("name") for item in entries if isinstance(item, dict)} ==
+                    {item.get("name") for item in contract if isinstance(item, dict)})
+            criteria["authorized_acceptance_criteria_bound"] = criteria[
+                "artifact_contract_matches_persisted_assignment"] and all(
+                    entry.get("path") == requirement.get("path") and
+                    entry.get("media_type") == requirement.get("media_type") and
+                    entry.get("acceptance_criteria") == requirement.get("acceptance_criteria")
+                    for requirement in contract for entry in entries
+                    if isinstance(requirement, dict) and isinstance(entry, dict) and
+                    entry.get("name") == requirement.get("name"))
+            if criteria["artifact_contract_matches_persisted_assignment"]:
+                verified = []
+                for requirement in contract:
+                    entry = next(item for item in entries if item.get("name") == requirement["name"])
+                    raw = self._open_verified(entry, assignment["id"],
+                        result.get("rework_verification_id"))
+                    verified.append(entry)
+                    evidence += ("workspace://" + entry["storage_name"],
+                                 "sha256:" + entry["sha256"])
+                criteria["all_required_artifacts_integrity_and_type_verified"] = len(verified) == len(contract)
+                first = entries[0]
+                criteria["artifact_path_projection_matches_contract"] = (
+                    result.get("artifact_name") == first.get("storage_name") and
+                    result.get("artifact_path") == str(self.artifact_root / first.get("storage_name", "")) and
+                    result.get("artifact_sha256") == first.get("sha256") and
+                    result.get("artifact_bytes") == first.get("bytes") and
+                    result.get("source_artifact_name") == first.get("path") and
+                    result.get("changed_files") == sorted(item.get("path") for item in contract))
+        except (OSError, ValueError, TypeError, StopIteration):
+            pass
+        accepted = all(criteria.values())
+        return VerificationResult(
+            VerificationStatus.ACCEPTED if accepted else VerificationStatus.REJECTED,
+            criteria, evidence, self.REVISION,
+            "Assignment artifact set, formats, integrity, provenance and criteria binding verified" if accepted else
+            "Assignment artifact set failed independent contract, integrity, type or provenance verification")
+
+    def read_artifact_for_grace_review(self, assignment_id, result):
+        """Reopen the bounded artifact set only after repeating integrity checks."""
+        if (not isinstance(assignment_id, str) or not isinstance(result, Mapping) or
+                result.get("status") != "SUCCEEDED" or
+                result.get("artifact_schema") != "rv.codex-cli.artifacts.v3" or
+                result.get("capability") != CAPABILITY or
+                result.get("assignment_id") != assignment_id or
+                not isinstance(result.get("artifacts"), list) or
+                not 1 <= len(result["artifacts"]) <= 8):
+            raise ValueError("verified assignment artifact set is required for Grace review")
+        root_info = self.artifact_root.lstat()
+        if (not stat.S_ISDIR(root_info.st_mode) or self.artifact_root.is_symlink() or
+                root_info.st_uid != os.geteuid() or stat.S_IMODE(root_info.st_mode) != 0o700 or
+                self.artifact_root.resolve() != self.artifact_root.absolute()):
+            raise ValueError("artifact root is not protected for Grace review")
+        outputs = []
+        total = 0
+        for entry in result["artifacts"]:
+            raw = self._open_verified(entry, assignment_id, result.get("rework_verification_id"))
+            total += len(raw)
+            if total > self.MAX_GRACE_REVIEW_BYTES:
+                raise ValueError("artifact set exceeds Grace review bounds")
+            outputs.append({"name": entry["name"], "path": entry["path"],
+                "media_type": entry["media_type"], "sha256": entry["sha256"],
+                "body": raw.decode("utf-8")})
+        return {"artifacts": outputs}
 
 
 class CodexSourceChangeWorkAction:

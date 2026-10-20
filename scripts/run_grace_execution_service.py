@@ -3,7 +3,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.6
+# Revision: 1.2.7
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Wire persisted assignment-defined artifacts to the independent set verifier
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
 # Execution Model: systemd polling or explicitly supervised one-objective TTY run
 # Observability: Structured sanitized lifecycle logs and existing dashboard/PostgreSQL projections
@@ -64,7 +65,7 @@ from riverview_core.resident_execution.external_reasoning import DurableExternal
 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
 from riverview_core.resident_execution.codex_cli import CAPABILITY as CODEX_CAPABILITY
 from riverview_core.resident_execution.codex_cli import CodexAdapterError, CodexCLIExecutionAdapter
-from riverview_core.resident_execution.codex_workflow import (CodexMarkdownVerifier, CodexWorkAction,
+from riverview_core.resident_execution.codex_workflow import (CodexArtifactVerifier, CodexWorkAction,
     CodexSourceChangeResultVerifier, CodexSourceChangeWorkAction)
 from riverview_core.resident_execution.codex_source_change import (
     CAPABILITY as SOURCE_CHANGE_CAPABILITY, CodexSourceChangeAdapter,
@@ -408,7 +409,7 @@ def main() -> int:
                 execution_action = CodexWorkAction(
                     pipeline, codex_adapter, repository_reference,
                     timeout_seconds=timeout_seconds)
-                outcome_verifier = CodexMarkdownVerifier(artifact_root, pipeline)
+                outcome_verifier = CodexArtifactVerifier(artifact_root, pipeline)
             else:
                 allowed_paths = source_change_path_allowlist(os.environ)
                 try:

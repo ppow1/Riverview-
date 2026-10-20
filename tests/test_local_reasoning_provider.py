@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.15
+# Revision: 1.1.17
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Require dynamic artifact sets on bounded artifact proposals
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Cover retry prompt and verbatim negative criteria
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
@@ -112,7 +114,9 @@ class LocalReasoningProviderTests(unittest.TestCase):
         if text is None:
             text = json.dumps({"summary": "Inspect and report.", "steps": [{
                 "step_id": "inspect", "objective": "Inspect one file",
-                "acceptance_criteria": ["Record its revision"], "depends_on": []}]})
+                "acceptance_criteria": ["Record its revision"], "depends_on": [],
+                "artifact_requirements": [{"name":"report", "path":"reports/inspection.txt",
+                    "media_type":"text/plain", "acceptance_criteria":["Record its revision"]}]}]})
         return json.dumps({"model": served, "choices": [{"message": {"content": text},
                           "finish_reason": finish}],
                           "usage": {"completion_tokens": tokens}}).encode()
@@ -202,9 +206,13 @@ class LocalReasoningProviderTests(unittest.TestCase):
     def test_bounded_multi_step_proposal_preserves_dependency_order(self):
         self.response_body = self._response(text=json.dumps({"summary": "Inspect then verify", "steps": [
             {"step_id": "inspect", "objective": "Inspect the source", "acceptance_criteria": [
-                "Record source identity"], "depends_on": []},
+                "Record source identity"], "depends_on": [], "artifact_requirements": [{
+                    "name":"identity", "path":"reports/source.json", "media_type":"application/json",
+                    "acceptance_criteria":["Record source identity"]}]},
             {"step_id": "verify", "objective": "Verify the change", "acceptance_criteria": [
-                "Record test evidence"], "depends_on": ["inspect"]},
+                "Record test evidence"], "depends_on": ["inspect"], "artifact_requirements": [{
+                    "name":"tests", "path":"reports/test-results.csv", "media_type":"text/csv",
+                    "acceptance_criteria":["Record test evidence"]}]},
         ]}))
         proposal = self.provider.propose(self.request)
         self.assertEqual([step.step_id for step in proposal.steps], ["inspect", "verify"])
@@ -218,7 +226,9 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.response_body = self._response(text=json.dumps({
             "summary": "Request second opinion", "steps": [{
                 "step_id": "review", "objective": "Review verified facts",
-                "acceptance_criteria": ["Return advisory evidence"], "depends_on": []}],
+                "acceptance_criteria": ["Return advisory evidence"], "depends_on": [],
+                "artifact_requirements": [{"name":"advisory", "path":"records/advisory.json",
+                    "media_type":"application/json", "acceptance_criteria":["Return advisory evidence"]}]}],
             "external_escalation": {"reason": "capability_gap",
                                      "target_provider_id": "chatgpt:approved"}}))
         proposal = self.provider.propose(self.request)

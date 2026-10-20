@@ -2,15 +2,27 @@
 Riverview~ Controlled Development Record
 File: docs/development/RV-GRACE-ENGINEERING-CAPABILITY-GAPS-001_REVISION_RECORD.md
 Component: RESIDENT-ORCHESTRATION
-Document Revision: 1.0.0
+Document Revision: 1.0.1
 Purpose: Record implementation and validation for multi-file Codex, multi-step CME, and Grace continuation gaps
 Authority: Development-only; no production migration, grant, service, or deployment authority
 Changed: 2026-10-16 UTC | RV-GRACE-ENGINEERING-CAPABILITY-GAPS-001 | Record isolated implementation and production limitation
+Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Append superseding artifact-contract implementation record without rewriting historical findings
 Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md; docs/components/GRACE_PERSISTENT_EXECUTION.md; docs/components/WORKER_ADAPTER.md
 Tests: Canonical unittest suite on disposable PostgreSQL; process graph and revision audits
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Grace Engineering capability gaps — implementation record
+
+## 2026-10-20 superseding artifact contract correction
+
+The 2026-10-16 statement below that described the then-current single-output
+adapter is retained as a historical record of that implementation. It is
+superseded by `RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001`: new Codex artifact
+assignments carry exact names, safe relative paths, supported media types,
+per-artifact acceptance criteria and size limits in the persisted proposal and
+dispatch record. The worker, independent verifier, recovery path and Grace
+review handoff now process the complete contract-defined set. No universal
+filename is configured or accepted as a fallback.
 
 ## Source changes
 

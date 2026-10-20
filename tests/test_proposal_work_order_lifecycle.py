@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_proposal_work_order_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.3
+# Revision: 1.1.5
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Use a task-scoped path in typed formation contract fixture
 # Purpose: Verify revision approval and promotion into the existing objective pipeline
 # Execution Model: Pure command parser tests and disposable PostgreSQL integration
 # Observability: Proposal/objective events and correlation IDs are asserted
@@ -510,7 +512,7 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         spec = operations.execute("comms5_store_specification", {
             **base, "content": "A bounded specification.", "summary": "Fixture",
             "idempotency_key": "comms5:spec:1",
-            "formation_contract": {"allowed_paths": ["deliverable.md"]}},
+            "formation_contract": {"allowed_paths": ["reports/summary.txt"]}},
             principal_id="steward:authorized")
         cancelled = operations.execute("comms5_cancel_draft", {
             **base, "seed_id": spec["seed_id"], "reason": "Fixture cancellation",

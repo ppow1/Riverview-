@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.62",
+      "graph_revision": "1.0.63",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3446,9 +3446,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-cli-run",
-          "node_revision": "1.0.9",
+          "node_revision": "1.0.10",
           "type": "process",
-          "label": "INTEGRATED LEGACY ARTIFACT CAPABILITY — only deliverable.md may change; each concurrent assignment resolves objective provenance and criteria through its durable proposal-step assignment link, independently of the objective latest-assignment pointer; a separate exact-scope source-change capability produces a pinned patch and never applies it to production",
+          "label": "INTEGRATED DYNAMIC ARTIFACT CAPABILITY — each assignment carries its required artifact names, exact safe relative paths, supported media types, size limits and artifact-specific criteria; the worker accepts only that complete changed-path set, while the separate exact-scope source-change capability produces a pinned patch and never applies it to production",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -3477,9 +3477,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-artifact-verification",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "verification",
-          "label": "INTEGRATED SOURCE — separate verifier reopens the assignment-bound Markdown artifact and checks mode, size, digest, provenance and literal acceptance criteria",
+          "label": "INTEGRATED SOURCE — independent verifier reopens every assignment-defined artifact and checks its exact contract identity, path, media type, size, mode, digest, criteria binding and provenance",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -3517,9 +3517,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-execution-recovery",
-          "node_revision": "1.0.8",
+          "node_revision": "1.0.9",
           "type": "recovery",
-          "label": "Persisted CME recovery requeues typed Codex no-artifact failures only after lease expiry, verified objective provenance, exact objective_ref-to-step assignment plus matching dispatch-event/proposal linkage, remaining retry budget, and no attempt/result/verifier/artifact; same-assignment WAITING_FOR_EVIDENCE recovery still requires fresh VERIFIED grounding and action preflight, eligible typed intents, absent effects, and an atomic transition; claim rechecks exact grants",
+          "label": "Persisted CME recovery requeues typed Codex no-artifact failures only after lease expiry, verified objective provenance, exact objective_ref-to-step assignment plus matching dispatch-event/proposal linkage, remaining retry budget, and absence of any assignment-scoped artifact; same-assignment WAITING_FOR_EVIDENCE recovery still requires fresh VERIFIED grounding and action preflight, eligible typed intents, absent effects, and an atomic transition; claim rechecks exact grants",
           "source_references": [
             "src/riverview_core/resident_execution/codex_cli.py",
             "src/riverview_core/resident_execution/codex_workflow.py",
@@ -3882,9 +3882,9 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-persisted-criteria-verification",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "verification",
-          "label": "Verify the Codex deliverable against acceptance criteria resolved from the pre-dispatch PostgreSQL objective step linked to this assignment; missing durable criteria fail closed",
+          "label": "Verify the complete Codex artifact set against names, exact paths, media types, limits and acceptance criteria resolved from the pre-dispatch PostgreSQL objective step and its assignment dispatch record; missing durable contract fields fail closed",
           "source_references": [
             "src/riverview_core/resident_execution/codex_workflow.py",
             "src/riverview_core/resident_execution/pipeline.py",

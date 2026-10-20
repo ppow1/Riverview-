@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_ENGINEERING_DEMO_COMMISSIONING.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.8
+File Revision: 1.0.9
+Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Replace temporary single-output example with assignment-scoped artifact contract
 Purpose: Prepare the first bounded authenticated Grace-to-Codex Engineering demonstration
 Authority: Existing Steward grants, AuthorityRegistry, CME, worker, verifier, and conversation contracts
 Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Record exact source, database, grant, worker, and rollback gates
@@ -40,8 +41,8 @@ The correction checks `pg_catalog` for the exact profile table and evaluator sig
 
 1. The authenticated Steward sends the bounded objective in Talk with Grace, then uses the message menu's **Create Engineering work order…** action and supplies acceptance criteria. The dashboard route persists the objective with conversation origin and requires `objective.submit` on `work-order:engineering`.
 2. The persistent Grace service grounds the request, asks the currently bound 80B to formulate a typed proposal, and persists provider/model provenance. A proposal does not authorize execution.
-3. The service dispatches only after `assignment.create` succeeds. Existing CME events and leases move the assignment to a registered executor. The Codex action checks the pinned local source revision, creates a fresh clone, allows one fixed `deliverable.md`, and exposes no command/path/model controls to Grace.
-4. A distinct verifier reopens the artifact and checks assignment path, file type, mode, size, digest, source pin and literal acceptance criteria. Only persisted `ACCEPTED` verification completes the objective.
+3. The service dispatches only after `assignment.create` succeeds. Existing CME events and leases move the assignment to a registered executor. The Codex action reads the exact artifact contract persisted with that assignment, checks the pinned local source revision, creates a fresh clone, and exposes no command/path/model controls to Grace.
+4. A distinct verifier reopens every required artifact and checks the contract's exact identity, relative path, media type, size limit, ownership, mode, digest, source pin, and acceptance-criteria binding. Only persisted `ACCEPTED` verification completes the objective.
 5. A durable idempotent outbox rechecks the current Grace binding and conversation-send grant, has the bound 80B evaluate the evidence, and appends one result to the original conversation.
 
 ## Current verified baseline
@@ -121,7 +122,9 @@ The dispatch identity is the configured `service:grace-engineering-dispatch`; ex
 
 From the existing authenticated Steward website session, send this bounded objective:
 
-> Create `deliverable.md` in the isolated, pinned Riverview repository worktree. Summarize the source-implemented Grace website → objective intake → 80B proposal → CME dispatch → Codex adapter → independent verifier → source-conversation return. Cite the exact source paths listed below and distinguish source implementation from production commissioning. Do not claim live facts, read credentials or conversation bodies, use network access, or modify files other than `deliverable.md`.
+> Summarize the source-implemented Grace website → objective intake → 80B proposal → CME dispatch → Codex adapter → independent verifier → source-conversation return. Cite the exact source paths listed below and distinguish source implementation from production commissioning. Do not claim live facts, read credentials or conversation bodies, use network access, or modify paths outside the artifact contract in the persisted Engineering assignment.
+
+The assignment's persisted artifact contract must name each required artifact, its exact safe relative path, supported media type, per-artifact acceptance criteria and maximum size. For example, a report may be assigned as `reports/project-status.txt` with `text/plain`; a different task can request JSON or several outputs. The example path is task-specific and is not a system default.
 
 Then select **Create Engineering work order…** on that persisted Steward message and use these exact acceptance criteria:
 
@@ -152,7 +155,7 @@ profile bwrap /usr/bin/bwrap flags=(unconfined) {
 }
 ```
 
-This leaves `kernel.apparmor_restrict_unprivileged_userns=1` enabled. The profile grants the `userns` transition to invocations of `/usr/bin/bwrap`, so its allowance applies host-wide to that executable. Bubblewrap's requested sandbox remains mandatory and Codex remains fail-closed if setup fails. The previous AppArmor state was preserved in `/var/backups/riverview-apparmor-bwrap-20261015T0402Z/`; profile syntax validation, load, and the adapter bwrap probe passed. Direct `unshare -Ur /bin/true` remains denied, as expected. The bounded ChatGPT-authenticated Codex call produced one actual `deliverable.md` in a disposable workspace (91 bytes; SHA-256 `aa43782663dfae3c1f74033961e1116e382ef4ee08f8c7f003af2154faf207a4`). No API key was used or copied. This does not count as a Grace assignment.
+This leaves `kernel.apparmor_restrict_unprivileged_userns=1` enabled. The profile grants the `userns` transition to invocations of `/usr/bin/bwrap`, so its allowance applies host-wide to that executable. Bubblewrap's requested sandbox remains mandatory and Codex remains fail-closed if setup fails. The previous AppArmor state was preserved in `/var/backups/riverview-apparmor-bwrap-20261015T0402Z/`; profile syntax validation, load, and the adapter bwrap probe passed. Direct `unshare -Ur /bin/true` remains denied, as expected. The bounded ChatGPT-authenticated Codex call produced the task-requested artifact in a disposable workspace (91 bytes; SHA-256 `aa43782663dfae3c1f74033961e1116e382ef4ee08f8c7f003af2154faf207a4`). No API key was used or copied. This does not count as a Grace assignment.
 
 Rollback if the host trial conflicts with policy: restore the protected `unprivileged_userns` predecessor, remove the newly added `/etc/apparmor.d/bwrap`, reload AppArmor policy, and verify the sysctl remains `1`. The root-only backup contains the original policy file and prestate. No global AppArmor or namespace setting changed.
 

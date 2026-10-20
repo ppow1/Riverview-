@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.43
+# Revision: 1.0.44
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Assert incomplete-proposal exceptions map to a fixed safe diagnostic code
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Cover verifier-accepted dependent dispatch without second-model gating and bounded durable rejection escalation.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -80,7 +81,7 @@ from riverview_core.resident_execution import (
     GraceExecutionPipeline, ObjectiveNotAuthorized, ObjectiveStateError,
 )
 from riverview_core.resident_reasoning import (
-    PlanProposal, PlanStep, ReasoningResult, ReasoningStatus,
+    ArtifactRequirement, PlanProposal, PlanStep, ReasoningResult, ReasoningStatus,
 )
 from riverview_core.worker_adapter import ContinuousWorker, PostgresWorkerAdapter
 from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
@@ -498,7 +499,7 @@ class GraceExecutionTests(unittest.TestCase):
     def test_late_codex_artifact_is_preserved_for_independent_verification(self):
         from unittest.mock import patch
         from riverview_core.resident_execution.codex_cli import CAPABILITY
-        from riverview_core.resident_execution.codex_workflow import CodexMarkdownVerifier
+        from riverview_core.resident_execution.codex_workflow import CodexArtifactVerifier
         from riverview_core.worker_adapter import PostgresRecoveryCoordinator
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
 
@@ -582,7 +583,7 @@ class GraceExecutionTests(unittest.TestCase):
                 ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"]),
                 dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
                 verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
-                artifact_root=artifact_root, verifier=CodexMarkdownVerifier(artifact_root),
+                artifact_root=artifact_root, verifier=CodexArtifactVerifier(artifact_root),
                 execution_capability=CAPABILITY)
             self.assertFalse(service.revalidate_rejected_one(assignment_id))
             rejected_context = self.pipeline.pending_rejected_work_order_reviews()[0]
@@ -598,7 +599,7 @@ class GraceExecutionTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "transition interruption"):
                     self.adapter.verify_attempt(assignment_id, recovered[0]["attempt_id"],
                         self.verifier_id, self.credentials["verifier"],
-                        CodexMarkdownVerifier(artifact_root), idempotency_key=corrected_key)
+                        CodexArtifactVerifier(artifact_root), idempotency_key=corrected_key)
             self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
             self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".verification_records '
                 "WHERE attempt_id=%s AND decision='ACCEPTED'", (recovered[0]["attempt_id"],)).fetchone()[0], 1)
@@ -617,18 +618,24 @@ class GraceExecutionTests(unittest.TestCase):
         objective_id = "objective:project-status-report"
         self.pipeline.submit_objective(objective_id,
             "Assess whether a simple project-status report should be standard for new Riverview Engineering assignments; identify useful fields, stalled-work value, and risks.",
-            ["deliverable.md answers the assessment using only the original request and verified records",
-             "deliverable.md discloses when historical assignment analysis was not performed"],
+            ["The assigned report answers the assessment using only the original request and verified records",
+             "The report discloses when historical assignment analysis was not performed"],
             credential=self.credentials["steward"], scope_ref=self.scope,
             origin={"conversation_id": str(uuid4()), "source_sequence": 1})
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id, PlanProposal(
             "Draft a project-status report and map its fields", (
-                PlanStep("prepare", "Create deliverable.md with the requested project-status assessment",
-                         ("deliverable.md answers the assessment using only the original request and verified records",)),
+                PlanStep("prepare", "Create the requested project-status assessment",
+                         ("The assigned report answers the assessment using only the original request and verified records",
+                          "The report discloses when historical assignment analysis was not performed"),
+                         artifact_requirements=(ArtifactRequirement("status-report", "reports/project-status.md",
+                             "text/markdown", ("The assigned report answers the assessment using only the original request and verified records",
+                             "The report discloses when historical assignment analysis was not performed")),)),
                 PlanStep("followup", "Map report fields from verified assignment records",
-                         ("deliverable.md discloses when historical assignment analysis was not performed",),
-                         depends_on=("prepare",))), 0))
+                         ("The report discloses when historical assignment analysis was not performed",),
+                         depends_on=("prepare",), artifact_requirements=(ArtifactRequirement(
+                             "analysis-data", "reports/assignment-analysis.json", "application/json",
+                             ("The report discloses when historical assignment analysis was not performed",)),))), 0))
         class ResultPublisher:
             def __init__(self):
                 self.cycles = []
@@ -814,7 +821,9 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id,
             PlanProposal("Create acceptance artifact", (PlanStep("s1",
-                "Create deliverable.md", tuple(criteria)),), 0))
+                "Create an acceptance artifact", tuple(criteria), artifact_requirements=(
+                    ArtifactRequirement("acceptance", "reports/acceptance.txt", "text/plain",
+                        tuple(criteria)),)),), 0))
         self.pipeline.authorize_and_dispatch(objective_id, assignment_id,
             credential=self.credentials["steward"], authority_ref=self.scope,
             idempotency_key="rework-dispatch:" + suffix)
@@ -839,7 +848,7 @@ class GraceExecutionTests(unittest.TestCase):
             def verify(_self, _assignment, attempt, result):
                 from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
                 fixed = result.get("correction_instruction") == \
-                    "Include all four exact criteria in deliverable.md."
+                    "Include all four exact criteria in the assigned artifact."
                 accepted = fixed
                 flags = {"acceptance_criteria_are_present": bool(accepted),
                     "result_is_bound_to_assignment": result.get("acceptance_criteria") == criteria}
@@ -878,7 +887,7 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(context["step_id"], "s1")
         self.assertEqual(context["step_acceptance_criteria"], criteria)
         decision = {"decision": "REWORK_PROPOSED", "rationale": "The artifact omitted the exact criteria.",
-            "correction_instruction": "Include all four exact criteria in deliverable.md.",
+            "correction_instruction": "Include all four exact criteria in the assigned artifact.",
             "criteria_to_address": criteria}
         persisted = self.pipeline.record_rework_decision(context, decision,
             credential=self.credentials["steward"])
@@ -959,7 +968,7 @@ class GraceExecutionTests(unittest.TestCase):
                 from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
                 return VerificationResult(VerificationStatus.REJECTED,
                     {"criterion_missing": True}, ("urn:rv:worker-attempt:rejected",),
-                    _self.REVISION, "deliverable.md omitted a scoped acceptance criterion")
+                    _self.REVISION, "The assigned artifact omitted a scoped acceptance criterion")
 
         service = GraceExecutionService(self.pipeline, self.adapter, worker,
             dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
@@ -973,7 +982,7 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(context["step_acceptance_criteria"], criteria)
             decision = {"decision": "REWORK_PROPOSED",
                 "rationale": "Correct only the listed project-status acceptance criterion.",
-                "correction_instruction": "Update deliverable.md for the exact rejected criterion.",
+                "correction_instruction": "Update the assigned artifact for the exact rejected criterion.",
                 "criteria_to_address": [criteria[index % len(criteria)]]}
             saved = self.pipeline.record_rework_decision(context, decision,
                 credential=self.credentials["steward"])

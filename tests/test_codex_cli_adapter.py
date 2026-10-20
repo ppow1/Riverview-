@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.8
+# Revision: 1.2.9
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Cover concurrent sibling-step execution when the objective's latest assignment pointer names the other step.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify paraphrased substantive content passes integrity checks and Grace receives only digest-verified bounded artifact text.
 # Purpose: Verify bounded subscription-authenticated Codex adapter contracts
@@ -41,13 +42,15 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from riverview_core.resident_reasoning import ArtifactRequirement
 from riverview_core.resident_execution.codex_cli import (
     CAPABILITY, CodexAdapterError, CodexAssignment, CodexCLIExecutionAdapter,
 )
 from riverview_core.resident_execution.codex_workflow import (
-    CodexMarkdownVerifier, CodexWorkAction,
+    CodexArtifactVerifier, CodexWorkAction,
 )
 from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+from riverview_core.worker_adapter.recovery import _codex_artifact_files
 
 
 class CodexCLIAdapterTests(unittest.TestCase):
@@ -80,11 +83,16 @@ class CodexCLIAdapterTests(unittest.TestCase):
             "required += ['approval_policy=\"never\"','sandbox_workspace_write.network_access=false']\n"
             "if any(value not in args for value in required): raise SystemExit(8)\n"
             "if '--fail' in args: raise SystemExit(4)\n"
-            "path=pathlib.Path.cwd()/'deliverable.md'\n"
-            "path.write_text('# Verified fixture\\n\\nThe deliverable exists.\\n')\n"
+            "prompt=sys.stdin.read()\n"
+            "contract=json.loads(prompt.split('Artifact contract:\\n',1)[1])\n"
+            "records=[]\n"
+            "for item in contract:\n"
+            " path=pathlib.Path.cwd()/item['path']; path.parent.mkdir(parents=True,exist_ok=True)\n"
+            " body={'application/json':'{\\\"ok\\\":true}', 'text/csv':'id,value\\\\n1,ok\\\\n', 'application/xml':'<root/>', 'text/markdown':'# Verified\\\\n', 'text/plain':'Verified fixture\\\\n'}[item['media_type']]\n"
+            " path.write_text(body)\n"
+            " records.append({'name':item['name'],'path':item['path'],'summary':'Created fixture'})\n"
             "out=pathlib.Path(args[args.index('--output-last-message')+1])\n"
-            "out.write_text(json.dumps({'status':'DELIVERABLE_PRODUCED',"
-            "'artifact_name':'deliverable.md','summary':'Created fixture'}))\n",
+            "out.write_text(json.dumps({'status':'ARTIFACTS_PRODUCED','artifacts':records,'summary':'Created fixture'}))\n",
             encoding="utf-8")
         self.codex.chmod(0o700)
         self.codex_home = self.root / "service-codex-home"
@@ -106,7 +114,9 @@ class CodexCLIAdapterTests(unittest.TestCase):
         values = dict(assignment_id="assignment:test-1", objective_id="objective:test-1",
             repository_reference="repo://example/test", repository_revision=self.revision,
             task_scope="Create a short test deliverable.",
-            acceptance_criteria=("The deliverable exists.",), timeout_seconds=5)
+            acceptance_criteria=("The report contains a verified summary.",),
+            artifact_requirements=(ArtifactRequirement("report", "reports/summary.txt", "text/plain",
+                ("The report contains a verified summary.",)),), timeout_seconds=5)
         values.update(changes)
         return CodexAssignment(**values)
 
@@ -118,28 +128,32 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertTrue(result.verification_required)
         path = self.artifacts / result.artifact_name
         self.assertEqual(path.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(path.read_text(encoding="utf-8"),
-                         "# Verified fixture\n\nThe deliverable exists.\n")
+        self.assertTrue(path.read_text(encoding="utf-8").startswith("Verified fixture"))
         self.assertEqual(result.artifact_bytes, path.stat().st_size)
         self.assertEqual(len(result.artifact_sha256), 64)
-        self.assertEqual(result.source_artifact_name, "deliverable.md")
-        self.assertEqual(result.changed_files, ("deliverable.md",))
+        self.assertEqual(result.source_artifact_name, "reports/summary.txt")
+        self.assertEqual(result.changed_files, ("reports/summary.txt",))
+        self.assertEqual(result.artifacts[0]["media_type"], "text/plain")
         self.assertEqual(list(self.workspace.iterdir()), [])
 
-    def test_committed_deliverable_is_accepted_when_it_is_the_only_changed_path(self):
+    def test_committed_artifact_is_accepted_when_it_is_the_only_changed_path(self):
         self.codex.write_text(
             "#!/usr/bin/env python3\n"
             "import json,pathlib,subprocess,sys\n"
             "args=sys.argv[1:]\n"
-            "path=pathlib.Path.cwd()/'deliverable.md'\n"
-            "path.write_text('# Verified fixture\\n\\nThe deliverable exists.\\n')\n"
-            "subprocess.run(['/usr/bin/git','add','--','deliverable.md'],check=True)\n"
+            "prompt=sys.stdin.read()\n"
+            "contract=json.loads(prompt.split('Artifact contract:\\n',1)[1])\n"
+            "records=[]\n"
+            "for item in contract:\n"
+            " path=pathlib.Path.cwd()/item['path']; path.parent.mkdir(parents=True,exist_ok=True)\n"
+            " path.write_text('\\\"ok\\\": true' if item['media_type']=='application/json' else 'Verified fixture')\n"
+            " records.append({'name':item['name'],'path':item['path'],'summary':'Created'})\n"
+            "subprocess.run(['/usr/bin/git','add','--',*[item['path'] for item in contract]],check=True)\n"
             "subprocess.run(['/usr/bin/git','-c','user.name=Riverview Test',"
             "'-c','user.email=riverview-test@example.invalid','commit','-m','bounded deliverable'],"
             "check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n"
             "out=pathlib.Path(args[args.index('--output-last-message')+1])\n"
-            "out.write_text(json.dumps({'status':'DELIVERABLE_PRODUCED',"
-            "'artifact_name':'deliverable.md','summary':'Created fixture'}))\n",
+            "out.write_text(json.dumps({'status':'ARTIFACTS_PRODUCED','artifacts':records,'summary':'Created fixture'}))\n",
             encoding="utf-8")
         result = self.adapter().execute(self.assignment())
         self.assertEqual(result.status, "DELIVERABLE_PRODUCED")
@@ -147,23 +161,92 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertTrue((self.artifacts / result.artifact_name).is_file())
         self.assertEqual(list(self.workspace.iterdir()), [])
 
-    def test_extra_workspace_path_is_rejected_even_when_deliverable_exists(self):
+    def test_extra_workspace_path_is_rejected_even_when_required_artifact_exists(self):
         self.codex.write_text(
             "#!/usr/bin/env python3\n"
             "import json,pathlib,sys\n"
             "args=sys.argv[1:]\n"
-            "path=pathlib.Path.cwd()/'deliverable.md'\n"
-            "path.write_text('# Verified fixture\\n\\nThe deliverable exists.\\n')\n"
+            "prompt=sys.stdin.read()\n"
+            "contract=json.loads(prompt.split('Artifact contract:\\n',1)[1])\n"
+            "records=[]\n"
+            "for item in contract:\n"
+            " path=pathlib.Path.cwd()/item['path']; path.parent.mkdir(parents=True,exist_ok=True); path.write_text('Verified fixture')\n"
+            " records.append({'name':item['name'],'path':item['path'],'summary':'Created'})\n"
             "(pathlib.Path.cwd()/'unexpected.txt').write_text('out of scope')\n"
             "out=pathlib.Path(args[args.index('--output-last-message')+1])\n"
-            "out.write_text(json.dumps({'status':'DELIVERABLE_PRODUCED',"
-            "'artifact_name':'deliverable.md','summary':'Created fixture'}))\n",
+            "out.write_text(json.dumps({'status':'ARTIFACTS_PRODUCED','artifacts':records,'summary':'Created fixture'}))\n",
             encoding="utf-8")
         result = self.adapter().execute(self.assignment())
         self.assertEqual(result.status, "INVALID_RESULT")
         self.assertEqual(result.detail_code, "workspace_change_set_invalid")
         self.assertTrue(result.execution_started)
         self.assertEqual(list(self.artifacts.iterdir()), [])
+
+    def test_multiple_assignment_artifacts_support_json_and_csv_without_markdown_assumptions(self):
+        requirements = (
+            ArtifactRequirement("summary", "results/summary.json", "application/json",
+                ("The summary has a boolean ok field.",)),
+            ArtifactRequirement("rows", "results/rows.csv", "text/csv",
+                ("The rows include a header and one result.",)),
+        )
+        requirement_data = [{"name": item.name, "path": item.path,
+            "media_type": item.media_type, "acceptance_criteria": list(item.acceptance_criteria),
+            "max_bytes": item.max_bytes} for item in requirements]
+        class Pipeline:
+            def get_objective(_self, objective_id):
+                return {"objective_id": objective_id, "status": "WORK_ORDER_CREATED",
+                    "source_revision": self.revision, "source_sha256": "a" * 64,
+                    "evidence": {"status": "VERIFIED", "source_revision": self.revision,
+                        "source_sha256": "a" * 64}, "proposal": {"steps": [{
+                            "objective": "Create report files", "acceptance_criteria": ["Complete" ]}]}}
+            def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
+                return {"objective": "Create report files", "acceptance_criteria": ["Complete"],
+                    "artifact_requirements": requirement_data}
+        pipeline = Pipeline()
+        assignment = {"id": "assignment:test-1", "objective_ref": "objective:test-1"}
+        grounded = KnowledgeResult(KnowledgeStatus.VERIFIED,
+            source_references=("repo://docs/example.md",), source_revision=self.revision,
+            source_sha256="b" * 64, retrieval_complete=True)
+        result = CodexWorkAction(pipeline, self.adapter(), "repo://example/test", 5)(assignment, grounded)
+        self.assertEqual([item["path"] for item in result["artifacts"]],
+            ["results/summary.json", "results/rows.csv"])
+        self.assertEqual([item["media_type"] for item in result["artifacts"]],
+            ["application/json", "text/csv"])
+        self.assertEqual(set(result["changed_files"]), {item.path for item in requirements})
+        self.assertTrue(all((self.artifacts / item["storage_name"]).is_file()
+            for item in result["artifacts"]))
+        verification = CodexArtifactVerifier(self.artifacts, pipeline).verify(assignment,
+            {"status": "succeeded", "capability": CAPABILITY,
+             "attempt_id": "attempt:multi-artifact"}, result)
+        self.assertEqual(verification.status.value, "ACCEPTED")
+        changed = dict(result)
+        changed["artifact_contract"] = [dict(item) for item in result["artifact_contract"]]
+        changed["artifact_contract"][0]["acceptance_criteria"] = ["unauthorized criterion"]
+        rejected = CodexArtifactVerifier(self.artifacts, pipeline).verify(assignment,
+            {"status": "succeeded", "capability": CAPABILITY,
+             "attempt_id": "attempt:changed-contract"}, changed)
+        self.assertEqual(rejected.status.value, "REJECTED")
+
+    def test_recovery_finds_assignment_bound_extensionless_multi_artifact_set(self):
+        assignment_id = "assignment:recovery-dynamic-artifacts"
+        key = __import__("hashlib").sha256(assignment_id.encode()).hexdigest()
+        directory = self.artifacts / f"codex-{key}"
+        directory.mkdir(mode=0o700)
+        directory.chmod(0o700)
+        for name, body in (("a1b2c3d4e5f6", b"{\"ok\":true}"),
+                           ("0f1e2d3c4b5a", b"id,value\n1,ok\n")):
+            path = directory / name
+            path.write_bytes(body)
+            path.chmod(0o600)
+        recovered = _codex_artifact_files(self.artifacts, assignment_id)
+        self.assertEqual({path.name for path in recovered}, {"a1b2c3d4e5f6", "0f1e2d3c4b5a"})
+        self.assertTrue(all(path.parent == directory for path in recovered))
+
+    def test_artifact_requirement_rejects_traversal_and_unsupported_type(self):
+        with self.assertRaises(ValueError):
+            ArtifactRequirement("escape", "../outside.txt", "text/plain", ("safe",))
+        with self.assertRaises(ValueError):
+            ArtifactRequirement("binary", "image.bin", "application/octet-stream", ("safe",))
 
     def test_codex_action_failure_exposes_only_bounded_retry_metadata(self):
         from riverview_core.resident_execution.codex_workflow import CodexActionFailure
@@ -285,9 +368,12 @@ class CodexCLIAdapterTests(unittest.TestCase):
             def proposal_step_for_assignment(self, objective_id, assignment_id):
                 self.assertion = (objective_id, assignment_id)
                 return {"objective": "Create bounded Markdown.",
-                        "acceptance_criteria": ["The deliverable exists."],
+                        "acceptance_criteria": ["The report contains a verified summary."],
                         "depends_on": [], "execution_capability": CAPABILITY,
-                        "authorized_paths": [], "test_targets": []}
+                        "authorized_paths": [], "test_targets": [],
+                        "artifact_requirements": [{"name":"report", "path":"reports/summary.txt",
+                            "media_type":"text/plain", "acceptance_criteria":[
+                                "The report contains a verified summary."], "max_bytes":32768}]}
         adapter = self.adapter()
         pipeline = Pipeline()
         action = CodexWorkAction(pipeline, adapter, "repo://example/test", 5)
@@ -301,7 +387,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertEqual(result["source_sha256"], "b" * 64)
         self.assertEqual(result["repository_revision"], self.revision)
         self.assertTrue(Path(result["artifact_path"]).is_file())
-        verification = CodexMarkdownVerifier(self.artifacts, pipeline).verify(
+        verification = CodexArtifactVerifier(self.artifacts, pipeline).verify(
             assignment, {"status": "succeeded", "capability": CAPABILITY,
                        "attempt_id": "attempt:fixture"}, result)
         self.assertEqual(verification.status.value, "ACCEPTED")
@@ -311,7 +397,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         # the durable executor result omitted its redundant criteria echo.
         missing_echo = {key: value for key, value in result.items()
                         if key != "acceptance_criteria"}
-        recovered = CodexMarkdownVerifier(self.artifacts, pipeline).verify(
+        recovered = CodexArtifactVerifier(self.artifacts, pipeline).verify(
             assignment, {"status": "succeeded", "capability": CAPABILITY,
                         "attempt_id": "attempt:criteria-recovery"}, missing_echo)
         self.assertEqual(recovered.status.value, "ACCEPTED")
@@ -324,7 +410,13 @@ class CodexCLIAdapterTests(unittest.TestCase):
                     "source_sha256": "a" * 64, "evidence": {"status": "VERIFIED",
                         "source_revision": revision, "source_sha256": "a" * 64},
                     "proposal": {"steps": [{"objective": "Create bounded Markdown.",
-                        "acceptance_criteria": ["The deliverable exists."]}]}}
+                        "acceptance_criteria": ["The report contains a verified summary."]}]}}
+            def proposal_step_for_assignment(self, _objective_id, _assignment_id):
+                return {"objective": "Create bounded report",
+                    "acceptance_criteria": ["The report contains a verified summary."],
+                    "artifact_requirements": [{"name":"report", "path":"reports/summary.txt",
+                    "media_type":"text/plain", "acceptance_criteria":[
+                        "The report contains a verified summary."], "max_bytes":32768}]}
         revision = self.revision
         adapter = self.adapter()
         action = CodexWorkAction(Pipeline(), adapter, "repo://example/test", 5)
@@ -335,12 +427,12 @@ class CodexCLIAdapterTests(unittest.TestCase):
         result = action(assignment, grounded)
         self.assertEqual(result["repository_revision"], revision)
         Path(result["artifact_path"]).write_text("# altered\n", encoding="utf-8")
-        verification = CodexMarkdownVerifier(self.artifacts).verify(
+        verification = CodexArtifactVerifier(self.artifacts, Pipeline()).verify(
             assignment, {"status": "succeeded", "capability": CAPABILITY,
                        "attempt_id": "attempt:fixture"}, result)
         self.assertEqual(verification.status.value, "REJECTED")
 
-    def test_independent_verifier_leaves_substantive_criteria_for_grace_and_reopens_digest_checked_text(self):
+    def test_independent_verifier_reopens_digest_checked_dynamic_artifact_set_for_grace(self):
         criterion = "Explain that source implementation does not establish production commissioning."
 
         class Pipeline:
@@ -356,21 +448,25 @@ class CodexCLIAdapterTests(unittest.TestCase):
             def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
                 return {"objective": "Write a concise report", "acceptance_criteria": [criterion],
                     "depends_on": [], "execution_capability": CAPABILITY,
-                    "authorized_paths": [], "test_targets": []}
+                    "authorized_paths": [], "test_targets": [], "artifact_requirements": [
+                        {"name":"report", "path":"reports/summary.txt", "media_type":"text/plain",
+                         "acceptance_criteria":[criterion], "max_bytes":32768}]}
 
         grounded = KnowledgeResult(KnowledgeStatus.VERIFIED,
             source_references=("repo://docs/example.md",), source_revision=self.revision,
             source_sha256="b" * 64, retrieval_complete=True)
         result = CodexWorkAction(Pipeline(), self.adapter(), "repo://example/test", 5)(
             {"id": "assignment:test-1", "objective_ref": "objective:test-1"}, grounded)
-        body = "# Production evidence\n\nThe checked-in files describe implementation only; no live deployment was tested.\n"
+        body = "The checked-in files describe implementation only; no live deployment was tested.\n"
         path = Path(result["artifact_path"])
         path.write_text(body, encoding="utf-8")
         path.chmod(0o600)
         result["artifact_bytes"] = len(body.encode("utf-8"))
         result["artifact_sha256"] = __import__("hashlib").sha256(body.encode("utf-8")).hexdigest()
+        result["artifacts"][0]["bytes"] = result["artifact_bytes"]
+        result["artifacts"][0]["sha256"] = result["artifact_sha256"]
 
-        verifier = CodexMarkdownVerifier(self.artifacts, Pipeline())
+        verifier = CodexArtifactVerifier(self.artifacts, Pipeline())
         verification = verifier.verify({"id": "assignment:test-1",
             "objective_ref": "objective:test-1"}, {"status": "succeeded",
             "capability": CAPABILITY, "attempt_id": "attempt:substantive"}, result)
@@ -379,11 +475,11 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertNotIn("acceptance_criteria_are_present", verification.criteria)
 
         review = verifier.read_artifact_for_grace_review("assignment:test-1", result)
-        self.assertEqual(review["body"], body)
-        self.assertEqual(review["sha256"], result["artifact_sha256"])
+        self.assertEqual(review["artifacts"][0]["body"], body)
+        self.assertEqual(review["artifacts"][0]["sha256"], result["artifact_sha256"])
         path.write_text("# Changed after verification\n", encoding="utf-8")
         path.chmod(0o600)
-        with self.assertRaisesRegex(ValueError, "protection metadata changed"):
+        with self.assertRaisesRegex(ValueError, "protection metadata|integrity"):
             verifier.read_artifact_for_grace_review("assignment:test-1", result)
 
     def test_codex_child_does_not_receive_an_api_key(self):

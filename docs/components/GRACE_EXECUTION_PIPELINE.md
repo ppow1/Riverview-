@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.26
+File Revision: 1.1.27
+Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Specify durable per-assignment multi-artifact contracts, media validation and recovery
 Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Specify durable per-step assignment provenance for concurrent Codex execution and same-assignment no-artifact recovery.
 Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Make independent verifier acceptance advance persisted dependent steps and specify bounded rejection correction/escalation.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -236,8 +237,10 @@ Tests include authorized and unauthorized intake, commit-pinned selection, missi
 
 `resident_execution.codex_cli.CodexCLIExecutionAdapter` accepts a typed
 assignment, one operator-configured repository reference and pinned commit, and
-a fixed `deliverable.md` output. It creates a fresh local clone, invokes the
-configured Codex executable with `workspace-write`, network access disabled, a
+a set of exact outputs from the persisted assignment artifact contract. Each
+output names a safe relative repository path, media type, bounded size, and
+artifact-specific acceptance requirements. It creates a fresh local clone,
+invokes the configured Codex executable with `workspace-write`, network access disabled, a
 noninteractive approval policy, bounded wall time and file size, and discarded
 stdout/stderr. It rejects the interactive user's `~/.codex` directory and
 returns only the assignment, knowledge-source revision, pinned repository
@@ -258,9 +261,10 @@ scope. Startup preflight requires a configured executable, dedicated
 `CODEX_HOME`, isolated workspace, pinned repository, and artifact directory.
 The normal CME lease, preflight/regrounding, execution-intent, attempt/result,
 and independent verification records remain the execution path. The
-`CodexMarkdownVerifier` independently reopens the assignment-bound file,
-checks ownership/mode/size/digest, objective binding, both provenance
-dimensions, and literal acceptance criteria. The result path and digest are retained in the
+`CodexArtifactVerifier` independently reopens every assignment-bound output,
+validates its declared type and bytes, checks exact paths and criteria against
+the durable dispatch record, and preserves objective binding and both provenance
+dimensions. Every output path and digest are retained in the
 worker result and Grace objective completion event/projection.
 
 The separate `engineering.codex-cli-source-change.v1` mode reuses the same
