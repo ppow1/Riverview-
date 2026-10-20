@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/WORKER_ADAPTER_COOKBOOK.md
 Component: WORKER-ADAPTER
-File Revision: 1.0.22
+File Revision: 1.0.25
+Changed: 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Document the read-only preconditions and single-use retry disposition stop points.
 Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Document durable per-step provenance selection for concurrent Codex execution and no-artifact recovery.
 Purpose: Diagnose worker identity, attempts, verification and recovery; retire the exact M33 registrations safely
 Authority: Read-only diagnosis; retirement only through the fixed Steward-authorized M33 operation. Credential delivery and enrollment remain trusted control-plane operations.
@@ -69,6 +70,48 @@ and drops only that schema. Never point it at shared `riverview_dev`.
 ```bash
 PYTHONPATH=src RIVERVIEW_TEST_PG_DSN='<disposable PostgreSQL DSN>' python3 -m unittest tests.test_worker_adapter -v
 ```
+
+## Exhausted S3 no-artifact assignment: authorized one-use disposition
+
+This path applies only to one existing assignment blocked at
+`WORKER_RETRYABLE_NO_ARTIFACT` after the configured retry ceiling. It is not an
+automatic retry and does not reset the ceiling or create a replacement
+assignment. Do not invoke it from a routine polling cycle.
+
+Before invocation, an authorized read-only operator must confirm all of the
+following for the same objective, step and assignment: one persisted dispatch;
+the proposal step's artifact contract is byte-for-byte equivalent to the
+dispatch contract; the canonical contract SHA-256 matches the proposed
+disposition; objective evidence and every dependency remain verified; the
+assignment is blocked at the typed no-artifact state; its last lease expired;
+the retry-safe count exactly equals the configured ceiling; prior intents are
+`retry_scheduled` with exact matching recovery rows, and the current expired
+generation has one completed metadata failure with no recovery row yet; and attempts, results,
+verification records and adapter artifacts remain absent. W1's metadata-only
+contract summary may be used to cross-check names, paths, media types and bounds;
+never include artifact contents in the authorization record.
+
+The digest is SHA-256 over UTF-8 JSON serialized with sorted keys, compact
+`(',', ':')` separators, `ensure_ascii=False`, and `allow_nan=False`.
+
+The implementation is
+`PostgresRecoveryCoordinator.authorize_one_no_artifact_retry`. It requires the
+existing exact `service.recover` grant in `service-recovery.v1` plus the normal
+worker's exact `assignment.execute` grant and active registration. It atomically
+appends one `worker_recovery_dispositions` record and the causal ledger event,
+then returns the original assignment to `ready`. The unique assignment key,
+idempotency receipt and append-only trigger prevent a second disposition. The
+normal worker must still claim and start the next lease generation. No more
+than that one generation is authorized by this disposition; any subsequent
+failure remains blocked under the unchanged global ceiling. A second key,
+changed contract, changed objective/step, active lease, mismatched grant, or any
+durable work effect is a hard stop.
+
+**Human boundary:** the code change and isolated regression tests do not approve
+production invocation. Capture the exact assignment/contract/retry evidence and
+obtain the separate Steward authorization before calling the operation. If the
+persisted S3 contract metadata does not match the expected digest or the W1
+summary is unavailable, stop with the assignment untouched.
 
 The tests verify authenticated scope-filtered dispatch and start,
 token/capability/scope rejection, credential digest storage, deterministic

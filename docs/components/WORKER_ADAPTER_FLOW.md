@@ -1,6 +1,6 @@
 # Riverview~ worker adapter flow
 
-**Document Revision:** 1.0.11
+**Document Revision:** 1.0.13
 **Component:** WORKER-ADAPTER
 **Canonical workflow:** `process_graphs/worker-adapter/deterministic-attempt.json`
 **Generated from:** canonical workflow JSON; do not edit the Mermaid projection by hand.
@@ -52,6 +52,11 @@ flowchart LR
     g_rv_worker_adapter_deterministic_attempt_late_artifact_257af9c7["Inspect an assignment-bound late Codex artifact after an outcome-unknown recovery"]
     g_rv_worker_adapter_deterministic_attempt_late_artifact_check_55e911c7{"Require the unchanged objective, original intent, expired lease, current exact grant, private artifact, and no prior attempt or verifier"}
     g_rv_worker_adapter_deterministic_attempt_late_artifact_rejected_79d51714[["Keep outcome unknown when late artifact identity, provenance, ownership, or scope cannot be proven"]]
+    g_rv_worker_adapter_deterministic_attempt_single_use_disposition_request_7cdec29f(["Explicitly request one disposition for an existing exhausted no-artifact assignment"])
+    g_rv_worker_adapter_deterministic_attempt_single_use_disposition_check_3752bed3["Require exact grants, unchanged verified step contract and dependencies, expired failed generation, preserved exhausted recovery history, and no artifacts"]
+    g_rv_worker_adapter_deterministic_attempt_single_use_disposition_denied_880f24fb[["Keep the original assignment blocked when any authorization or no-effect predicate fails"]]
+    g_rv_worker_adapter_deterministic_attempt_single_use_disposition_audit_8d3395b6["Append one immutable disposition and causal assignment event without changing prior retry history"]
+    g_rv_worker_adapter_deterministic_attempt_single_use_disposition_ready_b31f0e76["Return the same assignment to ready once; normal claim authorizes only the next fenced generation"]
   end
   g_rv_assignment_scheduler_independent_claims_start_check_f588e935["Registered target<br/>rv:assignment-scheduler:independent-claims"]
   g_rv_outcome_verifier_independent_result_verification_intake_faa4dd99["Registered target<br/>rv:outcome-verifier:independent-result"]
@@ -119,6 +124,11 @@ flowchart LR
   g_rv_worker_adapter_deterministic_attempt_recovery_intent_d549a47e -->|Lease maintained across action execution| g_rv_worker_adapter_deterministic_attempt_lease_heartbeat_f694af09
   g_rv_worker_adapter_deterministic_attempt_lease_heartbeat_f694af09 -->|Action remains within the active generation| g_rv_worker_adapter_deterministic_attempt_action_cef7346f
   g_rv_worker_adapter_deterministic_attempt_lease_heartbeat_f694af09 -->|diagnostic_branch: Lease heartbeat is fenced| g_rv_worker_adapter_deterministic_attempt_action_failure_d12eae6a
+  g_rv_worker_adapter_deterministic_attempt_single_use_disposition_request_7cdec29f -->|Explicit authenticated recovery request| g_rv_worker_adapter_deterministic_attempt_single_use_disposition_check_3752bed3
+  g_rv_worker_adapter_deterministic_attempt_single_use_disposition_check_3752bed3 -->|diagnostic_branch: Grant, exact assignment, contract digest, history, lease, or no-effect check fails| g_rv_worker_adapter_deterministic_attempt_single_use_disposition_denied_880f24fb
+  g_rv_worker_adapter_deterministic_attempt_single_use_disposition_check_3752bed3 -->|verification: Every disposition predicate passes| g_rv_worker_adapter_deterministic_attempt_single_use_disposition_audit_8d3395b6
+  g_rv_worker_adapter_deterministic_attempt_single_use_disposition_audit_8d3395b6 -->|Append audit and transition atomically| g_rv_worker_adapter_deterministic_attempt_single_use_disposition_ready_b31f0e76
+  g_rv_worker_adapter_deterministic_attempt_single_use_disposition_ready_b31f0e76 -->|recovery_route: Normal claim repeats worker capability, scope, lease, and assignment.execute checks| g_rv_worker_adapter_deterministic_attempt_claim_ad2357b6
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

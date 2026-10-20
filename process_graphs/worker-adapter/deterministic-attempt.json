@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:worker-adapter:deterministic-attempt",
-  "graph_revision": "1.0.14",
+  "graph_revision": "1.0.16",
   "component_id": "WORKER-ADAPTER",
   "workflow_id": "deterministic-attempt.v1",
   "diagram_order": 7,
@@ -14,6 +14,7 @@
     "src/riverview_core/worker_adapter/migrations/0001_worker_attempts.sql",
     "src/riverview_core/worker_adapter/migrations/0002_knowledge_observations.sql",
     "src/riverview_core/worker_adapter/migrations/0004_failure_recovery.sql",
+    "src/riverview_core/worker_adapter/migrations/0007_single_use_recovery_dispositions.sql",
     "src/riverview_core/worker_adapter/recovery.py",
     "tests/test_local_inference.py",
     "tests/test_worker_adapter.py",
@@ -723,6 +724,77 @@
         "docs/components/WORKER_ADAPTER.md"
       ],
       "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:single-use-disposition-request",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Explicitly request one disposition for an existing exhausted no-artifact assignment",
+      "source_references": [
+        "src/riverview_core/worker_adapter/recovery.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:single-use-disposition-check",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Require exact grants, unchanged verified step contract and dependencies, expired failed generation, preserved exhausted recovery history, and no artifacts",
+      "source_references": [
+        "src/riverview_core/worker_adapter/recovery.py",
+        "src/riverview_core/worker_adapter/migrations/0007_single_use_recovery_dispositions.sql"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:single-use-disposition-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Keep the original assignment blocked when any authorization or no-effect predicate fails",
+      "source_references": [
+        "src/riverview_core/worker_adapter/recovery.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:single-use-disposition-audit",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Append one immutable disposition and causal assignment event without changing prior retry history",
+      "source_references": [
+        "src/riverview_core/worker_adapter/recovery.py",
+        "src/riverview_core/worker_adapter/migrations/0007_single_use_recovery_dispositions.sql"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:worker-adapter:deterministic-attempt:single-use-disposition-ready",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Return the same assignment to ready once; normal claim authorizes only the next fenced generation",
+      "source_references": [
+        "src/riverview_core/worker_adapter/recovery.py",
+        "src/riverview_core/assignment_scheduler/scheduler.py"
+      ],
+      "documentation_references": [
+        "docs/components/WORKER_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER_COOKBOOK.md"
+      ],
+      "verification_evidence": []
     }
   ],
   "edges": [
@@ -1100,6 +1172,36 @@
       "to": "rv:worker-adapter:deterministic-attempt:action-failure",
       "type": "diagnostic_branch",
       "label": "Lease heartbeat is fenced"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:single-use-disposition-request",
+      "to": "rv:worker-adapter:deterministic-attempt:single-use-disposition-check",
+      "type": "runtime_transition",
+      "label": "Explicit authenticated recovery request"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:single-use-disposition-check",
+      "to": "rv:worker-adapter:deterministic-attempt:single-use-disposition-denied",
+      "type": "diagnostic_branch",
+      "label": "Grant, exact assignment, contract digest, history, lease, or no-effect check fails"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:single-use-disposition-check",
+      "to": "rv:worker-adapter:deterministic-attempt:single-use-disposition-audit",
+      "type": "verification",
+      "label": "Every disposition predicate passes"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:single-use-disposition-audit",
+      "to": "rv:worker-adapter:deterministic-attempt:single-use-disposition-ready",
+      "type": "runtime_transition",
+      "label": "Append audit and transition atomically"
+    },
+    {
+      "from": "rv:worker-adapter:deterministic-attempt:single-use-disposition-ready",
+      "to": "rv:worker-adapter:deterministic-attempt:claim",
+      "type": "recovery_route",
+      "label": "Normal claim repeats worker capability, scope, lease, and assignment.execute checks"
     }
   ]
 }

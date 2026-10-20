@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.290",
+      "revision": "1.1.294",
       "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
       "size_bytes": 20273
     },
@@ -212,9 +212,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.201",
-      "sha256": "ba558c0c26f78a0303cbb394fcaf49bebac10fb49fa01314485370f4efdc5753",
-      "size_bytes": 679280
+      "revision": "1.0.204",
+      "sha256": "dbec723a1abff21cada71759953ea3fee25fba8bfd7d74f81a861df5d2a4ed4a",
+      "size_bytes": 684506
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -302,9 +302,9 @@
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
-      "revision": "1.0.16",
-      "sha256": "2de78352344260a63024549536dfa6b3714073455e2f5e07db87461ee0f6ee5d",
-      "size_bytes": 43754
+      "revision": "1.0.18",
+      "sha256": "7ef7f5ff6fd83a54209109e3dd5f2eed15542c149cee6a26c87cb42166e22740",
+      "size_bytes": 48189
     },
     "process_graphs/worker-adapter/registration-retirement.json": {
       "path": "process_graphs/worker-adapter/registration-retirement.json",
@@ -402,6 +402,12 @@
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
     },
+    "src/riverview_core/worker_adapter/migrations/0007_single_use_recovery_dispositions.sql": {
+      "path": "src/riverview_core/worker_adapter/migrations/0007_single_use_recovery_dispositions.sql",
+      "revision": "1.0.0",
+      "sha256": "166becf4d56aa22e1a2719f6c328f03a6fad4a43b85ab695878a586bdaf8d311",
+      "size_bytes": 2880
+    },
     "tests/test_grace_conversation_result.py": {
       "path": "tests/test_grace_conversation_result.py",
       "revision": "1.0.13",
@@ -433,6 +439,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.290",
-  "updated_at": "2026-10-20T12:55:37Z"
+  "manifest_revision": "1.1.294",
+  "updated_at": "2026-10-20T23:07:09Z"
 }
