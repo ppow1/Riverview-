@@ -2,13 +2,13 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.20",
-      "sha256": "2e322afa534f6c1aed56757fbe96927332ce2b5ef41cf377750e711cd0c02073",
-      "size_bytes": 1245608
+      "revision": "1.0.21",
+      "sha256": "df8bd487db3c46dd3168c7b471478ac94407f911374fb82f86c5cfa556bd0125",
+      "size_bytes": 1247281
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.278",
+      "revision": "1.1.279",
       "sha256": "8317f4f405ccd72221b391698098864d70d6f7da3e472a8a707540ec1c103daf",
       "size_bytes": 20001
     },
@@ -427,6 +427,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.278",
-  "updated_at": "2026-10-20T00:38:06Z"
+  "manifest_revision": "1.1.279",
+  "updated_at": "2026-10-20T00:40:45Z"
 }
