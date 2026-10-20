@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.93"
+      "revision": "1.1.94"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -152,6 +152,30 @@
       "revision": "1.0.0",
       "sha256": "dc14b5996622457c0669c434a08909f832184d5aa8c3f929cbceb1775637869b",
       "size_bytes": 2743
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/acceptance.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "79be4e793bedad5ed218e776759c72d07834f084ae889589632785dcf193bca9",
+      "size_bytes": 5051
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/artifacts.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/artifacts.json",
+      "revision": "1.0.0",
+      "sha256": "50bb2d66717c31d10a3d0990299bde660e316973d011fdc577d3ad608aed6ab7",
+      "size_bytes": 713
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/browser-prerequisite.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/browser-prerequisite.json",
+      "revision": "1.0.0",
+      "sha256": "057f50f269c6d2a89edcfe5fa5827f0a9616d471e0b4ec805d054c5e22070cc0",
+      "size_bytes": 822
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/checkout.log": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/checkout.log",
+      "revision": "1.0.0",
+      "sha256": "5d4e48c5aad5d93c72dff9ab116efce382cb659f3c48ad468c8389eafe5857b3",
+      "size_bytes": 6210
     },
     "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
       "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",

@@ -1,0 +1,14 @@
+{
+  "browser": "Chrome/155.0.8059.84",
+  "dashboard_auth": "BLOCKED: no existing session in isolated profile; runner requested hidden credentials; cancelled before entering credentials",
+  "history_reload": "NOT VERIFIED",
+  "isolated_profile_tls": "PASS: verified public LAN Root CA imported into temporary profile; actual V2 page title Riverview V2 Workspace Preview",
+  "message_received": "NOT VERIFIED",
+  "message_send": "NOT ATTEMPTED",
+  "normal_profile_tls": "BLOCKED: net::ERR_CERT_AUTHORITY_INVALID",
+  "revision": "1.0.0",
+  "schema": "riverview-v2-grace-chat-browser-prerequisite/1",
+  "security": "No TLS bypass used; no credentials entered or logged; temporary trust database and profile removed after check",
+  "task_id": "RV-WEB-V2-GRACE-CHAT-002",
+  "tested_at_utc": "2026-10-20T22:33:03.571606+00:00"
+}
