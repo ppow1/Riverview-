@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.16
+**Document Revision:** 1.0.17
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -57,13 +57,13 @@ flowchart LR
     g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6["Return to the source workflow and focus its originating jump node"]
     g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643{"Will the next PNG preview fit within the 76 MiB raster and 96 MiB package limits?"}
     g_rv_steward_dashboard_status_snapshot_preserve_vector_data_525eaf5f["Omit only over-budget raster previews and retain diagnostic records and vector representations"]
-    g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d["Record component sizes, omitted paths, and truthful capture completeness"]
+    g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d["Record dashboard version, capture ID, timestamp, source commit, component sizes, omissions, and truthful capture completeness"]
     g_rv_steward_dashboard_status_snapshot_verify_archive_9ea35dfa["Verify ZIP integrity, manifest hashes, and canonical offline references"]
     g_rv_steward_dashboard_status_snapshot_required_member_bound_6fff171f[["Mandatory non-raster member exceeds the hard uncompressed package limit"]]
     g_rv_steward_dashboard_status_snapshot_diagnose_and_retry_3507664e["Use the reported member path and byte counts to diagnose authorized source growth, then retry"]
     g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0{"Does the request have a CSRF-valid Steward account session and configured private repository credential?"}
     g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1["Validate stored ZIP integrity, 96 MiB uncompressed bound, manifest hashes, and redaction declaration"]
-    g_rv_steward_dashboard_status_archive_private_release_58971cd1["Create a unique draft Release, upload the ZIP asset, publish it, and store lookup metadata"]
+    g_rv_steward_dashboard_status_archive_private_release_58971cd1["Create a unique draft Release, upload the versioned capture-specific ZIP asset, publish it, and store lookup metadata"]
     g_rv_steward_dashboard_status_archive_release_receipt_f2a487fd["Return timestamped Release URL, asset name, SHA-256, and size to the dashboard"]
     g_rv_steward_dashboard_status_archive_local_fallback_576863f0["Report safe archive failure and request browser download while retaining a local ZIP retry link"]
     g_rv_steward_dashboard_status_archive_verify_local_digest_029c5e29{"Does the confirmed GitHub receipt SHA-256 and byte count match the generated ZIP Blob?"}

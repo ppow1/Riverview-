@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.14
+File Revision: 1.1.15
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Specify bounded raster omission while preserving snapshot records and vector representations.
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Separate the fixed raster ceiling from structured-content and manifest headroom.
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Specify private Release archival, Steward/CSRF gate, protected credential and local fallback.
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Specify same-Blob archive and browser-download handoff, digest matching, and independent failure behavior.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Specify dashboard-version manifest identity and capture-specific Release asset names while retaining legacy V1 package acceptance.
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -108,9 +109,9 @@ verification decision and pinned source revision.
 | `POST /api/v1/notifications/<uuid>/delivered` | Record successful visible rendering by the dashboard client. | Empty body; service bearer only; not human identity or Steward authority. |
 | `POST /api/v1/notifications/<uuid>/acknowledge` | Explicit receipt acknowledgment after delivery. | Empty body; cannot alter the linked decision request or assignment. |
 | `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
-| `POST /api/v1/snapshot/archive` | Validate and archive the generated redacted diagnostic ZIP as a timestamped asset in a private GitHub Release; return release URL and metadata. | Steward account session plus CSRF; `application/zip`; one concurrent upload; maximum 97 MiB request and 96 MiB uncompressed members. Dashboard bearer alone is insufficient. Requires `RIVERVIEW_SNAPSHOT_GITHUB_REPOSITORY` and systemd `snapshot-github-token`; errors retain browser local-download fallback. |
+| `POST /api/v1/snapshot/archive` | Validate and archive the generated redacted diagnostic ZIP as a versioned, capture-specific asset in the private GitHub Release repository; return release URL and metadata. | Steward account session plus CSRF; `application/zip`; one concurrent upload; maximum 97 MiB request and 96 MiB uncompressed members. Dashboard bearer alone is insufficient. Requires `RIVERVIEW_SNAPSHOT_GITHUB_REPOSITORY` and systemd `snapshot-github-token`; errors retain browser local-download fallback. |
 
-The **Archive + Download ZIP** action generates one bounded, redacted ZIP Blob,
+The **Snapshot** action generates one bounded, redacted ZIP Blob,
 posts that Blob through the authenticated archive endpoint, checks the confirmed
 response's SHA-256 and byte count against the same Blob, and requests a browser
 download from it. The result retains the GitHub Release URL, a **Copy GitHub
@@ -120,6 +121,16 @@ throws after archive success, the verified archive remains linked and the local
 retry link stays available. Browser APIs do not confirm that a user saved the
 file, so the interface says that a download was requested. The local link also
 supports local-only fallback without creating a server-side ZIP copy.
+
+New manifests identify `dashboard_version`, `capture_id`, `captured_at`, and
+`source_commit`. V1 and V2 assets are named
+`riverview-v1-<capture-timestamp>-<capture-id>.zip` and
+`riverview-v2-<capture-timestamp>-<capture-id>.zip`, respectively; both use
+the configured shared private archive repository and the same endpoint. Older
+V1 manifests without `dashboard_version` remain accepted as V1. The isolated
+V2 shell is currently a separate fixture-only interface; its button remains
+disabled until its authenticated API integration is implemented and browser
+verified. Backend V2 package acceptance is not evidence of V2 UI acceptance.
 | `GET /api/v1/graphs` | Index of registered canonical focused process graphs. | Reads versioned package registry; bounded by checked-in graph count. |
 | `GET /api/v1/graphs/<graph_id>` | Canonical nodes, typed edges, decisions, references, and execution-position state. | One registered focused workflow; no graph mutation. |
 | `POST /api/v1/auth/enrollment` / `.../enrollment/verify` | Request access and verify a single-use email challenge. | Generic anti-enumeration request response; 15-minute challenge; email delivery must be configured. |

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.61
+# Revision: 1.0.62
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Assert matching receipt digest and persistent archive-plus-download browser result.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Test authenticated Steward archive endpoint and absence of browser GitHub credentials.
 # Changed: 2026-10-20 UTC | RV-C4-ACTIVE-LINE-INTEGRATION-001 | Verify re-review route authentication, exact objective scope, bounded payload and request-only behavior.
@@ -233,7 +233,8 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         css = (ROOT / "src/riverview_core/status_dashboard/static/app.css").read_text(encoding="utf-8")
         self.assertIn('id="rail-toggle"', html)
         self.assertIn('aria-controls="primary-navigation"', html)
-        self.assertIn('aria-label="Archive diagnostic snapshot and download the same ZIP"', html)
+        self.assertIn('aria-label="Snapshot"', html)
+        self.assertIn('<span class="snapshot-label">Snapshot</span>', html)
         self.assertIn('role="img" aria-label="Source health: connecting"', html)
         self.assertIn('rv.dashboard.rail-collapsed', app)
         self.assertIn('setAttribute("aria-expanded"', app)
@@ -480,8 +481,9 @@ class DashboardHTTPTests(unittest.TestCase):
             def archive(self, payload):
                 self.payload = payload
                 return {"status":"archived", "snapshot_id":"rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef",
+                    "dashboard_version":"v1", "capture_id":"capture-test-1",
                     "release_url":"https://github.com/owner/private-repo/releases/tag/rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef",
-                    "asset_name":"rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef.zip",
+                    "asset_name":"riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip",
                     "archive_sha256":"a"*64,"archive_size_bytes":8,"retention":"permanent"}
         class Auth:
             def authenticate(self, credential, *, csrf_token, state_changing):
@@ -504,6 +506,8 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(archive.payload, payload)
         result = json.loads(body)
         self.assertEqual(result["status"], "archived")
+        self.assertEqual(result["dashboard_version"], "v1")
+        self.assertEqual(result["asset_name"], "riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip")
         self.assertTrue(result["release_url"].startswith("https://github.com/owner/private-repo/"))
         self.assertNotIn(self.token.encode(), body)
 

@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_snapshot_archive.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify private Release uploads, failure cleanup, credential isolation, redaction and archive integrity.
 # Execution Model: Local in-memory ZIP fixtures and a fake GitHub REST transport; no network credentials or real repository.
 # Observability: Exact safe outcomes, request sequence and checksums.
@@ -9,6 +9,7 @@
 # Authority: Synthetic only; never creates a real GitHub Release.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Add fake-transport success, failure, auth-material and privacy/integrity coverage.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Verify unsafe repository path configuration is rejected.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Verify versioned archive filenames and legacy V1 package compatibility.
 # Tests: This file
 # History: Git and revision/backup manifest
 """Synthetic unit tests for dashboard GitHub snapshot archival."""
@@ -29,18 +30,21 @@ from riverview_core.status_dashboard.snapshot_archive import (
     GitHubReleaseArchive, SnapshotArchiveError)
 
 
-def package(*, privacy=None, bad_hash=False):
+def package(*, privacy=None, bad_hash=False, dashboard_version="v1", include_dashboard_version=True,
+            capture_id="capture-test-1", captured_at="2026-10-20T15:00:00Z"):
     members = {"diagnostics/operational-snapshot.json": b'{"status":"healthy"}',
                "diagnostics/browser-history.json": b'{"redaction":{"cookies":false}}'}
     files = [{"path": name, "size_bytes": len(data),
               "sha256": "0" * 64 if bad_hash and name.startswith("diagnostics/operational") else sha256(data).hexdigest()}
              for name, data in members.items()]
-    manifest = {"schema_version": "rv.website.diagnostic-snapshot.v1", "capture_id": "capture-test-1",
-                "captured_at": "2026-10-20T15:00:00Z", "source_commit": "a" * 40,
+    manifest = {"schema_version": "rv.website.diagnostic-snapshot.v1", "capture_id": capture_id,
+                "captured_at": captured_at, "source_commit": "a" * 40,
                 "deployment_id": "synthetic", "files": files,
                 "privacy": privacy or {"authentication_material": "excluded", "cookies": "excluded",
                     "authorization_headers": "excluded", "passwords_and_form_values": "redacted",
                     "conversation_and_request_bodies": "excluded", "account_detail_rows": "redacted"}}
+    if include_dashboard_version:
+        manifest["dashboard_version"] = dashboard_version
     output = BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as bundle:
         for name, data in members.items():
@@ -106,14 +110,42 @@ class SnapshotArchiveTests(unittest.TestCase):
         self.assertEqual(result["snapshot_id"], "rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef")
         self.assertEqual(result["retention"], "permanent")
         self.assertEqual(result["archive_sha256"], sha256(package()).hexdigest())
+        self.assertEqual(result["dashboard_version"], "v1")
+        self.assertEqual(result["capture_id"], "capture-test-1")
+        self.assertEqual(result["asset_name"], "riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip")
         self.assertIn("/releases/tag/" + result["snapshot_id"], result["release_url"])
         self.assertEqual([call[0] for call in github.calls], ["GET", "POST", "POST", "PATCH"])
         release_metadata = json.loads(json.loads(github.calls[1][3])["body"])
         self.assertEqual(release_metadata["capture_id"], "capture-test-1")
+        self.assertEqual(release_metadata["dashboard_version"], "v1")
         self.assertEqual(release_metadata["archive_sha256"], result["archive_sha256"])
         self.assertEqual(github.calls[2][2]["Content-type"], "application/zip")
+        self.assertIn("riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip", github.calls[2][1])
         self.assertTrue(all(call[2]["Authorization"] == "Bearer github_pat_test_token_abcdefghijklmnopqrstuvwxyz" for call in github.calls))
         self.assertNotIn("github_pat_test_token", json.dumps(result))
+
+    def test_v2_uses_distinct_capture_specific_asset_name_in_same_archive(self):
+        github = _GitHub()
+        result = archive(github).archive(package(dashboard_version="v2"))
+        release_metadata = json.loads(json.loads(github.calls[1][3])["body"])
+        self.assertEqual(result["dashboard_version"], "v2")
+        self.assertEqual(result["asset_name"], "riverview-v2-2026-10-20T15-00-00Z-capture-test-1.zip")
+        self.assertEqual(release_metadata["dashboard_version"], "v2")
+        self.assertEqual(github.calls[0][1], "https://api.github.com/repos/owner/private-riverview-diagnostics")
+
+    def test_legacy_v1_manifest_without_dashboard_version_remains_accepted(self):
+        github = _GitHub()
+        result = archive(github).archive(package(include_dashboard_version=False))
+        self.assertEqual(result["dashboard_version"], "v1")
+        self.assertEqual(result["asset_name"], "riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip")
+
+    def test_invalid_dashboard_version_capture_id_or_timestamp_fails_before_network(self):
+        for payload in (package(dashboard_version="v3"), package(dashboard_version="../../v1"),
+                        package(capture_id="../escape"), package(captured_at="2026-10-20T15:00:00+00:00")):
+            github = _GitHub()
+            with self.subTest(payload=payload[:10]), self.assertRaises(SnapshotArchiveError):
+                archive(github).archive(payload)
+            self.assertEqual(github.calls, [])
 
     def test_failed_asset_upload_returns_safe_error_and_removes_exact_draft_and_tag(self):
         github = _GitHub(fail_upload=True)

@@ -1,8 +1,9 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.32
+File Revision: 1.1.33
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Document archive-plus-download results, digest checks, and independent recovery paths.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Explain V1/V2 manifest identity, asset naming, and legacy V1 compatibility.
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -114,9 +115,9 @@ does not establish acceptance against a deployed account or release. For live
 acceptance, run the deployed dashboard browser check after account-session access
 is available and retain its redacted report and screenshots.
 
-## Download Snapshot and offline diagnostics (PL-NEW-041)
+## Snapshot and offline diagnostics (PL-NEW-041)
 
-**Archive + Download ZIP** creates one ZIP in the current browser session. It uses the
+**Snapshot** creates one ZIP in the current browser session. It uses the
 versioned authenticated capability registry at `GET /api/v1/capabilities`, the
 existing read-only `GET /api/v1/snapshot` projection, and the current workflow
 registry exposed by `GET /api/v1/snapshot/workflow-index` plus authenticated
@@ -125,7 +126,16 @@ registry exposed by `GET /api/v1/snapshot/workflow-index` plus authenticated
 runtime execution-position projection, not canonical graph definitions. No
 workflow registry or operational source is inferred by the browser exporter.
 
-The ZIP schema is `rv.website.diagnostic-snapshot.v1`. It contains the live
+The ZIP schema is `rv.website.diagnostic-snapshot.v1`. New V1/V2 manifests
+include `dashboard_version`, `capture_id`, `captured_at`, and `source_commit`.
+The published Release asset and local download use the same filename:
+`riverview-<v1|v2>-<captured_at-with-colons-replaced>-<capture_id>.zip`.
+V1 packages created before the version field was added are interpreted as V1.
+This contract does not by itself enable the isolated V2 interface: until the
+V2 shell has a verified authenticated route to this API, its Snapshot control
+must remain unavailable.
+
+It contains the live
 capability registry, per-page inventories, sanitized offline HTML with dashboard
 CSS, full-content SVG/PNG visual maps, bounded recent browser diagnostics, the
 existing redacted operational snapshot, and one original canonical graph JSON,
@@ -191,7 +201,7 @@ The browser sends its generated ZIP to the authenticated dashboard backend
 over the same origin. The endpoint requires a Steward account cookie and CSRF
 token, validates the package bound, ZIP CRC, every manifest SHA-256/size and the
 manifest redaction declaration, then calls GitHub. It returns a UTC timestamp
-plus random identifier, release URL, asset name, archive size and SHA-256. The
+plus random identifier, release URL, versioned asset name, archive size and SHA-256. The
 Release body stores these metadata fields for historical lookup. On failure,
 the browser reports a safe error and downloads the same ZIP locally. Do not
 retry by copying ZIPs into the repository or committing them to Git.
@@ -625,7 +635,7 @@ existing PostgreSQL credential.
 | Detect initialization | relation and migration inventory | `not_initialized` | status `relations` and source schema | Correct service configuration or separately authorized migration; restart is not a migration. |
 | Project lifecycle/events | bounded page, institution privacy filter, event cursor | empty/not found or page source error | assignment ID, event sequence and correlation ID | Inspect ledger contract; use next keyset/sequence cursor; no full history rebuild. |
 | Render/update | local tab switch and localized view update | browser-local sanitized error entry | snapshot browser error ring and request ID | Refresh affected panel only; slow/unavailable DB must not hold navigation. |
-| Archive + Download ZIP | one bounded ZIP with page inventories/visuals, workflow JSON/SVG/PNG/status, and safe browser diagnostics; same bytes sent to archive and browser download | unavailable page/graph, incomplete visual, package bound, archive failure, or browser download start failure | ZIP manifest omissions, per-page/per-workflow outcomes, archive error class, matching server/client digest on confirmed receipt, and visible retry link | use the GitHub link only after a confirmed response; retry local download with Download ZIP if needed; investigate archive configuration on upload error. Do not treat missing output as complete; no cookies, credentials, form values, or conversation bodies are exported. |
+| Snapshot | one bounded ZIP with page inventories/visuals, workflow JSON/SVG/PNG/status, and safe browser diagnostics; same bytes sent to archive and browser download | unavailable page/graph, incomplete visual, package bound, archive failure, or browser download start failure | ZIP manifest version, capture identity, omissions, per-page/per-workflow outcomes, archive error class, matching server/client digest on confirmed receipt, and visible retry link | use the GitHub link only after a confirmed response; retry local download with Download ZIP if needed; investigate archive configuration on upload error. Do not treat missing output as complete; no cookies, credentials, form values, or conversation bodies are exported. |
 | Restart/reconnect | same release/port; current state re-read from PostgreSQL | systemd failed/inactive or authentication lost | `systemctl status` and `journalctl -u ... -n 50 --no-pager` | restart only the dashboard unit; reauthenticate; CME and assignments continue independently. |
 
 ## Deployment and rollback

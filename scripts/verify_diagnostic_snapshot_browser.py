@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/verify_diagnostic_snapshot_browser.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.1.14
+# Revision: 1.1.15
 # Purpose: Verify archive-plus-local-download diagnostic ZIP in isolated Firefox with synthetic read-only APIs
 # Execution Model: Request-driven isolated fixture; owns only a temporary HTTP server and geckodriver
 # Observability: Sanitized JSON report and downloaded ZIP; no real account or production data
@@ -26,6 +26,7 @@
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Verify the Copy GitHub Link button copies the confirmed synthetic release URL.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Reject a synthetic mismatched GitHub digest while preserving the local ZIP download.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Exercise local-download failure through the real snapshot and authenticated archive flow without exposing test callbacks.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Verify V1 manifest identity and capture-specific archive filenames in browser receipts.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Serve stress hook as a CSP-allowed same-origin fixture asset
 # Tests: scripts/verify_diagnostic_snapshot_browser.py
 # History: Git
@@ -33,6 +34,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -314,11 +316,16 @@ def main() -> int:
             if self.path == "/api/v1/snapshot/archive" and args.archive_fixture:
                 package=self.rfile.read(int(self.headers.get("Content-Length", "0")))
                 digest=hashlib.sha256(package).hexdigest()
-                archive_receipts.append({"size_bytes":len(package),"sha256":digest,"csrf_present":bool(self.headers.get("X-Riverview-CSRF")),"cookie_present":bool(self.headers.get("Cookie"))})
+                with zipfile.ZipFile(io.BytesIO(package)) as bundle:
+                    manifest=json.loads(bundle.read("manifest.json"))
+                version=manifest.get("dashboard_version","v1")
+                capture_id=manifest["capture_id"]
+                asset_name=f"riverview-{version}-{manifest['captured_at'].replace(':','-')}-{capture_id}.zip"
+                archive_receipts.append({"size_bytes":len(package),"sha256":digest,"csrf_present":bool(self.headers.get("X-Riverview-CSRF")),"cookie_present":bool(self.headers.get("Cookie")),"dashboard_version":version,"capture_id":capture_id,"asset_name":asset_name})
                 if args.archive_fixture == "failure":
                     return self.send_body(503, b'{"error":"synthetic_github_failure"}')
                 snapshot_id="rvdiag-20261020T000000Z-0123456789abcdef0123456789abcdef"
-                response={"snapshot_id":snapshot_id,"asset_name":snapshot_id+".zip","archive_size_bytes":len(package),"archive_sha256":"0"*64 if args.archive_fixture=="mismatch" else digest,
+                response={"snapshot_id":snapshot_id,"dashboard_version":version,"capture_id":capture_id,"asset_name":asset_name,"archive_size_bytes":len(package),"archive_sha256":"0"*64 if args.archive_fixture=="mismatch" else digest,
                     "release_url":"https://github.com/ppow1/Riverview-Diagnostic-Archive/releases/tag/"+snapshot_id}
                 return self.send_body(200,json.dumps(response).encode())
             if args.actual_dashboard_fixture and self.path.startswith("/api/v1/") and self.headers.get("Cookie", "").startswith("rv_account_session=synthetic-only"):
@@ -465,7 +472,13 @@ def main() -> int:
             if args.archive_fixture == "success":
                 remote=archive_receipts[0] if archive_receipts else {}
                 local_digest=hashlib.sha256(archives[0].read_bytes()).hexdigest() if archives else None
-                delivery_ui=js("return {copy:!!document.querySelector('.snapshot-copy-link'),release:[...document.querySelectorAll('#toast a')].some(a=>a.href.includes('github.com/ppow1/Riverview-Diagnostic-Archive/releases/tag/')),download:[...document.querySelectorAll('#toast a')].some(a=>a.download.endsWith('.zip')),pointerEvents:getComputedStyle(document.querySelector('#toast')).pointerEvents,text:document.querySelector('#toast').textContent}")
+                local_manifest={}
+                if archives:
+                    with zipfile.ZipFile(archives[0]) as local_bundle:
+                        local_manifest=json.loads(local_bundle.read("manifest.json"))
+                expected_asset=f"riverview-v1-{local_manifest.get('captured_at','').replace(':','-')}-{local_manifest.get('capture_id','')}.zip"
+                report["versioned_archive_identity"]={"manifest_version":local_manifest.get("dashboard_version"),"capture_id_present":bool(local_manifest.get("capture_id")),"local_filename":archives[0].name if archives else None,"archive_asset_name":remote.get("asset_name"),"matching_asset_name":bool(archives and archives[0].name==expected_asset==remote.get("asset_name")),"matching_capture_id":remote.get("capture_id")==local_manifest.get("capture_id"),"matching_dashboard_version":remote.get("dashboard_version")=="v1"}
+                delivery_ui=js("return {label:document.querySelector('#snapshot .snapshot-label')?.textContent.trim(),copy:!!document.querySelector('.snapshot-copy-link'),release:[...document.querySelectorAll('#toast a')].some(a=>a.href.includes('github.com/ppow1/Riverview-Diagnostic-Archive/releases/tag/')),download:[...document.querySelectorAll('#toast a')].some(a=>a.download.endsWith('.zip')),pointerEvents:getComputedStyle(document.querySelector('#toast')).pointerEvents,text:document.querySelector('#toast').textContent}")
                 js("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__snapshotClipboard=text}}});document.querySelector('.snapshot-copy-link').click();return true")
                 time.sleep(.1)
                 copied_url=js("return window.__snapshotClipboard||null")
@@ -489,7 +502,7 @@ def main() -> int:
                 report["archive_local_fallback"]={"archive_request_made":len(archive_receipts)==1,"github_failure_reported":f"GitHub archival failed ({expected_archive_error})" in archive_toast,"local_zip_downloaded":bool(archives),"archive_not_claimed":"Snapshot archived permanently" not in archive_toast,"csrf_present":bool(archive_receipts and archive_receipts[0]["csrf_present"])}
         if args.archive_fixture == "success":
             delivery=report["archive_local_fallback"]
-            archive_assertions=[delivery["archive_request_made"],delivery["csrf_present"],delivery["authenticated_cookie_present"],delivery["local_zip_downloaded"],delivery["same_zip_bytes"],delivery["matching_zip_hashes"],delivery["confirmed_release_link_visible"],delivery["copy_link_action_visible"],delivery["copy_link_copied_confirmed_url"],delivery["download_retry_link_visible"],delivery["toast_interactive"],report["local_download_failure_after_archive"]["archive_request_made"],report["local_download_failure_after_archive"]["csrf_present"],report["local_download_failure_after_archive"]["archive_confirmed"],not report["local_download_failure_after_archive"]["local_download_requested"],report["local_download_failure_after_archive"]["release_link"],report["local_download_failure_after_archive"]["download_retry_link"],report["local_download_failure_after_archive"]["failure_reported"]]
+            archive_assertions=[delivery_ui["label"]=="Snapshot",delivery["archive_request_made"],delivery["csrf_present"],delivery["authenticated_cookie_present"],delivery["local_zip_downloaded"],delivery["same_zip_bytes"],delivery["matching_zip_hashes"],delivery["confirmed_release_link_visible"],delivery["copy_link_action_visible"],delivery["copy_link_copied_confirmed_url"],delivery["download_retry_link_visible"],delivery["toast_interactive"],report["versioned_archive_identity"]["manifest_version"]=="v1",report["versioned_archive_identity"]["matching_asset_name"],report["versioned_archive_identity"]["matching_capture_id"],report["versioned_archive_identity"]["matching_dashboard_version"],report["local_download_failure_after_archive"]["archive_request_made"],report["local_download_failure_after_archive"]["csrf_present"],report["local_download_failure_after_archive"]["archive_confirmed"],not report["local_download_failure_after_archive"]["local_download_requested"],report["local_download_failure_after_archive"]["release_link"],report["local_download_failure_after_archive"]["download_retry_link"],report["local_download_failure_after_archive"]["failure_reported"]]
         elif args.archive_fixture == "failure":
             delivery=report["archive_local_fallback"]
             archive_assertions=[delivery["archive_request_made"],delivery["csrf_present"],delivery["github_failure_reported"],delivery["local_zip_downloaded"],delivery["archive_not_claimed"]]

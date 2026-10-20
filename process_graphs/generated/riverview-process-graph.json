@@ -11708,7 +11708,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.1.25",
+      "graph_revision": "1.1.26",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -12511,9 +12511,9 @@
         },
         {
           "id": "rv:steward-dashboard:status:snapshot-write-manifest",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Record component sizes, omitted paths, and truthful capture completeness",
+          "label": "Record dashboard version, capture ID, timestamp, source commit, component sizes, omissions, and truthful capture completeness",
           "source_references": [
             "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
           ],
@@ -12602,9 +12602,9 @@
         },
         {
           "id": "rv:steward-dashboard:status:archive-private-release",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Create a unique draft Release, upload the ZIP asset, publish it, and store lookup metadata",
+          "label": "Create a unique draft Release, upload the versioned capture-specific ZIP asset, publish it, and store lookup metadata",
           "source_references": [
             "src/riverview_core/status_dashboard/snapshot_archive.py"
           ],
