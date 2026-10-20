@@ -3,14 +3,14 @@
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
       "revision": "1.0.21",
-      "sha256": "f797f3b1dbcf99b7b536ad0618ad5216b8c0c60f3f3fef0becdfc7e554a482ac",
-      "size_bytes": 1249571
+      "sha256": "af313bd4dffaf23f73fc0acf7d77b40a0e06eb059cc5453bac19289737a003d9",
+      "size_bytes": 1253229
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.279",
-      "sha256": "8317f4f405ccd72221b391698098864d70d6f7da3e472a8a707540ec1c103daf",
-      "size_bytes": 20001
+      "revision": "1.1.281",
+      "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
+      "size_bytes": 20273
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -212,9 +212,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.196",
-      "sha256": "a2a0d3a589e6dd530c8b6da8ef490f1b5b56fcbee6aa3792d3f7a26fbe8fabe8",
-      "size_bytes": 676843
+      "revision": "1.0.197",
+      "sha256": "1c9d54024d8a95bca57780229812381b506a241c32a645c59bc782f29cc0a9ca",
+      "size_bytes": 677041
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -224,9 +224,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.59",
-      "sha256": "aa2efdc04391073cb2ee843213f7f4463c26b50d0c57c9511f63910b8f8e9dbd",
-      "size_bytes": 93696
+      "revision": "1.0.60",
+      "sha256": "21b18ca00a67a231f7ddb61a3a193249b3dcd87daf46b53d70d550cd0a8b51bb",
+      "size_bytes": 93886
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -433,6 +433,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.279",
+  "manifest_revision": "1.1.281",
   "updated_at": "2026-10-20T12:55:37Z"
 }

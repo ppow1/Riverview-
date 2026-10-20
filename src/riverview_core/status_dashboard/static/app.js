@@ -1,6 +1,8 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.21
+// Revision: 1.4.22
+// Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Bind work-order intake to persisted message sequence and surface stale-source or dialog failures.
+// Predecessor: .riverview-backups/20261020T153249701305Z/src/riverview_core/status_dashboard/static/app.js (SHA-256 50cc5acbcaebb0cb1f6baeea10274c7eacdd21f60885b9936498303cd0164bb8)
 // Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Show persistent authenticated objective and assignment progress linked to the active Grace conversation.
 // Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Label assignment-lease freshness separately from worker process liveness.
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
@@ -747,6 +749,26 @@
   function closeMessageMenus() {
     document.querySelectorAll(".message-actions[open]").forEach((menu)=>{menu.open=false;});
   }
+  function openWorkOrderDialogForSequence(rawSequence) {
+    const sequence=Number(rawSequence);
+    const ev=Number.isSafeInteger(sequence)?state.chatEvents.find((event)=>event.event_type==="user_message"&&event.sequence===sequence):null;
+    const dialog=$("work-order-dialog"), inlineError=$("work-order-error"), chatError=$("chat-error");
+    if(!ev){
+      const message="This saved message is no longer available. Refresh the conversation and try again.";
+      chatError.textContent=message;toast(message);closeMessageMenus();return false;
+    }
+    state.workOrderSourceSequence=sequence;
+    $("work-order-source").textContent=ev.body||"(empty message)";
+    $("work-order-criteria").value="";
+    inlineError.textContent="";chatError.textContent="";
+    try{
+      if(!dialog||typeof dialog.showModal!=="function")throw new Error("dialog_unavailable");
+      dialog.showModal();closeMessageMenus();return true;
+    }catch(_){
+      const message="The work-order form could not be opened. Refresh the Dashboard and try again.";
+      inlineError.textContent=message;chatError.textContent=message;toast(message);closeMessageMenus();return false;
+    }
+  }
   function renderConversation(events) {
     state.chatEvents=events;
     const host=$("chat-history"), wasNearBottom=host.scrollHeight-host.scrollTop-host.clientHeight<120;
@@ -763,7 +785,7 @@
       const body=deferred?`Waiting for ${event.metadata?.required_capability||"a required reasoning capability"}; your message is saved and will resume automatically.`:failed?`Response ${event.error_code||"unavailable"}; your message remains saved.`:event.body||"";
       const provenance=!isUser&&!failed&&!deferred?`${event.model_id||"Model unavailable"}${event.provider_ref?` · ${event.provider_ref}`:""}`:"";
       const promote=isUser&&state.accountIdentity?.roles?.includes("steward")&&Number.isInteger(event.sequence);
-      return `<article class="message-row ${role}${pendingIds.has(event.request_id)?" pending":""}" data-message-row="${index}" data-event-id="${esc(event.sequence??event.request_id)}"><div class="message-bubble"><div class="message-meta"><strong class="message-speaker">${label}</strong><time datetime="${esc(event.occurred_at||"")}" title="UTC ${esc(time.utc)}">${esc(time.local)}</time>${duration?`<span>${esc(duration)}</span>`:""}<span class="message-state">${esc(status)}</span>${provenance?`<span>${esc(provenance)}</span>`:""}</div><div class="message-content">${esc(body)}</div></div><details class="message-actions"><summary aria-label="More options for ${label} message" title="Message options">⋯</summary><div class="message-action-menu" role="menu"><button type="button" role="menuitem" data-message-details="${index}">View message details</button><button type="button" role="menuitem" data-message-copy="${index}">Copy message text</button><button type="button" role="menuitem" data-message-id-copy="${index}" ${event.sequence==null?"disabled":""}>Copy message ID</button>${promote?`<button type="button" role="menuitem" data-message-work-order="${index}">Create Engineering work order…</button>`:""}<button type="button" role="menuitem" disabled>Edit and resubmit — future capability</button></div></details></article>`;
+      return `<article class="message-row ${role}${pendingIds.has(event.request_id)?" pending":""}" data-message-row="${index}" data-event-id="${esc(event.sequence??event.request_id)}"><div class="message-bubble"><div class="message-meta"><strong class="message-speaker">${label}</strong><time datetime="${esc(event.occurred_at||"")}" title="UTC ${esc(time.utc)}">${esc(time.local)}</time>${duration?`<span>${esc(duration)}</span>`:""}<span class="message-state">${esc(status)}</span>${provenance?`<span>${esc(provenance)}</span>`:""}</div><div class="message-content">${esc(body)}</div></div><details class="message-actions"><summary aria-label="More options for ${label} message" title="Message options">⋯</summary><div class="message-action-menu" role="menu"><button type="button" role="menuitem" data-message-details="${index}">View message details</button><button type="button" role="menuitem" data-message-copy="${index}">Copy message text</button><button type="button" role="menuitem" data-message-id-copy="${index}" ${event.sequence==null?"disabled":""}>Copy message ID</button>${promote?`<button type="button" role="menuitem" data-message-work-order="${esc(event.sequence)}">Create Engineering work order…</button>`:""}<button type="button" role="menuitem" disabled>Edit and resubmit — future capability</button></div></details></article>`;
     }).join(""):noData("No persisted messages in this conversation.");
     const deferredIds=new Set(events.filter((e)=>e.event_type==="response_deferred").map((e)=>e.request_id));
     const activePending=[...pendingIds].some((id)=>!deferredIds.has(id));
@@ -785,7 +807,7 @@
     host.querySelectorAll("[data-message-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageCopy)];state.selectedEventId=String(ev?.sequence??ev?.request_id??"");if(ev)copyChatText(ev.body||ev.error_code||"").catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
     host.querySelectorAll("[data-message-id-copy]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageIdCopy)];if(ev?.sequence!=null)copyChatText(String(ev.sequence)).catch(()=>toast("Clipboard access unavailable."));closeMessageMenus();}));
     host.querySelectorAll("[data-message-work-order]").forEach((button)=>{const eventIndex=button.dataset.messageWorkOrder;const proposalButton=document.createElement("button");proposalButton.type="button";proposalButton.role="menuitem";proposalButton.dataset.messageProposal=eventIndex;proposalButton.textContent="Draft institutional proposal…";button.before(proposalButton);});
-    host.querySelectorAll("[data-message-work-order]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageWorkOrder)];if(!ev||!Number.isInteger(ev.sequence))return;state.workOrderSourceSequence=ev.sequence;$("work-order-source").textContent=ev.body||"(empty message)";$("work-order-criteria").value="";$("work-order-error").textContent="";$("work-order-dialog").showModal();closeMessageMenus();}));
+    host.querySelectorAll("[data-message-work-order]").forEach((button)=>button.addEventListener("click",()=>openWorkOrderDialogForSequence(button.dataset.messageWorkOrder)));
     host.querySelectorAll("[data-message-proposal]").forEach((button)=>button.addEventListener("click",()=>{const ev=timeline[Number(button.dataset.messageProposal)];if(!ev||!Number.isInteger(ev.sequence))return;$("proposal-draft-dialog").dataset.sourceSequence=String(ev.sequence);$("proposal-draft-source").textContent=`Message ${ev.sequence}: ${ev.body||"(empty message)"}`;$("proposal-draft-error").textContent="";$("proposal-draft-dialog").showModal();closeMessageMenus();}));
   }
   $("work-order-form").addEventListener("submit",async(event)=>{

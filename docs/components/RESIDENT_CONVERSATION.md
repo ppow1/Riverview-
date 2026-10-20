@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.41
+File Revision: 1.1.42
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
@@ -51,6 +51,8 @@ Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Add authenticated durabl
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Compact discarded partial output behind a monotonic reset marker on retry
 Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Compact partial text immediately on deferral and keep repeated deferral state idempotent
 Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Pin default grounding to the active immutable dashboard release and make origin retries idempotent
+Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Specify persisted-sequence message binding and visible retry-dialog recovery.
+Predecessor: .riverview-backups/20261020T153250170210Z/docs/components/RESIDENT_CONVERSATION.md (SHA-256 ff37315885b96c432f3519f0b8b5a3d7ab48c3b721136a4142f2f0bc4664f3ed)
 Changed: 2026-10-19 UTC | RV-GRACE-TOOL-CATALOG-CONTEXT-001 | Exclude unrelated tool schemas from ordinary 80B prompts; record live byte-guard cause
 History: Git and .riverview-backups/manifest.jsonl
 -->
@@ -128,6 +130,14 @@ objective receipt event. The account role and the legacy dashboard recovery
 token do not substitute for those grants. A successful response means objective
 intake/grounding only; assignment creation and execution remain separately
 authorized.
+
+The message action is keyed by the persisted user-message sequence, not by its
+position in the currently rendered timeline. Selecting it opens the confirmation
+dialog and leaves acceptance criteria blank so a same-source retry keeps the
+durable original criteria. The browser performs no write until the authenticated
+Steward submits that dialog; the route then rechecks conversation ownership and
+both exact grants. A stale message reference or an unavailable native dialog is
+reported visibly with a refresh instruction. It must never be a silent no-op.
 
 The route resolves repository knowledge from an explicit
 `RIVERVIEW_KNOWLEDGE_ROOT`, when configured. Otherwise a packaged dashboard
