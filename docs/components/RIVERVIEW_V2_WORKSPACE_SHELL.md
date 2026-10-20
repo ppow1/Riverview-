@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Specify the isolated V2 browser shell and password-protected LAN preview
 Authority: Fixture presentation only; no institutional or production authority
-Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Document password-protected trusted-LAN preview
+Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-ORIGIN-001 | Specify one-use CSRF protection for browser login Origin handling
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
@@ -20,7 +20,7 @@ History: Git and revision/backup manifest
 
 Issue #164 requests a parallel workspace-first interface while V1 remains the default. This task provides the first shell slice: compact navigation; resident directory selection; persistent resident/conversation context; and overview, work, resources, knowledge, ChatGPT, and Comms5 surfaces. A session-scoped in-memory selection survives view changes. All content is visibly identified as fixture or preview data. Grace is represented only by a verified name from the requested shell context; this does not assert a live resident profile or expose Grace data. Other residents and work items are synthetic.
 
-The shell has no network-data path. By default its preview server binds only to loopback and serves only `website/v2`. The optional LAN mode binds to one explicit IPv4 address, requires a narrow client subnet and a local password hash file, and checks the Host header, Origin, and client address. It serves only this static shell and rejects mutating methods other than the password form. The shell retains a `connect-src 'none'` policy. ChatGPT is an explicit external link; Comms5 is a noninteractive disconnected status. Message, dispatch, and other state-changing controls are disabled. No bearer token, production API, browser storage, or browser-held password is used.
+The shell has no network-data path. By default its preview server binds only to loopback and serves only `website/v2`. The optional LAN mode binds to one explicit IPv4 address, requires a narrow client subnet and a local password hash file, and checks the Host header, client address, Origin, and a one-use server-side CSRF token. The login page issues a random, five-minute token bound to the client address; each POST must present a valid unused token. An explicit non-null Origin must match the exact HTTP Host authority. Missing or `null` Origin is accepted only with that token, covering browsers that serialize a form submission with an opaque Origin. Foreign scheme, host, or port is still rejected. Tokens are bounded in memory and discarded on restart. It serves only this static shell and rejects mutating methods other than the password form. The shell retains a `connect-src 'none'` policy. ChatGPT is an explicit external link; Comms5 is a noninteractive disconnected status. Message, dispatch, and other state-changing controls are disabled. No bearer token, production API, browser storage, or browser-held password is used.
 
 The LAN login stores no cleartext password. A one-time hidden prompt writes a random-salt PBKDF2-HMAC-SHA256 verifier (600,000 iterations) in an owner-only file with mode 0600. The process creates an eight-hour HMAC-signed, HttpOnly, SameSite=Strict session cookie; its signing key is ephemeral and held only in memory, so restarting the preview invalidates sessions. Five failed password attempts from one client in a 15-minute window trigger a 15-minute in-memory lockout. Requests and form contents are not logged. The direct LAN URL uses HTTP: the password and cookie are not encrypted in transit. Use it only on the trusted Riverview LAN, never on public or untrusted networks.
 
@@ -62,7 +62,7 @@ Future authoritative residents, assignments, work, model/resource controls, and 
 
 1. V1 source, runtime, Nginx route, and production data remain unchanged.
 2. Default mode serves static files on loopback and refuses unsafe methods/path escapes.
-3. LAN mode binds only to the explicit Camrui IPv4 address, checks the configured /24 and Host, and requires password auth before serving any shell asset.
+3. LAN mode binds only to the explicit Camrui IPv4 address, checks the configured /24 and Host, and requires password auth before serving any shell asset. Login requires a fresh, client-bound, one-use CSRF token; a present non-null Origin must match the exact HTTP authority, while absent or `null` Origin is accepted only with that token.
 4. Password storage contains only algorithm/work factor, random salt, and derived hash in an owner-only file; failures are rate-limited and authenticated responses are non-cacheable.
 5. Authentication uses an eight-hour signed HttpOnly/SameSite cookie with in-memory key; no secret appears in source, browser storage, command arguments, or request logs.
 6. Navigation and resident selection work in browser memory; view switching retains selected context.
@@ -104,8 +104,8 @@ The Rev 1.6 eight-deliverable table below is the component applicability matrix.
 
 | Deliverable | State | Evidence / remaining work |
 | --- | --- | --- |
-| 1. Code and contracts | PARTIAL | Password verifier, owner-only configuration, LAN bind/subnet/Host/Origin rules, session, lockout and read-only static interface are versioned. Independent reviewer evidence remains pending. |
-| 2. Functionality demonstrated | PARTIAL | Offline tests cover normal login, unauthorized assets, bad password, session signature/expiry, lockout, configuration permissions, Host/Origin/subnet and method/path rejection. Actual Windows development-PC browser acceptance is not yet available. |
+| 1. Code and contracts | PARTIAL | Password verifier, owner-only configuration, LAN bind/subnet/Host/Origin/CSRF rules, session, lockout and read-only static interface are versioned. Independent reviewer evidence remains pending. |
+| 2. Functionality demonstrated | PARTIAL | Offline tests cover normal login, unauthorized assets, bad password, session signature/expiry, lockout, configuration permissions, Host/Origin/CSRF/subnet and method/path rejection. Actual Windows development-PC browser acceptance is not yet available. |
 | 3. Complete versioned documentation | PASS for this slice | This specification records execution, interface, authority, dependencies, limitations, preview operation and rollback. |
 | 4. Troubleshooting and recovery cookbook | PASS for code checkout | Cookbook records password setup, read-only diagnostics, expected results, failure cases, session/lockout behavior, rollback and resume procedure. |
 | 5. Versioned visualization flowcharts | PASS for code paths | Generated focused Mermaid view includes local setup, network admission, authentication, rate-limit, reject, and recovery paths. |

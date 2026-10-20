@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.2",
+  "graph_revision": "1.0.3",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -235,14 +235,29 @@
     },
     {
       "id": "rv:riverview-v2:workspace-shell:verify-password",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "decision",
-      "label": "Verify salted hash and same-origin form submission",
+      "label": "Validate exact Origin or consume a one-use CSRF token, then verify salted password hash",
       "source_references": [
         "scripts/serve_v2_workspace_preview.py"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject foreign Origin or missing, expired, replayed, or wrong-client CSRF token",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
       ],
       "verification_evidence": [
         "tests/test_v2_workspace_shell.py"
@@ -393,7 +408,19 @@
       "from": "rv:riverview-v2:workspace-shell:verify-password",
       "to": "rv:riverview-v2:workspace-shell:issue-session",
       "type": "runtime_transition",
-      "label": "Hash matches and Origin is same-host"
+      "label": "Hash matches and Origin/CSRF checks pass"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:verify-password",
+      "to": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "type": "diagnostic_branch",
+      "label": "Origin mismatches or one-use CSRF token is invalid"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "to": "rv:riverview-v2:workspace-shell:password-form",
+      "type": "recovery_route",
+      "label": "Reload login page for a fresh token; retain strict Host check"
     },
     {
       "from": "rv:riverview-v2:workspace-shell:issue-session",

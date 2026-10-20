@@ -1,14 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.2
+# Revision: 1.0.4
 # Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
-# Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Test protected LAN preview access
+# Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-ORIGIN-001 | Verify atomic concurrent one-use CSRF consumption
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -16,17 +16,20 @@
 import http.client
 import ipaddress
 import json
+import re
 import secrets
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 import unittest
 from pathlib import Path
 from urllib.parse import urlencode
 
 from scripts.serve_v2_workspace_preview import (
+    CSRF_TOKEN_SECONDS,
     LOGIN_MAX_FAILURES,
     LOGIN_WINDOW_SECONDS,
     PreviewHandler,
@@ -145,11 +148,31 @@ class AuthenticatedPreviewTests(unittest.TestCase):
         return result
 
     def login(self, password):
+        status, _headers, body = self.request("GET", "/")
+        self.assertEqual(status, 200)
+        match = re.search(rb'name="csrf_token" value="([A-Za-z0-9_-]+)"', body)
+        self.assertIsNotNone(match)
+        return self.submit_login(password, match.group(1).decode("ascii"))
+
+    def submit_login(self, password, csrf_token, *, origin="same"):
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": f"http://127.0.0.1:{self.port}",
         }
-        return self.request("POST", "/login", headers=headers, body=urlencode({"password": password}))
+        if origin == "same":
+            headers["Origin"] = f"http://127.0.0.1:{self.port}"
+        elif origin is not None:
+            headers["Origin"] = origin
+        fields = {"password": password}
+        if csrf_token is not None:
+            fields["csrf_token"] = csrf_token
+        return self.request("POST", "/login", headers=headers, body=urlencode(fields))
+
+    def csrf_token(self):
+        status, _headers, body = self.request("GET", "/")
+        self.assertEqual(status, 200)
+        match = re.search(rb'name="csrf_token" value="([A-Za-z0-9_-]+)"', body)
+        self.assertIsNotNone(match)
+        return match.group(1).decode("ascii")
 
     def test_auth_blocks_assets_until_password_and_issues_session_cookie(self):
         status, headers, body = self.request("GET", "/")
@@ -203,15 +226,54 @@ class AuthenticatedPreviewTests(unittest.TestCase):
     def test_origin_and_host_restrictions(self):
         status, _headers, _body = self.request("GET", "/", headers={"Host": "untrusted.example"})
         self.assertEqual(status, 400)
-        status, _headers, _body = self.request("POST", "/login", headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "http://untrusted.example",
-        }, body=urlencode({"password": self.password}))
+        status, _headers, _body = self.submit_login(self.password, self.csrf_token(), origin="http://untrusted.example")
         self.assertEqual(status, 403)
-        status, _headers, _body = self.request("POST", "/login", headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "http://127.0.0.1:1",
-        }, body=urlencode({"password": self.password}))
+        status, _headers, _body = self.submit_login(self.password, self.csrf_token(), origin="http://127.0.0.1:1")
+        self.assertEqual(status, 403)
+
+    def test_null_origin_with_valid_one_time_token_passes_origin_gate(self):
+        status, _headers, body = self.submit_login("incorrect human password", self.csrf_token(), origin="null")
+        self.assertEqual(status, 200)
+        self.assertIn(b"Password was not accepted", body)
+
+    def test_absent_origin_requires_and_accepts_valid_token(self):
+        status, _headers, body = self.submit_login("incorrect human password", self.csrf_token(), origin=None)
+        self.assertEqual(status, 200)
+        self.assertIn(b"Password was not accepted", body)
+
+    def test_csrf_token_is_required_one_time_ip_bound_and_short_lived(self):
+        status, _headers, _body = self.submit_login(self.password, None)
+        self.assertEqual(status, 403)
+        token = self.csrf_token()
+        status, _headers, _body = self.submit_login(self.password, token)
+        self.assertEqual(status, 303)
+        self.assertEqual(self.submit_login(self.password, token)[0], 403)
+        token = self.server.issue_csrf_token("192.0.2.1", now=100.0)
+        self.assertFalse(self.server.consume_csrf_token(token, "127.0.0.1", now=101.0))
+        token = self.server.issue_csrf_token("127.0.0.1", now=100.0)
+        self.assertFalse(self.server.consume_csrf_token(token, "127.0.0.1", now=100.0 + CSRF_TOKEN_SECONDS))
+
+    def test_csrf_token_can_only_be_consumed_once_under_concurrency(self):
+        token = self.server.issue_csrf_token("127.0.0.1")
+        start = threading.Barrier(8)
+        def consume():
+            start.wait(timeout=2)
+            return self.server.consume_csrf_token(token, "127.0.0.1")
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            results = list(pool.map(lambda _index: consume(), range(8)))
+        self.assertEqual(sum(results), 1)
+
+    def test_foreign_origin_is_rejected_even_with_valid_token(self):
+        status, _headers, _body = self.submit_login(self.password, self.csrf_token(), origin="https://127.0.0.1")
+        self.assertEqual(status, 403)
+
+    def test_origin_authority_and_port_must_match_exactly(self):
+        status, _headers, body = self.submit_login("incorrect human password", self.csrf_token(),
+                                                   origin=f"http://127.0.0.1:{self.port}")
+        self.assertEqual(status, 200)
+        self.assertIn(b"Password was not accepted", body)
+        status, _headers, _body = self.submit_login(self.password, self.csrf_token(),
+                                                    origin=f"http://127.0.0.1:{self.port + 1}")
         self.assertEqual(status, 403)
 
     def test_rate_limit_after_five_failures(self):

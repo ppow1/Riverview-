@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.2
+File Revision: 1.0.3
 Purpose: Diagnose and recover the local or password-protected LAN V2 shell preview
 Authority: Read-only local diagnostics; no production recovery action
-Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Add protected LAN access and recovery guidance
+Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-ORIGIN-001 | Add browser Origin and one-use CSRF diagnostics
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -54,7 +54,9 @@ The login page warns that HTTP does not encrypt the password or cookie in transi
 | --- | --- | --- | --- |
 | Address already in use | `ss -ltnp '( sport = :8877 )'` | Identify the exact PID and bind address | Stop only the preview process owned by this checkout. Do not stop unrelated services. |
 | Windows cannot connect | On Camrui: `ip -4 -o addr show dev eno1`; `ss -ltnp '( sport = :8877 )'`; `curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.1.155:8877/` | Interface `192.168.1.155/24`; listener `192.168.1.155:8877`; login page HTTP 200 | Confirm Windows is on `192.168.1.0/24` and the numeric URL is used. Do not change firewall/Nginx or widen the subnet without authorization. |
+| Login page appears but submit returns 403 `login origin rejected` | In browser developer tools, inspect the POST Origin; do not capture password/form contents | Same-origin `http://192.168.1.155:8877` is accepted; `Origin: null` or absent must have a fresh hidden CSRF token; foreign scheme/host/port remains rejected | Reload the login page to receive a fresh five-minute one-use token. Never disable Host or Origin checks. The token is bound to the client IP and consumed once. |
 | Login page appears but asset gets 401 | Open the root URL and enter the password again | Static shell loads after successful form POST | Restart invalidates cookies; log in again. A cleartext secret is never needed in a URL. |
+| Login submit returns 403 `login CSRF token rejected` | Reload `/`; ensure the submitted form includes its hidden `csrf_token`; do not disclose it in diagnostics | Each login form has one unpredictable, five-minute token; a token cannot be replayed or used from a different client IP | Submit the newly loaded form. Do not fabricate a token or weaken origin validation. Restarting clears all tokens. |
 | Password rejected | Check `stat -c '%a %U:%G %n' /home/admin1/.config/riverview/v2-preview-auth.json` only | Mode 600, owner is preview operator; never display contents | Steward chooses a new password through setup prompt with `--replace`, then restart only the preview. |
 | Login temporarily limited | Browser response status 429; inspect no request logs | `Retry-After` header, up to 900 seconds | Wait the indicated interval. Do not restart to bypass the lockout. |
 | Client denied with 403 | Confirm client IP is inside the configured /24; verify browser used `192.168.1.155:8877` Host | Trusted LAN and expected Host required | Correct the client network or URL. Any ACL change needs reviewed scope; do not allow all interfaces. |
@@ -84,4 +86,4 @@ python3 scripts/process_graph.py validate
 python3 scripts/process_graph.py check
 ```
 
-The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the loopback preview. LAN authentication tests use a disposable random password created in memory and a temporary hash; they never test with the Steward's real password. Required outputs include no browser errors, selected resident retained, `overflow=false`, unauthorized assets 401, successful login redirect 303, lockout 429, invalid Host/Origin and non-LAN rejection, and session expiry. Final acceptance also requires Windows Chrome from the actual dev PC. A failed local check is evidence about the preview branch, not a reason to restart V1.
+The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the loopback preview. LAN authentication tests use a disposable random password created in memory and a temporary hash; they never test with the Steward's real password. Required outputs include no browser errors, selected resident retained, `overflow=false`, unauthorized assets 401, successful login redirect 303, lockout 429, invalid Host/Origin and non-LAN rejection, null/absent Origin accepted only with a valid one-use CSRF token, replay/missing-token rejection, and session expiry. Final acceptance also requires Windows Chrome from the actual dev PC. A failed local check is evidence about the preview branch, not a reason to restart V1.

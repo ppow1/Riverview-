@@ -3,14 +3,14 @@
 # Riverview~ Controlled Source
 # File: scripts/serve_v2_workspace_preview.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Serve the fixture-only V2 preview locally or on a trusted LAN with password authentication
 # Execution Model: Request-driven foreground preview; sessions and throttles are in memory
 # Observability: Sanitized startup URL and HTTP status only; request data is not logged
 # Dependencies: Python 3.10+ standard library; website/v2 static assets; optional protected password hash file
 # Inputs/Outputs: HTTP GET/HEAD static assets; POST login; all other mutations rejected
 # Authority: Preview only; non-loopback bind requires password hash and explicit narrow client subnet
-# Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Add password sessions and LAN client restrictions
+# Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-ORIGIN-001 | Accept opaque browser Origin only with one-use CSRF token
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -43,6 +43,8 @@ DIGEST_BYTES = 32
 SESSION_SECONDS = 8 * 60 * 60
 LOGIN_WINDOW_SECONDS = 15 * 60
 LOGIN_MAX_FAILURES = 5
+CSRF_TOKEN_SECONDS = 5 * 60
+MAX_CSRF_TOKENS = 512
 MAX_FORM_BYTES = 4096
 _TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -136,12 +138,12 @@ def trusted_client(client_ip: str, network: ipaddress.IPv4Network | None) -> boo
     return address.version == 4 and address in network
 
 
-def _login_page(message: str = "") -> bytes:
+def _login_page(csrf_token: str, message: str = "") -> bytes:
     safe_message = "<p class=\"error\">Password was not accepted. Wait if access is temporarily limited.</p>" if message else ""
     return ("<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>V2 preview sign in</title>"
-            "<style>body{margin:0;background:#101820;color:#e8f0f5;font:16px system-ui;display:grid;min-height:100vh;place-items:center}.card{width:min(390px,calc(100% - 36px));box-sizing:border-box;padding:28px;border:1px solid #354652;border-radius:14px;background:#17232d}h1{font-size:22px;margin:0 0 9px}.notice{color:#ffd38a;font-size:13px;line-height:1.5}label{display:block;margin:22px 0 7px;font-size:13px}input,button{box-sizing:border-box;width:100%;border-radius:8px;padding:12px;font:inherit}input{border:1px solid #526472;background:#0f171e;color:#fff}button{margin-top:12px;border:0;background:#78dce8;color:#102029;font-weight:650;cursor:pointer}.error{color:#ffaca3;font-size:13px}</style><main class=\"card\"><h1>Riverview V2 preview</h1>"
+            "<style>body{margin:0;background:#101820;color:#e8f0f5;font:16px system-ui;display:grid;min-height:100vh;place-items:center}.card{width:min(390px,calc(100% - 36px));box-sizing:border-box;padding:28px;border:1px solid #354652;border-radius:14px;background:#17232d}h1{font-size:22px;margin:0 0 9px}.notice{color:#ffd38a;font-size:13px;line-height:1.5}label{display:block;margin:22px 0 7px;font-size:13px}input,button{box-sizing:border-box;width:100%;border-radius:8px;padding:12px;font:inherit}input{border:1px solid #526472;background:#0f171e;color:#fff}input[type=hidden]{display:none}button{margin-top:12px;border:0;background:#78dce8;color:#102029;font-weight:650;cursor:pointer}.error{color:#ffaca3;font-size:13px}</style><main class=\"card\"><h1>Riverview V2 preview</h1>"
             "<p class=\"notice\">LAN-only preview over HTTP. Enter the password only on a trusted Riverview LAN. HTTP does not encrypt the password on the network.</p>"
-            f"{safe_message}<form method=\"post\" action=\"/login\"><label for=\"password\">Preview password</label><input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required maxlength=\"256\" autofocus><button type=\"submit\">Open V2 preview</button></form></main></html>").encode("utf-8")
+            f"{safe_message}<form method=\"post\" action=\"/login\"><input type=\"hidden\" name=\"csrf_token\" value=\"{csrf_token}\"><label for=\"password\">Preview password</label><input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required maxlength=\"256\" autofocus><button type=\"submit\">Open V2 preview</button></form></main></html>").encode("utf-8")
 
 
 class PreviewServer(ThreadingHTTPServer):
@@ -155,6 +157,8 @@ class PreviewServer(ThreadingHTTPServer):
         self.session_key = secrets.token_bytes(32)
         self.login_attempts: dict[str, tuple[int, float, float]] = {}
         self.login_attempts_lock = threading.Lock()
+        self.csrf_tokens: dict[str, tuple[str, float]] = {}
+        self.csrf_tokens_lock = threading.Lock()
         self.request_slots = threading.BoundedSemaphore(8)
         super().__init__(address, handler)
 
@@ -228,6 +232,24 @@ class PreviewServer(ThreadingHTTPServer):
         with self.login_attempts_lock:
             self.login_attempts.pop(client_ip, None)
 
+    def issue_csrf_token(self, client_ip: str, now: float | None = None) -> str:
+        now = time.monotonic() if now is None else now
+        token = secrets.token_urlsafe(32)
+        with self.csrf_tokens_lock:
+            self.csrf_tokens = {key: value for key, value in self.csrf_tokens.items() if value[1] > now}
+            if len(self.csrf_tokens) >= MAX_CSRF_TOKENS:
+                oldest = sorted(self.csrf_tokens, key=lambda key: self.csrf_tokens[key][1])
+                for key in oldest[:len(self.csrf_tokens) - MAX_CSRF_TOKENS + 1]:
+                    self.csrf_tokens.pop(key, None)
+            self.csrf_tokens[token] = (client_ip, now + CSRF_TOKEN_SECONDS)
+        return token
+
+    def consume_csrf_token(self, token: str, client_ip: str, now: float | None = None) -> bool:
+        now = time.monotonic() if now is None else now
+        with self.csrf_tokens_lock:
+            issued = self.csrf_tokens.pop(token, None)
+        return bool(issued and issued[0] == client_ip and issued[1] > now)
+
     def make_session_cookie(self, now: int | None = None) -> str:
         now = int(time.time()) if now is None else now
         expires = now + SESSION_SECONDS
@@ -287,7 +309,8 @@ class PreviewHandler(SimpleHTTPRequestHandler):
         return False
 
     def _send_login_page(self, *, failed: bool = False):
-        body = _login_page("failed" if failed else "")
+        token = self.server.issue_csrf_token(self.client_address[0])
+        body = _login_page(token, "failed" if failed else "")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -299,10 +322,23 @@ class PreviewHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _origin_matches_host(self) -> bool:
+    def _origin_matches_host(self) -> bool | None:
         host = self.headers.get("Host", "").strip().lower()
-        origin = self.headers.get("Origin", "").strip().lower()
-        return bool(host and origin == f"http://{host}")
+        raw_origin = self.headers.get("Origin")
+        if raw_origin is None:
+            return None
+        origin = raw_origin.strip()
+        if origin == "null":
+            return None
+        if not host or not origin:
+            return False
+        try:
+            parsed = urlsplit(origin)
+            return (parsed.scheme.lower() == "http" and parsed.netloc.lower() == host and
+                    not parsed.path and not parsed.query and not parsed.fragment and
+                    parsed.username is None and parsed.password is None)
+        except ValueError:
+            return False
 
     def do_GET(self):
         if not self._preflight():
@@ -342,7 +378,8 @@ class PreviewHandler(SimpleHTTPRequestHandler):
         if self.server.auth_record is None or path != "/login":
             self.send_error(405, "preview is read-only")
             return
-        if not self._origin_matches_host():
+        origin_matches = self._origin_matches_host()
+        if origin_matches is False:
             self.send_error(403, "login origin rejected")
             return
         retry_after = self.server.login_locked_for(self.client_address[0])
@@ -362,8 +399,14 @@ class PreviewHandler(SimpleHTTPRequestHandler):
             form = parse_qs(self.rfile.read(length).decode("utf-8"), strict_parsing=True, max_num_fields=2)
             values = form.get("password", [])
             password = values[0] if len(values) == 1 and len(values[0]) <= 256 else ""
+            csrf_values = form.get("csrf_token", [])
+            csrf_token = csrf_values[0] if len(csrf_values) == 1 and len(csrf_values[0]) <= 128 else ""
         except (UnicodeError, ValueError):
-            password = ""
+            password = csrf_token = ""
+        if (not csrf_token or not _TOKEN_RE.fullmatch(csrf_token) or
+                not self.server.consume_csrf_token(csrf_token, self.client_address[0])):
+            self.send_error(403, "login CSRF token rejected")
+            return
         if not password or not verify_password(password, self.server.auth_record):
             retry_after = self.server.record_login_failure(self.client_address[0])
             if retry_after:
