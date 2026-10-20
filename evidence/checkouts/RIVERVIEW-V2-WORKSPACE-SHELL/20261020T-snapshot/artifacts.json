@@ -1,0 +1,77 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "6530d233291800799a6897e2281fe5420613aab162433c8c3fd89a0dd5045c64",
+      "size_bytes": 12029
+    },
+    "browser-report.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "abc055ff26e7c5b81ab9bb366dffa70f44246bd2025c0df791973152abb90ebe",
+      "size_bytes": 883
+    },
+    "chrome-mobile.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/chrome-mobile.json",
+      "revision": "1.0.0",
+      "sha256": "8cda88db5625655171b57e3950aed0fa4f023fbe44d3876fa17d58eec7152791",
+      "size_bytes": 481
+    },
+    "diff-check.log": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/diff-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "firefox-ui.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/firefox-ui.json",
+      "revision": "1.0.0",
+      "sha256": "93a81549387e50953b13adea72d2df6417f5d003f317dc1061f3838eeb3bdeb4",
+      "size_bytes": 1320
+    },
+    "graph-check.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "eaf48b222affe3d572fb5605c158ac44f26d2124f374bf80288c6aacf43b7816",
+      "size_bytes": 55
+    },
+    "graph-validate.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/graph-validate.json",
+      "revision": "1.0.0",
+      "sha256": "932b2c8c51e41ca21433be08e5bfed60024d8bf89fe96156a69f0ed46358edc6",
+      "size_bytes": 39
+    },
+    "javascript-syntax.log": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/javascript-syntax.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "mobile-initial-failure.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/mobile-initial-failure.json",
+      "revision": "1.0.0",
+      "sha256": "9677c377afac58db29e4fcd0983b7cd61220ad2af4c6c9a7cb5b5f8eb7ee7a56",
+      "size_bytes": 865
+    },
+    "revision-check.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/revision-check.json",
+      "revision": "1.0.0",
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a",
+      "size_bytes": 37
+    },
+    "unittest.log": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/unittest.log",
+      "revision": "1.0.0",
+      "sha256": "43bee45d6aad459a68ac828c51da53851c16cc7653b4b35708dd4cc5ec18a6bc",
+      "size_bytes": 2743
+    },
+    "v2-snapshot-browser.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/v2-snapshot-browser.png",
+      "revision": "1.0.0",
+      "sha256": "bafb707afbe42f8447cbc507008bf1df7b1766685f52d924282dd386966ceb3d",
+      "size_bytes": 63839
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

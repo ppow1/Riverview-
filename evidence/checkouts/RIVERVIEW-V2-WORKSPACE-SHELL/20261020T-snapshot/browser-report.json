@@ -1,0 +1,28 @@
+{
+  "active_state": {
+    "button": false,
+    "resident": "Resident fixture 02",
+    "right": "compact",
+    "theme": "dark",
+    "view": "work"
+  },
+  "authenticated": true,
+  "browser": "Chrome/155.0.8059.84",
+  "chrome_version": "Chrome/155.0.8059.84",
+  "download_completed": true,
+  "download_name": "riverview-v2-snapshot-20261020T204003Z.zip",
+  "download_status": "V2 snapshot downloaded (55,944 bytes). No server upload was attempted.",
+  "elapsed_seconds": 7.33,
+  "manifest_member_checks": "PASS",
+  "preview_url": "http://192.168.1.155:8877/",
+  "state_matches_selected_view": true,
+  "zip_members": [
+    "README.txt",
+    "manifest.json",
+    "rendered-view.txt",
+    "workspace-state.json"
+  ],
+  "zip_name": "riverview-v2-snapshot-20261020T204003Z.zip",
+  "zip_sha256": "1a151390858288f8a50b37dff57ab654207a420b48c9b287371c5d441081a644",
+  "zip_size_bytes": 55944
+}

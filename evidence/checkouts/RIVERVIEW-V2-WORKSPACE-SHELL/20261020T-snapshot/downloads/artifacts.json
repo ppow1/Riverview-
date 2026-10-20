@@ -1,0 +1,11 @@
+{
+  "artifacts": {
+    "riverview-v2-snapshot-20261020T204003Z.zip": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T-snapshot/downloads/riverview-v2-snapshot-20261020T204003Z.zip",
+      "revision": "1.0.0",
+      "sha256": "1a151390858288f8a50b37dff57ab654207a420b48c9b287371c5d441081a644",
+      "size_bytes": 55944
+    }
+  },
+  "manifest_revision": "1.0.0"
+}
