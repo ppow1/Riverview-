@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.31
+# Revision: 1.0.33
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Route bounded and Codex artifacts through integrity-checked Grace review context
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Pass verifier-checked artifact sets to Grace review
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Persist a safe detail code for rejected incomplete proposals
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Persist actionable rejection-review escalation when the provider is unavailable or bounded corrections are exhausted.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
@@ -93,7 +95,7 @@ class GraceExecutionService:
         self.authority_ref = authority_ref
         self.verifier_id = verifier_id
         self.verifier_credential = verifier_credential
-        self.verifier = verifier or BoundedArtifactVerifier(artifact_root)
+        self.verifier = verifier or BoundedArtifactVerifier(artifact_root, pipeline)
         self.max_dispatch_failures = max_dispatch_failures
         self.resident_reasoner = resident_reasoner
         self.resident_token_budget = resident_token_budget
@@ -185,7 +187,8 @@ class GraceExecutionService:
         if not isinstance(artifact, Mapping):
             return context
         capability = artifact.get("capability")
-        if capability != "engineering.codex-cli-artifact.v1":
+        if capability not in {"engineering.codex-cli-artifact.v1",
+                              "engineering.bounded-artifact.v1"}:
             return context
         verifier = self.verifiers.get(capability)
         reader = getattr(verifier, "read_artifact_for_grace_review", None)

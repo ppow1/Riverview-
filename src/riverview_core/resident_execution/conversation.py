@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.25
+# Revision: 1.2.26
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Carry assignment-defined artifact sets through review and continuation
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Validate and present all verifier-checked assignment artifacts to Grace
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve active artifact-review fields alongside generation-specific review inputs.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Permit empty generation metadata on persisted governed-rework receipts while requiring substantive provenance.
@@ -110,20 +112,30 @@ def _validated_artifact_review(artifact, review, *, allow_unavailable=False):
         return None
     if allow_unavailable and review is None:
         return None
-    if (not isinstance(review, dict) or set(review) != {"artifact_name", "sha256", "body"} or
-            review.get("artifact_name") != artifact.get("artifact_name") or
-            review.get("sha256") != artifact.get("artifact_sha256") or
-            not re.fullmatch(r"codex-[0-9a-f]{64}(?:-r[0-9a-f]{12})?\.md",
-                             str(review.get("artifact_name", ""))) or
-            not isinstance(review.get("body"), str)):
-        raise ConversationUnavailable("digest-verified Codex artifact text is required for Grace review")
-    raw = review["body"].encode("utf-8")
-    if (not raw or len(raw) > _CODEX_REVIEW_MAX_BYTES or
-            hashlib.sha256(raw).hexdigest() != review["sha256"] or
-            artifact.get("artifact_bytes") != len(raw)):
-        raise ConversationUnavailable("Codex artifact review snapshot failed its integrity bound")
-    return {"artifact_name": review["artifact_name"], "sha256": review["sha256"],
-            "body": review["body"]}
+    contract = artifact.get("artifacts")
+    entries = review.get("artifacts") if isinstance(review, dict) else None
+    if (not isinstance(contract, list) or not 1 <= len(contract) <= 8 or
+            not isinstance(entries, list) or len(entries) != len(contract)):
+        raise ConversationUnavailable("digest-verified assignment artifact set is required for Grace review")
+    normalized = []
+    total = 0
+    for requirement in contract:
+        item = next((value for value in entries if isinstance(value, dict) and
+                     value.get("name") == requirement.get("name")), None)
+        if (item is None or item.get("path") != requirement.get("path") or
+                item.get("media_type") != requirement.get("media_type") or
+                not isinstance(item.get("body"), str) or
+                not re.fullmatch(r"[0-9a-f]{64}", str(item.get("sha256", "")))):
+            raise ConversationUnavailable("assignment artifact review identity is invalid")
+        raw = item["body"].encode("utf-8")
+        total += len(raw)
+        if (not raw or total > _CODEX_REVIEW_MAX_BYTES or
+                hashlib.sha256(raw).hexdigest() != item["sha256"]):
+            raise ConversationUnavailable("Codex artifact review snapshot failed its integrity bound")
+        normalized.append({"name": item["name"], "path": item["path"],
+            "media_type": item["media_type"], "sha256": item["sha256"],
+            "body": item["body"]})
+    return {"artifacts": normalized}
 
 
 def _safe_verified_result_review_shape(review):
@@ -1545,7 +1557,8 @@ class ResidentConversationService:
             artifact_metadata = verified_result["artifact"]
             verifier_evidence["artifact"] = {key: artifact_metadata.get(key) for key in (
                 "artifact_name", "artifact_sha256", "artifact_bytes", "capability",
-                "changed_files", "repository_revision") if key in artifact_metadata}
+                "changed_files", "repository_revision", "artifacts", "artifact_contract")
+                if key in artifact_metadata}
         if artifact_review_unavailable:
             verifier_evidence["artifact_review_unavailable"] = artifact_review_unavailable
         if artifact_review:
@@ -1699,7 +1712,7 @@ class ResidentConversationService:
                 validation_stage = "proposed_step_shape"
                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
                 allowed = required | {"execution_capability", "authorized_paths", "test_targets",
-                                     "repository_reference", "repository_revision"}
+                                     "repository_reference", "repository_revision", "artifact_requirements"}
                 if (not isinstance(proposed_step, dict) or not required <= set(proposed_step) or
                         not set(proposed_step) <= allowed or
                         not isinstance(proposed_step["step_id"], str) or
@@ -1728,7 +1741,11 @@ class ResidentConversationService:
                     # Treat the model's response as a selection of an already
                     # persisted plan step. Discard its restatement and pass the
                     # canonical step to the pipeline's durable state/scope checks.
-                    from ..resident_reasoning import PlanStep
+                    from ..resident_reasoning import ArtifactRequirement, PlanStep
+                    existing_artifacts = tuple(ArtifactRequirement(
+                        item["name"], item["path"], item["media_type"],
+                        tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
+                        for item in existing.get("artifact_requirements", []))
                     continuation_step = PlanStep(
                         existing["step_id"], existing["objective"],
                         tuple(existing["acceptance_criteria"]),
@@ -1738,7 +1755,7 @@ class ResidentConversationService:
                         tuple(existing.get("authorized_paths", ())),
                         tuple(existing.get("test_targets", ())),
                         existing.get("repository_reference"),
-                        existing.get("repository_revision"))
+                        existing.get("repository_revision"), existing_artifacts)
                     review["proposed_step"] = {
                         "step_id": continuation_step.step_id,
                         "objective": continuation_step.objective,
@@ -1748,7 +1765,12 @@ class ResidentConversationService:
                         "authorized_paths": list(continuation_step.authorized_paths),
                         "test_targets": list(continuation_step.test_targets),
                         "repository_reference": continuation_step.repository_reference,
-                        "repository_revision": continuation_step.repository_revision}
+                        "repository_revision": continuation_step.repository_revision,
+                        "artifact_requirements": [{"name": item.name, "path": item.path,
+                            "media_type": item.media_type,
+                            "acceptance_criteria": list(item.acceptance_criteria),
+                            "max_bytes": item.max_bytes}
+                            for item in continuation_step.artifact_requirements]}
                 else:
                     approved_paths = {path for item in prior_steps if isinstance(item, dict)
                                       for path in item.get("authorized_paths", [])}
@@ -1772,7 +1794,11 @@ class ResidentConversationService:
                         review["decision"] = "STEWARD_AUTHORIZATION_REQUIRED"
                         review["proposed_step"] = None
                     else:
-                        from ..resident_reasoning import PlanStep
+                        from ..resident_reasoning import ArtifactRequirement, PlanStep
+                        artifact_requirements = tuple(ArtifactRequirement(
+                            item["name"], item["path"], item["media_type"],
+                            tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
+                            for item in proposed_step.get("artifact_requirements", []))
                         continuation_step = PlanStep(
                             proposed_step["step_id"], proposed_step["objective"],
                             tuple(proposed_step["acceptance_criteria"]),
@@ -1782,7 +1808,7 @@ class ResidentConversationService:
                             tuple(proposed_step.get("authorized_paths", ())),
                             tuple(proposed_step.get("test_targets", ())),
                             proposed_step.get("repository_reference"),
-                            proposed_step.get("repository_revision"))
+                            proposed_step.get("repository_revision"), artifact_requirements)
             elif proposed_step is not None:
                 validation_stage = "decision_payload_consistency"
                 raise ValueError
@@ -1981,10 +2007,7 @@ class ResidentConversationService:
                         "artifact_sha256") if key in completion},
                     "artifact_review_status": ("digest_verified" if artifact_review else
                         review_unavailable or "not_applicable"),
-                    "artifact": ({"artifact_name": artifact_review["artifact_name"],
-                                  "sha256": artifact_review["sha256"],
-                                  "body": artifact_review["body"]}
-                                 if artifact_review else None)},
+                    "artifact": artifact_review if artifact_review else None},
                     ensure_ascii=False, sort_keys=True, separators=(",", ":"))}]
             if len(json.dumps(messages, ensure_ascii=False).encode("utf-8")) > _CONTEXT_LIMIT:
                 raise ConversationContextTooLarge("rejected result context exceeds conversation limit")
@@ -2051,7 +2074,8 @@ class ResidentConversationService:
             "verification_decision": "REJECTED", "verification_id": verification_id,
             "review_decision": decision["decision"], "review_rationale": decision["rationale"],
             "criteria_to_address": decision["criteria_to_address"],
-            "artifact_sha256_reviewed": artifact_review["sha256"] if artifact_review else None,
+            "artifact_sha256s_reviewed": ([item["sha256"] for item in
+                artifact_review["artifacts"]] if artifact_review else []),
             "rework_instruction_sha256": (hashlib.sha256(
                 decision["correction_instruction"].encode("utf-8")).hexdigest()
                 if decision["correction_instruction"] else None),

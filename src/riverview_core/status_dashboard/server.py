@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.29
+# Revision: 1.3.30
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Accept typed artifact contracts in authenticated proposal submission
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
 # Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Add authenticated exact-objective rereview request route through the existing pipeline.
@@ -1521,17 +1522,22 @@ def make_handler():
                             raise ValueError("object required")
                         objective_id = (objective_proposal or objective_cancel).group(1)
                         if objective_proposal:
-                            from riverview_core.resident_reasoning import PlanProposal, PlanStep
+                            from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
                             if set(data) != {"summary", "steps", "tokens_used"} or not isinstance(data["steps"], list):
                                 raise ValueError("invalid proposal shape")
                             steps = []
                             for step in data["steps"]:
                                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
                                 allowed = required | {"execution_capability", "authorized_paths", "test_targets",
-                                                     "repository_reference", "repository_revision"}
+                                                     "repository_reference", "repository_revision",
+                                                     "artifact_requirements"}
                                 if (not isinstance(step, dict) or not required <= set(step) or
                                         not set(step) <= allowed):
                                     raise ValueError("invalid proposal step")
+                                artifact_requirements = tuple(ArtifactRequirement(
+                                    item["name"], item["path"], item["media_type"],
+                                    tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
+                                    for item in step.get("artifact_requirements", []))
                                 steps.append(PlanStep(step["step_id"], step["objective"],
                                     tuple(step["acceptance_criteria"]), tuple(step["depends_on"]),
                                     step.get("execution_capability",
@@ -1539,7 +1545,7 @@ def make_handler():
                                     tuple(step.get("authorized_paths", ())),
                                     tuple(step.get("test_targets", ())),
                                     step.get("repository_reference"),
-                                    step.get("repository_revision")))
+                                    step.get("repository_revision"), artifact_requirements))
                             proposal = PlanProposal(data["summary"], tuple(steps), data["tokens_used"])
                             objective = pipeline.get_objective(objective_id)
                             if objective is None:

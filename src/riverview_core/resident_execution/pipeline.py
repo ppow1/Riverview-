@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.17
+# Revision: 1.1.18
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Advance independently accepted steps through persisted dependencies and bound rejected-step retries with durable escalation pending.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Fail closed on globally reused event keys and select due review generations before applying the batch limit.
@@ -35,6 +35,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Resolve failed steps only after their linked revalidation successor is independently verified
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Share the verified rework completion predicate with objective reconciliation.
 # Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-PG-QUALIFICATION | Normalize integer and string completion-cycle receipt values
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Bind exact per-step artifact contracts into durable dispatch events
 # Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Persist exact-subject review, revision and blocked decisions
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: tests/test_grace_execution.py; tests/test_resident_reasoning.py
@@ -453,9 +454,15 @@ class GraceExecutionPipeline:
         proposal = row["proposal"] if isinstance(row["proposal"], dict) else {}
         raw_step = next((item for item in proposal.get("steps", [])
                          if isinstance(item, dict) and item.get("step_id") == row["step_id"]), {})
+        dispatch_payload = row["dispatch_payload"] if isinstance(row["dispatch_payload"], dict) else {}
+        artifact_contract = dispatch_payload.get("artifact_contract")
+        declared_contract = raw_step.get("artifact_requirements", [])
+        if (not isinstance(artifact_contract, list) or artifact_contract != declared_contract):
+            return None
         return {"step_id": row["step_id"], "objective": row["step_objective"],
                 "acceptance_criteria": row["acceptance_criteria"],
                 "depends_on": row["depends_on"],
+                "artifact_requirements": artifact_contract,
                 "execution_capability": raw_step.get(
                     "execution_capability", "engineering.codex-cli-artifact.v1"),
                 "authorized_paths": raw_step.get("authorized_paths", []),
@@ -567,6 +574,33 @@ class GraceExecutionPipeline:
                         raise ObjectiveStateError("objective changed before step dispatch")
                     if _json(locked_objective["proposal"]) != _json(objective["proposal"]):
                         raise ObjectiveStateError("proposal changed before assignment dispatch")
+                    raw_step = next((item for item in locked_objective["proposal"].get("steps", [])
+                        if isinstance(item, dict) and item.get("step_id") == step["step_id"]), None)
+                    if not isinstance(raw_step, dict):
+                        raise ObjectiveStateError("persisted proposal step is unavailable at dispatch")
+                    artifact_contract = raw_step.get("artifact_requirements", [])
+                    from ..resident_reasoning import ArtifactRequirement
+                    if (raw_step.get("execution_capability", "engineering.codex-cli-artifact.v1") ==
+                            "engineering.codex-cli-artifact.v1"):
+                        if not isinstance(artifact_contract, list) or not 1 <= len(artifact_contract) <= 8:
+                            raise ObjectiveStateError("assignment artifact contract is required before dispatch")
+                        try:
+                            requirements = [ArtifactRequirement(
+                                item["name"], item["path"], item["media_type"],
+                                tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
+                                for item in artifact_contract]
+                            normalized_contract = []
+                            for requirement in requirements:
+                                item = asdict(requirement)
+                                item["acceptance_criteria"] = list(requirement.acceptance_criteria)
+                                normalized_contract.append(item)
+                        except (KeyError, TypeError, ValueError):
+                            raise ObjectiveStateError("assignment artifact contract is invalid") from None
+                        if normalized_contract != artifact_contract:
+                            raise ObjectiveStateError("assignment artifact contract is not canonical")
+                        artifact_contract = normalized_contract
+                    else:
+                        artifact_contract = []
                     assignment = self.assignment_intake.create(
                         assignment_id, "engineering", idempotency_key,
                         credential=credential, authority_ref=authority_ref,
@@ -600,6 +634,7 @@ class GraceExecutionPipeline:
                                 created_event["actor_id"],
                         {"assignment_id": assignment_id,
                          "workflow_step": step["step_id"],
+                         "artifact_contract": artifact_contract,
                          **self._source_target_binding(binding_objective, step, assignment_id)})
         except AssignmentIntakeDenied:
             raise ObjectiveNotAuthorized("assignment.create is not authorized") from None
@@ -662,7 +697,8 @@ class GraceExecutionPipeline:
                 "artifact_bytes", "capability", "changed_files", "patch_sha256",
                 "patch_bytes", "test_status", "repository_reference", "repository_revision",
                 "assignment_id", "objective_id", "artifact_schema", "source_artifact_name",
-                "source_revision", "source_sha256", "rework_verification_id", "status")
+                "artifacts", "artifact_contract", "source_revision", "source_sha256",
+                "rework_verification_id", "status")
             payload["artifact"] = {key: artifact[key] for key in allowed_evidence
                                     if key in artifact}
         with self.ledger.db.transaction():
@@ -1349,7 +1385,7 @@ class GraceExecutionPipeline:
 
     def propose_continuation(self, objective_id, parent_assignment_id, step, *, actor_id="office:grace"):
         """Persist a model-proposed step only inside the accepted objective's exact scope."""
-        from ..resident_reasoning import PlanProposal, PlanStep
+        from ..resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
         objective = self.get_objective(objective_id)
         # An initial multi-step proposal is still gated one verified result at a
         # time. Grace's authenticated 80B review must explicitly confirm the
@@ -1377,7 +1413,11 @@ class GraceExecutionPipeline:
                 tuple(raw.get("authorized_paths", ())) == tuple(step.authorized_paths) and
                 tuple(raw.get("test_targets", ())) == tuple(step.test_targets) and
                 raw.get("repository_reference") == step.repository_reference and
-                raw.get("repository_revision") == step.repository_revision)
+                raw.get("repository_revision") == step.repository_revision and
+                raw.get("artifact_requirements", []) == [
+                    {"name": item.name, "path": item.path, "media_type": item.media_type,
+                     "acceptance_criteria": list(item.acceptance_criteria),
+                     "max_bytes": item.max_bytes} for item in step.artifact_requirements])
             if (link and exact and link["parent_status"] == "verified" and
                     link["target_status"] == "pending" and
                     link["parent_step"] in tuple(link["depends_on"]) and
@@ -1451,7 +1491,8 @@ class GraceExecutionPipeline:
         continuation = PlanStep(step.step_id, step.objective, tuple(step.acceptance_criteria),
                                 tuple(step.depends_on), step.execution_capability,
                                 tuple(step.authorized_paths), tuple(step.test_targets),
-                                step.repository_reference, step.repository_revision)
+                step.repository_reference, step.repository_revision,
+                tuple(step.artifact_requirements))
         merged = dict(objective["proposal"])
         merged["steps"] = [*prior_steps, asdict(continuation)]
         # Reuse the public typed contract to validate unique IDs and acyclic
@@ -1462,7 +1503,11 @@ class GraceExecutionPipeline:
                      item.get("execution_capability", "engineering.codex-cli-artifact.v1"),
                      tuple(item.get("authorized_paths", ())),
                      tuple(item.get("test_targets", ())),
-                     item.get("repository_reference"), item.get("repository_revision"))
+                     item.get("repository_reference"), item.get("repository_revision"),
+                     tuple(ArtifactRequirement(requirement["name"], requirement["path"],
+                         requirement["media_type"], tuple(requirement["acceptance_criteria"]),
+                         requirement.get("max_bytes", 32768))
+                         for requirement in item.get("artifact_requirements", [])))
             for item in merged["steps"]), 0)
         step_order = len(prior_steps) + 1
         with self.ledger.db.transaction():

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.1
+# Revision: 1.1.2
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept sanitized C2 bridge exception codes as terminal ambiguous receipts.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Bind duplicate receipt replay to a one-way lease-token digest.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Import namespace UUID function for stable doorbell attempt identity.
@@ -19,6 +19,7 @@
 # Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Persist immutable review subject and expose its digest in provider status
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Add explicit Steward-originated list/claim/response/status operations with durable actor provenance and review-subject digest binding
 # Changed: 2026-10-19 UTC | RV-P0-W3-PR150-COMBINED-CI-CORRECTION | Preserve C3 conflict semantics for provider reviews and C4 unauthorized semantics for Steward digest failures.
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Validate typed per-step artifact requirements in immutable review subjects
 # Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 # Tests: tests/test_external_reasoning_exchange.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -142,7 +143,7 @@ def _digest(value):
 def proposal_review_content(proposal):
     """Return execution-relevant proposal content, excluding model telemetry."""
     from dataclasses import is_dataclass
-    from ..resident_reasoning import PlanProposal, PlanStep
+    from ..resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
     if is_dataclass(proposal):
         proposal = asdict(proposal)
     if not isinstance(proposal, Mapping):
@@ -156,13 +157,22 @@ def proposal_review_content(proposal):
     for step in steps:
         if is_dataclass(step):
             step = asdict(step)
-        if not isinstance(step, Mapping) or set(step) != allowed_step_keys:
+        if not isinstance(step, Mapping) or frozenset(step) not in {
+                frozenset(allowed_step_keys), frozenset(allowed_step_keys - {"artifact_requirements"})}:
             raise ValueError("review proposal step is invalid")
         data = dict(step)
-        for key in ("acceptance_criteria", "depends_on", "authorized_paths", "test_targets"):
+        data.setdefault("artifact_requirements", [])
+        for key in ("acceptance_criteria", "depends_on", "authorized_paths", "test_targets",
+                    "artifact_requirements"):
             if not isinstance(data[key], (tuple, list)):
                 raise ValueError("review proposal arrays are invalid")
-            data[key] = tuple(data[key])
+            if key == "artifact_requirements":
+                data[key] = tuple(ArtifactRequirement(
+                    item["name"], item["path"], item["media_type"],
+                    tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
+                    if isinstance(item, Mapping) else item for item in data[key])
+            else:
+                data[key] = tuple(data[key])
         normalized_steps.append(PlanStep(**data))
     normalized = PlanProposal(summary, tuple(normalized_steps), 0)
     return {"summary": normalized.summary,

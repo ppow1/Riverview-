@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.43
+# Revision: 1.0.45
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Cover arbitrary multi-artifact bounded contracts and repair PostgreSQL proposal fixtures
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Assert incomplete-proposal exceptions map to a fixed safe diagnostic code
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Cover verifier-accepted dependent dispatch without second-model gating and bounded durable rejection escalation.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -80,7 +82,7 @@ from riverview_core.resident_execution import (
     GraceExecutionPipeline, ObjectiveNotAuthorized, ObjectiveStateError,
 )
 from riverview_core.resident_reasoning import (
-    PlanProposal, PlanStep, ReasoningResult, ReasoningStatus,
+    ArtifactRequirement, PlanProposal, PlanStep, ReasoningResult, ReasoningStatus,
 )
 from riverview_core.worker_adapter import ContinuousWorker, PostgresWorkerAdapter
 from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
@@ -291,7 +293,10 @@ class CodingWorkOrderContractTests(unittest.TestCase):
         common = dict(assignment_id="assignment:1", objective_id="objective:1",
                       repository_reference="repo://docs/contract.md",
                       repository_revision="a" * 40, task_scope="write a bounded artifact",
-                      acceptance_criteria=("artifact exists",))
+                      acceptance_criteria=("artifact exists",),
+                      artifact_requirements=(ArtifactRequirement("proof", "results/proof.json",
+                          "application/json", ("artifact exists",)),),
+                      source_sha256="b" * 64, source_references=("repo://docs/contract.md",))
         self.assertEqual(CodingWorkOrder(**common).allowed_operations,
                          ("write_bounded_json_artifact",))
         with self.assertRaises(ValueError):
@@ -414,7 +419,11 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertTrue(resident_regrounding.retrieval_complete)
         proposal = PlanProposal("Document worker retry contract", (
             PlanStep("document", "Create a bounded retry-contract work product",
-                     ("artifact contains the task and verified repository provenance",)),), 0)
+                     ("artifact contains the task and verified repository provenance",),
+                     artifact_requirements=(ArtifactRequirement("retry-proof", "results/retry.json",
+                         "application/json", ("artifact contains the task and verified repository provenance",)),
+                         ArtifactRequirement("audit-summary", "evidence/summary.data",
+                         "application/json", ("artifact contains the task and verified repository provenance",)))),), 0)
         self.pipeline.record_proposal(row["objective_id"], proposal)
         with self.assertRaises(ObjectiveNotAuthorized):
             self.pipeline.authorize_and_dispatch(
@@ -442,23 +451,53 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(cur.fetchone()["status"], "succeeded")
         with self.assertRaises(ObjectiveStateError):
             self.pipeline.record_verified_completion(row["objective_id"], assignment_id)
+        verifier = BoundedArtifactVerifier(self.root / "artifacts", self.pipeline)
+        with self.adapter.ledger.db.cursor() as cur:
+            self.adapter.ledger._set_search_path(cur)
+            cur.execute("SELECT result FROM worker_results WHERE attempt_id=%s", (attempt_id,))
+            worker_result = cur.fetchone()["result"]
+        rejected_contract = json.loads(json.dumps(worker_result))
+        rejected_contract["artifact_contract"][0]["name"] = "unauthorized-name"
+        rejected = verifier.verify({"id": assignment_id, "objective_ref": row["objective_id"]},
+            {"status": "succeeded", "capability": "engineering.bounded-artifact.v1",
+             "attempt_id": attempt_id}, rejected_contract)
+        self.assertEqual(rejected.status.value, "REJECTED")
+        from unittest.mock import patch
+        resolved_step = self.pipeline.proposal_step_for_assignment(row["objective_id"], assignment_id)
+        changed_step = json.loads(json.dumps(resolved_step))
+        changed_step["artifact_requirements"][0]["path"] = "unauthorized/changed.json"
+        with patch.object(self.pipeline, "proposal_step_for_assignment", return_value=changed_step):
+            rejected_changed_contract = verifier.verify(
+                {"id": assignment_id, "objective_ref": row["objective_id"]},
+                {"status": "succeeded", "capability": "engineering.bounded-artifact.v1",
+                 "attempt_id": attempt_id}, worker_result)
+        self.assertEqual(rejected_changed_contract.status.value, "REJECTED")
+        artifact_dir = (self.root / "artifacts" / worker_result["artifacts"][0]["storage_name"]).parent
+        extra_file = artifact_dir / "unauthorized-extra-object"
+        extra_file.write_text("{}", encoding="utf-8")
+        extra_file.chmod(0o600)
+        rejected_extra = verifier.verify({"id": assignment_id, "objective_ref": row["objective_id"]},
+            {"status": "succeeded", "capability": "engineering.bounded-artifact.v1",
+             "attempt_id": attempt_id}, worker_result)
+        self.assertEqual(rejected_extra.status.value, "REJECTED")
+        extra_file.unlink()
         decision = self.adapter.verify_attempt(
             assignment_id, attempt_id, self.verifier_id, self.credentials["verifier"],
-            BoundedArtifactVerifier(self.root / "artifacts"),
+            verifier,
             idempotency_key="grace-verify-" + assignment_id)
         self.assertEqual(decision.status.value, "ACCEPTED", dict(decision.criteria))
         result = self.pipeline.record_verified_completion(row["objective_id"], assignment_id)
         self.assertEqual(result["status"], "COMPLETED")
-        product = next((self.root / "artifacts").glob("grace-work-*.json"))
-        self.assertTrue(product.is_file())
-        self.assertGreater(product.stat().st_size, 0)
+        products = [path for path in (self.root / "artifacts").rglob("*") if path.is_file()]
+        self.assertEqual(len(products), 2)
+        self.assertTrue(all(path.stat().st_size > 0 for path in products))
         evidence_dir = os.environ.get("RIVERVIEW_TEST_EVIDENCE_DIR")
         if evidence_dir:
             evidence_root = Path(evidence_dir)
             artifact_dir = evidence_root / "artifacts"
             artifact_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
             preserved = artifact_dir / "bounded-work-product.json"
-            shutil.copyfile(product, preserved)
+            shutil.copyfile(products[0], preserved)
             os.chmod(preserved, 0o600)
             report = {
                 "evidence_schema": "rv.grace.execution-checkout.v1",
@@ -498,7 +537,7 @@ class GraceExecutionTests(unittest.TestCase):
     def test_late_codex_artifact_is_preserved_for_independent_verification(self):
         from unittest.mock import patch
         from riverview_core.resident_execution.codex_cli import CAPABILITY
-        from riverview_core.resident_execution.codex_workflow import CodexMarkdownVerifier
+        from riverview_core.resident_execution.codex_workflow import CodexArtifactVerifier
         from riverview_core.worker_adapter import PostgresRecoveryCoordinator
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
 
@@ -509,7 +548,9 @@ class GraceExecutionTests(unittest.TestCase):
             origin={"conversation_id": str(uuid4()), "source_sequence": 6})
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id, PlanProposal("Produce a bounded report", (
-            PlanStep("report", "Create a Markdown report", (criterion,)),), 0))
+            PlanStep("report", "Create a Markdown report", (criterion,), artifact_requirements=(
+                ArtifactRequirement("late-report", "reports/late-report.md", "text/markdown",
+                                    (criterion,)),), execution_capability=CAPABILITY),), 0))
         assignment_id = "assignment:late-codex:" + uuid4().hex
         self.pipeline.authorize_and_dispatch(objective_id, assignment_id,
             credential=self.credentials["steward"], authority_ref=self.scope,
@@ -544,8 +585,10 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(expired[0]["decision"], "outcome_unknown")
             artifact_root = self.root / "late-artifacts"
             artifact_root.mkdir(mode=0o700)
-            name = "codex-" + hashlib.sha256(assignment_id.encode()).hexdigest() + ".md"
-            artifact = artifact_root / name
+            name = "codex-" + hashlib.sha256(assignment_id.encode()).hexdigest()
+            artifact_dir = artifact_root / name
+            artifact_dir.mkdir(mode=0o700)
+            artifact = artifact_dir / hashlib.sha256(b"late-report").hexdigest()[:12]
             artifact.write_text("# Completed bounded report\n\n" + criterion + "\n",
                                 encoding="utf-8")
             artifact.chmod(0o600)
@@ -582,7 +625,7 @@ class GraceExecutionTests(unittest.TestCase):
                 ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"]),
                 dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
                 verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
-                artifact_root=artifact_root, verifier=CodexMarkdownVerifier(artifact_root),
+                artifact_root=artifact_root, verifier=CodexArtifactVerifier(artifact_root, self.pipeline),
                 execution_capability=CAPABILITY)
             self.assertFalse(service.revalidate_rejected_one(assignment_id))
             rejected_context = self.pipeline.pending_rejected_work_order_reviews()[0]
@@ -592,13 +635,13 @@ class GraceExecutionTests(unittest.TestCase):
             self.pipeline.record_rework_decision(rejected_context, satisfied,
                 credential=self.credentials["steward"])
             self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
-            corrected_key = (f"grace-verifier-revalidation:{recovered[0]['attempt_id']}:1.0.2")
+            corrected_key = (f"grace-verifier-revalidation:{recovered[0]['attempt_id']}:{CodexArtifactVerifier.REVISION}")
             with patch.object(self.adapter.ledger, "transition",
                               side_effect=RuntimeError("simulated transition interruption")):
                 with self.assertRaisesRegex(RuntimeError, "transition interruption"):
                     self.adapter.verify_attempt(assignment_id, recovered[0]["attempt_id"],
                         self.verifier_id, self.credentials["verifier"],
-                        CodexMarkdownVerifier(artifact_root), idempotency_key=corrected_key)
+                        CodexArtifactVerifier(artifact_root, self.pipeline), idempotency_key=corrected_key)
             self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
             self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".verification_records '
                 "WHERE attempt_id=%s AND decision='ACCEPTED'", (recovered[0]["attempt_id"],)).fetchone()[0], 1)
@@ -606,7 +649,7 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
             rows = self.admin.execute(f'SELECT verifier_revision,decision FROM "{self.schema}".verification_records '
                 "WHERE attempt_id=%s ORDER BY verifier_revision", (recovered[0]["attempt_id"],)).fetchall()
-            self.assertEqual(rows, [("1.0.0", "REJECTED"), ("1.0.2", "ACCEPTED")])
+            self.assertEqual(rows, [ ("1.0.0", "REJECTED"), ("1.0.4", "ACCEPTED")])
             self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".worker_attempts '
                 "WHERE assignment_id=%s", (assignment_id,)).fetchone()[0], 1)
         finally:
@@ -617,18 +660,24 @@ class GraceExecutionTests(unittest.TestCase):
         objective_id = "objective:project-status-report"
         self.pipeline.submit_objective(objective_id,
             "Assess whether a simple project-status report should be standard for new Riverview Engineering assignments; identify useful fields, stalled-work value, and risks.",
-            ["deliverable.md answers the assessment using only the original request and verified records",
-             "deliverable.md discloses when historical assignment analysis was not performed"],
+            ["The assigned report answers the assessment using only the original request and verified records",
+             "The report discloses when historical assignment analysis was not performed"],
             credential=self.credentials["steward"], scope_ref=self.scope,
             origin={"conversation_id": str(uuid4()), "source_sequence": 1})
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id, PlanProposal(
             "Draft a project-status report and map its fields", (
-                PlanStep("prepare", "Create deliverable.md with the requested project-status assessment",
-                         ("deliverable.md answers the assessment using only the original request and verified records",)),
+                PlanStep("prepare", "Create the requested project-status assessment",
+                         ("The assigned report answers the assessment using only the original request and verified records",
+                          "The report discloses when historical assignment analysis was not performed"),
+                         artifact_requirements=(ArtifactRequirement("status-report", "reports/project-status.json",
+                             "application/json", ("The assigned report answers the assessment using only the original request and verified records",
+                             "The report discloses when historical assignment analysis was not performed")),)),
                 PlanStep("followup", "Map report fields from verified assignment records",
-                         ("deliverable.md discloses when historical assignment analysis was not performed",),
-                         depends_on=("prepare",))), 0))
+                         ("The report discloses when historical assignment analysis was not performed",),
+                         depends_on=("prepare",), artifact_requirements=(ArtifactRequirement(
+                             "analysis-data", "reports/assignment-analysis.json", "application/json",
+                             ("The report discloses when historical assignment analysis was not performed",)),))), 0))
         class ResultPublisher:
             def __init__(self):
                 self.cycles = []
@@ -814,7 +863,9 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id,
             PlanProposal("Create acceptance artifact", (PlanStep("s1",
-                "Create deliverable.md", tuple(criteria)),), 0))
+                "Create an acceptance artifact", tuple(criteria), artifact_requirements=(
+                    ArtifactRequirement("acceptance", "reports/acceptance.txt", "text/plain",
+                        tuple(criteria)),)),), 0))
         self.pipeline.authorize_and_dispatch(objective_id, assignment_id,
             credential=self.credentials["steward"], authority_ref=self.scope,
             idempotency_key="rework-dispatch:" + suffix)
@@ -839,7 +890,7 @@ class GraceExecutionTests(unittest.TestCase):
             def verify(_self, _assignment, attempt, result):
                 from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
                 fixed = result.get("correction_instruction") == \
-                    "Include all four exact criteria in deliverable.md."
+                    "Include all four exact criteria in the assigned artifact."
                 accepted = fixed
                 flags = {"acceptance_criteria_are_present": bool(accepted),
                     "result_is_bound_to_assignment": result.get("acceptance_criteria") == criteria}
@@ -878,7 +929,7 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(context["step_id"], "s1")
         self.assertEqual(context["step_acceptance_criteria"], criteria)
         decision = {"decision": "REWORK_PROPOSED", "rationale": "The artifact omitted the exact criteria.",
-            "correction_instruction": "Include all four exact criteria in deliverable.md.",
+            "correction_instruction": "Include all four exact criteria in the assigned artifact.",
             "criteria_to_address": criteria}
         persisted = self.pipeline.record_rework_decision(context, decision,
             credential=self.credentials["steward"])
@@ -959,7 +1010,7 @@ class GraceExecutionTests(unittest.TestCase):
                 from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
                 return VerificationResult(VerificationStatus.REJECTED,
                     {"criterion_missing": True}, ("urn:rv:worker-attempt:rejected",),
-                    _self.REVISION, "deliverable.md omitted a scoped acceptance criterion")
+                    _self.REVISION, "The assigned artifact omitted a scoped acceptance criterion")
 
         service = GraceExecutionService(self.pipeline, self.adapter, worker,
             dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
@@ -973,7 +1024,7 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(context["step_acceptance_criteria"], criteria)
             decision = {"decision": "REWORK_PROPOSED",
                 "rationale": "Correct only the listed project-status acceptance criterion.",
-                "correction_instruction": "Update deliverable.md for the exact rejected criterion.",
+                "correction_instruction": "Update the assigned artifact for the exact rejected criterion.",
                 "criteria_to_address": [criteria[index % len(criteria)]]}
             saved = self.pipeline.record_rework_decision(context, decision,
                 credential=self.credentials["steward"])
@@ -1220,7 +1271,9 @@ class GraceExecutionTests(unittest.TestCase):
             [criterion], credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(artifact_objective)
         self.pipeline.record_proposal(artifact_objective, PlanProposal("Artifact test", (
-            PlanStep("artifact", "Create a bounded result", (criterion,)),), 0))
+            PlanStep("artifact", "Create a bounded result", (criterion,), artifact_requirements=(
+                ArtifactRequirement("dual-proof", "results/dual-proof.json", "application/json",
+                                    (criterion,)),)),), 0))
         self.pipeline.authorize_and_dispatch(artifact_objective, "assignment:dual:artifact:" + uuid4().hex,
             credential=self.credentials["steward"], authority_ref=self.scope,
             idempotency_key="dual-artifact:" + uuid4().hex)
@@ -1375,7 +1428,7 @@ class GraceExecutionTests(unittest.TestCase):
             execution_capability="engineering.bounded-artifact.v1",
             execution_workers={"engineering.bounded-artifact.v1":artifact_loop,
                                SOURCE_CAPABILITY:source_loop},
-            verifiers={"engineering.bounded-artifact.v1":BoundedArtifactVerifier(artifact_root),
+            verifiers={"engineering.bounded-artifact.v1":BoundedArtifactVerifier(artifact_root, self.pipeline),
                        SOURCE_CAPABILITY:source_result_verifier},
             conversation_result_publisher=publisher)
 
@@ -1448,7 +1501,7 @@ class GraceExecutionTests(unittest.TestCase):
             execution_capability="engineering.bounded-artifact.v1",
             execution_workers={"engineering.bounded-artifact.v1":artifact_loop,
                                SOURCE_CAPABILITY:restarted_source_loop},
-            verifiers={"engineering.bounded-artifact.v1":BoundedArtifactVerifier(artifact_root),
+            verifiers={"engineering.bounded-artifact.v1":BoundedArtifactVerifier(artifact_root, self.pipeline),
                        SOURCE_CAPABILITY:source_result_verifier},
             conversation_result_publisher=publisher)
         self.assertEqual(service.dispatch_proposed(objective_id), 0,
@@ -1650,7 +1703,9 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id, PlanProposal("Record provenance", (
             PlanStep("provenance", "Write bounded work evidence",
-                     ("record verified repository provenance",)),), 0))
+                     ("record verified repository provenance",), artifact_requirements=(
+                ArtifactRequirement("provenance", "evidence/provenance.json", "application/json",
+                    ("record verified repository provenance",)),)),), 0))
         assignment_id = "assignment:" + uuid4().hex
         self.pipeline.authorize_and_dispatch(
             objective_id, assignment_id, credential=self.credentials["steward"],
@@ -1680,7 +1735,9 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id, PlanProposal("Cancel test", (
             PlanStep("cancel", "Write bounded work evidence",
-                     ("record verified repository provenance",)),), 0))
+                     ("record verified repository provenance",), artifact_requirements=(
+                ArtifactRequirement("cancellation-proof", "evidence/cancel.json", "application/json",
+                    ("record verified repository provenance",)),)),), 0))
         assignment_id = "assignment:" + uuid4().hex
         self.pipeline.authorize_and_dispatch(
             objective_id, assignment_id, credential=self.credentials["steward"],
@@ -1779,6 +1836,9 @@ class GraceExecutionTests(unittest.TestCase):
             proposal = {"summary": "Record verified repository provenance",
                 "steps": [{"step_id": "record", "objective": "Write one bounded work product",
                     "acceptance_criteria": ["artifact records verified repository provenance"],
+                    "artifact_requirements": [{"name": "proof", "path": "reports/proof.json",
+                        "media_type": "application/json", "acceptance_criteria": [
+                            "artifact records verified repository provenance"], "max_bytes": 32768}],
                     "depends_on": []}], "tokens_used": 0}
             proposal_payload = json.dumps(proposal, separators=(",", ":")).encode()
             denied_proposal, _ = request("POST", f"/api/v1/objectives/{objective_id}/proposal",
@@ -1929,11 +1989,13 @@ class GraceExecutionTests(unittest.TestCase):
             self.pipeline.ground_objective(objective_id)
             self.pipeline.record_proposal(objective_id, PlanProposal("Verify bounded artifact", (
                 PlanStep("artifact", "Create a bounded work product",
-                         ("artifact includes the requested work and provenance",)),), 0))
+                         ("artifact includes the requested work and provenance",), artifact_requirements=(
+                             ArtifactRequirement("work-proof", "reports/work-proof.json", "application/json",
+                                 ("artifact includes the requested work and provenance",)),)),), 0))
             objectives.append(objective_id)
 
         failing_id = {"value": None}
-        delegate = BoundedArtifactVerifier(self.root / "isolation-artifacts")
+        delegate = BoundedArtifactVerifier(self.root / "isolation-artifacts", self.pipeline)
         class IsolatedVerifier:
             REVISION = "isolated-test-verifier-1"
             def verify(self, assignment, attempt, result):
@@ -2000,7 +2062,9 @@ class GraceExecutionTests(unittest.TestCase):
             self.pipeline.ground_objective(objective_id)
             self.pipeline.record_proposal(objective_id, PlanProposal("Create work product", (
                 PlanStep("artifact", "Write the bounded engineering work product",
-                    ("artifact records the requested task and source provenance",)),), 0))
+                    ("artifact records the requested task and source provenance",), artifact_requirements=(
+                        ArtifactRequirement("continuous-proof", "results/continuous.json", "application/json",
+                            ("artifact records the requested task and source provenance",)),)),), 0))
         artifact_root = self.root / "continuous-artifacts"
         engine = ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"],
             knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
@@ -2077,7 +2141,9 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.ground_objective(execution_id)
         self.pipeline.record_proposal(execution_id, PlanProposal(
             "Create bounded engineering result", (PlanStep(
-                "artifact", "Write the bounded engineering work product", tuple(criteria)),), 0))
+                "artifact", "Write the bounded engineering work product", tuple(criteria),
+                artifact_requirements=(ArtifactRequirement("fair-cycle-result", "results/fair-cycle.json",
+                    "application/json", tuple(criteria)),)),), 0))
 
         artifact_root = self.root / "fair-cycle-artifacts"
         engine = ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"],
@@ -2126,7 +2192,9 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id, PlanProposal("Create work product", (
             PlanStep("artifact", "Write the bounded work product",
-                ("artifact includes its source revision and request",)),), 0))
+                ("artifact includes its source revision and request",), artifact_requirements=(
+                    ArtifactRequirement("restart-proof", "evidence/restart.json", "application/json",
+                        ("artifact includes its source revision and request",)),)),), 0))
         artifact_root = self.root / "process-restart-artifacts"
         context = multiprocessing.get_context("spawn")
         process_args = (

@@ -2,7 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.26
+File Revision: 1.1.28
+Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Specify bounded JSON artifacts as assignment-defined with no universal output name
+Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Specify durable per-assignment multi-artifact contracts, media validation and recovery
 Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Specify durable per-step assignment provenance for concurrent Codex execution and same-assignment no-artifact recovery.
 Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Make independent verifier acceptance advance persisted dependent steps and specify bounded rejection correction/escalation.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -82,7 +84,7 @@ later correlation.
 3. record_proposal(objective_id, PlanProposal) accepts only the existing typed plan. It stores the unapproved plan and hash. This method is a persistence boundary, not a reasoning engine.
 4. authorize_and_dispatch(...) requires exact assignment.create, the same scope as intake, and complete verified evidence. It uses AuthorizedAssignmentIntake; assignment + creation event + objective/work-order link are one PostgreSQL transaction. The event processor remains responsible for queued-to-ready.
    Acceptance criteria originate in authenticated objective intake, are checked against Grace's typed proposal, and are persisted with both the proposal and `grace_objective_steps` before dispatch. The `work_order.dispatched` event links the assignment to that durable step.
-5. ContinuousWorker obtains a lease and rechecks the registered capability and exact authority. The existing bounded-artifact capability writes one small assignment-derived work product. The separate source-change adapter can produce a patch for explicitly allowlisted files in a pinned disposable clone; it returns patch evidence only and never applies changes to the configured checkout or production.
+5. ContinuousWorker obtains a lease and rechecks the registered capability and exact authority. The bounded-artifact capability writes the exact JSON artifact set persisted on the assigned proposal step. Names and safe relative paths come only from that contract; it has no universal output filename, extension, or fallback. It accepts one to eight assignment-authorized JSON artifacts within an 8 KiB aggregate bound, with per-artifact size limits enforced. The Codex artifact capability separately supports its persisted media-type contract (including JSON, text, Markdown, CSV, and XML where validated). The separate source-change adapter can produce a patch for explicitly allowlisted files in a pinned disposable clone; it returns patch evidence only and never applies changes to the configured checkout or production.
 6. The verifier independently reopens the bounded artifact or reapplies a source patch in a separate clean clone, checks scope, digest and provenance, and reruns fixed tests. For Codex Markdown it resolves criteria from the persisted step linked to the assignment and confirms any worker echo matches that binding; missing durable criteria remain a rejection. It does not grade substantive prose. A dependent objective step becomes dispatchable after its persisted dependencies are independently accepted; the normal CME dispatch path still rechecks the exact `assignment.create` grant and existing Steward approval scope. A 80B result review may return a nonblocking summary, but cannot override verifier acceptance, hold an accepted dependent step, or complete the objective by itself. The objective becomes `COMPLETED` only after all persisted steps are verified (including existing verified rework successors).
 7. For a `grace.readiness_router.v1` binding, ResidentReasoner proposals use the router's typed `propose()` method, which checks the router revision and calls only the authorized 80B provider. The 0.6B and 30B cannot substitute for an Engineering proposal. Provider, served model, digest and reasoning stage are persisted with the plan.
 8. Conversation-origin objectives with an independently accepted completion enter a PostgreSQL-backed result outbox. The persistent service rechecks Grace's current office binding and exact `resident.conversation.send` grant, may ask the bound 80B for a nonblocking summary, and appends one assistant response to the original conversation. A stable objective-derived response ID makes retries idempotent; the outbox is acknowledged only after the conversation event is durable. Provider or authorization failure leaves the summary/return pending, while persisted dependent-step dispatch proceeds independently through CME.
@@ -211,7 +213,7 @@ remain unchanged.
 - Evidence: knowledge-provider v1 KnowledgeResult, full pinned-source verification plus deterministic ranked passage selection; max serialized evidence 8 KiB. All source refs, Git revision/hash, selection policy and term-coverage counts persist with the objective.
 - Work order: assignment ID, objective ref, exact authority scope, contract ref, workflow ID/step, and correlation ID persist in the assignment ledger.
 - Conversation origin: selected message sequence and conversation ID are attached to `objective.received`; only the authenticated linked Steward principal can submit from the chat route.
-- Worker request: each durable step maps to its own assignment, retaining the original objective and correlation ID. Existing bounded-artifact work remains constrained to its assignment-derived output. The separate source-change capability requires immutable repository revision, explicit path allowlist, exact criteria, fixed test targets and bounded runtime.
+- Worker request: each durable step maps to its own assignment, retaining the original objective and correlation ID. Bounded-artifact work is constrained to the exact one-to-eight JSON artifacts in the assigned persisted step contract; names and paths are dynamic, storage identities are derived from assignment and artifact identity, and the independent verifier rejects extra files, changed contracts, unsafe metadata, digest mismatches, and provenance mismatches. The separate source-change capability requires immutable repository revision, explicit path allowlist, exact criteria, fixed test targets and bounded runtime.
 - The source-change adapter stores a digest-verified patch and changed-file inventory only; the independent verifier replays it in an isolated clone. It does not merge, commit, or apply a patch to production. The capability is not registered or commissioned by this source increment.
 - Result: status, workspace URI/name, SHA-256, size, source revision/hash. No credential or objective authorization is inferred from a worker result.
 - Failure, unavailable provider, serialization failure, oversized context, rejected authorization, incomplete verification, and cancellation do not produce objective completion.
@@ -236,8 +238,10 @@ Tests include authorized and unauthorized intake, commit-pinned selection, missi
 
 `resident_execution.codex_cli.CodexCLIExecutionAdapter` accepts a typed
 assignment, one operator-configured repository reference and pinned commit, and
-a fixed `deliverable.md` output. It creates a fresh local clone, invokes the
-configured Codex executable with `workspace-write`, network access disabled, a
+a set of exact outputs from the persisted assignment artifact contract. Each
+output names a safe relative repository path, media type, bounded size, and
+artifact-specific acceptance requirements. It creates a fresh local clone,
+invokes the configured Codex executable with `workspace-write`, network access disabled, a
 noninteractive approval policy, bounded wall time and file size, and discarded
 stdout/stderr. It rejects the interactive user's `~/.codex` directory and
 returns only the assignment, knowledge-source revision, pinned repository
@@ -258,9 +262,10 @@ scope. Startup preflight requires a configured executable, dedicated
 `CODEX_HOME`, isolated workspace, pinned repository, and artifact directory.
 The normal CME lease, preflight/regrounding, execution-intent, attempt/result,
 and independent verification records remain the execution path. The
-`CodexMarkdownVerifier` independently reopens the assignment-bound file,
-checks ownership/mode/size/digest, objective binding, both provenance
-dimensions, and literal acceptance criteria. The result path and digest are retained in the
+`CodexArtifactVerifier` independently reopens every assignment-bound output,
+validates its declared type and bytes, checks exact paths and criteria against
+the durable dispatch record, and preserves objective binding and both provenance
+dimensions. Every output path and digest are retained in the
 worker result and Grace objective completion event/projection.
 
 The separate `engineering.codex-cli-source-change.v1` mode reuses the same

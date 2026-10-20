@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.9
+# Revision: 1.2.10
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Select no-artifact recovery through the exact durable objective-step assignment, dispatch event, and persisted proposal step rather than the latest objective assignment pointer.
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Reconcile assignment-defined artifact sets and detect partial output without fixed extensions
 # Purpose: Reconcile expired worker leases without losing or blindly repeating work
 # Execution Model: Explicit PostgreSQL recovery pass at worker startup or polling
 # Observability: Recovery records and causal assignment transition events
@@ -37,6 +38,27 @@ from uuid import uuid4
 from ..ledger import TRANSITIONS
 from ..postgres_ledger import PostgresLedger, assignment_process_position
 from .knowledge import KnowledgeResult, KnowledgeStatus
+
+
+def _codex_artifact_prefix(assignment_id):
+    return "codex-" + hashlib.sha256(assignment_id.encode("utf-8")).hexdigest()
+
+
+def _codex_artifact_files(root, assignment_id):
+    """Find durable adapter outputs for this assignment independent of file type."""
+    prefix = _codex_artifact_prefix(assignment_id)
+    files = []
+    for directory in root.glob(prefix + "*"):
+        try:
+            info = directory.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or directory.is_symlink() or
+                    info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o700):
+                continue
+            files.extend(path for path in directory.iterdir()
+                         if re.fullmatch(r"[0-9a-f]{12}", path.name))
+        except OSError:
+            continue
+    return tuple(files)
 
 
 class PostgresRecoveryCoordinator:
@@ -89,8 +111,7 @@ class PostgresRecoveryCoordinator:
             safe_root = False
         if not safe_root:
             raise ValueError("Codex artifact root is not a private owned directory")
-        artifact_name = "codex-" + hashlib.sha256(assignment_id.encode("utf-8")).hexdigest() + ".md"
-        artifact = root / artifact_name
+        artifact_files = _codex_artifact_files(root, assignment_id)
 
         resumed = False
         with self.ledger.db.transaction():
@@ -131,7 +152,7 @@ class PostgresRecoveryCoordinator:
                             (assignment_id,))
                 if int(cur.fetchone()["n"]) != 0:
                     return False
-                if artifact.exists() or artifact.is_symlink():
+                if artifact_files or _codex_artifact_files(root, assignment_id):
                     return False
                 cur.execute("""SELECT count(*) AS n FROM worker_execution_intents i
                     WHERE i.assignment_id=%s AND
@@ -377,8 +398,16 @@ class PostgresRecoveryCoordinator:
                                 (assignment["id"],))
                     if int(cur.fetchone()["n"]) != 0:
                         continue
-                    cur.execute("""SELECT step_objective,acceptance_criteria
-                        FROM grace_objective_steps WHERE objective_id=%s AND assignment_id=%s""",
+                    cur.execute("""SELECT s.step_objective,s.acceptance_criteria,
+                            d.payload->'artifact_contract' AS artifact_contract
+                        FROM grace_objective_steps s LEFT JOIN LATERAL (
+                            SELECT payload FROM grace_objective_events e
+                            WHERE e.objective_id=s.objective_id
+                              AND e.event_type='work_order.dispatched'
+                              AND e.payload->>'assignment_id'=s.assignment_id
+                              AND e.payload->>'workflow_step'=s.step_id
+                            ORDER BY e.sequence DESC LIMIT 1) d ON true
+                        WHERE s.objective_id=%s AND s.assignment_id=%s""",
                         (assignment["objective_id"], assignment["id"]))
                     step = cur.fetchone()
                     evidence = assignment["evidence"]
@@ -407,26 +436,64 @@ class PostgresRecoveryCoordinator:
                             any(not isinstance(ref, str) or not ref.startswith("repo://")
                                 for ref in refs)):
                         continue
-                    artifact_name = "codex-" + hashlib.sha256(
-                        assignment["id"].encode("utf-8")).hexdigest() + ".md"
-                    artifact = root / artifact_name
-                    try:
-                        fd = os.open(artifact, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-                        try:
-                            info = os.fstat(fd)
-                            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or
-                                    (info.st_mode & 0o777) != 0o600 or
-                                    not 0 < info.st_size <= 32 * 1024):
-                                continue
-                            raw = os.read(fd, 32 * 1024 + 1)
-                        finally:
-                            os.close(fd)
-                        body = raw.decode("utf-8")
-                        if (not body.startswith("# ") or len(raw) != info.st_size or
-                                artifact.is_symlink()):
-                            continue
-                    except (OSError, UnicodeError):
+                    contract = step["artifact_contract"]
+                    if not isinstance(contract, list) or not 1 <= len(contract) <= 8:
                         continue
+                    assignment_key = _codex_artifact_prefix(assignment["id"])
+                    artifact_records = []
+                    safe_set = True
+                    from ..resident_execution.codex_cli import CodexCLIExecutionAdapter
+                    for requirement in contract:
+                        if not isinstance(requirement, dict):
+                            safe_set = False
+                            break
+                        identity_suffix = hashlib.sha256(requirement.get("name", "").encode(
+                            "utf-8")).hexdigest()[:12]
+                        matches = []
+                        for directory in root.glob(assignment_key + "*"):
+                            try:
+                                directory_info = directory.lstat()
+                                if (not stat.S_ISDIR(directory_info.st_mode) or directory.is_symlink() or
+                                        directory_info.st_uid != os.geteuid() or
+                                        stat.S_IMODE(directory_info.st_mode) != 0o700):
+                                    continue
+                                candidate = directory / identity_suffix
+                                if candidate.exists() or candidate.is_symlink():
+                                    matches.append(candidate)
+                            except OSError:
+                                continue
+                        if len(matches) != 1:
+                            safe_set = False
+                            break
+                        artifact = matches[0]
+                        try:
+                            fd = os.open(artifact, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+                            try:
+                                info = os.fstat(fd)
+                                if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or
+                                        (info.st_mode & 0o777) != 0o600 or
+                                        not 0 < info.st_size <= requirement.get("max_bytes", 32768)):
+                                    safe_set = False
+                                    break
+                                raw = os.read(fd, 32769)
+                            finally:
+                                os.close(fd)
+                            if (len(raw) != info.st_size or not CodexCLIExecutionAdapter._valid_media(
+                                    raw, requirement.get("media_type"))):
+                                safe_set = False
+                                break
+                        except OSError:
+                            safe_set = False
+                            break
+                        artifact_records.append({"name": requirement["name"],
+                            "path": requirement["path"], "media_type": requirement["media_type"],
+                            "storage_name": artifact.relative_to(root).as_posix(),
+                            "sha256": hashlib.sha256(raw).hexdigest(),
+                            "bytes": len(raw), "acceptance_criteria": requirement["acceptance_criteria"]})
+                    if not safe_set or len(artifact_records) != len(contract):
+                        continue
+                    artifact_name = artifact_records[0]["storage_name"]
+                    artifact = root / artifact_name
                     criteria = step["acceptance_criteria"]
                     if (not isinstance(criteria, list) or not criteria or
                             any(not isinstance(item, str) or not item for item in criteria)):
@@ -442,14 +509,16 @@ class PostgresRecoveryCoordinator:
                         "retrieval_complete": True,
                     }, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
                     result = {
-                        "status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.deliverable.v2",
+                        "status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.artifacts.v3",
                         "capability": capability, "assignment_id": assignment["id"],
                         "objective_id": assignment["objective_id"],
                         "artifact_name": artifact_name, "artifact_path": str(artifact),
-                        "artifact_sha256": hashlib.sha256(raw).hexdigest(),
-                        "artifact_bytes": len(raw),
-                        "source_artifact_name": "deliverable.md",
-                        "changed_files": ["deliverable.md"],
+                        "artifact_sha256": artifact_records[0]["sha256"],
+                        "artifact_bytes": artifact_records[0]["bytes"],
+                        "source_artifact_name": artifact_records[0]["path"],
+                        "changed_files": [item["path"] for item in contract],
+                        "artifacts": artifact_records,
+                        "artifact_contract": contract,
                         "change_set_proof": "codex-cli-fixed-output-after-pinned-worktree-check",
                         "source_revision": grounding["source_revision"],
                         "source_sha256": grounding["source_sha256"],
@@ -578,10 +647,7 @@ class PostgresRecoveryCoordinator:
                                     (assignment_id,))
                         if int(cur.fetchone()["n"]) >= self.max_retries:
                             continue
-                    artifact_name = "codex-" + hashlib.sha256(
-                        assignment_id.encode("utf-8")).hexdigest() + ".md"
-                    artifact = root / artifact_name
-                    if artifact.exists() or artifact.is_symlink():
+                    if _codex_artifact_files(root, assignment_id):
                         continue
                     cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
                                 (assignment_id,))
@@ -725,13 +791,13 @@ class PostgresRecoveryCoordinator:
                                     (assignment_id,))
                         if int(cur.fetchone()["n"]) >= self.max_retries:
                             continue
-                    artifact_prefix, artifact_suffix = (
-                        ("codex-source-", ".patch") if capability ==
-                        "engineering.codex-cli-source-change.v1" else ("codex-", ".md"))
-                    artifact_name = artifact_prefix + hashlib.sha256(
-                        assignment_id.encode("utf-8")).hexdigest() + artifact_suffix
-                    artifact = root / artifact_name
-                    if artifact.exists() or artifact.is_symlink():
+                    if capability == "engineering.codex-cli-source-change.v1":
+                        artifact = root / ("codex-source-" + hashlib.sha256(
+                            assignment_id.encode("utf-8")).hexdigest() + ".patch")
+                        artifact_present = artifact.exists() or artifact.is_symlink()
+                    else:
+                        artifact_present = bool(_codex_artifact_files(root, assignment_id))
+                    if artifact_present:
                         continue
                     cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
                                 (assignment_id,))

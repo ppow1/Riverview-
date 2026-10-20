@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.13
+# Revision: 1.0.14
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Verify generation-two evidence preserves the active digest-checked artifact-review contract.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Verify safe structured-review diagnostics reveal shape only and never generated text
@@ -157,16 +158,21 @@ class GraceConversationResultTests(unittest.TestCase):
     def test_verified_codex_result_gives_digest_checked_artifact_to_grace(self):
         body = "# Review\n\nThe implementation is present; production activation was not tested.\n"
         digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-        artifact_name = "codex-" + "e" * 64 + ".md"
+        artifact_name = "codex-" + "e" * 64 + "-" + "f" * 12
+        contract = [{"name": "review", "path": "reports/review.txt", "media_type": "text/plain",
+            "acceptance_criteria": ["Review the assigned evidence."], "max_bytes": 32768}]
+        entry = {"name": "review", "path": "reports/review.txt", "media_type": "text/plain",
+            "storage_name": artifact_name, "sha256": digest, "bytes": len(body.encode("utf-8")),
+            "acceptance_criteria": contract[0]["acceptance_criteria"]}
         context = valid_context()
         context["completion"]["artifact"] = {"status": "SUCCEEDED",
-            "artifact_schema": "rv.codex-cli.deliverable.v2",
+            "artifact_schema": "rv.codex-cli.artifacts.v3",
             "capability": "engineering.codex-cli-artifact.v1",
-            "assignment_id": context["assignment_id"], "source_artifact_name": "deliverable.md",
-            "changed_files": ["deliverable.md"], "artifact_name": artifact_name,
-            "artifact_bytes": len(body.encode("utf-8")), "artifact_sha256": digest}
-        context["artifact_review"] = {"artifact_name": artifact_name,
-            "sha256": digest, "body": body}
+            "assignment_id": context["assignment_id"], "source_artifact_name": "reports/review.txt",
+            "changed_files": ["reports/review.txt"], "artifact_name": artifact_name,
+            "artifact_bytes": len(body.encode("utf-8")), "artifact_sha256": digest,
+            "artifacts": [entry], "artifact_contract": contract}
+        context["artifact_review"] = {"artifacts": [{**entry, "body": body}]}
         review_evidence = ["A newly verified evidence reference was added."]
         evidence_revision = "steward-evidence-revision-2"
         evidence_sha256 = hashlib.sha256(json.dumps({"evidence_revision":evidence_revision,
@@ -183,8 +189,8 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(result["review_generation"], "2")
         payload = json.loads(self.router.calls[0][0][1]["content"])
         evidence = payload["verified_work_order_result"]
-        self.assertEqual(evidence["artifact_for_grace_review"]["body"], body)
-        self.assertEqual(evidence["artifact_for_grace_review"]["sha256"], digest)
+        self.assertEqual(evidence["artifact_for_grace_review"]["artifacts"][0]["body"], body)
+        self.assertEqual(evidence["artifact_for_grace_review"]["artifacts"][0]["sha256"], digest)
 
     def test_verified_codex_result_accepts_unavailable_review_without_trusting_artifact_text(self):
         context = valid_context()
@@ -417,7 +423,7 @@ class GraceConversationResultTests(unittest.TestCase):
         body = ("# Production evidence\n\nThe checked-in files describe implementation only; "
                 "no live deployment was tested.\n")
         digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-        artifact_name = "codex-" + "a" * 64 + ".md"
+        artifact_name = "codex-" + "a" * 64 + "-" + "b" * 12
         context = {key: value for key, value in valid_context().items()
                    if key != "completion_cycle"}
         context.update({"step_id": "s1", "step_objective": "Write the evidence report",
@@ -431,13 +437,22 @@ class GraceConversationResultTests(unittest.TestCase):
                              "legacy_exact_phrase_check": False},
                 "summary": "Legacy verifier required exact wording.",
                 "artifact_sha256": digest,
-                "artifact": {"status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.deliverable.v2",
+                "artifact": {"status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.artifacts.v3",
                     "capability": "engineering.codex-cli-artifact.v1",
                     "assignment_id": "assignment:grace:demo",
-                    "source_artifact_name": "deliverable.md", "changed_files": ["deliverable.md"],
+                    "source_artifact_name": "reports/evidence.txt", "changed_files": ["reports/evidence.txt"],
                     "artifact_name": artifact_name, "artifact_bytes": len(body.encode("utf-8")),
-                    "artifact_sha256": digest}}})
-        context["artifact_review"] = {"artifact_name": artifact_name, "sha256": digest, "body": body}
+                    "artifact_sha256": digest, "artifacts": [{"name":"evidence",
+                        "path":"reports/evidence.txt", "media_type":"text/plain",
+                        "storage_name":artifact_name, "sha256":digest,
+                        "bytes":len(body.encode("utf-8")),
+                        "acceptance_criteria":["Explain that source implementation does not establish production commissioning."]}],
+                    "artifact_contract": [{"name":"evidence", "path":"reports/evidence.txt",
+                        "media_type":"text/plain",
+                        "acceptance_criteria":["Explain that source implementation does not establish production commissioning."],
+                        "max_bytes":32768}]}}})
+        context["artifact_review"] = {"artifacts": [{"name":"evidence", "path":"reports/evidence.txt",
+            "media_type":"text/plain", "sha256":digest, "body":body}]}
         self.router.content = json.dumps({"decision": "OBJECTIVE_SATISFIED",
             "rationale": "The report addresses the criterion substantively despite using different wording.",
             "correction_instruction": None, "criteria_to_address": []})
@@ -446,19 +461,19 @@ class GraceConversationResultTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "published")
         user_payload = json.loads(self.router.calls[0][0][1]["content"])
-        self.assertEqual(user_payload["artifact"]["body"], body)
-        self.assertEqual(user_payload["artifact"]["sha256"], digest)
+        self.assertEqual(user_payload["artifact"]["artifacts"][0]["body"], body)
+        self.assertEqual(user_payload["artifact"]["artifacts"][0]["sha256"], digest)
         self.assertEqual(user_payload["independent_rejection"]["criteria"][
             "legacy_exact_phrase_check"], False)
         self.assertEqual(self.rework_decisions[0][1]["decision"], "OBJECTIVE_SATISFIED")
         saved = next(iter(self.store.responses.values()))
-        self.assertEqual(saved["metadata"]["artifact_sha256_reviewed"], digest)
+        self.assertEqual(saved["metadata"]["artifact_sha256s_reviewed"], [digest])
         self.assertEqual(saved["metadata"]["review_decision"], "OBJECTIVE_SATISFIED")
 
     def test_grace_rejection_review_rejects_forged_artifact_digest_before_reasoning(self):
         body = "# Report\n\nSubstantive response.\n"
         digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-        artifact_name = "codex-" + "b" * 64 + ".md"
+        artifact_name = "codex-" + "b" * 64 + "-" + "c" * 12
         context = {key: value for key, value in valid_context().items()
                    if key != "completion_cycle"}
         context.update({"step_id": "s1", "step_objective": "Write report",
@@ -467,9 +482,15 @@ class GraceConversationResultTests(unittest.TestCase):
                 "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
                 "artifact": {"capability": "engineering.codex-cli-artifact.v1",
                     "artifact_name": artifact_name, "artifact_sha256": digest,
-                    "artifact_bytes": len(body.encode("utf-8"))}}})
-        context["artifact_review"] = {"artifact_name": artifact_name,
-            "sha256": digest, "body": body + "tampered"}
+                    "artifact_bytes": len(body.encode("utf-8")),
+                    "artifacts": [{"name":"report","path":"reports/review.txt",
+                        "media_type":"text/plain","sha256":digest,
+                        "acceptance_criteria":["Address the objective."]}],
+                    "artifact_contract": [{"name":"report","path":"reports/review.txt",
+                        "media_type":"text/plain","acceptance_criteria":["Address the objective."],
+                        "max_bytes":32768}]}}})
+        context["artifact_review"] = {"artifacts": [{"name":"report", "path":"reports/review.txt",
+            "media_type":"text/plain", "sha256":digest, "body":body + "tampered"}]}
         with self.assertRaisesRegex(ConversationUnavailable, "failed its integrity bound"):
             self.service.review_rejected_work_order(context)
         self.assertEqual(self.router.calls, [])

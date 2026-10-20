@@ -2,7 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_proposal_work_order_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.3
+# Revision: 1.1.6
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Include required artifact contracts in bounded proposal lifecycle fixtures
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Use a task-scoped path in typed formation contract fixture
 # Purpose: Verify revision approval and promotion into the existing objective pipeline
 # Execution Model: Pure command parser tests and disposable PostgreSQL integration
 # Observability: Proposal/objective events and correlation IDs are asserted
@@ -188,7 +191,7 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         self.assertEqual(self.registry.get(record["proposal"]["proposal_id"])["proposal"]["lifecycle_status"], "APPROVED")
 
     def test_exact_approval_is_idempotent_and_promotes_into_existing_pipeline(self):
-        from riverview_core.resident_reasoning import PlanProposal, PlanStep
+        from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
         from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
         from riverview_core.resident_execution.verifier import BoundedArtifactVerifier
         from riverview_core.worker_adapter import ContinuousWorker
@@ -214,7 +217,9 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
             "objective_submit_grant_id": "steward:authorized-objective.submit"})
         plan = PlanProposal("Bounded Engineering work", (PlanStep("report",
             "Write the assignment-bound artifact",
-            tuple(objective["acceptance_criteria"])),), 0)
+            tuple(objective["acceptance_criteria"]), artifact_requirements=(
+                ArtifactRequirement("lifecycle-report", "reports/lifecycle.json", "application/json",
+                    tuple(objective["acceptance_criteria"])),)),), 0)
         self.pipeline.record_proposal(promoted["objective_id"], plan)
         assignment_id = "assignment:" + uuid4().hex
         self.pipeline.authorize_and_dispatch(promoted["objective_id"], assignment_id,
@@ -230,7 +235,7 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
         decision = self.adapter.verify_attempt(assignment_id, outcome["attempt_id"],
             self.verifier_id, self.tokens["verifier:lifecycle-test"],
-            BoundedArtifactVerifier(self.artifact_root),
+            BoundedArtifactVerifier(self.artifact_root, self.pipeline),
             idempotency_key="proposal-lifecycle-verify:" + assignment_id)
         self.assertEqual(decision.status.value, "ACCEPTED")
         self.pipeline.record_verified_completion(promoted["objective_id"], assignment_id)
@@ -362,14 +367,16 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 command_result = json.loads(command_body)["result"]
                 self.assertEqual(command_result["objective_id"], first_result["objective_id"])
                 self.assertTrue(command_result["reused"])
-                from riverview_core.resident_reasoning import PlanProposal, PlanStep
+                from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
                 from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
                 from riverview_core.resident_execution.verifier import BoundedArtifactVerifier
                 from riverview_core.worker_adapter import ContinuousWorker
                 objective = self.pipeline.get_objective(first_result["objective_id"])
                 plan = PlanProposal("Authenticated proposal execution", (PlanStep(
                     "report", "Write and verify the approved bounded artifact",
-                    tuple(objective["acceptance_criteria"])),), 0)
+                    tuple(objective["acceptance_criteria"]), artifact_requirements=(
+                        ArtifactRequirement("http-report", "reports/http-result.json", "application/json",
+                            tuple(objective["acceptance_criteria"])),)),), 0)
                 self.pipeline.record_proposal(first_result["objective_id"], plan)
                 assignment_id = "assignment:" + uuid4().hex
                 self.pipeline.authorize_and_dispatch(first_result["objective_id"], assignment_id,
@@ -385,7 +392,7 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
                 decision = self.adapter.verify_attempt(assignment_id, outcome["attempt_id"],
                     self.verifier_id, self.tokens["verifier:lifecycle-test"],
-                    BoundedArtifactVerifier(self.artifact_root),
+                    BoundedArtifactVerifier(self.artifact_root, self.pipeline),
                     idempotency_key="proposal-http-verify:" + assignment_id)
                 self.assertEqual(decision.status.value, "ACCEPTED")
                 self.pipeline.record_verified_completion(first_result["objective_id"], assignment_id)
@@ -510,7 +517,7 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         spec = operations.execute("comms5_store_specification", {
             **base, "content": "A bounded specification.", "summary": "Fixture",
             "idempotency_key": "comms5:spec:1",
-            "formation_contract": {"allowed_paths": ["deliverable.md"]}},
+            "formation_contract": {"allowed_paths": ["reports/summary.txt"]}},
             principal_id="steward:authorized")
         cancelled = operations.execute("comms5_cancel_draft", {
             **base, "seed_id": spec["seed_id"], "reason": "Fixture cancellation",
