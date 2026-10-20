@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.57
+# Revision: 1.0.58
+# Changed: 2026-10-20 UTC | RV-C4-ACTIVE-LINE-INTEGRATION-001 | Verify re-review route authentication, exact objective scope, bounded payload and request-only behavior.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Cover Steward and conversation-owner objective access, redaction, and PostgreSQL scoping
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify institutional proposal dashboard actions remain distinct from Engineering intake.
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Verify authenticated conversation-scoped Engineering progress projection and invalid filters
@@ -465,6 +466,77 @@ class DashboardHTTPTests(unittest.TestCase):
         result = (response.status, response.getheaders(), body)
         conn.close()
         return result
+
+    def test_authenticated_result_rereview_route_is_exact_scoped_bounded_and_request_only(self):
+        from riverview_core.resident_execution import ObjectiveNotAuthorized
+
+        expected_objective = "objective:dashboard-rereview"
+
+        class Pipeline:
+            def __init__(self):
+                self.calls = []
+
+            def request_conversation_result_rereview(self, objective_id, completion_cycle, *,
+                    evidence_revision, evidence, credential, idempotency_key):
+                self.calls.append((objective_id, completion_cycle, evidence_revision,
+                                   evidence, credential, idempotency_key))
+                if credential != "objective-submit-credential" or objective_id != expected_objective:
+                    raise ObjectiveNotAuthorized("exact objective review scope required")
+                if (not isinstance(evidence, list) or not 1 <= len(evidence) <= 32
+                        or any(not isinstance(item, str) or not item.strip() or len(item) > 2000
+                               for item in evidence)):
+                    raise ValueError("bounded evidence list required")
+                return {"review_generation": 2, "reused": False,
+                        "evidence_revision": evidence_revision}
+
+        pipeline = Pipeline()
+        self.server._objective_pipeline = pipeline
+
+        def post(objective_id, data, *, token=None, authority=None):
+            body = None if data is None else json.dumps(data, separators=(",", ":")).encode()
+            headers = {}
+            if token is not None:
+                headers["Authorization"] = "Bearer " + token
+            if authority is not None:
+                headers["X-Riverview-Authority"] = authority
+            if body is not None:
+                headers["Content-Type"] = "application/json"
+                headers["Content-Length"] = str(len(body))
+            conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+            conn.request("POST", f"/api/v1/objectives/{objective_id}/result-rereview",
+                         body=body, headers=headers)
+            response = conn.getresponse()
+            status, payload = response.status, json.loads(response.read() or b"{}")
+            conn.close()
+            return status, payload
+
+        data = {"completion_cycle": 1, "evidence_revision": "rev-2",
+                "evidence": ["new bounded evidence"], "idempotency_key": "rereview:cycle-1:rev-2"}
+        self.assertEqual(post(expected_objective, data)[0], 401)
+        self.assertEqual(post(expected_objective, data, token="B" * 43)[0], 401)
+        self.assertEqual(post(expected_objective, data, token=self.token)[0], 403)
+        self.assertEqual(post(expected_objective, data, token=self.token,
+                              authority="wrong-scope-credential")[0], 403)
+        self.assertEqual(post("objective:other", data, token=self.token,
+                              authority="objective-submit-credential")[0], 403)
+
+        expanded = {**data, "unexpected": True}
+        self.assertEqual(post(expected_objective, expanded, token=self.token,
+                              authority="objective-submit-credential")[0], 400)
+        oversized_evidence = {**data, "evidence": ["x" * 2001]}
+        self.assertEqual(post(expected_objective, oversized_evidence, token=self.token,
+                              authority="objective-submit-credential")[0], 400)
+
+        status, payload = post(expected_objective, data, token=self.token,
+                               authority="objective-submit-credential")
+        self.assertEqual(status, 202)
+        self.assertEqual(payload["objective_id"], expected_objective)
+        self.assertEqual(payload["review_generation"], 2)
+        self.assertEqual(len(pipeline.calls), 5)
+        self.assertEqual(pipeline.calls[-1], (expected_objective, 1, "rev-2",
+                         ["new bounded evidence"], "objective-submit-credential",
+                         "rereview:cycle-1:rev-2"))
+        self.assertFalse(hasattr(pipeline, "dispatch_proposed"))
 
     def test_public_shell_is_local_but_projection_requires_bearer(self):
         status, headers, body = self.request("GET", "/")

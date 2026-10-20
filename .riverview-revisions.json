@@ -2,14 +2,14 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.17",
-      "sha256": "b12ca1eb977a0d5e2c6250d136664c74dac09469b5f2add22d0646ea4e4acccd",
-      "size_bytes": 1239133
+      "revision": "1.0.18",
+      "sha256": "7bfee56db96af500467d2e5c1ab699505e6b3e58c7029377538d8e2aebcdaf45",
+      "size_bytes": 1239764
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.275",
-      "sha256": "7d8ffa0c41d0c2e74939a032ed915544abba080112786e9fd2e219d4aa8d36a8",
+      "revision": "1.1.276",
+      "sha256": "8317f4f405ccd72221b391698098864d70d6f7da3e472a8a707540ec1c103daf",
       "size_bytes": 20001
     },
     "dist/knowledge-provider-v1.0.0.zip": {
@@ -427,6 +427,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.275",
-  "updated_at": "2026-10-19T22:27:34Z"
+  "manifest_revision": "1.1.276",
+  "updated_at": "2026-10-20T00:00:15Z"
 }
