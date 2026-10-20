@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.60",
+      "graph_revision": "1.0.61",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3358,9 +3358,9 @@
         },
         {
           "id": "rv:grace:operational-integration:conversation-origin-intake",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "verification",
-          "label": "Explicit Steward promotion validates a persisted principal-authored Grace message, conversation read grant, and exact objective.submit grant on work-order:engineering",
+          "label": "Steward message action binds the persisted message sequence, visibly reports stale-source/dialog failures, then submits only through the authenticated conversation route; the route revalidates conversation ownership and exact objective.submit grant",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
             "src/riverview_core/status_dashboard/server.py",
@@ -3370,7 +3370,9 @@
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md",
-            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md"
+            "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+            "docs/components/RESIDENT_CONVERSATION.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
           ],
           "verification_evidence": [
             "tests/test_status_dashboard.py"

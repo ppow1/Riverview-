@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.58
+# Revision: 1.0.59
+# Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Cover persisted-sequence binding and visible recovery when the retry dialog cannot open.
+# Predecessor: .riverview-backups/20261020T153249910848Z/tests/test_status_dashboard.py (SHA-256 fa08f2763f1eb9234a217974196ab49d416edd73b76987fa104ade8d38ebe1ba)
 # Changed: 2026-10-20 UTC | RV-C4-ACTIVE-LINE-INTEGRATION-001 | Verify re-review route authentication, exact objective scope, bounded payload and request-only behavior.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Cover Steward and conversation-owner objective access, redaction, and PostgreSQL scoping
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify institutional proposal dashboard actions remain distinct from Engineering intake.
@@ -360,6 +362,19 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('/work-orders', app)
         self.assertIn('id="work-order-criteria"', html)
         self.assertIn('objective.submit on work-order:engineering', app)
+
+    def test_work_order_retry_ui_uses_persisted_sequence_and_reports_open_failure(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
+        self.assertIn('data-message-work-order="${esc(event.sequence)}"', app)
+        self.assertIn('state.chatEvents.find((event)=>event.event_type==="user_message"&&event.sequence===sequence)', app)
+        self.assertIn('function openWorkOrderDialogForSequence(rawSequence)', app)
+        self.assertIn('typeof dialog.showModal!=="function"', app)
+        self.assertIn('This saved message is no longer available', app)
+        self.assertIn('The work-order form could not be opened', app)
+        self.assertNotIn('if(!ev||!Number.isInteger(ev.sequence))return;state.workOrderSourceSequence=ev.sequence', app)
+        self.assertIn("Existing source retries retain the original acceptance criteria", html)
+        self.assertIn('acceptance_criteria:criteria', app)
 
     def test_grace_conversation_workspace_controls_and_complete_rendering_contract(self):
         static = Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static"

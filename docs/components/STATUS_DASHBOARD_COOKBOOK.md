@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.27
+File Revision: 1.1.28
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
@@ -36,6 +36,8 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Link final exact-source brow
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR71-PRODUCTION-ACCEPTANCE | Record immutable Camrui release, strict-TLS snapshot verification, permission-bounded completeness, and rollback evidence
 Changed: 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record f957 production installation, migration evidence, partial live acceptance and the CSP rasterization correction.
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record real-dashboard DOM verification and complete responsive long-page tile captures
+Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Add read-only diagnosis and recovery steps for same-message work-order dialog failures.
+Predecessor: .riverview-backups/20261020T153250380083Z/docs/components/STATUS_DASHBOARD_COOKBOOK.md (SHA-256 c3ec88d4281da37403f784d3209a0a0301a1086945759ff0b94e185aea633d5f)
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -521,6 +523,32 @@ existing PostgreSQL credential.
 | Render/update | local tab switch and localized view update | browser-local sanitized error entry | snapshot browser error ring and request ID | Refresh affected panel only; slow/unavailable DB must not hold navigation. |
 | Download Snapshot | one bounded ZIP with page inventories/visuals, workflow JSON/SVG/PNG/status, and safe browser diagnostics | unavailable page/graph, incomplete visual, package bound, or download failure | ZIP manifest omissions, per-page/per-workflow outcomes, and browser-local safe error class | verify the current account can access the page; retry after the projection/API issue is understood. Do not treat missing output as a complete capture; no cookies, credentials, form values, or conversation bodies are exported. |
 | Restart/reconnect | same release/port; current state re-read from PostgreSQL | systemd failed/inactive or authentication lost | `systemctl status` and `journalctl -u ... -n 50 --no-pager` | restart only the dashboard unit; reauthenticate; CME and assignments continue independently. |
+
+### Grace same-message work-order dialog
+
+The **Create Engineering work order…** menu item is rendered only for a
+persisted Steward-authored message with an integer event sequence and an
+authenticated account identity containing the `steward` role. It is independent
+of whether an objective already exists. Clicking it only opens a confirmation
+dialog; it does not submit or mutate objective state. The dialog keeps criteria
+blank for same-source retries, and the authenticated server route retains the
+recorded criteria after checking the existing objective and exact grants.
+
+If the menu item is present but the dialog does not appear, read-only checks are:
+
+```sh
+curl -fsS http://127.0.0.1:8767/assets/app.js | grep -F 'openWorkOrderDialogForSequence'
+systemctl is-active riverview-status-dashboard.service
+journalctl -u riverview-status-dashboard.service --since '10 minutes ago' --no-pager
+```
+
+The delivered JavaScript should contain the sequence-based dialog helper. The
+click itself makes no API request, so absence of a work-order POST or a new
+Comms5 event is expected until the Steward submits the dialog. A stale message
+or dialog-open failure must show a visible refresh instruction; refresh the
+conversation and retry the same original message. If the button is absent,
+recheck the authenticated account identity and persisted message sequence.
+Never create a replacement objective to troubleshoot this control.
 
 ## Deployment and rollback
 
