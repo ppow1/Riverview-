@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.4
+File Revision: 1.0.5
 Purpose: Diagnose and recover the local or password-protected LAN V2 shell preview
 Authority: Read-only local diagnostics; no production recovery action
-Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Document theme/sidebar controls and truthful Snapshot/chat integration limits
+Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Add snapshot download validation, limits and recovery
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -67,7 +67,9 @@ The login page warns that HTTP does not encrypt the password or cookie in transi
 | Theme does not follow OS changes | Inspect the Theme selector | `System` is selected; explicit Light/Dark does not follow OS changes | Select `System`; while System is selected, the page follows `prefers-color-scheme`. |
 | Sidebar is compact or missing | Activate the corresponding sidebar state button; inspect `data-left-state` / `data-right-state` on `.app-shell` | `expanded`, `compact`, or `hidden`; each side changes independently | Use the small floating restore button when hidden. Focus it with Tab and press Enter/Space. |
 | Tooltip is not visible | Tab to the control or hover it; inspect `aria-description` | Description appears on keyboard focus/hover and is available as an accessible description | Use the visible control label or its accessible name; browser zoom/reduced motion are supported. |
-| Snapshot is disabled | Inspect the visible Snapshot control and its explanation | `Snapshot` is disabled and states that V2 capture is not connected | No V2 archive, ZIP or success claim exists yet. Do not infer this from V1's snapshot feature. |
+| Snapshot does not download | Click Snapshot and read the status below it | A ZIP is downloaded and the status gives its byte size; no server upload is attempted | Retry after ensuring downloads are allowed. If the status reports a bound/hash error, retain the visible message and use the read-only check below; do not treat it as an archive upload. |
+| Snapshot ZIP is invalid or does not match the visible view | Use `python3 -m zipfile -t <downloaded.zip>` and inspect `workspace-state.json`, `rendered-view.txt`, and `manifest.json` | Four members; each non-manifest member has a matching SHA-256 and size in the manifest; route/view/selected resident/theme/sidebar match the browser at click time | Preserve the ZIP and report its SHA-256 and browser version. Retry after verifying the active route. The ZIP has a 2 MiB hard limit and includes no screenshot, server logs, live data, cookies, or credentials. |
+| Snapshot hash check fails in browser | Inspect status only; do not copy browser storage or credentials into diagnostics | Snapshot either completes with the local ZIP size or reports it could not be created; no server write occurred | Retry once. If it persists, save sanitized browser console error metadata and use the Chrome acceptance runner. No service restart is relevant. |
 | Chat composer is disabled | Inspect the New conversation control and ChatGPT link | V2 has no resident conversation API; ChatGPT opens an unrelated external client | No resident context is transferred. Enable only after a reviewed authenticated conversation contract exists. |
 | Mobile menu does not close automatically | Tap the menu button again | Navigation rail returns off-canvas | This preview has no router or automatic navigation state. |
 
@@ -86,7 +88,8 @@ No SQL, migrations, service manager, Nginx, firewall, or production API is invol
 
 ```sh
 python3 -m unittest tests.test_v2_workspace_shell -v
-python3 scripts/verify_v2_workspace_browser.py --base-url http://127.0.0.1:8877
+python3 scripts/verify_v2_workspace_browser.py --base-url http://192.168.1.155:8877 --password-prompt
+python3 scripts/verify_v2_workspace_snapshot_chrome.py --base-url http://192.168.1.155:8877/ --evidence-dir <evidence-dir> --password-prompt
 node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/
 python3 scripts/process_graph.py validate
 python3 scripts/process_graph.py check
@@ -94,4 +97,4 @@ python3 scripts/process_graph.py check
 
 The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the loopback preview. LAN authentication tests use a disposable random password created in memory and a temporary hash; they never test with the Steward's real password. Required outputs include no browser errors, selected resident retained, `overflow=false`, unauthorized assets 401, successful login redirect 303, lockout 429, invalid Host/Origin and non-LAN rejection, null/absent Origin accepted only with a valid one-use CSRF token, replay/missing-token rejection, and session expiry. Final acceptance also requires Windows Chrome from the actual dev PC. A failed local check is evidence about the preview branch, not a reason to restart V1.
 
-The focused UI browser checks also exercise all three theme choices, persistence of the chosen display preference, all sidebar states and restoration controls, keyboard descriptions, mobile width, the exact Snapshot label, and disabled/unavailable snapshot and chat controls. To roll back only the appearance refinement, revert its dedicated commit or restore the listed pre-change assets and docs from `.riverview-backups/manifest.jsonl`, then rerun the V2 browser checks. Never touch V1, Nginx, credentials or production during that rollback.
+The focused browser checks also exercise all three theme choices, persistence of the chosen display preference, all sidebar states and restoration controls, keyboard descriptions, mobile width, the exact Snapshot label, and a real ZIP download whose contents and manifest hashes match selected V2 state. Chat remains disabled. To roll back only the appearance refinement, revert its dedicated commit or restore the listed pre-change assets and docs from `.riverview-backups/manifest.jsonl`, then rerun the V2 browser checks. Never touch V1, Nginx, credentials or production during that rollback.

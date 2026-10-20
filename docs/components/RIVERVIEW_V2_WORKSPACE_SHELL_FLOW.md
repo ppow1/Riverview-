@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.4
+File Revision: 1.0.6
 Purpose: Show normal, decision, failure, and recovery paths for loopback and authenticated LAN preview
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Extend generated process view for authenticated LAN access
@@ -38,7 +38,13 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_apply_theme_81b77d1d["Apply Light, Dark, or System theme; persist display preference only"]
     g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc["Cycle left and right sidebars independently through expanded, compact, and hidden"]
     g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e["Restore a hidden sidebar using its accessible floating control"]
-    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Show Snapshot and chat as unavailable until authorized integrations exist"]
+    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Keep live chat unavailable until an authorized V2 integration exists"]
+    g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94(["Click Snapshot in the active V2 view"])
+    g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b["Collect allowlisted V2 view, fixture context and browser state"]
+    g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec["Hash structured members and build bounded ZIP manifest"]
+    g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf["Download local ZIP; no network upload"]
+    g_rv_riverview_v2_workspace_shell_snapshot_verify_0d5c9c66["Inspect ZIP members and hashes against active V2 state"]
+    g_rv_riverview_v2_workspace_shell_snapshot_failure_3be3aa13[["Show local capture or package-bound failure without upload"]]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -72,7 +78,16 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Cycle either sidebar without changing the other| g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc
   g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc -->|Hidden state exposes a keyboard-accessible restore button| g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e
   g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e --> g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
-  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|No V2 snapshot archive or live chat endpoint is connected| g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227
+  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Live chat remains disconnected in this preview| g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227
+  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|User requests a V2-specific local ZIP| g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94
+  g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94 --> g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
+  g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b -->|Allowlisted state is captured in memory| g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec
+  g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b -->|diagnostic_branch: State capture or hashing fails| g_rv_riverview_v2_workspace_shell_snapshot_failure_3be3aa13
+  g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec -->|Members fit the 2 MiB hard bound| g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf
+  g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec -->|diagnostic_branch: Package exceeds the hard bound| g_rv_riverview_v2_workspace_shell_snapshot_failure_3be3aa13
+  g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf -->|verification: Chrome ZIP contents match selected view and hashes| g_rv_riverview_v2_workspace_shell_snapshot_verify_0d5c9c66
+  g_rv_riverview_v2_workspace_shell_snapshot_verify_0d5c9c66 --> g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
+  g_rv_riverview_v2_workspace_shell_snapshot_failure_3be3aa13 -->|recovery_route: Retry locally; no upload or service recovery is needed| g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

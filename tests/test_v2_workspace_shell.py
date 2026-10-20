@@ -1,14 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
-# Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Verify icon-only nav items keep accessible names
+# Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Assert bounded V2 snapshot package contract
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -120,8 +120,17 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('data-view="overview" aria-label="Overview"', html)
         self.assertIn('data-tooltip=', html)
         self.assertIn('id="snapshot-action"', html)
-        self.assertIn('disabled aria-describedby="snapshot-status"', html)
-        self.assertIn("not connected yet", html)
+        self.assertIn('id="snapshot-action"', html)
+        self.assertNotIn('id="snapshot-action" class="snapshot-action" type="button" disabled', html)
+        snapshot = (ROOT / "website/v2/assets/snapshot.js").read_text()
+        self.assertIn("LIMIT_BYTES = 2 * 1024 * 1024", snapshot)
+        self.assertIn('name: "workspace-state.json"', snapshot)
+        self.assertIn('name: "rendered-view.txt"', snapshot)
+        self.assertIn('name: "manifest.json"', snapshot)
+        self.assertIn("live_backend_connected: false", snapshot)
+        self.assertNotIn("fetch(", snapshot)
+        self.assertNotIn("/api/v1/", html + js + snapshot)
+        self.assertIn("credentials: \"excluded\"", snapshot)
 
 
 class AuthenticatedPreviewTests(unittest.TestCase):

@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: scripts/verify_v2_workspace_mobile.cjs
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.5
+Revision: 1.0.6
 Purpose: Verify responsive behavior at an actual 390 by 844 CSS-pixel viewport
 Execution Model: Request-driven acceptance utility; starts and stops its own Chrome process
 Observability: JSON stdout containing viewport fit and browser errors; no credentials or remote requests
 Dependencies: Node.js, Google Chrome, system-installed ws module, local V2 preview
 Inputs/Outputs: --url; writes no files; drives only the specified local preview
 Authority: Browser test only; no production API, persistent storage, or state mutation
-Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Keep mobile sidebar state controls visible and verify accessible navigation name
+Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Assert enabled V2 ZIP control remains available at phone width
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -99,7 +99,7 @@ async function main() {
       navigation_call_ms: { count: samples.length, median: Number(sorted[Math.floor(sorted.length / 2)].toFixed(3)), max: Number(Math.max(...samples).toFixed(3)) },
       browser_errors: errors };
     process.stdout.write(`${JSON.stringify(report)}\n`);
-    if (result.width !== 390 || result.height !== 844 || result.overflow || result.menuDisplay === "none" || !result.stateControlsVisible || result.navName !== "Overview" || !result.contextRetained || result.disabledButtons < 2 || result.theme !== "dark" || result.leftState !== "compact" || result.rightState !== "compact" || !result.snapshotDisabled || errors.length) throw new Error("mobile_viewport_check_failed");
+    if (result.width !== 390 || result.height !== 844 || result.overflow || result.menuDisplay === "none" || !result.stateControlsVisible || result.navName !== "Overview" || !result.contextRetained || result.disabledButtons < 2 || result.theme !== "dark" || result.leftState !== "compact" || result.rightState !== "compact" || result.snapshotDisabled || errors.length) throw new Error("mobile_viewport_check_failed");
   } finally {
     ws.close();
   }

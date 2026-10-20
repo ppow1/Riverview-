@@ -2,19 +2,20 @@
 # Riverview~ Controlled Source
 # File: scripts/verify_v2_workspace_browser.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.5
+# Revision: 1.0.7
 # Purpose: Exercise V2 theme, sidebars, tooltips, navigation, and responsive layout
 # Execution Model: Request-driven acceptance utility; starts/stops only its own geckodriver
 # Observability: Sanitized JSON stdout; no credentials or write operations
 # Dependencies: Python 3.10+, Firefox, geckodriver, local V2 preview
 # Inputs/Outputs: Loopback preview URL; navigation timings and viewport-fit metrics
 # Authority: Browser-only interaction with local fixture preview; no API or writes
-# Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Assert icon-only navigation retains accessible names
+# Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Assert V2 snapshot is enabled and truthful about local fixture scope
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: scripts/verify_v2_workspace_browser.py
 # History: Git and revision/backup manifest
 """Verify shell navigation and viewport fit using a local headless Firefox."""
 import argparse
+import getpass
 import json
 import socket
 import subprocess
@@ -26,6 +27,7 @@ import urllib.request
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://127.0.0.1:8877")
+    parser.add_argument("--password-prompt", action="store_true", help="authenticate to LAN preview with a hidden prompt")
     args = parser.parse_args()
     with socket.socket() as reserve:
         reserve.bind(("127.0.0.1", 0))
@@ -60,6 +62,16 @@ def main():
             raise RuntimeError("geckodriver_start_timeout")
         session = request("POST", "/session", {"capabilities": {"alwaysMatch": {"browserName": "firefox", "moz:firefoxOptions": {"args": ["-headless"]}}}})["value"]["sessionId"]
         request("POST", f"/session/{session}/url", {"url": args.base_url.rstrip("/") + "/"})
+        authenticated = js(session, "return !!document.querySelector('#password')")
+        if authenticated:
+            if not args.password_prompt:
+                raise RuntimeError("preview_authentication_required_use_password_prompt")
+            password = getpass.getpass("V2 preview password (hidden): ")
+            js(session, "document.querySelector('#password').value=arguments[0];document.querySelector('form').requestSubmit();return true", [password])
+            password = ""
+            for _ in range(50):
+                if js(session, "return document.title === 'Riverview V2 Workspace Preview'"): break
+                time.sleep(.1)
         errors = js(session, "window.__errors=[];addEventListener('error',e=>window.__errors.push(String(e.message||'error')));addEventListener('unhandledrejection',e=>window.__errors.push('rejection'))")
         samples = []
         for view in ("residents", "work", "resources", "knowledge", "overview") * 5:
@@ -88,7 +100,7 @@ def main():
         reloads = js(session, "return performance.timeOrigin")
         disabled = js(session, "return [...document.querySelectorAll('button:disabled')].length>=2")
         fixture_banner = js(session, "return document.querySelector('.preview-banner').innerText")
-        report = {"browser": subprocess.check_output(["firefox", "--version"], text=True).strip(), "url": args.base_url,
+        report = {"browser": subprocess.check_output(["firefox", "--version"], text=True).strip(), "url": args.base_url, "authenticated_preview": authenticated,
                   "navigation_calls_ms": {"count": len(samples), "median": sorted(samples)[len(samples)//2], "max": max(samples)},
                   "resident_selection": {"before": selected_before, "selected": selected_after, "retained_after_view_switch": context_retained},
                   "conversation_context_expand": note_open, "theme": theme, "sidebars": sidebars,
@@ -96,7 +108,7 @@ def main():
                   "disabled_mutation_controls_present": disabled, "fixture_banner": fixture_banner,
                   "browser_errors": js(session, "return window.__errors"), "document_time_origin": reloads}
         print(json.dumps(report, sort_keys=True))
-        if selected_after != "Resident fixture 02" or context_retained != selected_after or not note_open or theme["dark"] != "dark" or theme["light"] != "light" or theme["saved"] != "light" or theme["systemEffective"] != theme["systemOS"] or theme["storedBeforeReload"] != "dark" or theme["reload_restored"]["theme"] != "dark" or theme["reload_restored"]["effective"] != "dark" or len(sidebars["left"]) != 3 or len(sidebars["right"]) != 3 or not sidebars["leftRestored"] or not sidebars["rightRestored"] or not integration["tooltip"] or integration["navName"] != "Overview" or integration["snapshotLabel"] != "Snapshot" or not integration["snapshotDisabled"] or not integration["chatDisabled"] or desktop["overflow"] or mobile["overflow"] or mobile["navButton"] == "none" or not disabled or report["browser_errors"]:
+        if selected_after != "Resident fixture 02" or context_retained != selected_after or not note_open or theme["dark"] != "dark" or theme["light"] != "light" or theme["saved"] != "light" or theme["systemEffective"] != theme["systemOS"] or theme["storedBeforeReload"] != "dark" or theme["reload_restored"]["theme"] != "dark" or theme["reload_restored"]["effective"] != "dark" or len(sidebars["left"]) != 3 or len(sidebars["right"]) != 3 or not sidebars["leftRestored"] or not sidebars["rightRestored"] or not integration["tooltip"] or integration["navName"] != "Overview" or integration["snapshotLabel"] != "Snapshot" or integration["snapshotDisabled"] or "fixture view" not in integration["snapshotExplanation"] or not integration["chatDisabled"] or desktop["overflow"] or mobile["overflow"] or mobile["navButton"] == "none" or not disabled or report["browser_errors"]:
             raise RuntimeError("v2_browser_check_failed")
     finally:
         if session:

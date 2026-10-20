@@ -2,14 +2,14 @@
 Riverview~ Controlled Document
 File: website/v2/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.3
+File Revision: 1.0.4
 Purpose: Render an isolated fixture-only V2 workspace shell
 Execution Model: Interactive browser presentation; request-driven static asset loading
 Observability: Visible preview banner and browser console; no service health claim
 Dependencies: Same-origin static assets under website/v2/assets
 Inputs/Outputs: Local fixture records in memory; HTML view only
 Authority: Presentation only; no production API or mutation authority
-Changed: 2026-10-20 UTC | RV-WEB-V2-USABILITY-001 | Keep icon-only navigation named and expose sidebar controls on mobile
+Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Enable bounded V2-only snapshot ZIP generation
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -25,6 +25,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="/assets/workspace.css">
   <script defer src="/assets/fixtures.js"></script>
   <script defer src="/assets/workspace.js"></script>
+  <script defer src="/assets/snapshot.js"></script>
 </head>
 <body>
   <div class="preview-banner"><span class="dot"></span> V2 preview <b>Fixture data · no production connection</b></div>
@@ -46,7 +47,7 @@ History: Git and revision/backup manifest
       <div class="workspace-grid">
         <button id="left-restore" class="sidebar-restore left-restore" type="button" aria-label="Restore navigation sidebar" data-tooltip="Restore navigation sidebar" hidden>☰</button>
         <section class="content" aria-live="polite">
-          <div class="welcome-row"><div><p class="eyebrow">TUESDAY, OCTOBER 20</p><h2>A clear view of the work.</h2><p class="muted">A workspace-first shell, running entirely on local preview fixtures.</p></div><div class="welcome-actions"><div class="fixture-chip">◈ &nbsp;Fixture workspace</div><button id="snapshot-action" class="snapshot-action" type="button" disabled aria-describedby="snapshot-status" data-tooltip="Snapshot is not connected; no V2 ZIP is generated">Snapshot</button></div></div><p id="snapshot-status" class="integration-note">V2-specific diagnostic capture is not connected yet.</p>
+          <div class="welcome-row"><div><p class="eyebrow">TUESDAY, OCTOBER 20</p><h2>A clear view of the work.</h2><p class="muted">A workspace-first shell, running entirely on local preview fixtures.</p></div><div class="welcome-actions"><div class="fixture-chip">◈ &nbsp;Fixture workspace</div><button id="snapshot-action" class="snapshot-action" type="button" aria-describedby="snapshot-status" data-tooltip="Download a bounded snapshot of this V2 preview view">Snapshot</button></div></div><p id="snapshot-status" class="integration-note">Downloads a bounded ZIP of the current V2 fixture view. Live data and server diagnostics are not connected.</p>
           <div class="metric-grid">
             <article class="metric-card"><span>Active work</span><strong>04</strong><small>Preview fixture count</small></article>
             <article class="metric-card"><span>Residents</span><strong>03</strong><small>One named identity, two fixtures</small></article>

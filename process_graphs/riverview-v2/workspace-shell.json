@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.6",
+  "graph_revision": "1.0.7",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -10,7 +10,8 @@
     "website/v2/assets/workspace.js",
     "scripts/serve_v2_workspace_preview.py",
     "scripts/setup_v2_workspace_preview_auth.py",
-    "website/v2/assets/workspace.css"
+    "website/v2/assets/workspace.css",
+    "website/v2/assets/snapshot.js"
   ],
   "documentation_references": [
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -20,7 +21,8 @@
   "verification_evidence": [
     "tests/test_v2_workspace_shell.py",
     "scripts/verify_v2_workspace_browser.py",
-    "scripts/verify_v2_workspace_mobile.cjs"
+    "scripts/verify_v2_workspace_mobile.cjs",
+    "scripts/verify_v2_workspace_snapshot_chrome.py"
   ],
   "nodes": [
     {
@@ -377,7 +379,7 @@
       "id": "rv:riverview-v2:workspace-shell:integration-unavailable",
       "node_revision": "1.0.0",
       "type": "measurement",
-      "label": "Show Snapshot and chat as unavailable until authorized integrations exist",
+      "label": "Keep live chat unavailable until an authorized V2 integration exists",
       "source_references": [
         "website/v2/assets/workspace.js",
         "website/v2/index.html"
@@ -390,6 +392,108 @@
         "scripts/verify_v2_workspace_browser.py",
         "scripts/verify_v2_workspace_mobile.cjs",
         "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "node_revision": "1.0.1",
+      "type": "entry",
+      "label": "Click Snapshot in the active V2 view",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Collect allowlisted V2 view, fixture context and browser state",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Hash structured members and build bounded ZIP manifest",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Download local ZIP; no network upload",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Inspect ZIP members and hashes against active V2 state",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "node_revision": "1.0.1",
+      "type": "failure",
+      "label": "Show local capture or package-bound failure without upload",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
       ]
     }
   ],
@@ -583,7 +687,59 @@
       "from": "rv:riverview-v2:workspace-shell:choose-presentation",
       "to": "rv:riverview-v2:workspace-shell:integration-unavailable",
       "type": "runtime_transition",
-      "label": "No V2 snapshot archive or live chat endpoint is connected"
+      "label": "Live chat remains disconnected in this preview"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "type": "runtime_transition",
+      "label": "User requests a V2-specific local ZIP"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "type": "runtime_transition",
+      "label": "Allowlisted state is captured in memory"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "type": "diagnostic_branch",
+      "label": "State capture or hashing fails"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "type": "runtime_transition",
+      "label": "Members fit the 2 MiB hard bound"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "type": "diagnostic_branch",
+      "label": "Package exceeds the hard bound"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "type": "verification",
+      "label": "Chrome ZIP contents match selected view and hashes"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "recovery_route",
+      "label": "Retry locally; no upload or service recovery is needed"
     }
   ]
 }
