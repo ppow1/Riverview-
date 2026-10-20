@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.287",
+      "revision": "1.1.288",
       "sha256": "8317f4f405ccd72221b391698098864d70d6f7da3e472a8a707540ec1c103daf",
       "size_bytes": 20001
     },
@@ -78,11 +78,29 @@
       "sha256": "40b3ca529b422fe54fa308a5de6cd78be79a4f5d7792dec2092de330ce5cba86",
       "size_bytes": 20168
     },
+    "docs/components/STATUS_DASHBOARD.md": {
+      "path": "docs/components/STATUS_DASHBOARD.md",
+      "revision": "1.1.15",
+      "sha256": "edfb7275ca121d3073f02415eb4085e80a78582b061b49c4eab925c8442cb21a",
+      "size_bytes": 28759
+    },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
       "revision": "1.0.6",
       "sha256": "3a42fe1b5c5a618c45ff7edfa0195207644da8c62a714d1a41c961bedb205d04",
       "size_bytes": 14453
+    },
+    "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
+      "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+      "revision": "1.1.33",
+      "sha256": "5bd3f74da7bc91edcd7cbbe204cd338f364d0a21cf02b6fecaec6b7fb389b12e",
+      "size_bytes": 63715
+    },
+    "docs/components/STATUS_DASHBOARD_FLOW.md": {
+      "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
+      "revision": "1.0.17",
+      "sha256": "f42aeb668aff169c89a02a432816a1f5b7d44c1e4f90d8c73296784d013e582d",
+      "size_bytes": 22424
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
@@ -212,9 +230,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.203",
-      "sha256": "eec07e19182a3e91baa521b0e489a0bed82b9344b4bfbf81552c654acec7dd11",
-      "size_bytes": 695596
+      "revision": "1.0.204",
+      "sha256": "917fc6f0382af351e5cec62702af2ade3ec3a7cac36d36b283fc40b6fe7219c6",
+      "size_bytes": 728328
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -282,6 +300,12 @@
       "sha256": "16882fcbc5b27bbe2be626677372054da1d2e29be468b71f1639c20674334e8a",
       "size_bytes": 62906
     },
+    "process_graphs/riverview-v2/workspace-shell.json": {
+      "path": "process_graphs/riverview-v2/workspace-shell.json",
+      "revision": "1.0.8",
+      "sha256": "c29b32e05135663c2d3ad6d813e85526c0d38de32d25848f4226f3a5aabc0aff",
+      "size_bytes": 27860
+    },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
       "revision": "1.0.1",
@@ -330,6 +354,12 @@
       "sha256": "924985f625e836d8c0936b6713b3d5c74a570efebe8d2f2c3ad40ec49fe3ed92",
       "size_bytes": 39650
     },
+    "scripts/verify_diagnostic_snapshot_browser.py": {
+      "path": "scripts/verify_diagnostic_snapshot_browser.py",
+      "revision": "1.1.15",
+      "sha256": "c4f0e85066b00717faf45d2e6d186850c6eee00624546e7a063843cc160f6445",
+      "size_bytes": 71432
+    },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
       "revision": "1.0.1",
@@ -372,11 +402,35 @@
       "sha256": "041b5379120dfc2f61d6de1d2d16bf9849a7e6f19c6c8012da8be2beabd29bfb",
       "size_bytes": 141842
     },
+    "src/riverview_core/status_dashboard/snapshot_archive.py": {
+      "path": "src/riverview_core/status_dashboard/snapshot_archive.py",
+      "revision": "1.0.3",
+      "sha256": "e4565ac463f782a0f7a6881d32eba92c7ebd5944310bbb41fb87af5e5bf4e13a",
+      "size_bytes": 14568
+    },
+    "src/riverview_core/status_dashboard/static/app.js": {
+      "path": "src/riverview_core/status_dashboard/static/app.js",
+      "revision": "1.4.23",
+      "sha256": "3885a0246bb10f6aa6e7d963c30da0f074e0f38fa20ac1b60e018d043a38d039",
+      "size_bytes": 90204
+    },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
       "revision": "1.1.3",
       "sha256": "3cf75c3dc6e3db34cb0517e7dd01349ef8657243f8480067655e685877d95a0b",
       "size_bytes": 23154
+    },
+    "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js": {
+      "path": "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
+      "revision": "1.1.24",
+      "sha256": "5794e8d24c2720a1a799aff598a465ad0d04a0512d1b418e13a23d182b715b3f",
+      "size_bytes": 58523
+    },
+    "src/riverview_core/status_dashboard/static/index.html": {
+      "path": "src/riverview_core/status_dashboard/static/index.html",
+      "revision": "1.1.24",
+      "sha256": "8fa3e606fae2daf1dbb4ca30ce14ff2620ae9cd9acaffc5d0826ad7ecb574c55",
+      "size_bytes": 36772
     },
     "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
       "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
@@ -426,41 +480,11 @@
       "sha256": "0afd276b81635cce7d2557336969f57b1f80f61ea886325b4dd1345d405e26b7",
       "size_bytes": 34997
     },
-    "tests/test_w2_p0_integrated_review_acceptance.py": {
-      "path": "tests/test_w2_p0_integrated_review_acceptance.py",
-      "revision": "1.0.8",
-      "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
-      "size_bytes": 26074
-    },
-    "src/riverview_core/status_dashboard/snapshot_archive.py": {
-      "path": "src/riverview_core/status_dashboard/snapshot_archive.py",
-      "revision": "1.0.3",
-      "sha256": "e4565ac463f782a0f7a6881d32eba92c7ebd5944310bbb41fb87af5e5bf4e13a",
-      "size_bytes": 14568
-    },
     "tests/test_snapshot_archive.py": {
       "path": "tests/test_snapshot_archive.py",
       "revision": "1.0.2",
       "sha256": "ded50a026b70f694f6493d78cada10346bb8e6d59ed5803327e5ab0fa3a67deb",
       "size_bytes": 11188
-    },
-    "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js": {
-      "path": "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
-      "revision": "1.1.24",
-      "sha256": "5794e8d24c2720a1a799aff598a465ad0d04a0512d1b418e13a23d182b715b3f",
-      "size_bytes": 58523
-    },
-    "src/riverview_core/status_dashboard/static/index.html": {
-      "path": "src/riverview_core/status_dashboard/static/index.html",
-      "revision": "1.1.24",
-      "sha256": "8fa3e606fae2daf1dbb4ca30ce14ff2620ae9cd9acaffc5d0826ad7ecb574c55",
-      "size_bytes": 36772
-    },
-    "src/riverview_core/status_dashboard/static/app.js": {
-      "path": "src/riverview_core/status_dashboard/static/app.js",
-      "revision": "1.4.23",
-      "sha256": "3885a0246bb10f6aa6e7d963c30da0f074e0f38fa20ac1b60e018d043a38d039",
-      "size_bytes": 90204
     },
     "tests/test_status_dashboard.py": {
       "path": "tests/test_status_dashboard.py",
@@ -468,31 +492,13 @@
       "sha256": "c75e2cd596dbae293f977f6e20b328d7a9fc6f22c1fac1a016fb29fba11225b5",
       "size_bytes": 96874
     },
-    "scripts/verify_diagnostic_snapshot_browser.py": {
-      "path": "scripts/verify_diagnostic_snapshot_browser.py",
-      "revision": "1.1.15",
-      "sha256": "c4f0e85066b00717faf45d2e6d186850c6eee00624546e7a063843cc160f6445",
-      "size_bytes": 71432
-    },
-    "docs/components/STATUS_DASHBOARD.md": {
-      "path": "docs/components/STATUS_DASHBOARD.md",
-      "revision": "1.1.15",
-      "sha256": "edfb7275ca121d3073f02415eb4085e80a78582b061b49c4eab925c8442cb21a",
-      "size_bytes": 28759
-    },
-    "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
-      "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-      "revision": "1.1.33",
-      "sha256": "5bd3f74da7bc91edcd7cbbe204cd338f364d0a21cf02b6fecaec6b7fb389b12e",
-      "size_bytes": 63715
-    },
-    "docs/components/STATUS_DASHBOARD_FLOW.md": {
-      "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
-      "revision": "1.0.17",
-      "sha256": "f42aeb668aff169c89a02a432816a1f5b7d44c1e4f90d8c73296784d013e582d",
-      "size_bytes": 22424
+    "tests/test_w2_p0_integrated_review_acceptance.py": {
+      "path": "tests/test_w2_p0_integrated_review_acceptance.py",
+      "revision": "1.0.8",
+      "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
+      "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.287",
+  "manifest_revision": "1.1.288",
   "updated_at": "2026-10-20T20:32:28Z"
 }

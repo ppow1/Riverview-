@@ -1,7 +1,8 @@
-<!-- Riverview~ Controlled Document
+<!-- Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Add V2 snapshot integration diagnostics and recovery actions.
+Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.33
+File Revision: 1.1.34
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Document archive-plus-download results, digest checks, and independent recovery paths.
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Explain V1/V2 manifest identity, asset naming, and legacy V1 compatibility.
 Purpose: Troubleshoot and recover the read-only status dashboard
@@ -975,3 +976,12 @@ mean its test passed, and it is not a semantic coverage result. Full PL-NEW-038
 acceptance remains blocked until an authoritative source provides attributable
 freshness metadata and test-coverage outcomes. Isolated Firefox evidence:
 `evidence/checkouts/WEBSITE-PL038/20261016T023000Z-post-PR45-regression/`.
+
+
+## V2 Snapshot checks
+
+- Use `/v2/` on the dashboard HTTPS origin for archive plus local download. The separate LAN preview intentionally stays local-only.
+- Read-only diagnostics: browser DevTools Network should show same-origin GETs to `/api/v1/status` and `/api/v1/snapshot`, followed by POST `/api/v1/snapshot/archive`; no request may target GitHub from the browser. The page must have the current Steward session and CSRF cookie.
+- Expected successful result: `riverview-v2-<timestamp>-<capture-id>.zip` is downloaded and the status includes the confirmed private Release link and Copy GitHub Link. Manifest version is `v2`; the archive receipt must match capture ID, filename, size and SHA-256.
+- If GET returns 401/403, authenticate in the dashboard and retry. If archive POST returns 403, reload the dashboard to obtain a fresh CSRF cookie, then click Snapshot once. If archive fails after package creation, retain the local ZIP; do not report archive success. If browser download cannot start after archive confirmation, use the confirmed GitHub release link.
+- Resume point: `/v2/` Snapshot click. No service restart or database migration is needed for the route once the package is installed; deployment and service restart still require their separate release authorization. Rollback removes the V2 route/assets from the dashboard package and returns V2 users to the fixture-only LAN preview; it does not change archive assets or credentials.
