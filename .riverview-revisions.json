@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.89"
+      "revision": "1.1.93"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -185,9 +185,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.50",
-      "sha256": "8b83a846ccbc065a10b795368e74d9f83799263428f89972d1e8e547f2f9c0d4",
-      "size_bytes": 280736
+      "revision": "1.0.51",
+      "sha256": "3fc025106617dc40b45afc74eccaad7cb1ae1f19e88b16026eaafc5360fbc9ee",
+      "size_bytes": 294786
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
@@ -227,9 +227,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.8",
-      "sha256": "4da84be3cb9af17037be63ebed24122dff4253ce35e65b41595e18a556363cfa",
-      "size_bytes": 28283
+      "revision": "1.0.11",
+      "sha256": "f15440257b8ea40180cac8fe66dc61621170b29333350aeefd9df6d743621dc1",
+      "size_bytes": 40459
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -280,5 +280,5 @@
       "size_bytes": 1226
     }
   },
-  "manifest_revision": "1.1.89"
+  "manifest_revision": "1.1.93"
 }

@@ -2,13 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.8
-Purpose: Show preview authentication, Grace handoff, Comms5 diagnostics, snapshot, and recovery paths
+File Revision: 1.0.10
+Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Generate the truthful Grace handoff and unverified Comms5 paths
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Regenerate the graph for the same-origin Dashboard chat integration
 History: Git and revision/backup manifest
 -->
-# Riverview V2 workspace shell preview flow
+# Riverview V2 workspace shell and Grace integration flow
 
 **Task:** `RV-WEB-V2-SHELL-001` · **Component:** `RIVERVIEW-V2-WORKSPACE-SHELL`  
 **Source:** canonical JSON `process_graphs/riverview-v2/workspace-shell.json`; Mermaid below is generated.
@@ -38,15 +38,26 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_apply_theme_81b77d1d["Apply Light, Dark, or System theme; persist display preference only"]
     g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc["Cycle left and right sidebars independently through expanded, compact, and hidden"]
     g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e["Restore a hidden sidebar using its accessible floating control"]
-    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Keep V2 chat disconnected and expose the authenticated Dashboard handoff plus unverified Comms5 state"]
+    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Historical cross-origin chat barrier before authorized same-origin integration; not a current runtime state"]
     g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94(["Click Snapshot in the active V2 view"])
     g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b["Collect allowlisted V2 view, fixture context, browser state, and redacted integration diagnostics"]
     g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec["Hash structured members and build bounded ZIP manifest"]
     g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf["Download local ZIP; no network upload"]
     g_rv_riverview_v2_workspace_shell_snapshot_verify_0d5c9c66["Inspect ZIP members and hashes against active V2 state"]
     g_rv_riverview_v2_workspace_shell_snapshot_failure_3be3aa13[["Show local capture or package-bound failure without upload"]]
-    g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207["Open the deployed authenticated V1 Grace chat; do not transfer credentials or history across origins"]
-    g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5["Keep Comms5 send/receive counts and inspectable messages UNVERIFIED when no authorized event feed exists"]
+    g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207["Retired cross-origin Dashboard handoff; the current V2 route uses same-origin authentication"]
+    g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5["Keep Comms5 transport counts and inspectable message ledger UNVERIFIED when the authoritative event feed is absent"]
+    g_rv_riverview_v2_workspace_shell_open_v2_route_83acf28c(["Open LAN-only same-origin HTTPS /v2/ while V1 root continues serving Dashboard"])
+    g_rv_riverview_v2_workspace_shell_serve_v2_static_245d797e["Nginx serves versioned static V2 assets under inherited LAN, Host, TLS, and Origin controls"]
+    g_rv_riverview_v2_workspace_shell_dashboard_session_62b93d74{"Check the existing Dashboard account session; request sign-in only when absent"}
+    g_rv_riverview_v2_workspace_shell_dashboard_login_54af0cdd["Submit Dashboard credentials directly to the same-origin HTTPS login API; retain only server-issued cookies"]
+    g_rv_riverview_v2_workspace_shell_grace_grants_a8bc5c23{"Dashboard verifies Steward identity and exact resident.conversation.read/send grants"}
+    g_rv_riverview_v2_workspace_shell_grace_access_denied_ce390666[["Show authentication, CSRF, grant, or conversation-service denial without retrying a send"]]
+    g_rv_riverview_v2_workspace_shell_grace_load_history_7240fd1d["Read authorized conversation index and durable selected history; store only selected conversation ID"]
+    g_rv_riverview_v2_workspace_shell_grace_send_message_1990567d["Submit one typed message with a unique client message ID through the existing streamed conversation endpoint"]
+    g_rv_riverview_v2_workspace_shell_grace_response_state_996c19ef{"Check durable response status and matched assistant event without inferring completion from acceptance"}
+    g_rv_riverview_v2_workspace_shell_grace_reply_persisted_a711c1c3["Render real persisted Grace response, event sequence, timestamp, and durable history after reload"]
+    g_rv_riverview_v2_workspace_shell_grace_recovery_a7678f56["Refresh durable history and resume read-only status checks; never automatically repeat uncertain send"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -80,7 +91,6 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Cycle either sidebar without changing the other| g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc
   g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc -->|Hidden state exposes a keyboard-accessible restore button| g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e
   g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e --> g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
-  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|V2 has no shared Dashboard identity; show the separate secure handoff| g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227
   g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|User requests a V2-specific local ZIP| g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94
   g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94 --> g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
   g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b -->|Allowlisted state is captured in memory| g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec
@@ -90,10 +100,30 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_snapshot_download_2aeb1eaf -->|verification: Chrome ZIP contents match selected view and hashes| g_rv_riverview_v2_workspace_shell_snapshot_verify_0d5c9c66
   g_rv_riverview_v2_workspace_shell_snapshot_verify_0d5c9c66 --> g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
   g_rv_riverview_v2_workspace_shell_snapshot_failure_3be3aa13 -->|recovery_route: Retry locally; no upload or service recovery is needed| g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
-  g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227 -->|Steward opens authenticated V1 Dashboard Grace chat in a separate tab| g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207
   g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227 -->|No authorized V2 Comms5 event feed is connected| g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5
   g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5 -->|Snapshot includes status and null counts only; no messages, credentials, or fabricated zeros| g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
+  g_rv_riverview_v2_workspace_shell_open_v2_route_83acf28c --> g_rv_riverview_v2_workspace_shell_serve_v2_static_245d797e
+  g_rv_riverview_v2_workspace_shell_serve_v2_static_245d797e --> g_rv_riverview_v2_workspace_shell_dashboard_session_62b93d74
+  g_rv_riverview_v2_workspace_shell_dashboard_session_62b93d74 -->|Existing Dashboard account cookie is valid| g_rv_riverview_v2_workspace_shell_grace_grants_a8bc5c23
+  g_rv_riverview_v2_workspace_shell_dashboard_session_62b93d74 -->|diagnostic_branch: No valid current account session| g_rv_riverview_v2_workspace_shell_dashboard_login_54af0cdd
+  g_rv_riverview_v2_workspace_shell_dashboard_login_54af0cdd -->|Dashboard issued secure account and CSRF cookies| g_rv_riverview_v2_workspace_shell_grace_grants_a8bc5c23
+  g_rv_riverview_v2_workspace_shell_dashboard_session_62b93d74 -->|diagnostic_branch: Invalid or unavailable account session| g_rv_riverview_v2_workspace_shell_grace_access_denied_ce390666
+  g_rv_riverview_v2_workspace_shell_dashboard_login_54af0cdd -->|diagnostic_branch: Login rejected or cross-origin request denied| g_rv_riverview_v2_workspace_shell_grace_access_denied_ce390666
+  g_rv_riverview_v2_workspace_shell_grace_grants_a8bc5c23 -->|Exact current read and send grants pass| g_rv_riverview_v2_workspace_shell_grace_load_history_7240fd1d
+  g_rv_riverview_v2_workspace_shell_grace_grants_a8bc5c23 -->|diagnostic_branch: Steward role, binding, or exact grant check fails| g_rv_riverview_v2_workspace_shell_grace_access_denied_ce390666
+  g_rv_riverview_v2_workspace_shell_grace_load_history_7240fd1d -->|History loaded or no prior conversation exists| g_rv_riverview_v2_workspace_shell_grace_send_message_1990567d
+  g_rv_riverview_v2_workspace_shell_grace_send_message_1990567d -->|Server returns conversation and request IDs| g_rv_riverview_v2_workspace_shell_grace_response_state_996c19ef
+  g_rv_riverview_v2_workspace_shell_grace_response_state_996c19ef -->|Pending or deferred; resume read-only polling after reload| g_rv_riverview_v2_workspace_shell_grace_response_state_996c19ef
+  g_rv_riverview_v2_workspace_shell_grace_response_state_996c19ef -->|verification: Durable assistant event is present in authorized history| g_rv_riverview_v2_workspace_shell_grace_reply_persisted_a711c1c3
+  g_rv_riverview_v2_workspace_shell_grace_response_state_996c19ef -->|diagnostic_branch: Grant revoked or service reports a terminal failure| g_rv_riverview_v2_workspace_shell_grace_access_denied_ce390666
+  g_rv_riverview_v2_workspace_shell_grace_send_message_1990567d -->|diagnostic_branch: Send result is uncertain; inspect history before any user retry| g_rv_riverview_v2_workspace_shell_grace_recovery_a7678f56
+  g_rv_riverview_v2_workspace_shell_grace_access_denied_ce390666 -->|recovery_route: Correct session/service state; never bypass grants or retry send| g_rv_riverview_v2_workspace_shell_grace_recovery_a7678f56
+  g_rv_riverview_v2_workspace_shell_grace_recovery_a7678f56 -->|recovery_route: Resume from authoritative persisted conversation events| g_rv_riverview_v2_workspace_shell_grace_load_history_7240fd1d
+  g_rv_riverview_v2_workspace_shell_grace_reply_persisted_a711c1c3 -->|verification: Reload re-reads the same durable event IDs and timestamps| g_rv_riverview_v2_workspace_shell_grace_load_history_7240fd1d
+  g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207 -->|documentation: Superseded by same-origin V2 route| g_rv_riverview_v2_workspace_shell_open_v2_route_83acf28c
+  g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227 -->|documentation: Historical blocker resolved by Steward GO| g_rv_riverview_v2_workspace_shell_open_v2_route_83acf28c
+  g_rv_riverview_v2_workspace_shell_open_v2_route_83acf28c -->|Grace API is integrated; Comms5 event ledger remains unavailable| g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
-The process describes the fixture-only shell in loopback or password-protected trusted-LAN mode. The LAN mode requires a local salted password hash, verifies the client subnet and Host, and rejects non-read-only methods; HTTP credentials are confined to trusted LAN use. Restarting revokes sessions and resets in-memory selection/lockout state. See the [component specification](RIVERVIEW_V2_WORKSPACE_SHELL.md) and [recovery cookbook](RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md).
+The flow covers both the fixture-only preview and the integrated LAN HTTPS `/v2/` route. The HTTPS path inherits Nginx's LAN, Host, Origin and TLS controls, then uses Dashboard-owned account sessions, CSRF, resident binding, exact grants and durable events for Grace chat. Uncertain sends recover by reading history/status; they are never automatically repeated. See the [component specification](RIVERVIEW_V2_WORKSPACE_SHELL.md) and [recovery cookbook](RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md).

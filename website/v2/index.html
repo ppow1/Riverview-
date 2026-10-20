@@ -2,14 +2,14 @@
 Riverview~ Controlled Document
 File: website/v2/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.5
-Purpose: Render an isolated fixture-only V2 workspace shell
-Execution Model: Interactive browser presentation; request-driven static asset loading
-Observability: Visible preview banner and browser console; no service health claim
+File Revision: 1.0.6
+Purpose: Render the V2 workspace shell with an authenticated live Grace conversation panel
+Execution Model: Interactive browser presentation; request-driven Dashboard API calls
+Observability: Live conversation state from rv.resident.conversation.v1; Comms5 stays unverified
 Dependencies: Same-origin static assets under website/v2/assets
-Inputs/Outputs: Local fixture records in memory; HTML view only
-Authority: Presentation only; no production API or mutation authority
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Add a truthful authenticated Dashboard handoff and Comms5 diagnostics state
+Inputs/Outputs: Local fixture records plus authenticated Grace conversation API; durable messages remain Dashboard-owned
+Authority: Account session plus server-checked resident.conversation.read/send grants; LAN preview
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Mount V2 at same origin and add authenticated Grace conversation
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -21,14 +21,15 @@ History: Git and revision/backup manifest
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <title>Riverview V2 Workspace Preview</title>
-  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/workspace.css">
-  <script defer src="/assets/fixtures.js"></script>
-  <script defer src="/assets/workspace.js"></script>
-  <script defer src="/assets/snapshot.js"></script>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/workspace.css">
+  <script defer src="assets/fixtures.js"></script>
+  <script defer src="assets/workspace.js"></script>
+  <script defer src="assets/snapshot.js"></script>
+  <script defer src="assets/grace-chat.js"></script>
 </head>
 <body>
-  <div class="preview-banner"><span class="dot"></span> V2 preview <b>Fixture data · no production connection</b></div>
+  <div class="preview-banner"><span class="dot"></span> V2 preview <b>Fixture workspace · Grace uses secure Dashboard authentication</b></div>
   <div class="app-shell">
     <aside class="rail" id="left-sidebar" data-sidebar="left" aria-label="Primary navigation" data-tooltip="Primary navigation">
       <a class="brand" href="#overview" aria-label="Riverview home" data-tooltip="Go to workspace overview"><span class="brand-mark">R</span><span>Riverview<small>WORKSPACE</small></span></a>
@@ -60,9 +61,9 @@ History: Git and revision/backup manifest
         <aside class="context-panel" id="right-sidebar" data-sidebar="right" data-tooltip="Resident and conversation context" aria-label="Persistent context panel">
           <div class="context-head"><div><p class="eyebrow">PERSISTENT CONTEXT</p><h2>Keep the thread</h2></div><button class="icon-button" aria-label="Context options (not connected)" disabled data-tooltip="Context actions are not connected">···</button></div>
           <div class="context-group"><span class="context-label">SELECTED RESIDENT</span><button id="selected-resident" class="resident-context" data-tooltip="Current resident selection is preview-only"><span class="avatar grace">G</span><span><b>Grace</b><small>Verified identity · preview</small></span><span class="chevron">›</span></button></div>
-          <div class="context-group"><span class="context-label">CONVERSATION</span><div class="conversation-card"><div class="conversation-title"><span class="conversation-icon">✳</span><span><b>Grace conversation</b><small>V2 connection unavailable</small></span></div><p>Use the authenticated Dashboard for Grace chat and its durable history. V2 preview authentication does not carry Dashboard identity or conversation access.</p><a id="grace-chat-handoff" class="tool-link" href="https://192.168.1.155/#grace-chat" target="_blank" rel="noopener noreferrer" data-tooltip="Open the existing authenticated Dashboard Grace conversation in a new tab"><span class="tool-icon chatgpt">✳</span><span><b>Talk with Grace</b><small>Open secure Dashboard chat</small></span><span class="external" aria-hidden="true">↗</span></a><button id="conversation-toggle" class="text-button" aria-expanded="false" data-tooltip="Expand the local context note">Show context note <span>⌄</span></button><p id="conversation-note" class="conversation-note" hidden>V2 has no conversation session. No message is sent, read, or persisted from this preview.</p></div></div>
+          <div class="context-group"><span class="context-label">CONVERSATION</span><section class="conversation-card grace-chat" id="grace-chat-root" aria-labelledby="grace-chat-heading" data-state="checking"><div class="conversation-title"><span class="conversation-icon" aria-hidden="true">✳</span><span><b id="grace-chat-heading">Talk with Grace</b><small id="grace-chat-state" role="status" aria-live="polite">Checking secure Dashboard session…</small></span></div><p id="grace-chat-error" class="grace-chat-error" role="alert" hidden></p><form id="grace-login-form" class="grace-login-form"><label for="grace-email">Dashboard email</label><input id="grace-email" name="email" type="email" autocomplete="username" maxlength="254" required><label for="grace-password">Dashboard password</label><input id="grace-password" name="password" type="password" autocomplete="current-password" maxlength="1024" required><button type="submit">Sign in securely</button><small>Your password is sent only to the existing same-origin Dashboard login API over HTTPS.</small></form><div id="grace-chat-connected" hidden><div class="grace-chat-toolbar"><span id="grace-account-label"></span><button id="grace-refresh" type="button" data-tooltip="Reload durable Grace history">Refresh history</button><button id="grace-new" type="button" data-tooltip="Start a new persisted conversation with the next message">New</button></div><div id="grace-chat-history" class="grace-chat-history" role="log" aria-label="Persisted messages with Grace" aria-live="polite" aria-relevant="additions text" tabindex="0">No conversation loaded.</div><form id="grace-chat-form" class="grace-chat-composer"><label class="visually-hidden" for="grace-message">Message Grace</label><textarea id="grace-message" maxlength="8192" rows="2" required placeholder="Write a message to Grace…"></textarea><button id="grace-send" type="submit">Send</button></form></div></section></div>
           <div class="context-group links-group"><span class="context-label">TOOLS & CHANNELS</span><a class="tool-link" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" data-tooltip="Opens the separate ChatGPT website; no Riverview context is transferred"><span class="tool-icon chatgpt">✳</span><span><b>ChatGPT</b><small>Open external client</small></span><span class="external">↗</span></a><div class="tool-link muted-link" id="comms5-status" data-state="unverified" data-tooltip="Comms5 transport counters and messages are not exposed to this preview"><span class="tool-icon comms">C</span><span><b>Comms5</b><small>Contract present; V2 traffic UNVERIFIED</small></span><span class="lock" aria-hidden="true">?</span></div><div class="integration-note" id="comms5-diagnostics"><b>Traffic counts: UNVERIFIED</b><p>V2 has no authorized Comms5 event feed. Send and receive counts, payloads, and correlation IDs are unavailable here; they are not reported as zero.</p></div><button class="new-chat" disabled data-tooltip="V2 has no authenticated conversation session">＋ &nbsp;New conversation <span>Unavailable</span></button></div>
-          <div class="panel-foot"><span class="shield">▣</span>Local static preview<br><small>No account or backend connection</small></div>
+          <div class="panel-foot"><span class="shield">▣</span>Fixture workspace<br><small>Grace conversation uses Dashboard account grants</small></div>
         </aside>
       </div>
         <button id="right-restore" class="sidebar-restore right-restore" type="button" aria-label="Restore context panel" data-tooltip="Restore context panel" hidden>◉</button>

@@ -2,15 +2,60 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.6
-Purpose: Diagnose and recover the local or password-protected LAN V2 shell preview
-Authority: Read-only local diagnostics; no production recovery action
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Add Grace handoff and unverified Comms5 diagnostics recovery guidance
+File Revision: 1.0.8
+Purpose: Diagnose and recover the isolated preview and same-origin HTTPS V2 Grace chat
+Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
+Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Add same-origin chat, Dashboard grants, and LAN Nginx recovery
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
 
-This guide applies only to the fixture preview in `RIVERVIEW-V2-WORKSPACE-SHELL.md`. It does not diagnose or restart the V1 Dashboard. LAN mode is HTTP and must stay on the trusted Riverview LAN; it is not safe over public Wi-Fi or an untrusted network.
+The first procedures cover the isolated HTTP fixture preview; the integrated HTTPS route and Grace API procedures are separate below. This guide does not restart the V1 Dashboard. The fixture preview uses HTTP and must stay on the trusted Riverview LAN; it is not safe over public Wi-Fi or an untrusted network.
+
+## Integrated V2 LAN route and real Grace chat
+
+The integrated UI is `https://192.168.1.155/v2/`. Nginx serves the versioned static V2 release, while `/api/v1/*` continues to the existing V1 Dashboard at `/`; both paths are HTTPS and share the exact browser origin. The Nginx server's existing `192.168.1.0/24`, Host, Origin, and TLS checks remain in force. The isolated `http://192.168.1.155:8877/` preview remains password-gated but deliberately cannot use Grace's API.
+
+### Read-only route and service checks
+
+Run from Camrui; expected V2 page response is `200`, `Content-Type: text/html`, `Cache-Control: no-store`, and a CSP containing `connect-src 'self'`. V1 root must also return `200` and its systemd unit must remain active.
+
+```sh
+curl -sS -D /tmp/rv-v2-headers.txt -o /dev/null -w 'V2 HTTP %{http_code}\n' https://192.168.1.155/v2/
+curl -sS -o /dev/null -w 'V1 HTTP %{http_code}\n' https://192.168.1.155/
+systemctl is-active riverview-status-dashboard.service
+sudo nginx -t
+```
+
+Do not use `curl -k` to conceal certificate failures. Without credentials, `GET /api/v1/resident/conversations` must return `401`; a state-changing conversation-session request without account cookie/CSRF must also return `401`. The V2 page itself may be visible to LAN clients, as is V1's login page, but conversation content and send authority require Dashboard authentication and exact grants.
+
+### Sign-in, history, and message lifecycle
+
+1. Open the HTTPS `/v2/` route in Chrome. The preview-only HTTP route reports that HTTPS is required and does not call the Dashboard API.
+2. If no Dashboard session exists, enter the Steward's approved Dashboard email/password in the V2 sign-in form. The browser submits directly over HTTPS to same-origin `POST /api/v1/auth/session`; the password is cleared after the request. Do not use the separate V2 preview password here.
+3. V2 checks `GET /api/v1/auth/session`, then calls `POST /api/v1/resident/conversation-session`. Dashboard verifies the Steward role and current `resident.conversation.read` and `.send` grants. Each protected request rechecks account cookie, CSRF on writes, conversation cookie, resident binding, and grants. A `403 resident_conversation_not_authorized` is an authorization denial; do not retry under another identity or provision a new credential.
+4. V2 loads `GET /api/v1/resident/conversations` and selected `GET /api/v1/resident/conversations/{id}`. Dashboard's durable append-only events are authoritative. Refresh/reload re-reads them; browser storage contains only selected conversation ID, never transcript text.
+5. A send uses a one-time UUID `client_message_id` and `POST /api/v1/resident/conversations/stream`. A returned `request_id` and `conversation_id` mean request acceptance, not completed reply. V2 polls read-only `GET /api/v1/resident/conversations/{id}/responses/{request_id}` and refreshes durable history at terminal state. User/assistant entries display persisted event sequence and timestamp.
+6. If the send result is uncertain, refresh history and inspect the persisted user event/request status before retrying. The UI never automatically resends. `pending`/`deferred` are not completion; `failed`/`interrupted` remain visible. After reload, V2 resumes read-only status checks from persisted pending events.
+7. Snapshot includes only observed chat connection/history-loaded state and a bounded event count. It excludes identity, conversation/message IDs, text, credentials, and error payloads. Comms5 remains `UNVERIFIED` with unknown counters as `null`.
+
+### Error table and resume points
+
+| Symptom / response | Read-only diagnostic | Meaning | Safe recovery / resume |
+| --- | --- | --- | --- |
+| `/v2/` returns 404 | `curl -sS -D - -o /dev/null https://192.168.1.155/v2/`; inspect `sudo nginx -T` for V2 include | Static release or route include unavailable | Check release directory and `nginx -t`; if V1 root health changed, restore only this task's Nginx predecessor; resume when `/v2/` has expected headers. |
+| V2 says HTTPS is required | Check browser URL | Browser opened HTTP preview at port 8877 | Open `https://192.168.1.155/v2/`; do not enable API calls over the preview origin. |
+| Sign-in required / API 401 | `curl -sS -o /dev/null -w '%{http_code}\n' https://192.168.1.155/api/v1/resident/conversations` without credentials | No valid account/conversation session | Sign in through V2; never copy cookies or bearer values. |
+| `resident_conversation_not_authorized` / HTTP 403 | Read visible V2 status; Dashboard authorization decision is authoritative | Current account lacks exact grants/binding, or session/CSRF was rejected | Stop sending; sign in once again. If still denied, use normal Steward permission review. Do not bypass the denial. |
+| `resident_conversation_unavailable` / HTTP 503 | `systemctl is-active riverview-status-dashboard.service`; `journalctl -u riverview-status-dashboard.service --since '-10 min' --no-pager` | Existing API or dependency unavailable | Do not restart V1 as V2 recovery. Retain request ID, wait for normal service recovery, refresh history, and inspect whether the user event persisted before resuming. |
+| Request remains pending | Refresh history; inspect event sequence/status; use the read-only response endpoint | Durable request exists without terminal response evidence | Wait/read status; do not resend. A persisted interrupted state after restart is terminal and needs a new user decision. |
+| CSS/JS missing or wrong release | `sha256sum /var/www/riverview-v2-preview/releases/RV-WEB-V2-GRACE-CHAT-002/*`; inspect content type/CSP headers | Release copy or permissions problem | Re-copy from the verified source commit, ensure Nginx can read files, then reload `/v2/`. The route uses `no-store`. |
+
+### Reversible Nginx deployment
+
+The exact site-config predecessor is root-only at `/var/lib/riverview/engineering-backups/RV-WEB-V2-GRACE-CHAT-002/riverview-lan.predecessor`; its SHA-256 and `cmp` result are recorded in acceptance evidence. The source include is `deploy/nginx/riverview-v2.location.conf`; installed copy is `/etc/nginx/snippets/riverview-v2.conf`. Release files are under `/var/www/riverview-v2-preview/releases/RV-WEB-V2-GRACE-CHAT-002/`.
+
+Rollback restores `/etc/nginx/sites-available/riverview-lan` from the protected predecessor, verifies `cmp` and SHA-256, runs `sudo nginx -t`, then `sudo systemctl reload nginx`. This is a graceful Nginx reload; do not restart the V1 Dashboard. The now-inactive include/static release may remain on disk. Verify V1 `/` is still `200`, its service is `active`, and `/v2/` no longer resolves to this integration. If V1 root health fails after reload, rollback immediately.
 
 ## Start, stop, and resume
 
@@ -70,11 +115,11 @@ The login page warns that HTTP does not encrypt the password or cookie in transi
 | Snapshot does not download | Click Snapshot and read the status below it | A ZIP is downloaded and the status gives its byte size; no server upload is attempted | Retry after ensuring downloads are allowed. If the status reports a bound/hash error, retain the visible message and use the read-only check below; do not treat it as an archive upload. |
 | Snapshot ZIP is invalid or does not match the visible view | Use `python3 -m zipfile -t <downloaded.zip>` and inspect `workspace-state.json`, `rendered-view.txt`, and `manifest.json` | Four members; each non-manifest member has a matching SHA-256 and size in the manifest; route/view/selected resident/theme/sidebar match the browser at click time | Preserve the ZIP and report its SHA-256 and browser version. Retry after verifying the active route. The ZIP has a 2 MiB hard limit and includes no screenshot, server logs, live data, cookies, or credentials. |
 | Snapshot hash check fails in browser | Inspect status only; do not copy browser storage or credentials into diagnostics | Snapshot either completes with the local ZIP size or reports it could not be created; no server write occurred | Retry once. If it persists, save sanitized browser console error metadata and use the Chrome acceptance runner. No service restart is relevant. |
-| Grace chat cannot send from V2 | Use the **Talk with Grace** handoff to open `https://192.168.1.155/#grace-chat` | V2 does not hold Dashboard identity or a resident-conversation cookie. The authenticated Dashboard owns its durable message history. | Sign in through the Dashboard’s existing approved account flow and use its Grace conversation. Do not copy its bearer, cookie, or messages into V2. Direct V2 chat resumes only after a reviewed same-origin identity/session integration is authorized. |
+| Grace chat cannot send from V2 | Open `https://192.168.1.155/v2/`; inspect the visible state and `GET /api/v1/auth/session` result | The HTTPS V2 route uses the existing Dashboard account cookie, CSRF token, conversation session and exact grants. The HTTP fixture preview remains disconnected. | Sign in through the V2 same-origin form with the authorized Steward account. If the API denies exact grants, stop and use normal permission review. Never copy bearer values or cookies. |
 | Comms5 counts or messages appear unavailable | Inspect the Comms5 card and the Snapshot `communication_diagnostics` object | Expected: `status=unverified`, outbound/inbound counts `null`, inspectable messages `false`; unknown is not zero. The Comms5 v5 capability list has no general message ledger operation for V2. | Do not infer counters from the Dashboard event list or unrelated Comms5 operations. Resume only when an independently recorded, authorized Comms5 event projection is available. |
 | Mobile menu does not close automatically | Tap the menu button again | Navigation rail returns off-canvas | This preview has no router or automatic navigation state. |
 
-No SQL, migrations, service manager, Nginx, firewall, or production API is involved. The password hash is a local credential file and is never copied into Git. A preview failure has no production recovery step.
+The fixture preview uses no SQL, migration, service manager, Nginx, firewall, or production API. The integrated route uses only the authorized `/v2/` Nginx static include and existing Dashboard APIs; it changes no database or service. The preview password hash is local and never copied into Git.
 
 ### Rollback and resume
 
@@ -98,4 +143,4 @@ python3 scripts/process_graph.py check
 
 The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the loopback preview. LAN authentication tests use a disposable random password created in memory and a temporary hash; they never test with the Steward's real password. Required outputs include no browser errors, selected resident retained, `overflow=false`, unauthorized assets 401, successful login redirect 303, lockout 429, invalid Host/Origin and non-LAN rejection, null/absent Origin accepted only with a valid one-use CSRF token, replay/missing-token rejection, and session expiry. Final acceptance also requires Windows Chrome from the actual dev PC. A failed local check is evidence about the preview branch, not a reason to restart V1.
 
-The focused browser checks also exercise all three theme choices, persistence of the chosen display preference, all sidebar states and restoration controls, keyboard descriptions, mobile width, the exact Snapshot label, the authenticated Dashboard handoff, truthful Comms5 `UNVERIFIED` state, and a real ZIP download whose manifest hashes match the included V2 state. The preview itself remains disconnected from Grace and Comms5. To roll back this increment, restore the exact predecessors for the changed paths using `.riverview-backups/manifest.jsonl` and the protected copies under `.riverview-backups/`; then rerun the V2 browser checks. The Dashboard release, Nginx, credentials, and production are outside this rollback.
+The focused fixture browser checks exercise theme choices, sidebar states, keyboard descriptions, mobile width, Snapshot, truthful Comms5 `UNVERIFIED` state, and a real ZIP download. The separate Chrome Grace acceptance runner checks one actual durable send, Grace response, and reload; it requires Chrome trust of the LAN Root CA and an authorized Dashboard session. It reports only hashed identifiers and event metadata. To roll back the integrated route, restore the protected Nginx predecessor from `/var/lib/riverview/engineering-backups/RV-WEB-V2-GRACE-CHAT-002/`, verify the recorded SHA-256, run `nginx -t`, and reload Nginx. This removes only `/v2/`; it does not change the Dashboard release or credentials.

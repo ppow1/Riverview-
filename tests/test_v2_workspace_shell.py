@@ -1,18 +1,18 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.8
-# Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
+# Revision: 1.0.13
+# Purpose: Verify fixture preview, LAN restrictions, and secure same-origin authenticated Grace integration
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
-# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-001 | Assert authenticated handoff, truthful Comms5 state, and snapshot diagnostics
+# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Verify same-origin V2 chat contracts and LAN route policy
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
-"""Offline tests for the fixture-only V2 preview."""
+"""Offline tests for the fixture workspace and authenticated Grace API client."""
 import http.client
 import ipaddress
 import json
@@ -89,10 +89,10 @@ class WorkspacePreviewTests(unittest.TestCase):
     def test_serves_shell_and_assets_with_no_network_policy(self):
         status, headers, body = self.request("GET", "/")
         self.assertEqual(status, 200)
-        self.assertIn(b"Fixture data", body)
+        self.assertIn(b"Fixture workspace", body)
         self.assertIn("connect-src 'none'", headers["Content-Security-Policy"])
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
-        for asset in ("fixtures.js", "workspace.js", "workspace.css"):
+        for asset in ("fixtures.js", "workspace.js", "workspace.css", "grace-chat.js"):
             self.assertEqual(self.request("GET", f"/assets/{asset}")[0], 200)
 
     def test_rejects_mutations_and_traversal(self):
@@ -107,9 +107,12 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("Persistent context", html)
         self.assertIn("ChatGPT", html)
         self.assertIn("Comms5", html)
-        self.assertIn('id="grace-chat-handoff"', html)
-        self.assertIn('href="https://192.168.1.155/#grace-chat"', html)
-        self.assertIn("authenticated Dashboard", html)
+        self.assertIn('id="grace-chat-root"', html)
+        self.assertIn('id="grace-login-form"', html)
+        self.assertIn('id="grace-chat-history"', html)
+        self.assertIn('id="grace-chat-form"', html)
+        self.assertIn('src="assets/grace-chat.js"', html)
+        self.assertIn("secure Dashboard authentication", html)
         self.assertIn('id="comms5-status" data-state="unverified"', html)
         self.assertIn("Traffic counts: UNVERIFIED", html)
         self.assertIn("not reported as zero", html)
@@ -126,21 +129,69 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('data-view="overview" aria-label="Overview"', html)
         self.assertIn('data-tooltip=', html)
         self.assertIn('id="snapshot-action"', html)
+        self.assertNotIn('id="snapshot-action" class="snapshot-action" type="button" disabled', html)
+        self.assertIn('localStorage.setItem("rv.v2.theme", choice)', js)
+        self.assertNotIn("sessionStorage", js)
+        self.assertIn('id="theme-select"', html)
+        self.assertIn('id="left-state"', html)
+        self.assertIn('id="right-state"', html)
+        self.assertIn('data-view="overview" aria-label="Overview"', html)
+        self.assertIn('data-tooltip=', html)
         self.assertIn('id="snapshot-action"', html)
         self.assertNotIn('id="snapshot-action" class="snapshot-action" type="button" disabled', html)
+        self.assertIn("LIMIT_BYTES = 2 * 1024 * 1024", (ROOT / "website/v2/assets/snapshot.js").read_text())
+
+    def test_grace_client_uses_existing_same_origin_session_csrf_and_grants(self):
+        client = (ROOT / "website/v2/assets/grace-chat.js").read_text()
+        self.assertIn('"/api/v1/auth/session"', client)
+        self.assertIn('"/api/v1/resident/conversation-session"', client)
+        self.assertIn('"/api/v1/resident/conversations/stream"', client)
+        self.assertIn("rv_account_csrf=", client)
+        self.assertIn('"X-Riverview-CSRF"', client)
+        self.assertIn('credentials: "same-origin"', client)
+        self.assertIn("resident_conversation_not_authorized", client)
+        self.assertIn('localStorage.setItem(HISTORY_KEY, state.conversationId)', client)
+        self.assertNotIn("Authorization", client)
+        self.assertNotIn("sessionStorage.setItem", client)
+        self.assertNotIn("innerHTML", client)
+        self.assertNotIn("assistant_message", client.split('async function api', 1)[1].split('function setStatus', 1)[0])
+        self.assertIn('location.pathname.startsWith("/v2/")', client)
+
+    def test_v2_nginx_mount_is_same_origin_static_and_csp_restricted(self):
+        route = (ROOT / "deploy/nginx/riverview-v2.location.conf").read_text()
+        self.assertIn("location = /v2", route)
+        self.assertIn("location ^~ /v2/", route)
+        self.assertIn("autoindex off", route)
+        self.assertIn("connect-src 'self'", route)
+        self.assertIn("frame-ancestors 'none'", route)
+        self.assertIn("Cache-Control", route)
+        self.assertNotIn("proxy_pass", route)
+
+    def test_snapshot_uses_chat_status_without_capturing_conversation(self):
         snapshot = (ROOT / "website/v2/assets/snapshot.js").read_text()
+        self.assertIn("RiverviewGraceChat?.snapshotDiagnostics()", snapshot)
+        self.assertIn("messages_captured: false", snapshot)
+        self.assertIn("No conversation or message contents or IDs", snapshot)
+        self.assertNotIn("state.history", snapshot)
         self.assertIn("LIMIT_BYTES = 2 * 1024 * 1024", snapshot)
         self.assertIn('name: "workspace-state.json"', snapshot)
         self.assertIn('name: "rendered-view.txt"', snapshot)
         self.assertIn('name: "manifest.json"', snapshot)
         self.assertIn("live_backend_connected: false", snapshot)
         self.assertIn('schema: "riverview-v2-browser-snapshot/2"', snapshot)
-        self.assertIn('status: "not_connected"', snapshot)
         self.assertIn('outbound_count: null, inbound_count: null', snapshot)
         self.assertIn('inspectable_messages: false', snapshot)
         self.assertNotIn("fetch(", snapshot)
-        self.assertNotIn("/api/v1/", html + js + snapshot)
         self.assertIn("credentials: \"excluded\"", snapshot)
+
+    def test_real_chrome_verifier_checks_actual_reply_and_reload_without_saving_text(self):
+        verifier = (ROOT / "scripts/verify_v2_grace_chat_chrome.py").read_text()
+        self.assertIn("Target.createTarget", verifier)
+        self.assertIn("/api/v1/resident/conversations/stream", verifier)
+        self.assertIn("reload_history_not_identical", verifier)
+        self.assertIn("response_text_captured:false", verifier)
+        self.assertIn("conversation text omitted from evidence", verifier)
+        self.assertNotIn("--password", verifier)
 
 
 class AuthenticatedPreviewTests(unittest.TestCase):
