@@ -2,13 +2,13 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.19",
-      "sha256": "b0fab09a89ddf7c855db2686f463218dc9ecace0d9d035c459f3fad702c97a79",
-      "size_bytes": 1243959
+      "revision": "1.0.22",
+      "sha256": "bd82c427e7a694b065aa89f1f0fd4575b342143f5c2fe4f5fafbb84ae3d1f73d",
+      "size_bytes": 1251367
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.277",
+      "revision": "1.1.284",
       "sha256": "8317f4f405ccd72221b391698098864d70d6f7da3e472a8a707540ec1c103daf",
       "size_bytes": 20001
     },
@@ -38,21 +38,21 @@
     },
     "docs/components/GRACE_EXECUTION_COOKBOOK.md": {
       "path": "docs/components/GRACE_EXECUTION_COOKBOOK.md",
-      "revision": "1.1.21",
-      "sha256": "c61d3d45d17ba7de9c2dfe32aae43b1c8bd627633f44cc85427e02b5ab7d1a71",
-      "size_bytes": 42306
+      "revision": "1.1.22",
+      "sha256": "d31edc438c236ddae202681dcc935ee9aeb67103f2cc95d513d5ab7ec61da01a",
+      "size_bytes": 44022
     },
     "docs/components/GRACE_EXECUTION_PIPELINE.md": {
       "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
-      "revision": "1.1.24",
-      "sha256": "1062bda0b28a5043f23a6072e729d1ffb86b831ab97944c83accb676a29367c4",
-      "size_bytes": 36612
+      "revision": "1.1.25",
+      "sha256": "015aa229a7d0f90c480066fe1442ac36860da2ef35e510e848589aec34a73721",
+      "size_bytes": 38875
     },
     "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md": {
       "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
-      "revision": "1.0.58",
-      "sha256": "4b8d9a369b7129e9bdd96c078d29512ffc526a703413e9898df260ce8c5b398b",
-      "size_bytes": 49017
+      "revision": "1.0.59",
+      "sha256": "8746f286861b4bc8b8d24f397225050ab789b2bc766dcf201fac6024459fd406",
+      "size_bytes": 51189
     },
     "docs/components/GRACE_PERSISTENT_EXECUTION.md": {
       "path": "docs/components/GRACE_PERSISTENT_EXECUTION.md",
@@ -212,9 +212,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.195",
-      "sha256": "1021e1965ffeddd2a7b9b19038bf0a1a4cceeac28527d95ca699cacdc320333d",
-      "size_bytes": 673024
+      "revision": "1.0.196",
+      "sha256": "a2a0d3a589e6dd530c8b6da8ef490f1b5b56fcbee6aa3792d3f7a26fbe8fabe8",
+      "size_bytes": 676843
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -224,9 +224,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.58",
-      "sha256": "408fa134dd32e9b4ed01cebfe18f068ff50e16993aa26a1084be654152d38d10",
-      "size_bytes": 90263
+      "revision": "1.0.59",
+      "sha256": "aa2efdc04391073cb2ee843213f7f4463c26b50d0c57c9511f63910b8f8e9dbd",
+      "size_bytes": 93696
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -350,15 +350,15 @@
     },
     "src/riverview_core/resident_execution/pipeline.py": {
       "path": "src/riverview_core/resident_execution/pipeline.py",
-      "revision": "1.1.16",
-      "sha256": "10d6e5ef96f2c577e53e8603d0ed06dfabcfde02ddc0f4ff0ef8f3eaa4a8116d",
-      "size_bytes": 96124
+      "revision": "1.1.17",
+      "sha256": "ce0facd1b044130450e0229ecc7def9a7c601673caf6990d4b27406198936e34",
+      "size_bytes": 100273
     },
     "src/riverview_core/resident_execution/service.py": {
       "path": "src/riverview_core/resident_execution/service.py",
-      "revision": "1.0.29",
-      "sha256": "684c43dc6240b8fe2233179f83ac0ae90b53b361eeb44d92679dec3b8d3c54dc",
-      "size_bytes": 64418
+      "revision": "1.0.30",
+      "sha256": "fe7476ecf28445467c40a9dfd0ac56dea381622d9946cf8b5b97d710c4867ed6",
+      "size_bytes": 65114
     },
     "src/riverview_core/status_dashboard/server.py": {
       "path": "src/riverview_core/status_dashboard/server.py",
@@ -410,9 +410,9 @@
     },
     "tests/test_grace_execution.py": {
       "path": "tests/test_grace_execution.py",
-      "revision": "1.0.39",
-      "sha256": "d3f3d5420a77b6ee93f126383f9ca4e29819d15578c38be85287fb1b1e8b18f2",
-      "size_bytes": 137642
+      "revision": "1.0.42",
+      "sha256": "3cfc6313b906c11931c2bd6e4ab14d13d625b4beaf8fffa5bfc2b5d20a68abeb",
+      "size_bytes": 142923
     },
     "tests/test_runtime_baseline.py": {
       "path": "tests/test_runtime_baseline.py",
@@ -425,8 +425,14 @@
       "revision": "1.0.8",
       "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
       "size_bytes": 26074
+    },
+    "src/riverview_core/status_dashboard/projection.py": {
+      "path": "src/riverview_core/status_dashboard/projection.py",
+      "revision": "1.0.10",
+      "sha256": "2f77bd7e2c0f16d907593e03a8006542eb0b3594a3aeaf3e35e7eeec38ad3ece",
+      "size_bytes": 45998
     }
   },
-  "manifest_revision": "1.1.277",
-  "updated_at": "2026-10-20T00:22:00Z"
+  "manifest_revision": "1.1.284",
+  "updated_at": "2026-10-20T00:40:45Z"
 }

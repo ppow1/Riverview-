@@ -1,7 +1,7 @@
 // RIVERVIEW~ CONTROLLED TEST
 // File: tests/test_riverview_doorbell_bridge_node.cjs
 // Component: CHATGPT-DOORBELL
-// Revision: 1.0.1
+// Revision: 1.0.3
 // Purpose: Verify fixed wake, exact targeting, status contract, and failure evidence metadata
 // Inputs/Outputs: Synthetic targets, payloads and temporary runtime paths / node:test assertions only
 // Execution Model: Deterministic Node.js unit tests; no browser or network access
@@ -9,6 +9,8 @@
 // Dependencies: Node.js built-in node:test and the Riverview bridge module
 // Authority: Synthetic CDP targets only
 // Changed: 2026-10-18 UTC | RV-C3-DOORBELL-DOD-001 | Verify status contract and durable failure record
+// Changed: 2026-10-19 UTC | RV-C2-DOORBELL-SELECTOR-20261019 | Add synthetic Ask ChatGPT readiness-selector regression; predecessor SHA-256 218beaa7cf136349afaf67348b2a32217fbff5253852b852481ced0cdfda9953
+// Changed: 2026-10-20 UTC | RV-C4-DOORBELL-SELECTOR-VISIBILITY-FIX-001 | Cover hidden-first duplicate composer matches without executing the fixed action
 // Contracts: docs/components/CHATGPT_DOORBELL.md
 // Tests: This file
 // History: Git and .riverview-revisions.json
@@ -17,13 +19,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const vm = require('node:vm');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rv-doorbell-test-'));
 process.env.RIVERVIEW_RUNTIME_ROOT = tempRoot;
-const { FIXED_ACTION, OPERATION, READINESS, WAKE_TEXT, selectExactTarget, statusSnapshot, validate, verified } = require('../tools/riverview_doorbell_bridge.cjs');
+const { COMPOSER_SELECTOR, FIXED_ACTION, OPERATION, READINESS, WAKE_TEXT, selectExactTarget, statusSnapshot, validate, verified } = require('../tools/riverview_doorbell_bridge.cjs');
 
 const id = '00000000-0000-4000-8000-000000000000';
 const page = value => ({ type: 'page', url: `https://chatgpt.com/c/${value}`, webSocketDebuggerUrl: 'ws://127.0.0.1:9225/devtools/page/test' });
@@ -36,6 +39,32 @@ test('conversation selection accepts only one exact ChatGPT page', () => {
   assert.throws(() => selectExactTarget([page(id), page(id)], id), /RIV-PLY-0006/);
   assert.throws(() => selectExactTarget([page('11111111-1111-4111-8111-111111111111')], id), /RIV-PLY-0005/);
   assert.throws(() => selectExactTarget([{ ...page(id), url: `https://example.com/c/${id}` }], id), /RIV-PLY-0005/);
+});
+
+test('readiness selects the visible enabled composer when a hidden Ask ChatGPT match comes first', () => {
+  const askChatGptSelector = 'div[contenteditable="true"][aria-label="Ask ChatGPT"]';
+  const hidden = { disabled: false, getAttribute: () => null, getBoundingClientRect: () => ({ width: 0, height: 0 }) };
+  const visible = { disabled: false, getAttribute: () => null, getBoundingClientRect: () => ({ width: 420, height: 56 }) };
+  let selectorUsed;
+  const result = vm.runInNewContext(READINESS, {
+    location: { hostname: 'chatgpt.com', pathname: `/c/${id}` },
+    document: {
+      querySelector() { return null; },
+      querySelectorAll(selector) {
+        selectorUsed = selector;
+        return selector.includes(askChatGptSelector) ? [hidden, visible] : [];
+      },
+    },
+  });
+  assert.equal(result.authenticated, true);
+  assert.equal(result.composer, true);
+  assert.equal(selectorUsed, COMPOSER_SELECTOR);
+  assert.equal(COMPOSER_SELECTOR.includes(askChatGptSelector), true);
+  assert.match(FIXED_ACTION, /querySelectorAll/);
+  assert.match(FIXED_ACTION, /getBoundingClientRect/);
+  assert.match(FIXED_ACTION, /r\.width>0&&r\.height>0&&!node\.disabled/);
+  assert.equal(WAKE_TEXT, 'Riverview doorbell v1: inspect the Riverview MCP mailbox.');
+  assert.doesNotMatch(READINESS, /innerText|document\.body|textContent/);
 });
 
 test('the operation and wake remain fixed, and only a composer transition proves submission', () => {
