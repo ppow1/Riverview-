@@ -2,9 +2,9 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.22",
-      "sha256": "3b43c6dff169c2291eebd01051b8edecc4ec08780dc660723a2abd70939d1067",
-      "size_bytes": 1277373
+      "revision": "1.0.23",
+      "sha256": "340e994a42bfa94e34d0d752c5a34cca880b54775a54a9d58293c9fd1bc58b14",
+      "size_bytes": 1290060
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
