@@ -1,5 +1,5 @@
 {
-  "manifest_revision": "1.1.83",
+  "manifest_revision": "1.1.84",
   "files": {
     "process_graphs/generated/riverview-process-graph.json": {
       "revision": "1.0.47",
@@ -38,7 +38,7 @@
       "size_bytes": 27724
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.83"
+      "revision": "1.1.84"
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "revision": "1.0.4",
@@ -219,6 +219,66 @@
       "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T190737Z-c015cd1/acceptance.json",
       "sha256": "a8cfa43d8b0dcd37bcebdba6bc01b2ceacc20af923cc0637da661cbcd12951a7",
       "size_bytes": 7439
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/acceptance.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/acceptance.json",
+      "sha256": "dd51c4bc2f6d8e3491a8a0f6d438820c8b755060b1b4e53d1f6adf655d3de010",
+      "size_bytes": 4815
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/artifacts.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/artifacts.json",
+      "sha256": "4828e0bc9c7965f4308de442a6450e0f1a289a567ec9a7f4335477eb0b3ec38e",
+      "size_bytes": 1886
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/browser-iteration-history.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/browser-iteration-history.json",
+      "sha256": "d788cc69761a6af51a996ede0fc05a1ee42a4d2eaed7625e09247b403ea0beea",
+      "size_bytes": 1167
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/chrome-mobile.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/chrome-mobile.json",
+      "sha256": "f9ab1010f2e51dc5782db3f50a691875dce3ad4e63f6df3557f86bcacc8c5d11",
+      "size_bytes": 482
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/firefox.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/firefox.json",
+      "sha256": "4ebcb84e536ba3d946361ac2a3f6973cb0bc996748a5dd626d6fcf3fae8a93d3",
+      "size_bytes": 1230
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/graph-check.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/graph-check.json",
+      "sha256": "7b5d9024a1538bf9f0cca297adebaafcc9ac0f68a6a681db21a37835230ae1fe",
+      "size_bytes": 55
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/graph-validate.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/graph-validate.json",
+      "sha256": "932b2c8c51e41ca21433be08e5bfed60024d8bf89fe96156a69f0ed46358edc6",
+      "size_bytes": 39
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/isolation.json": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/isolation.json",
+      "sha256": "e7779387e074865805e18ee3ff029473c10d8c9c051433b6062766d4f7d8264b",
+      "size_bytes": 597
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/node-check.log": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/node-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/unittest.log": {
+      "revision": "1.0.0",
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/unittest.log",
+      "sha256": "dc14b5996622457c0669c434a08909f832184d5aa8c3f929cbceb1775637869b",
+      "size_bytes": 2743
     }
   }
 }

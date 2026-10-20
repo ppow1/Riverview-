@@ -1,0 +1,21 @@
+{
+  "source_commit": "88b40645825045c91ce4c2b0430c39a66502b6d7",
+  "observed_at_utc": "2026-10-20T20:23:25Z",
+  "v2": {
+    "listener": "192.168.1.155:8877",
+    "pid": 1821553,
+    "worktree": "/home/admin1/projects/Riverview-V2-Issue164",
+    "login_root_http": 200,
+    "unauthenticated_asset_http": 401,
+    "restart_or_reconfiguration": false
+  },
+  "v1_dashboard": {
+    "service": "riverview-status-dashboard.service",
+    "active": true,
+    "pid": 1624314,
+    "restart_count": 0,
+    "https_root_http": 200
+  },
+  "production_changes": false,
+  "credentials_or_tokens_recorded": false
+}
