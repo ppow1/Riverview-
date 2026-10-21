@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.105"
+      "revision": "1.1.106"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -98,6 +98,42 @@
       "revision": "1.0.1",
       "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
       "size_bytes": 548
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/artifacts.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/artifacts.json",
+      "revision": "1.0.0",
+      "sha256": "f9ec1b11c1b5507bf5c2e700aad90ddaecc8f985231db02cba734b5e02994854",
+      "size_bytes": 1591
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/browser-report.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "1c44760466067f73cbaaa769e12e2269d81e931275c719a4ff87909b677f26f2",
+      "size_bytes": 2375
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/octo1-console-desktop-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/octo1-console-desktop-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "5eedc342d87e5ed3c82bad41429b07c36874a9114677094ed034259f74a2cd2d",
+      "size_bytes": 325484
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/review-evidence.md": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/review-evidence.md",
+      "revision": "1.0.0",
+      "sha256": "e3700e6987963e85be6b3199d504282bdffc3fcfe63e1a25187895f6e12cb983",
+      "size_bytes": 1805
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/source-observation.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/source-observation.json",
+      "revision": "1.0.0",
+      "sha256": "581ebe8bd60e868f8933b817f12c943dd9af939145cce84b8f90068d1972b826",
+      "size_bytes": 4116
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/test-results.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/test-results.json",
+      "revision": "1.0.0",
+      "sha256": "203557f3c0ec8c405cc70d6b975285a406e8afe237dec1de3bbc2e31dc2b0e98",
+      "size_bytes": 3527
     },
     "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T180911Z-210cef1/acceptance.json": {
       "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T180911Z-210cef1/acceptance.json",
