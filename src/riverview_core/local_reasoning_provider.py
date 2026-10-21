@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.15
+# Revision: 1.3.16
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Make prior rejected plans explicitly preserve every criterion, including prohibitions
+# Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Return fixed sanitized proposal parse, schema, provenance and token-budget codes
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
 # Observability: Sanitized provider failures; no prompts or raw model output logged
@@ -53,6 +54,7 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from .resident_reasoning import (ArtifactRequirement, ExternalEscalationIntent, PlanProposal, PlanStep,
+                                 ProposalValidationFailure,
                                  ReasoningRequest)
 from .resident_execution.grace_role_context import build_grace_role_context
 
@@ -224,9 +226,9 @@ class LocalReasoningProvider:
         return json.dumps(context, ensure_ascii=False, sort_keys=True,
                           separators=(",", ":"))
 
-    def propose(self, request: ReasoningRequest) -> PlanProposal | None:
+    def propose(self, request: ReasoningRequest) -> PlanProposal | ProposalValidationFailure | None:
         if request.implementation_revision != self.model_sha256:
-            return None
+            return ProposalValidationFailure("PROPOSAL_PROVENANCE_INVALID")
         system_instruction = (
             "Return exactly one JSON object with keys summary and steps. "
             "Use 1 to 20 concise ordered steps only when needed. summary is at most seven words. steps "
@@ -279,7 +281,7 @@ class LocalReasoningProvider:
         try:
             context = self._content(request)
             if not context or len(context.encode("utf-8")) > self.MAX_PROMPT_BYTES:
-                return None
+                return ProposalValidationFailure("PROPOSAL_REQUEST_INVALID")
             schema_properties = {
                 "summary": {"type": "string", "minLength": 1, "maxLength": 60},
                 "steps": {"type": "array", "minItems": 1, "maxItems": 20, "items": {
@@ -342,7 +344,7 @@ class LocalReasoningProvider:
                 },
             }, ensure_ascii=False).encode("utf-8")
         except (TypeError, ValueError):
-            return None
+            return ProposalValidationFailure("PROPOSAL_REQUEST_INVALID")
         http_request = Request(
             self.endpoint, data=body,
             headers={"Content-Type": "application/json", "Accept": "application/json"},
@@ -365,37 +367,51 @@ class LocalReasoningProvider:
         except OSError:
             raise LocalReasoningUnavailable("endpoint_unavailable") from None
         if len(raw) > self.MAX_RESPONSE_BYTES:
-            return None
+            return ProposalValidationFailure("PROPOSAL_RESPONSE_TOO_LARGE")
         try:
             document = json.loads(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return ProposalValidationFailure("PROPOSAL_RESPONSE_PARSE_FAILED")
+        try:
             choice = document["choices"][0]
             text = choice["message"]["content"]
             served_model = document["model"]
             finish_reason = choice["finish_reason"]
             completion_tokens = document["usage"]["completion_tokens"]
+        except (KeyError, IndexError, TypeError):
+            return ProposalValidationFailure("PROPOSAL_RESPONSE_SCHEMA_INVALID")
+        if not isinstance(text, str):
+            return ProposalValidationFailure("PROPOSAL_RESPONSE_SCHEMA_INVALID")
+        try:
             plan = json.loads(text)
-            if (served_model != self.model or finish_reason not in ("stop", "length")
-                    or type(completion_tokens) is not int
-                    or completion_tokens < 0 or completion_tokens > request.token_budget
-                    or not isinstance(plan, dict)
-                    or not {"summary", "steps"} <= set(plan)
-                    or not set(plan) <= {"summary", "steps", "external_escalation"}
-                    or not isinstance(plan["steps"], list)):
-                return None
+        except json.JSONDecodeError:
+            return ProposalValidationFailure("PROPOSAL_JSON_PARSE_FAILED")
+        if served_model != self.model:
+            return ProposalValidationFailure("PROPOSAL_PROVENANCE_INVALID")
+        if type(completion_tokens) is not int or completion_tokens < 0:
+            return ProposalValidationFailure("PROPOSAL_RESPONSE_SCHEMA_INVALID")
+        if completion_tokens > request.token_budget:
+            return ProposalValidationFailure("PROPOSAL_TOKEN_BUDGET_EXCEEDED")
+        if (finish_reason not in ("stop", "length") or not isinstance(plan, dict) or
+                not {"summary", "steps"} <= set(plan) or
+                not set(plan) <= {"summary", "steps", "external_escalation"} or
+                not isinstance(plan["steps"], list)):
+            return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
+        try:
             steps = []
             for item in plan["steps"]:
                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
                 allowed = required | {"execution_capability", "authorized_paths", "test_targets",
                                      "repository_reference", "repository_revision", "artifact_requirements"}
                 if not isinstance(item, dict) or not required <= set(item) or not set(item) <= allowed:
-                    return None
+                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
                 if (not isinstance(item["acceptance_criteria"], list)
                         or not isinstance(item["depends_on"], list)
                         or not isinstance(item.get("artifact_requirements", []), list)):
-                    return None
+                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
                 capability = item.get("execution_capability", "engineering.codex-cli-artifact.v1")
                 if capability == "engineering.codex-cli-artifact.v1" and not item.get("artifact_requirements"):
-                    return None
+                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
                 artifact_requirements = tuple(ArtifactRequirement(
                     requirement["name"], requirement["path"], requirement["media_type"],
                     tuple(requirement["acceptance_criteria"]), requirement.get("max_bytes", 32768))
@@ -415,17 +431,17 @@ class LocalReasoningProvider:
                 raw_escalation = plan["external_escalation"]
                 if (not request.external_reasoning_targets or not isinstance(raw_escalation, dict)
                         or set(raw_escalation) != {"reason", "target_provider_id"}):
-                    return None
+                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
                 escalation = ExternalEscalationIntent(
                     raw_escalation["reason"], raw_escalation["target_provider_id"])
                 if escalation.target_provider_id not in request.external_reasoning_targets:
-                    return None
+                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
             return PlanProposal(plan["summary"], tuple(steps), completion_tokens,
                 provider_id=self.provider_id, served_model=served_model,
                 model_revision=self.model_sha256, reasoning_stage="reasoning",
                 external_escalation=escalation)
-        except Exception:
-            return None
+        except (KeyError, TypeError, ValueError):
+            return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
 
     def complete_chat(self, messages, *, max_tokens: int,
                       expected_revision: str, timeout_seconds: float = 120) -> ChatCompletion:

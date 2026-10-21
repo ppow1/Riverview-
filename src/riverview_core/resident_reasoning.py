@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.20
+# Revision: 1.0.21
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -26,6 +26,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Accept bounded advisory input separately from verified knowledge
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Add typed model-selected external advisory intent at the existing reasoning boundary
 # Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Keep escalated candidates out of final plan state and bind exact review subject
+# Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Persist bounded proposal parse, schema, type and budget failure codes
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Persist bounded per-step artifact identity, media type, paths, and acceptance requirements
 # Contracts: docs/components/RESIDENT_REASONING.md
 # Tests: tests/test_resident_reasoning.py
@@ -225,7 +226,7 @@ class AssignmentContextReader(Protocol):
 class ReasoningProvider(Protocol):
     provider_id: str
 
-    def propose(self, request: ReasoningRequest) -> PlanProposal: ...
+    def propose(self, request: ReasoningRequest) -> PlanProposal | ProposalValidationFailure | None: ...
 
 
 @dataclass(frozen=True)
@@ -237,6 +238,29 @@ class ReasoningResult:
     state_revision: int | None = None
     proposal: PlanProposal | None = None
     reasoning_request: ReasoningRequest | None = None
+
+
+@dataclass(frozen=True)
+class ProposalValidationFailure:
+    """Sanitized proposal rejection passed between provider, router and runtime."""
+
+    detail_code: str
+
+    ALLOWED_CODES = frozenset({
+        "PROPOSAL_RESPONSE_PARSE_FAILED",
+        "PROPOSAL_JSON_PARSE_FAILED",
+        "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+        "PROPOSAL_SCHEMA_INVALID",
+        "PROPOSAL_TOKEN_BUDGET_EXCEEDED",
+        "PROPOSAL_PROVENANCE_INVALID",
+        "PROPOSAL_RESPONSE_TOO_LARGE",
+        "PROPOSAL_REQUEST_INVALID",
+        "PROVIDER_RETURNED_NON_PROPOSAL",
+    })
+
+    def __post_init__(self):
+        if self.detail_code not in self.ALLOWED_CODES:
+            raise ValueError("proposal failure code is not registered")
 
 
 class _TimedCall:
@@ -560,12 +584,27 @@ class ResidentReasoner:
                     return self._result_after_record(revision, ReasoningStatus.UNAVAILABLE,
                                                      request_id, "PROVIDER_TIMEOUT_OR_FAILURE", provider_id)
                 continue
-            if not isinstance(result, PlanProposal) or result.tokens_used > request.token_budget:
+            if isinstance(result, ProposalValidationFailure):
+                code = result.detail_code
                 revision = self._record(snapshot, assignment_id, request_id,
                                         ReasoningStatus.INVALID_PROPOSAL, trigger, grounded, regrounded,
-                                        provider_id=provider_id, code="PROPOSAL_SCHEMA_OR_BUDGET")
+                                        provider_id=provider_id, code=code)
                 return self._result_after_record(revision, ReasoningStatus.INVALID_PROPOSAL,
-                                                 request_id, "PROPOSAL_SCHEMA_OR_BUDGET", provider_id)
+                                                 request_id, code, provider_id)
+            if not isinstance(result, PlanProposal):
+                code = "PROVIDER_RETURNED_NON_PROPOSAL"
+                revision = self._record(snapshot, assignment_id, request_id,
+                                        ReasoningStatus.INVALID_PROPOSAL, trigger, grounded, regrounded,
+                                        provider_id=provider_id, code=code)
+                return self._result_after_record(revision, ReasoningStatus.INVALID_PROPOSAL,
+                                                 request_id, code, provider_id)
+            if result.tokens_used > request.token_budget:
+                code = "PROPOSAL_TOKEN_BUDGET_EXCEEDED"
+                revision = self._record(snapshot, assignment_id, request_id,
+                                        ReasoningStatus.INVALID_PROPOSAL, trigger, grounded, regrounded,
+                                        provider_id=provider_id, code=code)
+                return self._result_after_record(revision, ReasoningStatus.INVALID_PROPOSAL,
+                                                 request_id, code, provider_id)
             # The persistent runtime role is intentionally denied direct reads of
             # AuthorityRegistry tables. Revalidate authorization and binding via
             # the narrowly granted runtime-safe function.

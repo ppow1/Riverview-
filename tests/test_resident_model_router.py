@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.18
+# Revision: 1.0.19
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -18,6 +18,7 @@
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Regress byte-bounded prompt trimming and safe irreducible-context reporting.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Prove legacy over-limit failure and independent three-capability readiness.
 # Changed: 2026-10-19 UTC | RV-GRACE-TOOL-CATALOG-CONTEXT-001 | Regress large internal tool catalogs and selected-schema prompting
+# Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Preserve fixed diagnostic subcodes through routing
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -29,7 +30,8 @@ from riverview_core.local_reasoning_provider import (ChatCompletion,
 from riverview_core.comms5.dashboard_backend import DashboardReadBackend
 from riverview_core.resident_execution.internal_tools import GraceInternalTools
 from riverview_core.resident_execution.model_router import GraceModelRouter, ReasoningDeferred
-from riverview_core.resident_reasoning import PlanProposal, PlanStep, ReasoningRequest
+from riverview_core.resident_reasoning import (PlanProposal, PlanStep,
+    ProposalValidationFailure, ReasoningRequest)
 
 
 class _Provider:
@@ -100,6 +102,11 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(self.vision.proposal_requests, [])
         self.assertEqual(self.cpu.proposal_requests, [])
 
+    def test_persistent_router_preserves_sanitized_proposal_failure_code(self):
+        failure = ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
+        self.reasoner.propose = lambda request: failure
+        self.assertIs(self.router.propose(self.proposal_request()), failure)
+
     def test_persistent_proposal_does_not_fallback_when_80b_is_unavailable(self):
         self.reasoner.state = "MODEL_BUSY"
         with self.assertRaises(LocalReasoningUnavailable):
@@ -109,7 +116,8 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(self.cpu.proposal_requests, [])
 
     def test_persistent_proposal_rejects_router_binding_mismatch_before_model_call(self):
-        self.assertIsNone(self.router.propose(self.proposal_request(revision="f" * 64)))
+        result = self.router.propose(self.proposal_request(revision="f" * 64))
+        self.assertEqual(result.detail_code, "PROPOSAL_PROVENANCE_INVALID")
         self.assertEqual(self.reasoner.proposal_requests, [])
 
     def test_autonomic_greeting_uses_cpu_and_marks_provisional(self):

@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.16
+# Revision: 1.0.17
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Keep persistent reasoning rehydration tests on the durable event contract.
+# Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Verify sanitized failure codes persist without response content
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
 # Execution Model: Isolated PostgreSQL authority registry integration tests
 # Observability: Assertions inspect persisted office state and provider outcomes
@@ -530,9 +531,30 @@ class ResidentReasoningTests(unittest.TestCase):
                                fallbacks={"provider.a": ("provider.b",)}).propose(
             self.assignments.current["id"], trigger="before_reasoning", token_budget=100)
         self.assertEqual(result.status, ReasoningStatus.INVALID_PROPOSAL)
+        self.assertEqual(result.detail_code, "PROPOSAL_TOKEN_BUDGET_EXCEEDED")
         self.assertEqual(provider.requests[0].token_budget, 50)
         state = self.registry.office_snapshot(self.office_id)["state"]["resident_reasoning_v1"]
         self.assertNotIn(self.assignments.current["id"], state.get("plans", {}))
+        self.assertEqual(state["outcomes"][-1]["detail_code"],
+                         "PROPOSAL_TOKEN_BUDGET_EXCEEDED")
+
+    def test_non_plan_provider_result_is_persisted_as_sanitized_type_failure(self):
+        from riverview_core.resident_reasoning import ReasoningStatus
+
+        class EmptyProvider(_Provider):
+            def propose(self, request):
+                self.requests.append(request)
+                return None
+
+        provider = EmptyProvider("provider.a")
+        result = self._runtime({"provider.a": provider}).propose(
+            self.assignments.current["id"], trigger="before_reasoning", token_budget=100)
+        self.assertEqual(result.status, ReasoningStatus.INVALID_PROPOSAL)
+        self.assertEqual(result.detail_code, "PROVIDER_RETURNED_NON_PROPOSAL")
+        state = self.registry.office_snapshot(self.office_id)["state"]["resident_reasoning_v1"]
+        self.assertEqual(state["outcomes"][-1]["detail_code"],
+                         "PROVIDER_RETURNED_NON_PROPOSAL")
+        self.assertNotIn("response", state["outcomes"][-1])
 
     def test_total_budget_smaller_than_route_is_rejected_without_provider_call(self):
         from riverview_core.resident_reasoning import ReasoningStatus

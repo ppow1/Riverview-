@@ -2,9 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.7
+# Revision: 1.2.8
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Trim oldest conversational context to the provider byte limit while preserving system instructions and the active turn.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Preserve sanitized HTTP failure classes for bounded deferred recovery.
+# Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Preserve typed sanitized proposal-failure codes from the 80B adapter
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Require tool-backed current-status answers.
 # Purpose: Prefer 80B for substantive turns, bound context and autonomic acknowledgments, and persist diagnostics
 # Execution Model: Request-driven; persisted deferred turns are resumed by the conversation owner
@@ -36,6 +37,7 @@ import re
 from time import monotonic
 
 from ..local_reasoning_provider import LocalReasoningProvider, LocalReasoningUnavailable
+from ..resident_reasoning import ProposalValidationFailure
 
 
 class ReasoningDeferred(RuntimeError):
@@ -134,7 +136,7 @@ class GraceModelRouter:
         and the returned proposal records the actual served model.
         """
         if request.implementation_revision != self.model_sha256:
-            return None
+            return ProposalValidationFailure("PROPOSAL_PROVENANCE_INVALID")
         provider = self.providers["reasoning"]
         readiness = provider.readiness()
         if readiness.state != "READY":
@@ -143,13 +145,15 @@ class GraceModelRouter:
             raise LocalReasoningUnavailable(code)
         proposal = provider.propose(replace(
             request, implementation_revision=provider.model_sha256))
+        if isinstance(proposal, ProposalValidationFailure):
+            return proposal
         if proposal is None:
-            return None
+            return ProposalValidationFailure("PROVIDER_RETURNED_NON_PROPOSAL")
         if (proposal.provider_id != provider.provider_id
                 or proposal.served_model != provider.model
                 or proposal.model_revision != provider.model_sha256
                 or proposal.reasoning_stage != "reasoning"):
-            return None
+            return ProposalValidationFailure("PROPOSAL_PROVENANCE_INVALID")
         return proposal
 
     def select(self, messages, *, required_capability=None):

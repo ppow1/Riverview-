@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.13
+File Revision: 1.0.14
 Purpose: Define resident context regrounding and bounded reasoning-provider routing
 Authority: Exact office-state grant required; provider output is a proposal, never permission
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Establish isolated resident reasoning contract
@@ -19,6 +19,7 @@ Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Allow bounded 1–20 ste
 Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Specify candidate non-finality, immutable external review subjects, and bounded Grace revise-or-finish evaluation
 Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-001 | Document safe provider-specific local chat response normalization
 History: Git and .riverview-backups/manifest.jsonl
+Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Specify sanitized proposal rejection subcodes
 Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Preserve negative criteria when correcting an incomplete prior proposal and classify safe rejection diagnostics
 -->
 # Resident regrounding and reasoning routing
@@ -230,7 +231,7 @@ are present; an incomplete proposal remains unpersisted and the objective stays
 | `UNAVAILABLE` | Registry, route, provider, or durable authority state is unavailable. |
 | `STALE_CONTEXT` | The office binding or assignment revision changed during reasoning; proposal is discarded. |
 | `STATE_CONFLICT` | Office state compare-and-swap or bounded write failed; proposal is not reported successful. |
-| `INVALID_PROPOSAL` | Provider output is not the typed plan schema or exceeds its allocated token budget. |
+| `INVALID_PROPOSAL` | Provider output is rejected. Its fixed `detail_code` distinguishes response JSON parse (`PROPOSAL_RESPONSE_PARSE_FAILED`), inner plan JSON parse (`PROPOSAL_JSON_PARSE_FAILED`), response envelope schema (`PROPOSAL_RESPONSE_SCHEMA_INVALID`), typed proposal schema (`PROPOSAL_SCHEMA_INVALID`), unexpected non-plan result (`PROVIDER_RETURNED_NON_PROPOSAL`), token-budget overrun (`PROPOSAL_TOKEN_BUDGET_EXCEEDED`), provenance mismatch, and bounded request/response failures. These codes contain no prompt or response text. |
 
 The office-state `resident_reasoning_v1` value retains at most the latest 32
 outcome summaries, source references, source revision/hash, retrieval status,
