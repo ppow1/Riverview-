@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.19
+# Revision: 1.0.20
+# Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Verify request-correlated diagnostics distinguish office-state and provider boundaries
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject ambiguous deliverable prose as lifecycle-only criteria
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Verify the bounded reasoning caller deadline
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Keep persistent reasoning rehydration tests on the durable event contract.
@@ -600,6 +601,146 @@ class ResidentReasoningTests(unittest.TestCase):
         self.assertEqual(invalid_result.status, ReasoningStatus.WAITING_FOR_EVIDENCE)
         self.assertEqual(invalid_result.detail_code, "KNOWLEDGE_NOT_SERIALIZABLE")
         self.assertEqual(provider.requests, [])
+
+
+class ResidentReasoningDiagnosticsTests(unittest.TestCase):
+    def test_diagnostics_distinguish_state_read_provider_response_and_persistence(self):
+        import json
+        from riverview_core.institutional_authority import RegistryUnavailable
+        from riverview_core.resident_reasoning import (
+            PlanProposal, PlanStep, ProposalValidationFailure, ReasoningStatus,
+            ResidentReasoner,
+        )
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+
+        objective_id = "objective:diagnostics-test"
+
+        class DatabaseFailure(Exception):
+            sqlstate = "08006"
+
+        class Registry:
+            def __init__(self, *, fail_read=False, fail_write=False):
+                self.fail_read = fail_read
+                self.fail_write = fail_write
+                self.state = {}
+                self.revision = 0
+
+            def authorize_office_state(self, _credential, _office_id):
+                if self.fail_read:
+                    try:
+                        raise DatabaseFailure("private database error sentinel")
+                    except DatabaseFailure:
+                        raise RegistryUnavailable("OperationalError") from None
+                return {
+                    "state": dict(self.state),
+                    "state_revision": self.revision,
+                    "occupant_id": "occupant:test",
+                    "provider_ref": "provider.test",
+                    "binding_revision": 1,
+                    "implementation_revision": "implementation:test",
+                }
+
+            def set_office_state(self, _credential, _office_id, state, *, expected_revision):
+                if self.fail_write:
+                    try:
+                        raise DatabaseFailure("private database error sentinel")
+                    except DatabaseFailure:
+                        raise RegistryUnavailable("OperationalError") from None
+                self.state = state
+                self.revision = expected_revision + 1
+                return self.revision
+
+        class Assignments:
+            def read(self, assignment_id):
+                return {"id": assignment_id, "revision": "1",
+                        "acceptance_criteria": ["create the requested deliverable"]}
+
+        class Knowledge:
+            @staticmethod
+            def _verified():
+                return KnowledgeResult(
+                    KnowledgeStatus.VERIFIED, {"evidence": "verified"},
+                    ("repo://docs/evidence.md",), "revision:test", "a" * 64, True)
+
+            def ground_assignment(self, _assignment):
+                return self._verified()
+
+            def reground_assignment(self, _assignment, _trigger):
+                return self._verified()
+
+        class Provider:
+            provider_id = "provider.test"
+
+            def __init__(self, response=None, error=None):
+                self.response = response
+                self.error = error
+                self.requests = []
+
+            def propose(self, request):
+                self.requests.append(request)
+                if self.error is not None:
+                    raise self.error
+                return self.response
+
+        def run(registry, provider):
+            reasoner = ResidentReasoner(
+                registry=registry, office_id="office:test", resident_credential="CREDENTIAL_SENTINEL",
+                assignments=Assignments(), knowledge=Knowledge(), providers={"provider.test": provider},
+                timeout_seconds=1)
+            with self.assertLogs("riverview_core.resident_reasoning", level="INFO") as captured:
+                result = reasoner.propose(objective_id, trigger="diagnostics_test", token_budget=100)
+            return result, [json.loads(record.getMessage()) for record in captured.records], captured.output
+
+        read_provider = Provider(response=PlanProposal(
+            "private model response sentinel", (PlanStep("step-1", "create deliverable",
+                                                         ("deliverable exists",)),), 17))
+        read_result, read_events, read_output = run(Registry(fail_read=True), read_provider)
+        self.assertEqual(read_result.detail_code, "OFFICE_STATE_STORE_UNAVAILABLE")
+        self.assertEqual(read_provider.requests, [])
+        self.assertTrue(any(event["stage"] == "office_state_read_failed"
+                            and event["phase"] == "pre_provider"
+                            and event["registry_cause_type"] == "OperationalError"
+                            and event["underlying_exception_type"] == "DatabaseFailure"
+                            and event["sqlstate"] == "08006"
+                            for event in read_events))
+
+        failed_provider = Provider(error=RuntimeError("private provider error sentinel"))
+        failed_result, failed_events, failed_output = run(Registry(), failed_provider)
+        self.assertEqual(failed_result.detail_code, "PROVIDER_TIMEOUT_OR_FAILURE")
+        self.assertTrue(any(event["stage"] == "provider_invocation_failed"
+                            and event["exception_type"] == "RuntimeError"
+                            for event in failed_events))
+
+        invalid_provider = Provider(response=ProposalValidationFailure(
+            "PROPOSAL_SCHEMA_INVALID"))
+        invalid_result, invalid_events, _ = run(Registry(), invalid_provider)
+        self.assertEqual(invalid_result.status, ReasoningStatus.INVALID_PROPOSAL)
+        self.assertTrue(any(event["stage"] == "provider_response_received"
+                            for event in invalid_events))
+        self.assertTrue(any(event["stage"] == "proposal_validation_failed"
+                            and event["detail_code"] == "PROPOSAL_SCHEMA_INVALID"
+                            for event in invalid_events))
+
+        response_provider = Provider(response=PlanProposal(
+            "private model response sentinel", (PlanStep("step-1", "create deliverable",
+                                                         ("deliverable exists",)),), 17))
+        persist_result, persist_events, persist_output = run(
+            Registry(fail_write=True), response_provider)
+        self.assertEqual(persist_result.detail_code, "OFFICE_STATE_STORE_UNAVAILABLE")
+        self.assertTrue(any(event["stage"] == "provider_response_received"
+                            for event in persist_events))
+        self.assertTrue(any(event["stage"] == "office_state_persistence_failed"
+                            and event["persistence_stage"] == "proposal_state_persistence"
+                            and event["registry_cause_type"] == "OperationalError"
+                            and event["underlying_exception_type"] == "DatabaseFailure"
+                            and event["sqlstate"] == "08006"
+                            for event in persist_events))
+        self.assertNotIn("private model response sentinel", read_output + persist_output)
+        self.assertNotIn("private provider error sentinel", failed_output)
+        self.assertNotIn("private database error sentinel",
+                         read_output + failed_output + persist_output)
+        self.assertNotIn("CREDENTIAL_SENTINEL",
+                         read_output + failed_output + persist_output)
 
 
 if __name__ == "__main__":
