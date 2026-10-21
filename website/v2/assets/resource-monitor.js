@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/resource-monitor.js
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.2.2
+Revision: 1.2.4
 Purpose: Present an interactive manufacturer chassis reference with OCTO1 telemetry and a sanitized Grace request trace
 Execution Model: Same-origin authenticated GETs; five-second polling only while the Resources view is open and visible
 Observability: Source timestamps, freshness, a 12-sample browser timeline, and request-correlated conversation events
@@ -11,6 +11,8 @@ Inputs/Outputs: GPU readings and content-free events from the current authentica
 Authority: Read-only account-authenticated GETs; no host controls, model calls, or inferred GPU-to-bay/controller-channel mapping
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Display correlated durable Grace attempt metadata without asserting server-side GPU attribution
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Add physical front-panel hotspots, manufacturer view toggle, and dynamic model/GPU highlighting
+Changed: 2026-10-21 UTC | RV-OCTO1-PHASE2-TRACE-UI-001 | Add request milestones as a separate lane in the five-second timeline, without GPU attribution
+Changed: 2026-10-21 UTC | RV-OCTO1-PHASE2-TRACE-UI-001 | Render dispatch only when the router records an actual provider call
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_resource_monitor.cjs; scripts/verify_v2_octo1_browser.cjs
 History: Git and .riverview-backups/manifest.jsonl
@@ -99,8 +101,31 @@ History: Git and .riverview-backups/manifest.jsonl
     state.history.unshift({captured_at:new Date().toISOString(),observed_at:observed,devices:gpuInventory(host).map(gpu=>({index:gpu.index,name:gpu.name,utilization_percent:gpu.utilization_percent,temperature_celsius:gpu.temperature_celsius,fan_percent:gpu.fan_percent,active_services:Array.isArray(gpu.active_services)?gpu.active_services.slice():[]})),models:services.map(service=>({service_id:service.service_id,phase:servicePhase(service),active_slots:service.active_slots?.state==="measured"?service.active_slots.value:null}))});state.history=state.history.slice(0,HISTORY_LIMIT);
   };
   const renderTimeline = () => {
-    const root=$("octo1-activity-list");if(!root)return;root.replaceChildren();if(!state.history.length){root.append(node("p","octo-empty","No telemetry samples captured in this browser session."));return;}
-    state.history.slice(0,HISTORY_LIMIT).forEach(sample=>{const item=node("article","octo-activity-sample"),head=node("div","octo-activity-head");head.append(node("strong","",visibleTime(sample.observed_at||sample.captured_at)),node("span","",`${sample.devices.length} GPU readings`));item.append(head);const readings=node("p","octo-activity-gpus",sample.devices.map(gpu=>`GPU ${gpu.index}: ${amount(gpu.utilization_percent,"%")} · ${amount(gpu.temperature_celsius,"°C")} · GPU fan ${amount(gpu.fan_percent,"%")}`).join("  |  ")||"GPU readings unavailable");item.append(readings);item.append(node("p","octo-activity-models",sample.models.map(model=>`${model.service_id}: ${phaseLabel(model.phase)}${model.active_slots===null?"":" · slots "+model.active_slots}`).join("  |  ")||"Model status unavailable"));root.append(item);});
+    const root=$("octo1-activity-list");if(!root)return;root.replaceChildren();
+    const items=[];
+    state.history.slice(0,HISTORY_LIMIT).forEach(sample=>items.push({kind:"hardware",at:isoTime(sample.observed_at||sample.captured_at),sample}));
+    const traces=Array.isArray(state.requestTrace?.requests)?state.requestTrace.requests:[];
+    const addRequest=(request,at,label,detail)=>{const time=isoTime(at);if(time)items.push({kind:"request",at:time,request,label,detail});};
+    traces.slice(0,HISTORY_LIMIT).forEach(request=>{
+      addRequest(request,request.created_at,"Grace request saved","Durable conversation event; request identity is not joined to GPU samples.");
+      (Array.isArray(request.attempts)?request.attempts:[]).forEach((attempt,index)=>{
+        const stage=({autonomic:"0.6B",interim_30b:"30B",reasoning:"80B"})[attempt.stage]||"model";
+        addRequest(request,attempt.started_at,attempt.provider_call_dispatched?`${stage} provider call dispatched`:`${stage} readiness check`,`${attempt.provider||"Provider unavailable"}${attempt.provider_call_dispatched?" · client dispatch boundary":" · no model call was dispatched"}`);
+        addRequest(request,attempt.response_headers_observed_at,`${stage} HTTP response observed`,attempt.model_response_id?`Server response ID ${attempt.model_response_id}`:"Response headers arrived; no safe server response ID was supplied.");
+        addRequest(request,attempt.first_content_received_at,`${stage} first text chunk received`,"Client observed the first streamed text; no prompt-processing time is exposed.");
+        addRequest(request,attempt.response_body_completed_observed_at,`${stage} response body completed`, `Client observed response completion${attempt.finish_reason?` · finish ${attempt.finish_reason}`:""}.`);
+        if(!attempt.response_body_completed_observed_at&&attempt.ended_at)addRequest(request,attempt.ended_at,`${stage} provider call ended`,`${attempt.outcome||"unknown"}${attempt.error_code?` · ${attempt.error_code}`:""}`);
+      });
+      addRequest(request,request.response_persisted_at,"Grace response persisted","Durable assistant event in the originating conversation.");
+    });
+    items.sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+    if(!items.length){root.append(node("p","octo-empty","No GPU samples or correlated Grace request events have been captured for this view."));return;}
+    items.slice(0,HISTORY_LIMIT*2).forEach(entry=>{
+      if(entry.kind==="hardware"){
+        const sample=entry.sample,item=node("article","octo-activity-sample"),head=node("div","octo-activity-head");head.append(node("strong","",visibleTime(entry.at)),node("span","",`${sample.devices.length} GPU readings · HARDWARE SAMPLE`));item.append(head);const readings=node("p","octo-activity-gpus",sample.devices.map(gpu=>`GPU ${gpu.index}: ${amount(gpu.utilization_percent,"%")} · ${amount(gpu.temperature_celsius,"°C")} · GPU fan ${amount(gpu.fan_percent,"%")}`).join("  |  ")||"GPU readings unavailable");item.append(readings);item.append(node("p","octo-activity-models",sample.models.map(model=>`${model.service_id}: ${phaseLabel(model.phase)}${model.active_slots===null?"":" · slots "+model.active_slots}`).join("  |  ")||"Model status unavailable"));root.append(item);return;
+      }
+      const item=node("article","octo-activity-sample octo-activity-request"),head=node("div","octo-activity-head");head.append(node("strong","",visibleTime(entry.at)),node("span","",`${entry.label} · GRACE REQUEST`));item.append(head);item.append(node("p","octo-activity-models",`${entry.request.request_id} · ${entry.detail}`));root.append(item);
+    });
   };
   const renderRequestTrace = () => {
     const root=$("octo1-request-trace-list"),trace=state.requestTrace,stateNode=$("octo1-request-trace-state");if(!root||!stateNode)return;root.replaceChildren();
@@ -111,7 +136,7 @@ History: Git and .riverview-backups/manifest.jsonl
     if(!requests.length){root.append(node("p","octo-empty","No saved request events were returned for the current conversation."));return;}
     requests.forEach(request=>{if(!request||typeof request.request_id!=="string")return;const card=node("article","octo-request-trace-card"),head=node("div","octo-request-trace-head");head.append(node("strong","",request.request_id),node("span",`trace-state ${safeState(request.status)}`,String(request.status||"unknown").replaceAll("_"," ")));card.append(head);const lines=node("dl","octo-request-trace-fields");addRow(lines,"Request created",visibleTime(request.created_at));
       const attempts=Array.isArray(request.attempts)?request.attempts.slice(0,4):[];
-      if(attempts.length){attempts.forEach((attempt,index)=>{const stage=({autonomic:"0.6B autonomic",interim_30b:"30B vision",reasoning:"80B reasoning"})[attempt.stage]||"route unavailable";const outcome=String(attempt.outcome||"unknown");addRow(lines,`Attempt ${index+1} · ${stage}`,`${attempt.provider||"Provider unavailable"} · ${outcome}`);addRow(lines,"Client call window",`${visibleTime(attempt.started_at)} → ${visibleTime(attempt.ended_at)}${typeof attempt.elapsed_ms==="number"?` · ${amount(attempt.elapsed_ms," ms")}`:""}`);if(attempt.error_code)addRow(lines,"Attempt result code",attempt.error_code);});}
+      if(attempts.length){attempts.forEach((attempt,index)=>{const stage=({autonomic:"0.6B autonomic",interim_30b:"30B vision",reasoning:"80B reasoning"})[attempt.stage]||"route unavailable";const outcome=String(attempt.outcome||"unknown");addRow(lines,`Attempt ${index+1} · ${stage}`,`${attempt.provider||"Provider unavailable"} · ${outcome}`);addRow(lines,"Boundary",attempt.provider_call_dispatched?"Provider call dispatched by the Dashboard client":"Router/readiness attempt; no provider call dispatched");addRow(lines,attempt.provider_call_dispatched?"Client provider call window":"Router/readiness check window",`${visibleTime(attempt.started_at)} → ${visibleTime(attempt.ended_at)}${typeof attempt.elapsed_ms==="number"?` · ${amount(attempt.elapsed_ms," ms")}`:""}`);if(attempt.model_response_id)addRow(lines,"Inference response ID",attempt.model_response_id);if(attempt.response_headers_observed_at)addRow(lines,"HTTP response observed",visibleTime(attempt.response_headers_observed_at));if(attempt.first_content_received_at)addRow(lines,"First streamed text observed",visibleTime(attempt.first_content_received_at));if(attempt.response_body_completed_observed_at)addRow(lines,"Response body completion observed",visibleTime(attempt.response_body_completed_observed_at));if(attempt.error_code)addRow(lines,"Attempt result code",attempt.error_code);});}
       else addRow(lines,"Provider attempt","No provider-attempt event has been persisted yet.");
       if(request.status==="completed")addRow(lines,"Response persisted",visibleTime(request.response_persisted_at));
       if(request.reasoning_stage)addRow(lines,"Routed stage",({autonomic:"0.6B autonomic",interim_30b:"30B vision",reasoning:"80B reasoning"})[request.reasoning_stage]||"Unavailable");

@@ -1,0 +1,136 @@
+{
+  "browser": "Chrome/155.0.8059.84",
+  "source": "isolated local HTTPS browser fixture; synthetic telemetry is explicitly labeled in screenshots",
+  "checks": {
+    "url": "/v2/",
+    "resourceVisible": true,
+    "overviewIntroHidden": true,
+    "authenticatedFetches": [
+      "/api/v1/auth/session",
+      "/api/v1/resident/conversation-session",
+      "/api/v1/resident/conversations",
+      "/api/v1/resident/conversations/fixture-conversation",
+      "/api/v1/auth/session",
+      "/api/v1/resident/conversations/fixture-conversation",
+      "/api/v1/status",
+      "/api/v1/resources/telemetry"
+    ],
+    "machineTitle": "OCTO1\nOctoMiner X12 Ultra",
+    "gpuCount": 6,
+    "modelCount": 2,
+    "serviceMap": "Grace reasoning 80B\nPROCESSING · ACTIVE SLOT\nGPU 0, 3, 4, 5\nGrace vision 30B\nREADY · IDLE\nGPU 1",
+    "chassisView": "front",
+    "artworkSrc": "/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
+    "artworkWidth": 1565,
+    "frontHotspots": [
+      "Select front fan 1",
+      "Select front fan 2",
+      "Select front fan 3",
+      "Select front fan 4",
+      "Select front fan 5",
+      "Select right-side front display and control panel"
+    ],
+    "controllerReference": "Manufacturer controller reference · installation and live readings unverified",
+    "timeline": "2026-10-21T23:01:06.870Z · UTC\n6 GPU readings · HARDWARE SAMPLE\n\nGPU 0: 17% · 48°C · GPU fan Unavailable | GPU 1: 0% · 37°C · GPU fan 50% | GPU 2: 0% · 35°C · GPU fan 50% | GPU 3: 21% · 35°C · GPU fan Unavailable | GPU 4: 21% · 35°C · GPU fan Unavailable | GPU 5: 33% · 35°C · GPU fan Unavailable\n\ngrace-reasoning-80b: PROCESSING · ACTIVE SLOT · slots 1 | grace-vision-30b: READY · IDLE · slots 0\n\n2026-10-21T23:01:06.870Z · UTC\nGrace request saved · GRACE REQUEST\n\nfixture-request-trace-001 · Durable conversation event; request identity is not joined to GPU samples.\n\n2026-10-21T23:01:06.870Z · UTC\n80B provider call dispatched · GRACE REQUEST\n\nfixture-request-trace-001 · local.inference.v1 · client dispatch boundary\n\n2026-10-21T23:01:06.870Z · UTC\n80B HTTP response observed · GRACE REQUEST\n\nfixture-request-trace-001 · Server response ID chatcmpl-fixture-trace-1\n\n2026-10-21T23:01:06.870Z · UTC\n80B first text chunk received · GRACE REQUEST\n\nfixture-request-trace-001 · Client observed the first streamed text; no prompt-processing time is exposed.\n\n2026-10-21T23:01:06.870Z · UTC\n80B response body completed · GRACE REQUEST\n\nfixture-request-trace-001 · Client observed response completion · finish stop.\n\n2026-10-21T23:01:06.870Z · UTC\nGrace response persisted · GRACE REQUEST\n\nfixture-request-trace-001 · Durable assistant event in the originating conversation.",
+    "attributionNotice": "Separate observations: hardware samples and authenticated Grace request events share a time axis but are never joined or attributed to one another. GPU use and active-slot counts are not evidence that a specific Grace request reached or generated on a model.",
+    "tracePanel": "fixture-request-trace-001\nCOMPLETED\nRequest created\n2026-10-21T23:01:06.870Z · UTC\nAttempt 1 · 80B reasoning\nlocal.inference.v1 · succeeded\nBoundary\nProvider call dispatched by the Dashboard client\nClient provider call window\n2026-10-21T23:01:06.870Z · UTC → 2026-10-21T23:01:06.870Z · UTC · 19,000 ms\nInference response ID\nchatcmpl-fixture-trace-1\nHTTP response observed\n2026-10-21T23:01:06.870Z · UTC\nFirst streamed text observed\n2026-10-21T23:01:06.870Z · UTC\nResponse body completion observed\n2026-10-21T23:01:06.870Z · UTC\nResponse persisted\n2026-10-21T23:01:06.870Z · UTC\nRouted stage\n80B reasoning\nReturned token counts\n91 prompt · 23 completion\nFinish reason\nstop",
+    "traceState": "AVAILABLE",
+    "noDirectHostUrls": true,
+    "noControls": true
+  },
+  "interactive_states": {
+    "fan_detail": "Front fan · visual position 3 Fan RPM\nUnavailable · OCTO1 controller feed not connected\nPWM, target, and mode\nUnavailable · controller channel is not mapped\nRecent history\nUnavailable · no verified OCTO1 fan readings\nPhysical position\nManufacturer front-panel image · left-to-right visual index only",
+    "open_chassis": {
+      "view": "open",
+      "caption": "The manufacturer reference shows the X12 Ultra internal layout. Live GPU device IDs are not matched to physical riser bays; no GPU locations are overlaid.",
+      "pressed": "true"
+    },
+    "model_mapping": {
+      "title": "Grace reasoning 80B",
+      "allocation": "Loaded model\nQwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf\nService readiness\nready\nGPU allocation\nGPU 0, 3, 4, 5 · current service process mapping\nActive slots\n1 / 1\nQueued requests\nUnavailable · not exposed by current server\nPrompt vs generation phase\nUnavailable · current /slots projection reports occupancy only\nObservation\n2026-10-21T23:01:06.870Z · UTC",
+      "highlight": [
+        "true",
+        "false",
+        "false",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    "gpu_detail": {
+      "title": "NVIDIA GeForce RTX 4090 · device 1",
+      "allocation": "Utilization\n0%\nVRAM used / total\n16.2 GiB / 24.0 GiB\nTemperature\n37 °C\nPower\n60.4 W\nGPU fan speed\n50%\nPhysical chassis bay\nUnavailable · live GPU device ID is not mapped to a bay\nGPU observation\n2026-10-21T23:01:06.870Z · UTC",
+      "highlight": [
+        "false",
+        "true"
+      ]
+    }
+  },
+  "narrow_layout": {
+    "width": 375,
+    "viewport": 390,
+    "consoleWidth": 341,
+    "layout": [
+      {
+        "s": ".app-shell",
+        "left": 0,
+        "right": 375,
+        "width": 375,
+        "display": "block"
+      },
+      {
+        "s": ".rail",
+        "left": -228,
+        "right": -4,
+        "width": 224,
+        "display": "flex"
+      },
+      {
+        "s": ".main-column",
+        "left": 0,
+        "right": 375,
+        "width": 375,
+        "display": "block"
+      },
+      {
+        "s": ".workspace-grid",
+        "left": 0,
+        "right": 375,
+        "width": 375,
+        "display": "flex"
+      },
+      {
+        "s": ".content",
+        "left": 0,
+        "right": 375,
+        "width": 375,
+        "display": "block"
+      },
+      {
+        "s": "#octo1-console",
+        "left": 17,
+        "right": 358,
+        "width": 341,
+        "display": "grid"
+      },
+      {
+        "s": "#octo1-chassis-stage",
+        "left": 53,
+        "right": 322,
+        "width": 269,
+        "display": "block"
+      }
+    ],
+    "buttons": 6,
+    "modelDetailVisible": true,
+    "overflow": []
+  },
+  "screenshots": [
+    "/home/admin1/projects/Riverview-Octo1-Phase2-V2/evidence/checkouts/RV-OCTO1-PHASE2-TRACE-UI-001/20261021T-browser-final/octo1-chassis-front-fixture.png",
+    "/home/admin1/projects/Riverview-Octo1-Phase2-V2/evidence/checkouts/RV-OCTO1-PHASE2-TRACE-UI-001/20261021T-browser-final/octo1-front-fan-detail-fixture.png",
+    "/home/admin1/projects/Riverview-Octo1-Phase2-V2/evidence/checkouts/RV-OCTO1-PHASE2-TRACE-UI-001/20261021T-browser-final/octo1-chassis-open-fixture.png",
+    "/home/admin1/projects/Riverview-Octo1-Phase2-V2/evidence/checkouts/RV-OCTO1-PHASE2-TRACE-UI-001/20261021T-browser-final/octo1-80b-allocation-fixture.png",
+    "/home/admin1/projects/Riverview-Octo1-Phase2-V2/evidence/checkouts/RV-OCTO1-PHASE2-TRACE-UI-001/20261021T-browser-final/octo1-rtx4090-detail-fixture.png"
+  ],
+  "browser_errors": []
+}

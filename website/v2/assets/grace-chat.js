@@ -2,7 +2,9 @@
 Riverview~ Controlled Source
 File: website/v2/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.5
+Revision: 1.0.7
+Changed: 2026-10-21 UTC | RV-OCTO1-PHASE2-TRACE-UI-001 | Project allowlisted provider-response milestones into the authenticated hardware activity feed
+Changed: 2026-10-21 UTC | RV-OCTO1-PHASE2-TRACE-UI-001 | Distinguish router readiness checks from provider dispatch using explicit attempt evidence
 Purpose: Connect V2 Grace chat and expose a content-free trace of its durable request lifecycle
 Execution Model: Interactive browser; request-driven reads/sends with durable response polling
 Observability: Visible auth/status plus request IDs, provider attempts, timestamps, and persistence state
@@ -129,7 +131,12 @@ History: Git and revision/backup manifest
         outcome,
         error_code: safeCode(attempt.error_code),
         finish_reason: safeCode(attempt.finish_reason),
-        completion_tokens: safeCount(attempt.completion_tokens)
+        completion_tokens: safeCount(attempt.completion_tokens),
+        provider_call_dispatched: attempt.provider_call_dispatched === true,
+        model_response_id: typeof attempt.model_response_id === "string" && /^[A-Za-z0-9._:-]{1,128}$/.test(attempt.model_response_id) ? attempt.model_response_id : null,
+        response_headers_observed_at: safeTime(attempt.response_headers_observed_at),
+        first_content_received_at: safeTime(attempt.first_content_received_at),
+        response_body_completed_observed_at: safeTime(attempt.response_body_completed_observed_at)
       };
     }).filter(Boolean) : [];
     for (const event of Array.isArray(events) ? events : []) {
