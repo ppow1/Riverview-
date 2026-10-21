@@ -1,0 +1,40 @@
+{
+  "manifest_revision": "1.0.0",
+  "schema_version": "rv.v2-octo1-digital-twin.artifacts.v1",
+  "task_id": "RV-V2-OCTO1-GRACE-TRACE-001",
+  "source_commit": "ba1c4f719a534d6194cd0785557f3ecd2b7e46b1",
+  "target": "Local HTTPS browser fixture only; synthetic telemetry, not live OCTO1",
+  "decision": "PARTIAL: application-side Grace request trace verified; physical chassis and controller telemetry remain blocked by missing source artwork and trusted OCTO1 access",
+  "artifacts": {
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "8ffca7bb964fa226ad4d3a53aba18bdc830fd112f3b2bee34068db939c7eceb7",
+      "size_bytes": 3277
+    },
+    "octo1-console-desktop-fixture.png": {
+      "path": "octo1-console-desktop-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "d7d24fc1e845a5cdd89f57e35f04c57163b24dca23828a5c0c65e34359f0698a",
+      "size_bytes": 352655
+    },
+    "octo1-rtx4090-detail-fixture.png": {
+      "path": "octo1-rtx4090-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "8bf76755b94779a42a3f79684f64e8474331a615bc00ba5959d551132dfbfa17",
+      "size_bytes": 350611
+    },
+    "review-evidence.md": {
+      "path": "review-evidence.md",
+      "revision": "1.0.0",
+      "sha256": "68f3625de02dafd128b793e3ebf8d16fa7d7c8c87755160c640197c1920a2b3f",
+      "size_bytes": 2307
+    },
+    "test-results.json": {
+      "path": "test-results.json",
+      "revision": "1.0.0",
+      "sha256": "1af90dbe665a8f86508cdc0fedb41ce0920a5c5849ccdc1b45ded1193f690910",
+      "size_bytes": 2985
+    }
+  }
+}

@@ -1,0 +1,5 @@
+checked_at=2026-10-20T23:51:10Z
+host=admin1-Default-string
+dashboard_service=active
+dashboard_http=200
+local_v2_preview_http=200

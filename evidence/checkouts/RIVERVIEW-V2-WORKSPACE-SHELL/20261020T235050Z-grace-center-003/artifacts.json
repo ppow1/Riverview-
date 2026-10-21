@@ -1,0 +1,200 @@
+{
+  "manifest_revision": "1.0.1",
+  "task_id": "RV-WEB-V2-GRACE-WORKSPACE-003",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "source_commit": "bc4cbd4c0133fde9b33b50c51066ec6bd99d1214",
+  "artifacts": {
+    "acceptance-report.json": {
+      "path": "acceptance-report.json",
+      "revision": "1.0.1",
+      "size_bytes": 7007,
+      "sha256": "34a74ba8da65dc3d87cf5579a3109a54a610e4fe9e38df3e519b9c584b29fae3"
+    },
+    "baseline-inventory.json": {
+      "path": "baseline-inventory.json",
+      "revision": "1.0.0",
+      "size_bytes": 158577,
+      "sha256": "c6d4b7097df6b7858303082e00a35918276013a2b6f5340f9b970bdbd3e49fb6"
+    },
+    "chrome-desktop-exit-code.txt": {
+      "path": "chrome-desktop-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "chrome-desktop.json": {
+      "path": "chrome-desktop.json",
+      "revision": "1.0.0",
+      "size_bytes": 1009,
+      "sha256": "0ab6336318b7d05cd34d2d481b4071f76d92684f5fb70e7798d22f6071ab7371"
+    },
+    "chrome-desktop.stderr.txt": {
+      "path": "chrome-desktop.stderr.txt",
+      "revision": "1.0.0",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "chrome-mobile-exit-code.txt": {
+      "path": "chrome-mobile-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "chrome-mobile.json": {
+      "path": "chrome-mobile.json",
+      "revision": "1.0.0",
+      "size_bytes": 1004,
+      "sha256": "2119e3e95c81575eb9f4c9cc796ba681f0814487b49b07b0aa0f52c061a7313a"
+    },
+    "chrome-mobile.stderr.txt": {
+      "path": "chrome-mobile.stderr.txt",
+      "revision": "1.0.0",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "firefox-regression-exit-code.txt": {
+      "path": "firefox-regression-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "firefox-regression.json": {
+      "path": "firefox-regression.json",
+      "revision": "1.0.0",
+      "size_bytes": 1934,
+      "sha256": "2ae180eda252d8020d45077e86095fcdfc25778113931a101c237957b86c656e"
+    },
+    "firefox-regression.stderr.txt": {
+      "path": "firefox-regression.stderr.txt",
+      "revision": "1.0.0",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "git-diff-check-exit-code.txt": {
+      "path": "git-diff-check-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "git-diff-check.txt": {
+      "path": "git-diff-check.txt",
+      "revision": "1.0.0",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "isolation-read-only.txt": {
+      "path": "isolation-read-only.txt",
+      "revision": "1.0.0",
+      "size_bytes": 129,
+      "sha256": "bb378ef4f5b8388f6801e7aeddcd5979780db6a8b91d361b7fe6570182585268"
+    },
+    "node-check-exit-code.txt": {
+      "path": "node-check-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "node-check.txt": {
+      "path": "node-check.txt",
+      "revision": "1.0.0",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "process-graph-check-exit-code.txt": {
+      "path": "process-graph-check-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "process-graph-check.json": {
+      "path": "process-graph-check.json",
+      "revision": "1.0.0",
+      "size_bytes": 55,
+      "sha256": "8b730b3993bbafb62146879e49e164587d8bfcc7a6ec68095a0ac84974f14df3"
+    },
+    "process-graph-validate-exit-code.txt": {
+      "path": "process-graph-validate-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "process-graph-validate.json": {
+      "path": "process-graph-validate.json",
+      "revision": "1.0.0",
+      "size_bytes": 39,
+      "sha256": "932b2c8c51e41ca21433be08e5bfed60024d8bf89fe96156a69f0ed46358edc6"
+    },
+    "python-compile-exit-code.txt": {
+      "path": "python-compile-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "python-compile.txt": {
+      "path": "python-compile.txt",
+      "revision": "1.0.0",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "revision-control-check.json": {
+      "path": "revision-control-check.json",
+      "revision": "1.0.0",
+      "size_bytes": 37,
+      "sha256": "87db755d6939e208105ccd7234f036194bc3863b229a943c547ff4fa9171010a"
+    },
+    "revision-control-exit-code.txt": {
+      "path": "revision-control-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "snapshot-browser-report.json": {
+      "path": "snapshot-browser-report.json",
+      "revision": "1.0.0",
+      "size_bytes": 1618,
+      "sha256": "3aa56dc0e4dc5a2114b0576ae3e335b72c37151a65d898dada32c9a67d647399"
+    },
+    "snapshot-browser.png": {
+      "path": "snapshot-browser.png",
+      "revision": "1.0.0",
+      "size_bytes": 91085,
+      "sha256": "1417d0f6235f12f4ec0a963fa307e9f215b734ceecbdfac0d1ef476ffb9ae712"
+    },
+    "snapshot-chrome-exit-code.txt": {
+      "path": "snapshot-chrome-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "snapshot-chrome-output.json": {
+      "path": "snapshot-chrome-output.json",
+      "revision": "1.0.0",
+      "size_bytes": 1490,
+      "sha256": "b7b0cf444dba7487f1cabdbdeb89f3e719888644f0c7118e96016b471023c2c2"
+    },
+    "snapshot-chrome.stderr.txt": {
+      "path": "snapshot-chrome.stderr.txt",
+      "revision": "1.0.0",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "snapshot.zip": {
+      "path": "snapshot.zip",
+      "revision": "1.0.0",
+      "size_bytes": 69881,
+      "sha256": "9610eb3ece172c31892581131574e2e79b6a51c677791b97a74aed43052203f5"
+    },
+    "unittest-exit-code.txt": {
+      "path": "unittest-exit-code.txt",
+      "revision": "1.0.0",
+      "size_bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "unittest-output.txt": {
+      "path": "unittest-output.txt",
+      "revision": "1.0.0",
+      "size_bytes": 3912,
+      "sha256": "f80479ab5ef496313732af0c363c2f065d1db1bfca18c8f6534957f9ac48fcad"
+    }
+  }
+}

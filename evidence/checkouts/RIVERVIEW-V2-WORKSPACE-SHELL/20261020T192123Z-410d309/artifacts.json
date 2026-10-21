@@ -1,0 +1,11 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T192123Z-410d309/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "13e0a1cc2f7b4b28d72787ef762ad3557fc9f05e56be8633ad14c8727fbfc425",
+      "size_bytes": 10583
+    }
+  }
+}

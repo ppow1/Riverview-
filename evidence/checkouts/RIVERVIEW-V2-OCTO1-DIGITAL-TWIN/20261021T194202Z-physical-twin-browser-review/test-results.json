@@ -1,0 +1,89 @@
+{
+  "schema_version": "rv.v2.physical-twin-test-results.v1",
+  "task_id": "RV-V2-OCTO1-PHYSICAL-TWIN-001",
+  "environment": "Camrui Codex Linux checkout; Chrome 155.0.8059.84; disposable local HTTPS fixture; synthetic telemetry; no production API",
+  "tests": [
+    {
+      "command": "node --check scripts/verify_v2_resource_monitor.cjs",
+      "status": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "node scripts/verify_v2_resource_monitor.cjs",
+      "status": "PASS",
+      "exit_code": 0,
+      "result": "authenticated same-origin contract, 6 device inventory, dynamic 80B/30B mapping, component detail, 5-second polling, request trace redaction"
+    },
+    {
+      "command": "node --check scripts/verify_v2_octo1_browser.cjs",
+      "status": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "node scripts/verify_v2_octo1_browser.cjs --evidence-dir <this directory>",
+      "status": "PASS",
+      "exit_code": 0,
+      "result": "original PNG loads; front/open view; fan, model and GPU states; 390px overflow check; no browser errors; 5 screenshots"
+    },
+    {
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "status": "PASS",
+      "exit_code": 0,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "command": "PYTHONPATH=src python3 -m unittest discover -s tests -v",
+      "status": "PASS",
+      "exit_code": 0,
+      "passed": 119,
+      "failed": 0,
+      "skipped": 54,
+      "skip_reason": "RIVERVIEW_TEST_PG_DSN not configured for PostgreSQL integration tests"
+    },
+    {
+      "command": "python3 scripts/process_graph.py validate",
+      "status": "PASS",
+      "exit_code": 0,
+      "graphs": 14
+    },
+    {
+      "command": "python3 scripts/process_graph.py check",
+      "status": "PASS",
+      "exit_code": 0,
+      "graphs": 14,
+      "nodes": 332
+    },
+    {
+      "command": "python3 scripts/revision_control.py check --baseline /tmp/rv-octo1-head-baseline.json",
+      "status": "PASS",
+      "exit_code": 0,
+      "issues": 0
+    }
+  ],
+  "production_status": "NOT DEPLOYED; production and OCTO1 were not contacted or changed",
+  "artwork_provenance": [
+    {
+      "path": "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
+      "original_filename": "image(20261020-202004).png",
+      "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268"
+    },
+    {
+      "path": "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
+      "original_filename": "image(20261020-202057).png",
+      "sha256": "d8e243a5fae87fd7d969033dc6b00476d3b5c5892852ac42b552441dac535299"
+    },
+    {
+      "path": "website/v2/assets/octominer/controller-feature-reference.png",
+      "original_filename": "image(20261020-202124).png",
+      "sha256": "1bb72f98c40228ef9ccaa35133e16adeac6e5c639da3ab82f54b35a2882177dc"
+    }
+  ],
+  "limitations": [
+    "GPU device IDs are not tied to physical riser bays.",
+    "Fan visual positions are not controller channel numbers.",
+    "OCTO1 controller installation/readings remain unverified.",
+    "Browser payloads and screenshots are synthetic fixtures, not live telemetry or production acceptance."
+  ]
+}

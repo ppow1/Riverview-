@@ -1,0 +1,103 @@
+{
+  "schema_version": "rv.v2-workspace-usability-acceptance.v1",
+  "task_id": "RV-WEB-V2-USABILITY-001",
+  "owner": "Windows C1",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "classification": "isolated frontend usability enhancement and acceptance evidence",
+  "source_commit": "88b40645825045c91ce4c2b0430c39a66502b6d7",
+  "branch": "codex/riverview-v2-workspace-shell-20261020",
+  "pull_request": "https://github.com/ppow1/Riverview-/pull/166",
+  "target_environment": "Camrui isolated V2 fixture preview; tests used temporary loopback listener 127.0.0.1:18877. Existing LAN preview remains password-protected at 192.168.1.155:8877 and reads this worktree.",
+  "execution_model": "interactive browser presentation; request-driven static preview; no autonomous work",
+  "scope": "Light/Dark/System appearance, independently cycling left and right sidebars, keyboard/mouse descriptions, accurate Snapshot and chat boundary, V1 parity documentation. No V1/API/archive backend changes.",
+  "acceptance": {
+    "theme": {
+      "default": "System",
+      "light_dark": "PASS",
+      "system_matches_OS_preference": "PASS in tested light OS mode",
+      "preference_persisted_across_reload": "PASS; only rv.v2.theme in localStorage"
+    },
+    "sidebars": {
+      "left": [
+        "compact",
+        "hidden",
+        "expanded"
+      ],
+      "right": [
+        "compact",
+        "hidden",
+        "expanded"
+      ],
+      "independent": "PASS",
+      "restore_controls": "PASS",
+      "mobile_controls_visible": "PASS"
+    },
+    "tooltips": {
+      "hover_title": "PASS",
+      "aria_description": "PASS",
+      "keyboard_focus_style": "PASS",
+      "icon_only_navigation_name": "PASS"
+    },
+    "responsive": {
+      "firefox_desktop": "1366px wide; no horizontal overflow",
+      "firefox_narrow": "500px Firefox headless viewport; no overflow",
+      "chrome_mobile": "390x844 CSS px; no overflow"
+    },
+    "integration_boundary": {
+      "snapshot_label": "Snapshot",
+      "snapshot_enabled": false,
+      "snapshot_claim": "No ZIP/archive claim; V2 capture not connected",
+      "chat_enabled": false,
+      "chat_reason": "No V1 authenticated resident-conversation endpoint exists in current contract; external ChatGPT link transfers no context."
+    },
+    "isolation": {
+      "V1_dashboard": "active, PID 1624314, restart count 0, HTTPS root 200",
+      "V2_LAN": "PID 1821553 on 192.168.1.155:8877; login root 200; unauthenticated asset 401",
+      "V2_worktree": "/home/admin1/projects/Riverview-V2-Issue164",
+      "production_changes": false
+    }
+  },
+  "tests": [
+    {
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "result": "PASS 16/16"
+    },
+    {
+      "command": "node --check website/v2/assets/workspace.js && node --check scripts/verify_v2_workspace_mobile.cjs",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 -m py_compile scripts/verify_v2_workspace_browser.py tests/test_v2_workspace_shell.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/verify_v2_workspace_browser.py --base-url http://127.0.0.1:18877",
+      "result": "PASS Firefox 156.0.1; 25 view switches, 2ms median/6ms max; no console errors; no overflow; theme persists/reloads; both sidebars cycle/restore"
+    },
+    {
+      "command": "node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:18877/",
+      "result": "PASS Chrome 155; viewport 390x844; no overflow/errors; sidebar controls visible; resident retained"
+    },
+    {
+      "command": "python3 scripts/process_graph.py validate && python3 scripts/process_graph.py check",
+      "result": "PASS 14 graphs, 277 nodes"
+    },
+    {
+      "command": "python3 scripts/revision_control.py check --baseline /tmp/rv-v2-pre-usability-inventory.json",
+      "result": "PASS; all changed tracked files have incremented revisions and valid predecessor backups"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "failed_iterations": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/browser-iteration-history.json",
+  "limitations": [
+    "No post-change Windows physical-PC browser confirmation; earlier V2 login/navigation was accepted by Steward on d1cd6f3.",
+    "Independent code review remains pending.",
+    "Snapshot ZIP creation and archival are not implemented here; archive investigation remains owned elsewhere.",
+    "Interactive resident/Grace chat is not connected because no authenticated V1 conversation API contract exists.",
+    "V1 status, CME, Grace, database and Nginx were not modified."
+  ],
+  "rollback": "Revert commit 88b40645825045c91ce4c2b0430c39a66502b6d7 on the isolated V2 branch or restore exact predecessor bytes from .riverview-backups/manifest.jsonl. Do not change V1 or Nginx."
+}

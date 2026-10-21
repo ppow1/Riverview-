@@ -1,0 +1,146 @@
+{
+  "schema": "riverview-checkout-evidence/1",
+  "task_id": "RV-WEB-V2-GRACE-WORKSPACE-003",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "owner": "Windows C1",
+  "classification": "focused frontend enhancement and stale-handler defect correction",
+  "source_commit": "bc4cbd4c0133fde9b33b50c51066ec6bd99d1214",
+  "recorded_at_utc": "2026-10-20T23:52:49Z",
+  "execution_environment": {
+    "host": "admin1-Default-string",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+    "preview_url": "http://127.0.0.1:8877/",
+    "browser": "Chrome/155.0.8059.84",
+    "preview_isolated": "loopback fixture-only HTTP; Dashboard API deliberately disabled"
+  },
+  "dependencies": [
+    "Existing same-origin V2 /v2/ route",
+    "Existing Dashboard account/CSRF/session and resident conversation grants",
+    "Existing durable Dashboard conversation event API"
+  ],
+  "scope": [
+    "Move existing authenticated Grace conversation DOM/client into the center workspace after Grace is selected from Residents",
+    "Keep right sidebar supporting selected-resident and integration context",
+    "Keep Overview and synthetic residents on fixture views",
+    "Fix stale workspace.js binding to removed conversation-toggle",
+    "Report selected view and safe chat connection state in the V2 Snapshot"
+  ],
+  "acceptance_criteria": {
+    "center_workspace": "PASS",
+    "navigation_overview_residents_fixtures": "PASS",
+    "durable_chat_client_unchanged": "PASS by diff and existing contract tests",
+    "snapshot_safe_selected_view": "PASS",
+    "desktop_and_mobile_chrome": "PASS",
+    "v1_and_production_isolation": "PASS; no V1/Nginx/production files or services changed"
+  },
+  "verification": [
+    {
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "exit_code": 0,
+      "result": "22 tests passed; raw output unittest-output.txt"
+    },
+    {
+      "command": "node --check scripts/verify_v2_workspace_mobile.cjs",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m py_compile scripts/verify_v2_workspace_browser.py scripts/verify_v2_workspace_snapshot_chrome.py",
+      "exit_code": 0
+    },
+    {
+      "command": "node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/ --width 1440 --height 1000",
+      "exit_code": 0,
+      "result": "Chrome 155; chat center width 817 px; no overflow; no browser errors; overview return and fixture separation pass",
+      "artifact": "chrome-desktop.json"
+    },
+    {
+      "command": "node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/ --width 390 --height 844",
+      "exit_code": 0,
+      "result": "Chrome 155 mobile emulation; chat width 356 px; no overflow; no browser errors; navigation and fixture separation pass",
+      "artifact": "chrome-mobile.json"
+    },
+    {
+      "command": "python3 scripts/verify_v2_workspace_browser.py --base-url http://127.0.0.1:8877/",
+      "exit_code": 0,
+      "result": "Firefox 156 supplemental; center width 746 px at 1366 px viewport; Overview returns; no errors",
+      "artifact": "firefox-regression.json"
+    },
+    {
+      "command": "python3 scripts/verify_v2_workspace_snapshot_chrome.py --base-url http://127.0.0.1:8877/ --evidence-dir <checkout>/snapshot-chrome",
+      "exit_code": 0,
+      "result": "Chrome downloaded ZIP; 4-member archive checksums/size validated; selected view is grace-conversation; no transcript/credential; HTTP chat correctly unavailable",
+      "artifact": "snapshot-browser-report.json",
+      "zip_sha256": "9610eb3ece172c31892581131574e2e79b6a51c677791b97a74aed43052203f5"
+    },
+    {
+      "command": "python3 scripts/process_graph.py validate",
+      "exit_code": 0,
+      "result": "14 graphs PASS"
+    },
+    {
+      "command": "python3 scripts/process_graph.py check",
+      "exit_code": 0,
+      "result": "14 graphs / 298 nodes PASS"
+    },
+    {
+      "command": "python3 scripts/revision_control.py check --baseline baseline-inventory.json",
+      "exit_code": 0,
+      "result": "PASS; exact predecessors and increasing revisions verified"
+    },
+    {
+      "command": "git diff --cached --check -- . ':!.riverview-backups/**'",
+      "exit_code": 0,
+      "result": "PASS; two preserved historical Markdown predecessors contain trailing whitespace that is retained byte-for-byte"
+    },
+    {
+      "command": "systemctl is-active riverview-status-dashboard.service; curl -sS -o /dev/null -w %{http_code} http://127.0.0.1:8767/",
+      "exit_code": 0,
+      "result": "active; HTTP 200; read-only isolation check",
+      "artifact": "isolation-read-only.txt"
+    }
+  ],
+  "iteration_record": [
+    {
+      "status": "FAIL then corrected",
+      "command": "node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/ (390x844 baseline before code change)",
+      "observed": "uncaught_exception; mobile_viewport_check_failed",
+      "cause": "workspace.js still registered a click listener on the already-removed conversation-toggle element, aborting remaining workspace initialization",
+      "correction": "removed the stale binding while restructuring view selection; final desktop/mobile Chrome reports have browser_errors=[]"
+    }
+  ],
+  "live_chat_acceptance": {
+    "current_run": "NOT RUN",
+    "reason": "Only the isolated HTTP fixture preview was exercised and it intentionally blocks Dashboard API calls. Existing Camrui Chrome page showed a certificate privacy error; no authenticated session was used or fabricated.",
+    "prior_steward_evidence": "The Steward reported a successful durable Windows Chrome round trip, user event 6 and Grace reply event 7, in issue #164 comment 6304082559 before this layout-only change. The existing chat API client was not modified.",
+    "no_live_message_sent": true
+  },
+  "isolation": {
+    "v1_source": "unchanged",
+    "v1_service": "active",
+    "v1_loopback_http": 200,
+    "nginx": "unchanged",
+    "production_services_restarted": false,
+    "preview_deployed": false,
+    "public_exposure_added": false
+  },
+  "rollback": {
+    "branch": "git revert bc4cbd4ce1f41be214c79d4c86db0ec87465039c",
+    "individual_predecessor": "restore the exact bytes named in .riverview-backups/manifest.jsonl and verify SHA-256; keep the newer revision record and document any restoration",
+    "deployment": "none; no preview or production deployment occurred"
+  },
+  "hosted_ci": {
+    "status": "PASS",
+    "tested_head": "993ce6b15e83367986cebc610db142131567ed04",
+    "run_id": 39517699582,
+    "run_url": "https://github.com/ppow1/Riverview-/actions/runs/39517699582",
+    "job": "controlled-checkout",
+    "steps": [
+      "complete test suite",
+      "canonical process graphs and generated views",
+      "controlled revisions and preserved predecessors"
+    ],
+    "note": "This evidence amendment adds hosted CI metadata only; exact-head CI is rerun for the final PR head."
+  },
+  "pull_request": "https://github.com/ppow1/Riverview-/pull/166",
+  "issue": "https://github.com/ppow1/Riverview-/issues/164"
+}

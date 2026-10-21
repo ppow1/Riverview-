@@ -1,0 +1,21 @@
+test_absent_origin_requires_and_accepts_valid_token (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_absent_origin_requires_and_accepts_valid_token) ... ok
+test_auth_blocks_assets_until_password_and_issues_session_cookie (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_auth_blocks_assets_until_password_and_issues_session_cookie) ... ok
+test_csrf_token_can_only_be_consumed_once_under_concurrency (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_csrf_token_can_only_be_consumed_once_under_concurrency) ... ok
+test_csrf_token_is_required_one_time_ip_bound_and_short_lived (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_csrf_token_is_required_one_time_ip_bound_and_short_lived) ... ok
+test_foreign_origin_is_rejected_even_with_valid_token (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_foreign_origin_is_rejected_even_with_valid_token) ... ok
+test_lan_bind_requires_auth_and_narrow_network (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_lan_bind_requires_auth_and_narrow_network) ... ok
+test_non_lan_client_is_rejected_before_login (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_non_lan_client_is_rejected_before_login) ... ok
+test_null_origin_with_valid_one_time_token_passes_origin_gate (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_null_origin_with_valid_one_time_token_passes_origin_gate) ... ok
+test_origin_and_host_restrictions (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_origin_and_host_restrictions) ... ok
+test_origin_authority_and_port_must_match_exactly (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_origin_authority_and_port_must_match_exactly) ... ok
+test_rate_limit_after_five_failures (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_rate_limit_after_five_failures) ... ok
+test_session_signature_and_expiry (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_session_signature_and_expiry) ... ok
+test_setup_persists_only_salted_hash_with_private_permissions (tests.test_v2_workspace_shell.PasswordSetupTests.test_setup_persists_only_salted_hash_with_private_permissions) ... ok
+test_rejects_mutations_and_traversal (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_rejects_mutations_and_traversal) ... ok
+test_serves_shell_and_assets_with_no_network_policy (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_serves_shell_and_assets_with_no_network_policy) ... ok
+test_shell_has_fixture_only_resident_and_no_production_api (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_shell_has_fixture_only_resident_and_no_production_api) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 11.154s
+
+OK

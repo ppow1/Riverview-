@@ -1,0 +1,24 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.1",
+      "sha256": "4df50532f356039d99e17577abc7f33c35768de8fa20920011c37387953ffeef",
+      "size_bytes": 5167
+    },
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "ea187e83f7d1ff0cf8601496a17f79fd2c765c9c572abd7ed055dfdf87a9a2f5",
+      "size_bytes": 1546
+    },
+    "v2-snapshot-browser.png": {
+      "path": "v2-snapshot-browser.png",
+      "revision": "1.0.0",
+      "sha256": "3461d373921911f0cc451e882a1b31f73bf465ba7f069b2ca21a76c13f639c97",
+      "size_bytes": 86164
+    }
+  },
+  "manifest_revision": "1.0.3",
+  "task_id": "RV-WEB-V2-GRACE-CHAT-001"
+}

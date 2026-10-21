@@ -1,0 +1,79 @@
+{
+  "schema_version": "rv.v2-octo1-digital-twin.test-results.v1",
+  "revision": "1.0.0",
+  "task_id": "RV-V2-OCTO1-GRACE-TRACE-001",
+  "tested_commit": "ba1c4f719a534d6194cd0785557f3ecd2b7e46b1",
+  "environment": "Isolated local checkout and local HTTPS Chrome fixture; no production APIs or credentials",
+  "results": [
+    {
+      "name": "full_unit_suite",
+      "command": "PYTHONPATH=src python3 -m unittest discover -s tests -v",
+      "status": "PASS",
+      "exit_code": 0,
+      "tests_run": 173,
+      "passed": 119,
+      "skipped": 54,
+      "failed": 0,
+      "skip_reason": "Disposable RIVERVIEW_TEST_PG_DSN not configured for PostgreSQL integration cases."
+    },
+    {
+      "name": "v2_workspace_shell_regressions",
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "status": "PASS",
+      "exit_code": 0,
+      "tests_run": 27,
+      "passed": 27,
+      "skipped": 0,
+      "failed": 0
+    },
+    {
+      "name": "javascript_syntax",
+      "command": "node --check website/v2/assets/grace-chat.js && node --check website/v2/assets/resource-monitor.js && node --check scripts/verify_v2_resource_monitor.cjs && node --check scripts/verify_v2_octo1_browser.cjs",
+      "status": "PASS",
+      "exit_code": 0
+    },
+    {
+      "name": "hardware_monitor_contract",
+      "command": "node scripts/verify_v2_resource_monitor.cjs",
+      "status": "PASS",
+      "exit_code": 0,
+      "details": "Authenticated same-origin telemetry, dynamic GPU/model mappings, five-second polling, trace privacy, and unavailable chassis/controller fields."
+    },
+    {
+      "name": "browser_acceptance",
+      "command": "node scripts/verify_v2_octo1_browser.cjs --evidence-dir evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T1907Z-request-trace-review",
+      "status": "PASS",
+      "exit_code": 0,
+      "details": "Chrome 155 isolated HTTPS fixture; synthetic data watermark; six GPU selectors; 80B/30B mapping; component detail and request-trace panel; no browser errors."
+    },
+    {
+      "name": "process_graph_validate",
+      "command": "python3 scripts/process_graph.py validate",
+      "status": "PASS",
+      "exit_code": 0,
+      "graphs": 14
+    },
+    {
+      "name": "process_graph_check",
+      "command": "python3 scripts/process_graph.py check",
+      "status": "PASS",
+      "exit_code": 0,
+      "graphs": 14,
+      "nodes": 327
+    },
+    {
+      "name": "revision_control",
+      "command": "python3 scripts/revision_control.py check --baseline /tmp/rv-octo1-head-baseline.json",
+      "status": "PASS",
+      "exit_code": 0,
+      "issues": 0
+    },
+    {
+      "name": "commit_whitespace",
+      "command": "git show --check --oneline HEAD",
+      "status": "PASS",
+      "exit_code": 0
+    }
+  ],
+  "environment_note": "An initial full-suite invocation without PYTHONPATH=src failed module imports; the corrected documented package path yielded the passing run above. PostgreSQL-only tests were skipped, not passed."
+}

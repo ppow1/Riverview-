@@ -1,0 +1,127 @@
+# Revision: 1.0.0
+# Task: RV-WEB-V2-GRACE-CHAT-002
+# Component: RIVERVIEW-V2-WORKSPACE-SHELL
+# Source commit: 8d1851724d436e576498c185f3081aaaa7f3065e
+# Captured UTC: 2026-10-20T22:33:03.571606+00:00
+
+## focused_unit_tests
+$ python3 -m unittest tests.test_v2_workspace_shell -v
+exit_code=0
+test_absent_origin_requires_and_accepts_valid_token (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_absent_origin_requires_and_accepts_valid_token) ... ok
+test_auth_blocks_assets_until_password_and_issues_session_cookie (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_auth_blocks_assets_until_password_and_issues_session_cookie) ... ok
+test_csrf_token_can_only_be_consumed_once_under_concurrency (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_csrf_token_can_only_be_consumed_once_under_concurrency) ... ok
+test_csrf_token_is_required_one_time_ip_bound_and_short_lived (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_csrf_token_is_required_one_time_ip_bound_and_short_lived) ... ok
+test_foreign_origin_is_rejected_even_with_valid_token (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_foreign_origin_is_rejected_even_with_valid_token) ... ok
+test_lan_bind_requires_auth_and_narrow_network (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_lan_bind_requires_auth_and_narrow_network) ... ok
+test_non_lan_client_is_rejected_before_login (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_non_lan_client_is_rejected_before_login) ... ok
+test_null_origin_with_valid_one_time_token_passes_origin_gate (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_null_origin_with_valid_one_time_token_passes_origin_gate) ... ok
+test_origin_and_host_restrictions (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_origin_and_host_restrictions) ... ok
+test_origin_authority_and_port_must_match_exactly (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_origin_authority_and_port_must_match_exactly) ... ok
+test_rate_limit_after_five_failures (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_rate_limit_after_five_failures) ... ok
+test_session_signature_and_expiry (tests.test_v2_workspace_shell.AuthenticatedPreviewTests.test_session_signature_and_expiry) ... ok
+test_setup_persists_only_salted_hash_with_private_permissions (tests.test_v2_workspace_shell.PasswordSetupTests.test_setup_persists_only_salted_hash_with_private_permissions) ... ok
+test_grace_client_uses_existing_same_origin_session_csrf_and_grants (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_grace_client_uses_existing_same_origin_session_csrf_and_grants) ... ok
+test_real_chrome_verifier_checks_actual_reply_and_reload_without_saving_text (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_real_chrome_verifier_checks_actual_reply_and_reload_without_saving_text) ... ok
+test_rejects_mutations_and_traversal (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_rejects_mutations_and_traversal) ... ok
+test_serves_shell_and_assets_with_no_network_policy (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_serves_shell_and_assets_with_no_network_policy) ... ok
+test_shell_has_fixture_only_resident_and_no_production_api (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_shell_has_fixture_only_resident_and_no_production_api) ... ok
+test_snapshot_uses_chat_status_without_capturing_conversation (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_snapshot_uses_chat_status_without_capturing_conversation) ... ok
+test_v2_nginx_mount_is_same_origin_static_and_csp_restricted (tests.test_v2_workspace_shell.WorkspacePreviewTests.test_v2_nginx_mount_is_same_origin_static_and_csp_restricted) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 10.738s
+
+OK
+
+## javascript_syntax
+$ node --check website/v2/assets/grace-chat.js
+exit_code=0
+(no output)
+
+## python_syntax
+$ python3 -m py_compile scripts/verify_v2_grace_chat_chrome.py scripts/verify_v2_workspace_browser.py scripts/verify_v2_workspace_snapshot_chrome.py
+exit_code=0
+(no output)
+
+## diff_check
+$ git diff --check
+exit_code=0
+(no output)
+
+## graph_validate
+$ python3 scripts/process_graph.py validate
+exit_code=0
+{
+  "graphs": 14,
+  "status": "PASS"
+}
+
+## graph_check
+$ python3 scripts/process_graph.py check
+exit_code=0
+{
+  "graphs": 14,
+  "nodes": 296,
+  "status": "PASS"
+}
+
+## revision_audit
+$ python3 scripts/revision_control.py check --baseline /tmp/rv-v2-chat-baseline.json
+exit_code=0
+{
+  "passed": true,
+  "issues": []
+}
+
+## nginx_validation
+$ sudo nginx -t
+exit_code=0
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+## tls_chain
+$ sudo openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt /etc/nginx/ssl/riverview-lan.crt
+exit_code=0
+/etc/nginx/ssl/riverview-lan.crt: OK
+
+## root_route
+$ curl -sS -o /dev/null -w %{http_code} https://192.168.1.155/
+exit_code=0
+200
+
+## v2_route
+$ curl -sS -o /dev/null -w %{http_code} https://192.168.1.155/v2/
+exit_code=0
+200
+
+## unauth_history
+$ curl -sS -o /dev/null -w %{http_code} https://192.168.1.155/api/v1/resident/conversations
+exit_code=0
+401
+
+## foreign_origin
+$ curl -sS -H Origin: https://attacker.invalid -X POST -o /dev/null -w %{http_code} https://192.168.1.155/api/v1/resident/conversation-session
+exit_code=0
+403
+
+## dashboard_service
+$ systemctl is-active riverview-status-dashboard.service
+exit_code=0
+active
+
+## dashboard_pid_restart_count
+$ systemctl show riverview-status-dashboard.service -p MainPID -p NRestarts --value
+exit_code=0
+1624314
+0
+
+## v1_release_compare
+$ diff -qr website/v2 /var/www/riverview-v2-preview/releases/RV-WEB-V2-GRACE-CHAT-002
+exit_code=0
+(no output)
+
+## nginx_site_and_predecessor_hash
+$ sudo sha256sum /etc/nginx/sites-available/riverview-lan /var/lib/riverview/engineering-backups/RV-WEB-V2-GRACE-CHAT-002/riverview-lan.predecessor
+exit_code=0
+11d80806236d534ad9d0272b35884ac02331bec855fed526497e7ed0f0733ea3  /etc/nginx/sites-available/riverview-lan
+0878b2eb61d19f73a36e642acaf0ef3c6b2301188ac1f6eb0c10baf1d82b6c14  /var/lib/riverview/engineering-backups/RV-WEB-V2-GRACE-CHAT-002/riverview-lan.predecessor

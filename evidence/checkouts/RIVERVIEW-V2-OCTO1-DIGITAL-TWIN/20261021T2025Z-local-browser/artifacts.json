@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "1c44760466067f73cbaaa769e12e2269d81e931275c719a4ff87909b677f26f2",
+      "size_bytes": 2375
+    },
+    "octo1-console-desktop-fixture.png": {
+      "path": "octo1-console-desktop-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "5eedc342d87e5ed3c82bad41429b07c36874a9114677094ed034259f74a2cd2d",
+      "size_bytes": 325484
+    },
+    "review-evidence.md": {
+      "path": "review-evidence.md",
+      "revision": "1.0.0",
+      "sha256": "e3700e6987963e85be6b3199d504282bdffc3fcfe63e1a25187895f6e12cb983",
+      "size_bytes": 1805
+    },
+    "source-observation.json": {
+      "path": "source-observation.json",
+      "revision": "1.0.0",
+      "sha256": "581ebe8bd60e868f8933b817f12c943dd9af939145cce84b8f90068d1972b826",
+      "size_bytes": 4116
+    },
+    "test-results.json": {
+      "path": "test-results.json",
+      "revision": "1.0.0",
+      "sha256": "203557f3c0ec8c405cc70d6b975285a406e8afe237dec1de3bbc2e31dc2b0e98",
+      "size_bytes": 3527
+    }
+  },
+  "component_id": "RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR",
+  "decision": "PARTIAL: interactive live-telemetry topology and browser presentation verified; manufacturer chassis geometry blocked on supplied references; production deployment not performed",
+  "manifest_revision": "1.0.0",
+  "source_commit": "7ad48dc7f4c66887ee8f1d5cca5fc6b993667e3c",
+  "target": "Local Chrome fixture and previously collected read-only OCTO1 source observation",
+  "task_id": "RV-V2-OCTO1-DIGITAL-TWIN"
+}

@@ -1,0 +1,189 @@
+{
+  "record_type": "deployment_acceptance_evidence",
+  "record_revision": "1.0.0",
+  "task_id": "RV-WEB-V2-LAN-ORIGIN-001",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "owner": "Windows C1",
+  "classification": "isolated authenticated LAN preview browser-Origin compatibility correction",
+  "timestamp_utc": "2026-10-20T19:21:23Z",
+  "repository": "ppow1/Riverview-",
+  "branch": "codex/riverview-v2-workspace-shell-20261020",
+  "source_commit": "410d3094ecc86b1c1fe5bd967f9391aa437f869e",
+  "deployment_id": "RV-WEB-V2-LAN-ORIGIN-001-camrui-20261020",
+  "target_environment": {
+    "host_role": "Camrui LAN host",
+    "interface": "eno1",
+    "address": "192.168.1.155/24",
+    "url": "http://192.168.1.155:8877/",
+    "process_model": "foreground Python preview; V2 only",
+    "process_id_after_restart": 1821553,
+    "listener": "192.168.1.155:8877 only",
+    "trusted_client_network": "192.168.1.0/24"
+  },
+  "scope": "Correct V2 login Origin handling with one-use CSRF protection. Only the V2 preview process was restarted. V1, Nginx, firewall/router, public exposure, database, CME, Grace, Comms5 and production services were not changed.",
+  "definition_of_ready": {
+    "issue": "#164 comment 6299048089 directs root-cause diagnosis, isolated fix, regression tests, lifecycle controls and V2-only recommissioning",
+    "dependencies": [
+      "existing protected V2 password verifier",
+      "Camrui LAN interface 192.168.1.155/24",
+      "existing branch and controlled-checkout CI"
+    ]
+  },
+  "pre_change_preservation": {
+    "task_id": "RV-WEB-V2-LAN-ORIGIN-001",
+    "backup_root": ".riverview-backups/",
+    "records": [
+      {
+        "path": "scripts/serve_v2_workspace_preview.py",
+        "revision": "1.0.4",
+        "sha256": "f2daf977495a5a4446a3a039c27f99b4355d4289cd77e75a1de85a690af54cbe",
+        "backup": ".riverview-backups/20261020T191425692272Z/scripts/serve_v2_workspace_preview.py"
+      },
+      {
+        "path": "tests/test_v2_workspace_shell.py",
+        "revision": "1.0.2",
+        "sha256": "2eea519355c6c6b10c1abadc1b2fddebc0a9851d6debedf64528670ac2390d10",
+        "backup": ".riverview-backups/20261020T191425882931Z/tests/test_v2_workspace_shell.py"
+      },
+      {
+        "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "revision": "1.0.4",
+        "sha256": "a7ef57374984f0c2c5742a4d399b8f9a58ac049d807e608abc3f651ce662df4d",
+        "backup": ".riverview-backups/20261020T191426067241Z/docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      },
+      {
+        "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+        "revision": "1.0.2",
+        "sha256": "3d9ce79baaae1b26e5ab7aa426ae344d8f9adfff86637a64b7f3ddb1b2ea7e25",
+        "backup": ".riverview-backups/20261020T191426261563Z/docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      },
+      {
+        "path": "process_graphs/riverview-v2/workspace-shell.json",
+        "revision": "1.0.2",
+        "sha256": "397142078a1f893919f1e39ea1c6250690c2e05460c7bc5ab04cb9344f667db2",
+        "backup": ".riverview-backups/20261020T191426673120Z/process_graphs/riverview-v2/workspace-shell.json"
+      },
+      {
+        "path": ".riverview-revisions.json",
+        "revision": "1.1.75",
+        "sha256": "b71e86e4272d9dc52e8d897e991c615863cf3d90c009fd3ef1403697f4939189",
+        "backup": ".riverview-backups/20261020T191427331695Z/.riverview-revisions.json"
+      }
+    ],
+    "restore": "Each backup is byte-identical and SHA-256 verified; restore with cp BACKUP REPOSITORY_PATH after stopping only affected V2 process. Source rollback also works by starting a detached worktree at predecessor commit 9030261ed9eaa06fa0365961cddb116f4f51b6ee."
+  },
+  "implementation": {
+    "files_and_revisions": {
+      "scripts/serve_v2_workspace_preview.py": "1.0.5",
+      "tests/test_v2_workspace_shell.py": "1.0.4",
+      "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": "1.0.5",
+      "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": "1.0.3",
+      "process_graphs/riverview-v2/workspace-shell.json": "1.0.3",
+      "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": "1.0.3"
+    },
+    "correction": "Login form issues a random five-minute synchronizer token, bound to client IP, kept in bounded in-memory state, and atomically consumed once. Any present non-null Origin must use HTTP and exactly match the already-validated Host authority. Absent or literal null Origin is accepted only with a current token. Tokens are required for same-origin submissions too. Foreign scheme/host/port and missing/replayed/expired/wrong-client tokens are rejected. Existing rate limit, password verifier, session flags, Host/subnet policy and CSP remain."
+  },
+  "diagnosis": {
+    "pre_fix_browser": "Chrome 155 real form POST on disposable LAN bind sent Origin: null and received HTTP 403 login origin rejected, matching issue #164 report.",
+    "post_fix_browser": "Chrome 155 real pointer form submission on disposable LAN bind sent Origin: null, received HTTP 303, loaded V2 shell, and received HttpOnly + SameSite=Strict session cookie. Second browser run on commissioned URL :8877 using the existing protected credential produced Origin:null and HTTP 303, displayed the V2 fixture shell and set the expected cookie. Disposable test password was generated in memory; Steward password was entered via hidden TTY and not recorded."
+  },
+  "acceptance": {
+    "offline_tests": {
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "exit_code": 0,
+      "passed": 16,
+      "failed": 0,
+      "coverage": [
+        "normal authentication and protected assets",
+        "null and absent Origin with token",
+        "exact matching authority and port enforcement",
+        "foreign scheme/host/port rejection",
+        "missing, replayed, expired, wrong-client token rejection",
+        "atomic one-use token consumption under eight concurrent consumers",
+        "failed password and rate limit",
+        "session cookie signature, expiry and restart invalidation",
+        "LAN host/subnet and safe methods/path checks",
+        "protected hash file"
+      ]
+    },
+    "syntax": {
+      "command": "python3 -m py_compile scripts/serve_v2_workspace_preview.py tests/test_v2_workspace_shell.py",
+      "exit_code": 0
+    },
+    "process_graph": {
+      "commands": [
+        "python3 scripts/process_graph.py validate",
+        "python3 scripts/process_graph.py generate",
+        "python3 scripts/process_graph.py check"
+      ],
+      "graphs": 14,
+      "nodes": 272,
+      "status": "PASS"
+    },
+    "revision_audit": {
+      "command": "python3 scripts/revision_control.py check --baseline /tmp/rv-v2-lan-prechange-20261020.json",
+      "exit_code": 0,
+      "issues": 0
+    },
+    "diff_check": {
+      "command": "git diff --check -- . ':!.riverview-backups/**'",
+      "exit_code": 0
+    },
+    "hosted_ci": [
+      {
+        "run_id": "39482312891",
+        "head_sha": "410d3094ecc86b1c1fe5bd967f9391aa437f869e",
+        "conclusion": "success",
+        "url": "https://github.com/ppow1/Riverview-/actions/runs/39482312891"
+      },
+      {
+        "run_id": "39482305361",
+        "head_sha": "410d3094ecc86b1c1fe5bd967f9391aa437f869e",
+        "conclusion": "success",
+        "url": "https://github.com/ppow1/Riverview-/actions/runs/39482305361"
+      }
+    ],
+    "network_preview": {
+      "unauthenticated_root_http": 200,
+      "unauthenticated_asset_http": 401,
+      "bound_address": "192.168.1.155:8877",
+      "source_restriction": "192.168.1.0/24",
+      "ipv6_listener": false,
+      "external_or_WAN_test": "NOT VERIFIED; no router/firewall/public exposure changes made"
+    },
+    "v1_isolation": {
+      "service": "riverview-status-dashboard.service",
+      "active": true,
+      "main_pid_before_after": 1624314,
+      "restart_count": 0,
+      "HTTPS_root_http": 200,
+      "nginx_changed": false,
+      "firewall_router_changed": false
+    },
+    "windows_workstation_browser": "NOT VERIFIED directly from this Camrui session. The actual Chrome 155 browser-engine reproduction and post-deployment authenticated login passed locally against the same LAN URL; Steward confirmation from Windows Chrome remains requested and is not claimed."
+  },
+  "rollback_and_resume": {
+    "current_preview_pid": 1821553,
+    "rollback_stop": "Confirm the current PID and exact V2 command; send SIGTERM to this V2 process only.",
+    "predecessor_code": "9030261ed9eaa06fa0365961cddb116f4f51b6ee",
+    "rollback_steps": [
+      "git worktree add --detach /tmp/rv-v2-origin-rollback 9030261ed9eaa06fa0365961cddb116f4f51b6ee",
+      "from /tmp/rv-v2-origin-rollback run the same LAN start command with the existing owner-only auth file",
+      "verify ss shows only 192.168.1.155:8877 and GET / returns login page HTTP 200",
+      "to restore the fix, stop only rollback PID, start from committed task branch HEAD with the same command, and verify again"
+    ],
+    "loopback_fallback": "python3 scripts/serve_v2_workspace_preview.py --host 127.0.0.1 --port 8877"
+  },
+  "definition_of_done_rev_1_6": {
+    "1_code_and_contracts": "PARTIAL: smallest correction, security contract and preserved predecessors are committed; independent reviewer evidence pending",
+    "2_functionality": "PASS for browser Origin:null flow and protected preview on Camrui; actual Windows workstation acceptance remains pending separately",
+    "3_versioned_documentation": "PASS for this correction",
+    "4_troubleshooting_and_recovery": "PASS; null-Origin/CSRF errors, fresh-token recovery, V2 rollback and loopback resume documented",
+    "5_versioned_flowchart": "PASS; canonical graph includes CSRF decision/reject/recovery; generated Mermaid synchronized",
+    "6_steward_live_operational_visualization": "N/A: fixture-only V2 has no authoritative operational state",
+    "7_operational_autonomy": "N/A: interactive static preview owns no recurring work, worker, heartbeat or durable queue",
+    "8_canonical_process_graph": "PASS: 14 registered graphs, 272 nodes, validate and generated view check pass",
+    "overall": "PARTIAL pending independent code review and Windows Chrome confirmation; defect reproduction and fix-forward behavior are verified."
+  },
+  "decision_and_resume_point": "No further code/production change is needed for the reproduced Origin defect. Request one Windows Chrome confirmation against the now-fixed LAN preview. This is a focused verification after an observed Chrome Origin:null reproduction and successful post-deployment browser login, not an unqualified retry."
+}

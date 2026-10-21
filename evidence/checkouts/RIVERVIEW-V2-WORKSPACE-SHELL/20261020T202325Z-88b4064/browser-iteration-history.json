@@ -1,0 +1,24 @@
+{
+  "schema_version": "rv.v2-usability-browser-iterations.v1",
+  "task_id": "RV-WEB-V2-USABILITY-001",
+  "source_commit": "88b40645825045c91ce4c2b0430c39a66502b6d7",
+  "iterations": [
+    {
+      "result": "FAIL",
+      "browser": "Firefox 156.0.1 and Chrome 155",
+      "observation": "Initial tooltip placement expanded desktop document width from 1366 to 1416; mobile Chrome document width reached 555 at 500 layout viewport.",
+      "correction": "Right-edge tooltips aligned inward so hidden tooltip boxes cannot expand the layout."
+    },
+    {
+      "result": "FAIL",
+      "browser": "Chrome 155 mobile 390x844",
+      "observation": "Sidebar controls remained hidden by the existing mobile .top-actions .icon-button rule; controls could not be operated on mobile.",
+      "correction": "Narrowed hiding rule to Help and explicitly kept left/right state buttons visible."
+    },
+    {
+      "result": "PASS",
+      "browser": "Firefox 156.0.1 desktop and Chrome 155 mobile",
+      "observation": "No browser errors or horizontal overflow. Sidebar controls visible on mobile; independent expanded/compact/hidden transitions and restores verified."
+    }
+  ]
+}

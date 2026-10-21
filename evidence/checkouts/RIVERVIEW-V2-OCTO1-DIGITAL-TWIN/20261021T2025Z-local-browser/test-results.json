@@ -1,0 +1,106 @@
+{
+  "schema_version": "rv.v2-octo1-digital-twin.test-results.v1",
+  "task_id": "RV-V2-OCTO1-DIGITAL-TWIN",
+  "tested_commit": "7ad48dc7f4c66887ee8f1d5cca5fc6b993667e3c",
+  "environment": "isolated development worktree; no production endpoints or credentials",
+  "results": [
+    {
+      "name": "js_syntax",
+      "command": "node --check website/v2/assets/resource-monitor.js",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.486,
+      "output_tail": []
+    },
+    {
+      "name": "resource_monitor_contract",
+      "command": "node scripts/verify_v2_resource_monitor.cjs",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.872,
+      "output_tail": [
+        "PASS: same-origin auth; six-device dynamic inventory; 80B GPU group and 30B GPU mapping; processing vs idle; controller data remains unavailable; request attribution limitation; accessible selection; 5-second poll starts and stops with view; no direct hosts or writes"
+      ]
+    },
+    {
+      "name": "work_monitor_regression",
+      "command": "node scripts/verify_v2_work_monitor.cjs",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.89,
+      "output_tail": [
+        "PASS: fixture-origin no-network guard; authenticated bounded GETs; safe objective/assignment rendering; snapshot redaction; authentication rejection; not-initialized, unavailable, and partial states; no polling/writes/host calls"
+      ]
+    },
+    {
+      "name": "workspace_shell_tests",
+      "command": "python3 -m unittest tests.test_v2_workspace_shell -v",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 11.956,
+      "output_tail": [
+        "",
+        "----------------------------------------------------------------------",
+        "Ran 27 tests in 11.502s",
+        "",
+        "OK"
+      ]
+    },
+    {
+      "name": "process_graph_validate",
+      "command": "python3 scripts/process_graph.py validate",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.782,
+      "output_tail": [
+        "{",
+        "  \"graphs\": 14,",
+        "  \"status\": \"PASS\"",
+        "}"
+      ]
+    },
+    {
+      "name": "process_graph_check",
+      "command": "python3 scripts/process_graph.py check",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.849,
+      "output_tail": [
+        "{",
+        "  \"graphs\": 14,",
+        "  \"nodes\": 326,",
+        "  \"status\": \"PASS\"",
+        "}"
+      ]
+    },
+    {
+      "name": "revision_control",
+      "command": "python3 scripts/revision_control.py check --baseline /tmp/rv-v2-octo1-predecessor-baseline.json",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 1.327,
+      "output_tail": [
+        "{",
+        "  \"passed\": true,",
+        "  \"issues\": []",
+        "}"
+      ]
+    },
+    {
+      "name": "git_diff_check",
+      "command": "git diff --check HEAD^ HEAD",
+      "status": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 0.066,
+      "output_tail": []
+    },
+    {
+      "name": "isolated_chrome_browser_acceptance",
+      "command": "node scripts/verify_v2_octo1_browser.cjs --evidence-dir evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser",
+      "status": "PASS",
+      "exit_code": 0,
+      "details": "Chrome 155 local HTTPS fixture; authenticated same-origin reads, six GPU selectors, 80B/30B mapping, no controls, no browser errors; narrow DOM layout check passes."
+    }
+  ],
+  "status": "PASS"
+}

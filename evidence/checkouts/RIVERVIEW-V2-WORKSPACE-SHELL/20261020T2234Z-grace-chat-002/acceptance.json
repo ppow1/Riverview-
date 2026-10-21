@@ -1,0 +1,114 @@
+{
+  "artifacts": {
+    "checkout_log": "checkout.log",
+    "no_credentials_or_transcript_recorded": true,
+    "release_files": [
+      {
+        "path": "assets/favicon.svg",
+        "sha256": "cdc2e97c519c2695a30f49e2ec7c59bea4dfac75a7128a8de8da0173a9503ed0",
+        "size_bytes": 799
+      },
+      {
+        "path": "assets/fixtures.js",
+        "sha256": "e8837fa8bf8a5f9e246832ec2d78c17fb8e7e99b4205f22e66b7d0fd18fc8625",
+        "size_bytes": 2464
+      },
+      {
+        "path": "assets/grace-chat.js",
+        "sha256": "b68ad96caf2044a2e03345f3c053201d77630395d8b024805fc3ede553bdcc0c",
+        "size_bytes": 12755
+      },
+      {
+        "path": "assets/snapshot.js",
+        "sha256": "d13deebfb7282b4249e0be33d12f3485398f9c0389d7cafcda0faaed40271200",
+        "size_bytes": 12203
+      },
+      {
+        "path": "assets/workspace.css",
+        "sha256": "6695d1f34ba3b643291c6afd91181e7f34aead9d76ab68b9ba0641bd3ab9116d",
+        "size_bytes": 18772
+      },
+      {
+        "path": "assets/workspace.js",
+        "sha256": "ca190418fec91287629ff314f72fc5866394332d5f4a5e16af7f93edf905c6cc",
+        "size_bytes": 7251
+      },
+      {
+        "path": "index.html",
+        "sha256": "37051a37cdab7fd5e7111d57081fec033174181536d3b0ced9bcac749ee491ea",
+        "size_bytes": 10314
+      }
+    ]
+  },
+  "branch": "codex/riverview-v2-workspace-shell-20261020",
+  "browser_acceptance": {
+    "chrome": "Chrome/155.0.8059.84",
+    "message_sent": false,
+    "observation": "Existing Camrui Chrome profile rejected the LAN Root CA with net::ERR_CERT_AUTHORITY_INVALID. A separate temporary Chrome profile trusted the verified public CA and loaded the V2 page, but had no authorized Dashboard session; the hidden credential prompt was cancelled before entry.",
+    "required": "Use Chrome with the verified Riverview LAN Root CA trusted and an authorized Dashboard Steward session, or have the Steward enter account credentials through the hidden prompt; then run the acceptance runner once.",
+    "send_receive_reload_verified": false,
+    "state": "BLOCKED_PENDING_OPERATOR_SETUP"
+  },
+  "classification": "isolated frontend enhancement with same-origin LAN route integration",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "deployment": {
+    "nginx_site_revision": "1.0.1",
+    "nginx_site_sha256": "11d80806236d534ad9d0272b35884ac02331bec855fed526497e7ed0f0733ea3",
+    "protected_predecessor_sha256": "0878b2eb61d19f73a36e642acaf0ef3c6b2301188ac1f6eb0c10baf1d82b6c14",
+    "rollback": "restore protected site predecessor; verify checksum; nginx -t; gracefully reload nginx; remove only /v2 route; do not restart Dashboard"
+  },
+  "environment": "Camrui; LAN-only Nginx HTTPS and existing V1 Dashboard API",
+  "evidence_revision": "1.0.0",
+  "hosted_ci": {
+    "conclusion": "success",
+    "head_sha": "8d1851724d436e576498c185f3081aaaa7f3065e",
+    "url": "https://github.com/ppow1/Riverview-/actions/runs/39508732925",
+    "workflow": "Controlled checkout"
+  },
+  "implementation": {
+    "authority": "Dashboard enforces Steward role, resident binding, resident.conversation.read and resident.conversation.send grants on protected operations",
+    "comms5": "UNVERIFIED; counters null; no authoritative event feed exposed",
+    "delivery": "Nginx static alias; inherited allow 192.168.1.0/24, valid Host, Origin and TLS checks",
+    "grace_api": "existing same-origin Dashboard session/CSRF/conversation-session/history/stream/status endpoints",
+    "history": "durable Dashboard events; localStorage retains only selected conversation ID",
+    "route": "https://192.168.1.155/v2/"
+  },
+  "offline_checks": {
+    "diff_check": "PASS",
+    "focused_unit_tests": "PASS 20/20",
+    "javascript_syntax": "PASS",
+    "process_graph_consistency": "PASS 14 graphs / 296 nodes",
+    "process_graph_validation": "PASS 14 graphs",
+    "python_syntax": "PASS",
+    "revision_and_backup_audit": "PASS"
+  },
+  "owner": "Windows C1",
+  "production_isolation": {
+    "database_or_migration_changed": false,
+    "grace_worker_changed": false,
+    "production_data_changed": false,
+    "public_exposure_added": false,
+    "v1_root_route_preserved": true,
+    "v1_service_restarted": false
+  },
+  "pull_request": "https://github.com/ppow1/Riverview-/pull/166",
+  "route_checks": {
+    "dashboard_pid_and_restarts": "1624314\n0",
+    "dashboard_service": "active",
+    "foreign_origin_state_change": "HTTP 403",
+    "invalid_host": "Nginx closes request without HTTP response",
+    "nginx_test": "PASS",
+    "release_file_count": 7,
+    "release_tree_sha256": "42efde070925df67a23265865c0af3ef76ba0755869bd0725bccdf6feeb1508b",
+    "static_release_matches_source": "PASS",
+    "tls_chain": "PASS",
+    "unauthenticated_history": "HTTP 401",
+    "v1_dashboard_restart": "none",
+    "v1_root": "HTTP 200",
+    "v2_route": "HTTP 200"
+  },
+  "schema": "riverview-v2-grace-chat-acceptance/1",
+  "source_commit": "8d1851724d436e576498c185f3081aaaa7f3065e",
+  "task_id": "RV-WEB-V2-GRACE-CHAT-002",
+  "tested_at_utc": "2026-10-20T22:33:03.571606+00:00"
+}

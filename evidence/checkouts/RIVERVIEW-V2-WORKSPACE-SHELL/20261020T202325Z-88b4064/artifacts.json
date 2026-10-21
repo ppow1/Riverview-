@@ -1,0 +1,59 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "dd51c4bc2f6d8e3491a8a0f6d438820c8b755060b1b4e53d1f6adf655d3de010",
+      "size_bytes": 4815
+    },
+    "browser-iteration-history.json": {
+      "path": "browser-iteration-history.json",
+      "revision": "1.0.0",
+      "sha256": "d788cc69761a6af51a996ede0fc05a1ee42a4d2eaed7625e09247b403ea0beea",
+      "size_bytes": 1167
+    },
+    "chrome-mobile.json": {
+      "path": "chrome-mobile.json",
+      "revision": "1.0.0",
+      "sha256": "f9ab1010f2e51dc5782db3f50a691875dce3ad4e63f6df3557f86bcacc8c5d11",
+      "size_bytes": 482
+    },
+    "firefox.json": {
+      "path": "firefox.json",
+      "revision": "1.0.0",
+      "sha256": "4ebcb84e536ba3d946361ac2a3f6973cb0bc996748a5dd626d6fcf3fae8a93d3",
+      "size_bytes": 1230
+    },
+    "graph-check.json": {
+      "path": "graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "7b5d9024a1538bf9f0cca297adebaafcc9ac0f68a6a681db21a37835230ae1fe",
+      "size_bytes": 55
+    },
+    "graph-validate.json": {
+      "path": "graph-validate.json",
+      "revision": "1.0.0",
+      "sha256": "932b2c8c51e41ca21433be08e5bfed60024d8bf89fe96156a69f0ed46358edc6",
+      "size_bytes": 39
+    },
+    "isolation.json": {
+      "path": "isolation.json",
+      "revision": "1.0.0",
+      "sha256": "e7779387e074865805e18ee3ff029473c10d8c9c051433b6062766d4f7d8264b",
+      "size_bytes": 597
+    },
+    "node-check.log": {
+      "path": "node-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "unittest.log": {
+      "path": "unittest.log",
+      "revision": "1.0.0",
+      "sha256": "dc14b5996622457c0669c434a08909f832184d5aa8c3f929cbceb1775637869b",
+      "size_bytes": 2743
+    }
+  }
+}

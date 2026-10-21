@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "0312ef138aa1cab4c838b6f11b7030bb52b9dab721cf4e32c2db848ac9f32884",
+      "size_bytes": 5157
+    },
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "ea187e83f7d1ff0cf8601496a17f79fd2c765c9c572abd7ed055dfdf87a9a2f5",
+      "size_bytes": 1546
+    },
+    "downloads/riverview-v2-snapshot-20261020T220140Z.zip": {
+      "path": "downloads/riverview-v2-snapshot-20261020T220140Z.zip",
+      "revision": "1.0.0",
+      "sha256": "5c1267812119add103f8a1202fba53ff1489b71431da03f27e8b6b81de47c2c5",
+      "size_bytes": 66148
+    },
+    "v2-snapshot-browser.png": {
+      "path": "v2-snapshot-browser.png",
+      "revision": "1.0.0",
+      "sha256": "3461d373921911f0cc451e882a1b31f73bf465ba7f069b2ca21a76c13f639c97",
+      "size_bytes": 86164
+    }
+  },
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-WEB-V2-GRACE-CHAT-001"
+}

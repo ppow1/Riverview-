@@ -1,0 +1,43 @@
+{
+  "active_state": {
+    "button": false,
+    "commsState": "unverified",
+    "commsText": "Traffic counts: UNVERIFIEDV2 has no authorized Comms5 event feed. Send and receive counts, payloads, and correlation IDs are unavailable here; they are not reported as zero.",
+    "commsVisible": true,
+    "handoff": {
+      "href": "https://192.168.1.155/#grace-chat",
+      "label": "Talk with Grace",
+      "rel": "noopener noreferrer",
+      "target": "_blank"
+    },
+    "resident": "Resident fixture 02",
+    "right": "compact",
+    "theme": "dark",
+    "view": "work"
+  },
+  "authenticated": true,
+  "browser": "Chrome/155.0.8059.84",
+  "chrome_version": "Chrome/155.0.8059.84",
+  "communication_diagnostics": "PASS: Grace handoff only; Comms5 counts null and UNVERIFIED; no messages captured",
+  "download_completed": true,
+  "download_name": "riverview-v2-snapshot-20261020T220140Z.zip",
+  "download_status": "V2 snapshot downloaded (66,148 bytes). No server upload was attempted.",
+  "elapsed_seconds": 6.591,
+  "manifest_member_checks": "PASS",
+  "preview_url": "http://192.168.1.155:8877/",
+  "state_matches_selected_view": true,
+  "visible_integration_evidence": {
+    "commsVisible": true,
+    "handoffVisible": true,
+    "rightState": "expanded"
+  },
+  "zip_members": [
+    "README.txt",
+    "manifest.json",
+    "rendered-view.txt",
+    "workspace-state.json"
+  ],
+  "zip_name": "riverview-v2-snapshot-20261020T220140Z.zip",
+  "zip_sha256": "5c1267812119add103f8a1202fba53ff1489b71431da03f27e8b6b81de47c2c5",
+  "zip_size_bytes": 66148
+}

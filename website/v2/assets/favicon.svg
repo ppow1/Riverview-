@@ -1,0 +1,16 @@
+<!--
+Riverview~ Controlled Asset
+File: website/v2/assets/favicon.svg
+Component: RIVERVIEW-V2-WORKSPACE-SHELL
+File Revision: 1.0.1
+Purpose: Provide a local preview tab icon
+Execution Model: Browser presentation asset
+Observability: None; decorative browser chrome asset
+Dependencies: Same-origin static asset request
+Authority: Presentation only
+Changed: 2026-10-20 UTC | RV-WEB-V2-SHELL-001 | Add standard controlled asset header
+Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
+Tests: tests/test_v2_workspace_shell.py
+History: Git and revision/backup manifest
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="11" fill="#357f7c"/><text x="20" y="29" text-anchor="middle" font-family="Georgia,serif" font-size="27" fill="#fff">R</text></svg>

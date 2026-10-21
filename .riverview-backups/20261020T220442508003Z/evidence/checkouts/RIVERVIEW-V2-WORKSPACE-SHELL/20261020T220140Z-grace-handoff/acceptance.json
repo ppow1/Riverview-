@@ -1,0 +1,91 @@
+{
+  "acceptance": {
+    "comms5_inspectable_messages_and_correlation": "UNAVAILABLE in V2; no event feed is exposed",
+    "comms5_send_receive_counters": "UNVERIFIED; no authorized independent event feed is exposed",
+    "grace_handoff_url_and_new_tab_attributes": "PASS",
+    "grace_message_sent_from_v2": "BLOCKED; V2 has no principal-bound Dashboard session and the preview is a separate HTTP origin",
+    "snapshot_redacted_integration_diagnostics": "PASS; unknown counters are null, no conversation or Comms5 payloads captured",
+    "snapshot_zip_integrity": "PASS; four members, SHA-256 manifest verified, downloaded package hash recorded in browser-report.json",
+    "v2_password_auth": "PASS",
+    "v2_persistent_conversation_history": "BLOCKED; no V2 conversation API/session exists"
+  },
+  "branch": "codex/riverview-v2-workspace-shell-20261020",
+  "browser_acceptance": {
+    "active_state": {
+      "button": false,
+      "commsState": "unverified",
+      "commsText": "Traffic counts: UNVERIFIEDV2 has no authorized Comms5 event feed. Send and receive counts, payloads, and correlation IDs are unavailable here; they are not reported as zero.",
+      "commsVisible": true,
+      "handoff": {
+        "href": "https://192.168.1.155/#grace-chat",
+        "label": "Talk with Grace",
+        "rel": "noopener noreferrer",
+        "target": "_blank"
+      },
+      "resident": "Resident fixture 02",
+      "right": "compact",
+      "theme": "dark",
+      "view": "work"
+    },
+    "authenticated": true,
+    "browser": "Chrome/155.0.8059.84",
+    "chrome_version": "Chrome/155.0.8059.84",
+    "communication_diagnostics": "PASS: Grace handoff only; Comms5 counts null and UNVERIFIED; no messages captured",
+    "download_completed": true,
+    "download_name": "riverview-v2-snapshot-20261020T220140Z.zip",
+    "download_status": "V2 snapshot downloaded (66,148 bytes). No server upload was attempted.",
+    "elapsed_seconds": 6.591,
+    "manifest_member_checks": "PASS",
+    "preview_url": "http://192.168.1.155:8877/",
+    "state_matches_selected_view": true,
+    "visible_integration_evidence": {
+      "commsVisible": true,
+      "handoffVisible": true,
+      "rightState": "expanded"
+    },
+    "zip_members": [
+      "README.txt",
+      "manifest.json",
+      "rendered-view.txt",
+      "workspace-state.json"
+    ],
+    "zip_name": "riverview-v2-snapshot-20261020T220140Z.zip",
+    "zip_sha256": "5c1267812119add103f8a1202fba53ff1489b71431da03f27e8b6b81de47c2c5",
+    "zip_size_bytes": 66148
+  },
+  "classification": "enhancement with integration blockers",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "deployment": "Existing static V2 listener served the updated worktree; no service restart or production deployment was performed.",
+  "environment": "Camrui LAN preview; authenticated headless Chrome; no production mutation",
+  "implementation_commit": "18873cd6 (exact 40-character SHA recorded by git after commit)",
+  "interfaces_inspected": {
+    "comms5_contract": "riverview-comms-contract:5.0; capabilities include bounded governed operations and read-only transport_probe; no general outbound/inbound message ledger or V2 feed",
+    "dashboard_release": "cf4a97e2a712e05e5c5d0a4a82d1016df5ed2ba1",
+    "resident_conversation_contract": "rv.resident.conversation.v1; same-origin Dashboard bearer/account authentication; exact resident.conversation.read/send grants; durable event history; Secure/HttpOnly/SameSite=Strict conversation cookie"
+  },
+  "not_done": [
+    "Real authenticated Grace send/receive and reload history within V2 were not demonstrated.",
+    "A production conversation write was not attempted.",
+    "No correlated ChatGPT escalation exchange or Comms5 message counter was fabricated.",
+    "Windows Chrome verification of the new handoff and Comms5 label remains pending."
+  ],
+  "offline_checks": {
+    "node_check": "PASS: website/v2/assets/snapshot.js",
+    "process_graph_check": "PASS: 285 nodes",
+    "process_graph_validate": "PASS: 14 graphs",
+    "python_compile": "PASS: both modified browser verification scripts",
+    "python_unittest": "PASS: tests.test_v2_workspace_shell, 16/16",
+    "revision_backup_audit": "PASS: no issues against preserved baseline",
+    "v1_isolation": "PASS: Dashboard service active PID 1624314, NRestarts=0, HTTPS 200; Nginx unchanged",
+    "v2_listener": "PASS: 192.168.1.155:8877 HTTP 200; existing authorized LAN/password restriction retained"
+  },
+  "owner": "Windows C1",
+  "preview": "http://192.168.1.155:8877/",
+  "required_next_authorization": [
+    "Approve a same-origin V2 route on the existing LAN-restricted HTTPS Dashboard origin, retaining V1 at /, so V2 can use the current authenticated API/session and exact grants without copying the bearer into the preview server.",
+    "Comms5 owner must expose an independently recorded, authorized read-only transport event projection with stable correlation IDs, send/receive stages, and redacted inspectable payloads before V2 can show counters/messages."
+  ],
+  "schema": "riverview-v2-grace-handoff-acceptance/1",
+  "task_id": "RV-WEB-V2-GRACE-CHAT-001",
+  "tested_at_utc": "2026-10-20T22:01:40Z"
+}
