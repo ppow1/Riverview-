@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.18
+File Revision: 1.0.19
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
@@ -90,7 +90,8 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81["Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples; retain at most twelve in browser memory"]
     g_rv_riverview_v2_workspace_shell_octo1_poll_pause_0cfdc8df["Stop the polling timer when Resources closes or the browser tab is hidden"]
     g_rv_riverview_v2_workspace_shell_octo1_controller_unavailable_b3f8cf21["Keep OCTO1 chassis fan, sensor, PSU, and watchdog readings unavailable until an OCTO1 source is verified"]
-    g_rv_riverview_v2_workspace_shell_octo1_request_attribution_unavailable_bb827151["Do not associate GPU activity with a Grace request; current model APIs expose no correlation or generation phase"]
+    g_rv_riverview_v2_workspace_shell_octo1_request_attribution_unavailable_bb827151["Keep model-server receipt, generation phase, and GPU-to-request attribution unavailable until server-side correlation is exposed"]
+    g_rv_riverview_v2_workspace_shell_octo1_grace_request_trace_67118e93["Read the current authorized Grace conversation and show request ID, provider call window, outcome, and durable response time without message content"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -194,7 +195,8 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|Build the interactive OCTO1 view from current GPU and model source projections| g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae
   g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae -->|Steward selects a logical device/model/system; no chassis position is assigned| g_rv_riverview_v2_workspace_shell_octo1_select_details_ba729f3e
   g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae -->|Controller-only fields remain unavailable because no OCTO1 projection exists| g_rv_riverview_v2_workspace_shell_octo1_controller_unavailable_b3f8cf21
-  g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae -->|Display the model-server correlation/phase limitation beside the activity timeline| g_rv_riverview_v2_workspace_shell_octo1_request_attribution_unavailable_bb827151
+  g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae -->|When current Grace conversation authorization is active, read durable lifecycle metadata without message content| g_rv_riverview_v2_workspace_shell_octo1_grace_request_trace_67118e93
+  g_rv_riverview_v2_workspace_shell_octo1_grace_request_trace_67118e93 -->|Show persisted app-side attempts; leave model-server receipt, generation timing, and GPU correlation unavailable| g_rv_riverview_v2_workspace_shell_octo1_request_attribution_unavailable_bb827151
   g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|While the Resources view is open, evaluate view and document visibility| g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3
   g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3 -->|Resources selected and tab visible; request a fresh authenticated projection at five-second cadence| g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81
   g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81 -->|Render new measured values, states, timestamps, and timeline sample| g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4

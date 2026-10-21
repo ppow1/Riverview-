@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.19
+# Revision: 1.0.20
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -10,6 +10,7 @@
 # Authority: Local fixture preview only; no production data or credentials
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify authenticated telemetry route and safe Snapshot boundary.
 # Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Verify OCTO1 console, live selectors, source gaps, and bounded refresh
+# Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Verify a content-free current-conversation trace contract
 # Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Verify authenticated read-only objective and assignment Work view
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
@@ -175,7 +176,14 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("const POLL_MS = 5000", monitor)
         self.assertIn('detail?.view==="resources"', monitor)
         self.assertIn('document.visibilityState==="hidden"', monitor)
-        self.assertIn('request_attribution:"unavailable_from_current_model_server_contract"', monitor)
+        self.assertIn('request_attribution:"gpu_request_mapping_unavailable_from_model_server"', monitor)
+        self.assertIn('requestTraceSnapshot', monitor)
+        self.assertIn('request_trace:state.requestTrace?.state||"unavailable"', monitor)
+        self.assertIn('id="octo1-request-trace-list"', html)
+        trace_chat = (ROOT / "website/v2/assets/grace-chat.js").read_text(encoding="utf-8")
+        self.assertIn('rv.v2.grace-request-trace.v1', trace_chat)
+        self.assertIn('requestTraceSnapshot', trace_chat)
+        self.assertIn('response_persisted_at', trace_chat)
         self.assertIn('"chassis-fans":"Chassis fans"', monitor)
         self.assertIn('"Prompt vs generation phase"', monitor)
         self.assertNotIn("fan PWM", monitor)

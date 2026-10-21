@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.17",
+  "graph_revision": "1.0.18",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -1243,18 +1243,39 @@
     },
     {
       "id": "rv:riverview-v2:workspace-shell:octo1-request-attribution-unavailable",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "measurement",
-      "label": "Do not associate GPU activity with a Grace request; current model APIs expose no correlation or generation phase",
+      "label": "Keep model-server receipt, generation phase, and GPU-to-request attribution unavailable until server-side correlation is exposed",
       "source_references": [
-        "website/v2/assets/resource-monitor.js"
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
       ],
       "verification_evidence": [
-        "scripts/verify_v2_resource_monitor.cjs"
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Read the current authorized Grace conversation and show request ID, provider call window, outcome, and durable response time without message content",
+      "source_references": [
+        "website/v2/assets/grace-chat.js",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
       ]
     }
   ],
@@ -1862,9 +1883,15 @@
     },
     {
       "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "type": "runtime_transition",
+      "label": "When current Grace conversation authorization is active, read durable lifecycle metadata without message content"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
       "to": "rv:riverview-v2:workspace-shell:octo1-request-attribution-unavailable",
       "type": "runtime_transition",
-      "label": "Display the model-server correlation/phase limitation beside the activity timeline"
+      "label": "Show persisted app-side attempts; leave model-server receipt, generation timing, and GPU correlation unavailable"
     },
     {
       "from": "rv:riverview-v2:workspace-shell:resource-render-live",

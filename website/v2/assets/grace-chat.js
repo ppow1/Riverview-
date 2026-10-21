@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: website/v2/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.4
-Purpose: Connect V2 Grace chat to the authenticated, persistent Dashboard conversation API
+Revision: 1.0.5
+Purpose: Connect V2 Grace chat and expose a content-free trace of its durable request lifecycle
 Execution Model: Interactive browser; request-driven reads/sends with durable response polling
-Observability: Visible auth, connection, pending, completed, and failure status from API responses
+Observability: Visible auth/status plus request IDs, provider attempts, timestamps, and persistence state
 Dependencies: Same-origin rv.resident.conversation.v1 endpoints; secure account and CSRF cookies
 Inputs/Outputs: Steward text and durable conversation events; message content is not browser-persisted
 Authority: Exact resident.conversation.read/send grants are enforced by Dashboard on each request
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Initial real authenticated V2 conversation client
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Expose only sanitized trace metadata from authenticated durable history
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_grace_chat_chrome.py
 History: Git and revision/backup manifest
@@ -107,6 +107,68 @@ History: Git and revision/backup manifest
     historyNode.scrollTop = historyNode.scrollHeight;
   }
 
+  function requestTraceFromEvents(events, observedAt) {
+    const requests = new Map();
+    const allowedStages = new Set(["autonomic", "interim_30b", "reasoning"]);
+    const safeTime = (value) => {
+      const date = typeof value === "string" ? new Date(value) : null;
+      return date && Number.isFinite(date.valueOf()) ? date.toISOString() : null;
+    };
+    const safeCount = (value) => Number.isSafeInteger(value) && value >= 0 && value <= 1000000 ? value : null;
+    const safeCode = (value) => typeof value === "string" && /^[a-z0-9_.-]{1,80}$/i.test(value) ? value : null;
+    const safeAttempts = (value) => Array.isArray(value) ? value.slice(0, 4).map((attempt) => {
+      if (!attempt || typeof attempt !== "object") return null;
+      const stage = allowedStages.has(attempt.reasoning_stage) ? attempt.reasoning_stage : null;
+      const outcome = ["succeeded", "failed", "deferred"].includes(attempt.outcome) ? attempt.outcome : "unknown";
+      return {
+        stage,
+        provider: typeof attempt.selected_provider === "string" && /^[a-z0-9_.-]{1,80}$/i.test(attempt.selected_provider) ? attempt.selected_provider : "Unavailable",
+        started_at: safeTime(attempt.started_at),
+        ended_at: safeTime(attempt.ended_at),
+        elapsed_ms: typeof attempt.elapsed_ms === "number" && Number.isFinite(attempt.elapsed_ms) && attempt.elapsed_ms >= 0 && attempt.elapsed_ms <= 300000 ? attempt.elapsed_ms : null,
+        outcome,
+        error_code: safeCode(attempt.error_code),
+        finish_reason: safeCode(attempt.finish_reason),
+        completion_tokens: safeCount(attempt.completion_tokens)
+      };
+    }).filter(Boolean) : [];
+    for (const event of Array.isArray(events) ? events : []) {
+      if (!event || typeof event.request_id !== "string" || !event.request_id ||
+          !["user_message", "assistant_message", "response_failed", "response_interrupted", "response_deferred"].includes(event.event_type)) continue;
+      let trace = requests.get(event.request_id);
+      if (!trace) {
+        trace = {request_id: event.request_id, created_at: null, status: "awaiting_response", attempts: [], response_persisted_at: null, prompt_tokens: null, completion_tokens: null, finish_reason: null, reasoning_stage: null, error_code: null};
+        requests.set(event.request_id, trace);
+      }
+      if (event.event_type === "user_message") trace.created_at = safeTime(event.occurred_at);
+      if (["assistant_message", "response_failed", "response_interrupted", "response_deferred"].includes(event.event_type)) {
+        const metadata = event.metadata && typeof event.metadata === "object" ? event.metadata : {};
+        trace.status = ({assistant_message: "completed", response_failed: "failed", response_interrupted: "interrupted", response_deferred: "deferred"})[event.event_type];
+        trace.attempts = safeAttempts(metadata.provider_attempts);
+        trace.reasoning_stage = allowedStages.has(metadata.reasoning_stage) ? metadata.reasoning_stage : null;
+        trace.prompt_tokens = safeCount(metadata.prompt_tokens);
+        trace.completion_tokens = safeCount(metadata.completion_tokens);
+        trace.finish_reason = safeCode(metadata.finish_reason);
+        trace.error_code = safeCode(event.error_code);
+        if (event.event_type === "assistant_message") trace.response_persisted_at = safeTime(event.occurred_at);
+      }
+    }
+    return {schema_version: "rv.v2.grace-request-trace.v1", state: "available", observed_at: safeTime(observedAt), requests: [...requests.values()].filter((item) => item.created_at).slice(-12).reverse()};
+  }
+
+  async function requestTraceSnapshot() {
+    if (!state.connected || !state.conversationId) {
+      return {schema_version: "rv.v2.grace-request-trace.v1", state: state.connected ? "empty" : "not_connected", observed_at: null, requests: []};
+    }
+    try {
+      const record = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.conversationId)}`);
+      if (record.conversation_id !== state.conversationId || !Array.isArray(record.events)) throw new Error("conversation_identity_mismatch");
+      return requestTraceFromEvents(record.events, new Date().toISOString());
+    } catch (error) {
+      return {schema_version: "rv.v2.grace-request-trace.v1", state: error.status === 401 ? "authentication_required" : error.status === 403 ? "denied" : "unavailable", observed_at: null, requests: []};
+    }
+  }
+
   async function loadHistory() {
     if (!state.connected) return;
     state.historyLoaded = false;
@@ -165,6 +227,7 @@ History: Git and revision/backup manifest
   }
 
   window.RiverviewGraceChat = {
+    requestTraceSnapshot,
     snapshotDiagnostics() {
       return {
         status: state.connected ? "connected" : (root.dataset.state || "checking"),

@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: scripts/verify_v2_resource_monitor.cjs
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.2.1
-Purpose: Verify authenticated telemetry rendering, dynamic OCTO1 topology, honest gaps, and polling lifecycle
+Revision: 1.2.2
+Purpose: Verify authenticated telemetry, dynamic topology, bounded Grace trace, and polling lifecycle
 Execution Model: Deterministic Node VM fixture; no network access
 Observability: Named assertions and process exit status
 Dependencies: Node.js built-in assert and vm modules
 Inputs/Outputs: Sanitized Dashboard projections; no credentials or production writes
 Authority: Isolated UI contract test only
-Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Cover topology, phase labels, unsupported controller feeds, attribution limits, and polling
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Verify durable request trace rendering with no message content
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_resource_monitor.cjs
 History: Git and .riverview-backups/manifest.jsonl
@@ -20,10 +20,10 @@ const ROOT=path.resolve(__dirname,"..");
 const source=fs.readFileSync(path.join(ROOT,"website/v2/assets/resource-monitor.js"),"utf8");
 const html=fs.readFileSync(path.join(ROOT,"website/v2/index.html"),"utf8");
 function element(id=""){return {id,textContent:"",value:"all",dataset:{},hidden:false,disabled:false,children:[],listeners:{},classList:{toggle(){}},append(...items){this.children.push(...items);},replaceChildren(...items){this.children=[...items];},get childElementCount(){return this.children.length;},addEventListener(name,fn){this.listeners[name]=fn;},setAttribute(name,value){this[name]=value;},querySelectorAll(selector){if(selector==="[data-octo-component]")return this.children.filter(child=>child.dataset?.octoComponent);return [];}};}
-function boot({protocol="https:",pathname="/v2/",responses=[]}={}){
+function boot({protocol="https:",pathname="/v2/",responses=[],trace={schema_version:"rv.v2.grace-request-trace.v1",state:"not_connected",observed_at:null,requests:[]}}={}){
   const nodes=new Map(),cards=["hardware","inference","dashboard"].map(kind=>Object.assign(element(),{dataset:{resourceKind:kind,search:kind}})),listeners=new Map(),calls=[],queue=[...responses],intervals=new Map();let nextInterval=0;
   const document={visibilityState:"visible",body:{classList:{toggle(){}}},getElementById(id){if(!nodes.has(id))nodes.set(id,element(id));return nodes.get(id);},createElement:name=>element(name),querySelectorAll(){return cards;},addEventListener(name,fn){if(!listeners.has(name))listeners.set(name,[]);listeners.get(name).push(fn);}};
-  const context={document,location:{protocol,pathname},window:{setInterval(fn,ms){const id=++nextInterval;intervals.set(id,{fn,ms});return id;},clearInterval(id){intervals.delete(id);}},Date,Set,Number,String,fetch:async(url,options)=>{calls.push({url,options});const item=queue.shift();if(!item)throw Error("unexpected_fetch");if(item.throw)throw item.throw;return {ok:item.status>=200&&item.status<300,status:item.status,async json(){return item.body;}};},URL,console};
+  const context={document,location:{protocol,pathname},window:{RiverviewGraceChat:{async requestTraceSnapshot(){return trace;}},setInterval(fn,ms){const id=++nextInterval;intervals.set(id,{fn,ms});return id;},clearInterval(id){intervals.delete(id);}},Date,Set,Number,String,fetch:async(url,options)=>{calls.push({url,options});const item=queue.shift();if(!item)throw Error("unexpected_fetch");if(item.throw)throw item.throw;return {ok:item.status>=200&&item.status<300,status:item.status,async json(){return item.body;}};},URL,console};
   vm.runInNewContext(source,context,{filename:"resource-monitor.js"});listeners.get("DOMContentLoaded")?.forEach(fn=>fn());return {context,nodes,cards,calls,queue,intervals,listeners};
 }
 const statusPayload={schema_version:"rv.dashboard.status.v1",projection_status:"healthy",freshness:"current",observed_at:"2026-10-21T11:00:00Z",workers:{status:"stale",active_workers:4,healthy_workers:2,stale_workers:1,unknown_workers:1},assignment_counts:{queued:2,executing:1},assignments_total:3,cme:{status:"healthy"},grace_execution:{status:"unknown"}};
@@ -33,17 +33,19 @@ const telemetry={schema_version:"rv.dashboard.resource-telemetry.v1",status:"par
 const flatten=(e)=>`${e.textContent||""} ${(e.children||[]).map(flatten).join(" ")}`;
 async function run(){
   const offline=boot({protocol:"http:",pathname:"/"});await offline.context.window.RiverviewV2ResourceMonitor.refresh();assert.equal(offline.calls.length,0,"fixture context never contacts Dashboard");
-  const online=boot({responses:[{status:200,body:{status:"authenticated"}},{status:200,body:statusPayload},{status:200,body:telemetry}]});await online.context.window.RiverviewV2ResourceMonitor.refresh();
+  const traceFixture={schema_version:"rv.v2.grace-request-trace.v1",state:"available",observed_at:"2026-10-21T11:02:00Z",requests:[{request_id:"trace-request-001",created_at:"2026-10-21T11:01:00Z",status:"completed",attempts:[{stage:"reasoning",provider:"local.inference.v1",started_at:"2026-10-21T11:01:01Z",ended_at:"2026-10-21T11:01:20Z",elapsed_ms:19000,outcome:"succeeded",finish_reason:"stop",completion_tokens:23}],response_persisted_at:"2026-10-21T11:01:20Z",prompt_tokens:91,completion_tokens:23,finish_reason:"stop",reasoning_stage:"reasoning",error_code:null}]};
+  const online=boot({trace:traceFixture,responses:[{status:200,body:{status:"authenticated"}},{status:200,body:statusPayload},{status:200,body:telemetry}]});await online.context.window.RiverviewV2ResourceMonitor.refresh();
   assert.deepEqual(online.calls.map(c=>c.url),["/api/v1/auth/session","/api/v1/status","/api/v1/resources/telemetry"]);online.calls.forEach(c=>{assert.equal(c.options.credentials,"same-origin");assert.equal(c.options.cache,"no-store");assert.equal(c.options.method,"GET");});
   assert.match(online.nodes.get("resource-worker-summary").textContent,/4 active/);assert.match(online.nodes.get("resource-assignment-summary").textContent,/queued: 2/);
   const cards=online.nodes.get("resource-cards");assert.match(cards.children.map(flatten).join(" "),/Qwen3-Next-80B.gguf/);assert.match(cards.children.map(flatten).join(" "),/server exposes no queue depth/);assert.equal(online.nodes.get("resource-host-cards").children.length,2);
   const gpuButtons=online.nodes.get("octo1-gpu-selectors").children,modelButtons=online.nodes.get("octo1-model-selectors").children;assert.equal(gpuButtons.length,6,"render the measured device inventory without assigning physical positions");assert.match(flatten(gpuButtons[0]),/Grace reasoning 80B/);assert.match(flatten(gpuButtons[1]),/Grace vision 30B/);assert.match(flatten(gpuButtons[2]),/No authorized inference process mapped/);
   assert.match(flatten(modelButtons[0]),/PROCESSING · ACTIVE SLOT/);assert.match(flatten(modelButtons[0]),/GPU 0, 3, 4, 5/);assert.match(flatten(modelButtons[1]),/READY · IDLE/);assert.match(flatten(modelButtons[1]),/GPU 1/);
   assert.match(html,/does not invent chassis geometry/);assert.match(flatten(online.nodes.get("octo1-activity-list")),/2026-10-21T11:00/);assert.match(flatten(online.nodes.get("octo1-activity-list")),/slots 1/);const consoleNode=online.nodes.get("octo1-console");consoleNode.listeners.click({target:{closest:()=>({dataset:{octoComponent:"model-grace-reasoning-80b"}})}});assert.match(`${online.nodes.get("octo1-detail-state").textContent} ${online.nodes.get("octo1-detail-source").textContent}`,/specific Grace request/);
-  assert.match(html,/RPM \/ PWM unavailable/);assert.equal(online.context.window.RiverviewV2ResourceMonitor.snapshotDiagnostics().request_attribution,"unavailable_from_current_model_server_contract");
+  assert.match(html,/RPM \/ PWM unavailable/);assert.equal(online.context.window.RiverviewV2ResourceMonitor.snapshotDiagnostics().request_attribution,"gpu_request_mapping_unavailable_from_model_server");
+  const traceNode=online.nodes.get("octo1-request-trace-list"),traceText=flatten(traceNode);assert.match(traceText,/trace-request-001/);assert.match(traceText,/80B reasoning/);assert.match(traceText,/local\.inference\.v1/);assert.match(traceText,/Response persisted/);assert.match(traceText,/91 prompt · 23 completion/);assert.equal(online.nodes.get("octo1-request-trace-state").textContent,"AVAILABLE");assert.doesNotMatch(traceText,/private-prompt|private-response|root\/secret-model/);
   consoleNode.listeners.click({target:{closest:()=>({dataset:{octoComponent:"gpu-1"}})}});assert.match(online.nodes.get("octo1-detail-title").textContent,/RTX 4090/);assert.match(flatten(online.nodes.get("octo1-detail-metrics")),/Unavailable/);
   consoleNode.listeners.click({target:{closest:()=>({dataset:{octoComponent:"watchdog"}})}});assert.match(online.nodes.get("octo1-detail-title").textContent,/Hardware watchdog/);assert.match(flatten(online.nodes.get("octo1-detail-metrics")),/Unavailable/);
-  const diag=online.context.window.RiverviewV2ResourceMonitor.snapshotDiagnostics();assert.equal(diag.gpu_inventory,"partial");assert.equal(diag.diagnostics_include_response_body,false);assert.equal(diag.diagnostics_include_credentials,false);assert.equal(diag.gpu_utilization,"values_not_included_in_snapshot_diagnostics");
+  const diag=online.context.window.RiverviewV2ResourceMonitor.snapshotDiagnostics();assert.equal(diag.gpu_inventory,"partial");assert.equal(diag.request_trace,"available");assert.equal(diag.trace_request_ids_in_snapshot,false);assert.equal(diag.trace_message_bodies_in_snapshot,false);assert.equal(diag.diagnostics_include_response_body,false);assert.equal(diag.diagnostics_include_credentials,false);assert.equal(diag.gpu_utilization,"values_not_included_in_snapshot_diagnostics");
   const denied=boot({responses:[{status:401,body:{error:"authentication_required"}}]});await denied.context.window.RiverviewV2ResourceMonitor.refresh();assert.equal(denied.calls.length,1);assert.match(denied.nodes.get("resource-cards").children[0].textContent,/http_401/);
   const telemFail=boot({responses:[{status:200,body:{status:"authenticated"}},{status:200,body:statusPayload},{status:503,body:{error:"unavailable"}}]});await telemFail.context.window.RiverviewV2ResourceMonitor.refresh();assert.match(telemFail.nodes.get("resource-cards").children[0].textContent,/http_503/);
   const polling=boot();polling.listeners.get("rvv2:view")[0]({detail:{view:"resources"}});assert.equal([...polling.intervals.values()][0].ms,5000);assert.equal(polling.calls.length,1,"entering Resources attempts authenticated refresh");polling.listeners.get("rvv2:view")[0]({detail:{view:"work"}});assert.equal(polling.intervals.size,0,"leaving Resources stops polling");

@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.18
+File Revision: 1.0.19
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated live GPU/model reads and source gaps.
 Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Record Work release, preserved composite, and live verification
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Document five-second OCTO1 polling, dynamic mapping, and missing physical/tracing sources
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Clarify isolated desktop screenshot and historical controller references
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Document authenticated conversation traces and exact model-server evidence gap
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -215,11 +216,15 @@ node scripts/verify_v2_octo1_browser.cjs --evidence-dir <checkout-evidence-dir>
 
 The Chrome test launches an ephemeral loopback HTTPS fixture, injects clearly synthetic telemetry, captures a desktop screenshot with a visible fixture watermark, and checks a narrow viewport for horizontal overflow. It does not contact Camrui, OCTO1, production APIs, or any Steward account. The screenshot is visual evidence for the data-driven console only; it cannot qualify the missing manufacturer chassis drawing or prove live telemetry. To inspect live measurements, use the authorized V2 browser session and compare observation timestamps and GPU/model values with the originating Dashboard source evidence. Do not call OctoFan control commands during this read-only task.
 
-**Physical-reference dependency:** the four Steward-supplied images (manufacturer front, open chassis, watchdog/fan controller board, and earlier V2 design concept) were not present in this checkout or searched local engineering asset folders. Keep geometry, fan mapping, sensor positions, GPU slots, and PSU positions unrendered until the images are provided and the actual OCTO1 arrangement is confirmed. The concept image informs style only. Do not draw replacement artwork or treat OCTO2 controller layouts as OCTO1 evidence.
+**Physical-reference dependency:** the Steward identifies `octominer-digital-twin-reference-artwork.zip` as containing the four original references, but that ZIP and the listed source PNGs are not present in this Linux execution workspace or its mounted downloads directories. The checkout has no Windows Downloads mount. Keep physical geometry and component positions unrendered until those exact assets are transferred here. Use the manufacturer images as-is; the earlier dashboard image is a style reference only. Do not draw replacement artwork or treat OCTO2 controller layouts as OCTO1 evidence.
 
 The reviewed historical references were `RIVERVIEW_OCTO_CONTROL_FEATURES_AND_API_2026-09-14.md`, `OCTO2_FAN_WATCHDOG_REBOOT_FORENSICS_2026-09-22.md`, and `OCTOMINER_REMOTE_POWER_AND_WOL.md` in `ppow1/Riverview`. Their OctoFan fan/PSU/sensor/watchdog API records are tied to OCTO2's host and controller and do not establish OCTO1 channel or physical-component mappings.
 
-**Request-trace dependency:** the current Dashboard telemetry response has no Grace request/correlation ID. OCTO1 model `/slots` exposes occupancy only, and `/metrics` returns 501. GPU load or active slot samples must never be attributed to a particular Grace attempt. A safe end-to-end trace needs request IDs propagated from Grace's router/provider dispatch into the model-server ingress/response records and back to Grace validation/persistence, then exposed through a permission-filtered Dashboard projection.
+**Request trace:** V2 now reads the selected authorized conversation through `GET /api/v1/resident/conversations/{conversation_id}` using the existing same-origin account/conversation session. The returned `rv.resident.conversation.v1` history is reduced in the Grace-chat module to request ID, creation time, provider-attempt stage/provider and call-window timestamps/outcome, terminal status, response event time, and returned token counts. No message body or raw metadata is passed to the Hardware monitor. A 401/403 from this read is displayed as sign-in/access-denied; do not retry under another identity. The trace refresh follows the existing five-second Resources polling gate and disappears when there is no authorized current conversation.
+
+The trace records application-side facts. In `resident_execution/model_router.py`, provider-attempt timestamps wrap the provider call. In `resident_execution/conversation.py`, the conversation request ID is persisted and the validated assistant response is appended as a durable terminal event. `local_reasoning_provider.py` does not send that ID to the llama.cpp HTTP endpoint; the current `/slots` view only exposes occupancy and `/metrics` returns 501. Thus request receipt at the model server, prompt/generation stage timestamps, and request-specific GPU attribution are still unavailable. A future trace increment needs safe request-ID propagation and a model-server record that confirms receipt/response; do not label GPU utilization as request execution.
+
+**OCTO1 controller inspection boundary:** the present session is Linux on the Camrui host and has no trusted Windows `octo1` alias/identity mapping. The canonical machine-access index says to resolve the alias from Windows OpenSSH. After the assets arrive, perform read-only discovery from Windows PowerShell (`ssh.exe -G octo1` for effective host/user/identity path, then `ssh.exe -o BatchMode=yes octo1 "hostname; whoami; pwd; systemctl list-units --type=service --all --no-legend | grep -Ei 'octo|fan|watchdog|ipmi'; ss -lntup"`). Do not use a guessed raw-IP identity or OctoFan write/control command. No OCTO1 RPM/PWM, thermal-board, PSU, or watchdog mapping has been verified by this session; the Dashboard currently exposes only NVIDIA GPU fan percent.
 
 ### Rollback and resume
 
