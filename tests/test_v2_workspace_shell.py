@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.11
+# Revision: 1.0.12
 # Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -10,12 +10,14 @@
 # Authority: Local fixture preview only; no production data or credentials
 # Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Assert same-origin authenticated V2 snapshot compatibility while retaining standalone local mode
 # Changed: 2026-10-21 UTC | RV-V2-SNAPSHOT-FIREFOX-DOWNLOAD-20261020 | Require a rendered offscreen V2 ZIP download anchor with deferred cleanup
+# Changed: 2026-10-21 UTC | RV-V2-FULL-DIAGNOSTIC-SNAPSHOT-20261021 | Reject preview-only ZIPs as full V2 diagnostic acceptance and require screen/control/workflow capture
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
 """Offline tests for the fixture-only V2 preview."""
 import http.client
 import ipaddress
+import io
 import json
 import re
 import secrets
@@ -24,6 +26,7 @@ import sys
 import tempfile
 import threading
 import time
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 import unittest
 from pathlib import Path
@@ -42,8 +45,24 @@ from scripts.serve_v2_workspace_preview import (
     verify_password,
 )
 from scripts.setup_v2_workspace_preview_auth import write_password_file
+from scripts.v2_snapshot_acceptance import validate_v2_full_diagnostic_archive
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class FullDiagnosticArchiveAcceptanceTests(unittest.TestCase):
+    def test_four_file_preview_zip_is_rejected_as_full_diagnostic(self):
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, "w", zipfile.ZIP_STORED) as archive:
+            archive.writestr("workspace-state.json", "{}")
+            archive.writestr("rendered-view.txt", "preview")
+            archive.writestr("README.txt", "local preview")
+            archive.writestr("manifest.json", json.dumps({
+                "schema": "riverview-v2-snapshot-manifest/1",
+                "package_bytes_before_manifest": 16,
+            }))
+        with self.assertRaisesRegex(ValueError, "v2_preview_zip_is_not_full_diagnostic"):
+            validate_v2_full_diagnostic_archive(stream.getvalue())
 
 
 class WorkspacePreviewTests(unittest.TestCase):
@@ -124,9 +143,9 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('id="snapshot-action"', html)
         self.assertNotIn('id="snapshot-action" class="snapshot-action" type="button" disabled', html)
         snapshot = (ROOT / "website/v2/assets/snapshot.js").read_text()
-        self.assertIn("LIMIT_BYTES = 2 * 1024 * 1024", snapshot)
-        self.assertIn('name: "workspace-state.json"', snapshot)
-        self.assertIn('name: "rendered-view.txt"', snapshot)
+        self.assertIn("LIMIT_BYTES = 96 * 1024 * 1024", snapshot)
+        self.assertIn('name:"website/v2/workspace-state.json"', snapshot)
+        self.assertIn('name:"website/v2/control-inventory.json"', snapshot)
         self.assertIn("live_backend_connected: false", snapshot)
         self.assertIn('schema: "riverview-v2-browser-snapshot/2"', snapshot)
         self.assertIn("communication_diagnostics", snapshot)
@@ -144,9 +163,15 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertNotIn("link.hidden=true", snapshot)
         self.assertNotIn("link.click();link.remove()", snapshot)
         self.assertIn('dashboard_version:"v2"', snapshot)
-        self.assertIn('rv.website.diagnostic-snapshot.v1', snapshot)
+        self.assertIn('rv.website.diagnostic-snapshot.v2', snapshot)
         self.assertIn('Copy GitHub Link', snapshot)
-        self.assertIn('location.pathname === "/v2/"', snapshot)
+        self.assertIn('meta[name="rv-v2-snapshot-mode"]', snapshot)
+        self.assertIn('authenticated-dashboard', snapshot)
+        self.assertIn('website/v2/control-inventory.json', snapshot)
+        self.assertIn('diagnostics/workflow-index.json', snapshot)
+        self.assertIn('diagnostics/workflows/', snapshot)
+        self.assertIn('capture_complete:true', snapshot)
+        self.assertIn('standalone-preview', snapshot)
         self.assertNotIn("/api/v1/", html + js)
         self.assertIn("credentials: \"excluded\"", snapshot)
 

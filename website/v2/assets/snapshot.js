@@ -2,15 +2,15 @@
 Riverview~ Controlled Source
 File: website/v2/assets/snapshot.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.6
-Purpose: Create a bounded V2 snapshot; same-origin dashboard mode uses shared archive API
+Revision: 1.0.7
+Purpose: Capture V2 screens, controls, shared workflow diagnostics, and archive the full package
 Execution Model: Explicit browser click; standalone local preview or authenticated same-origin archive
 Observability: Visible completion/error message and package manifest
 Dependencies: Browser DOM, Web Crypto, Blob, TextEncoder, URL
 Inputs/Outputs: V2 view, shared dashboard projections; GitHub archive and identical local ZIP
 Authority: Same-origin authenticated Steward snapshot API in /v2 mode; standalone mode remains local-only
 Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Mark source commit unavailable instead of guessing
-Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Add authenticated same-origin archive mode and retain local-only standalone preview
+Changed: 2026-10-21 UTC | RV-V2-FULL-DIAGNOSTIC-SNAPSHOT-20261021 | Capture every V2 screen, control inventory, and authenticated workflow diagnostics; select dashboard mode from the server marker
 Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-FINAL-001 | Preserve latest V2 communication diagnostics in both integrated and standalone snapshot manifests
 Changed: 2026-10-21 UTC | RV-V2-SNAPSHOT-FIREFOX-DOWNLOAD-20261020 | Use an offscreen rendered download anchor and defer cleanup for Firefox
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
@@ -19,7 +19,7 @@ History: Git and revision/backup manifest
 */
 (() => {
   "use strict";
-  const LIMIT_BYTES = 2 * 1024 * 1024;
+  const LIMIT_BYTES = 96 * 1024 * 1024;
   const CONTENT_LIMIT = 512 * 1024;
   const errors = [];
   const safePath = (value) => {
@@ -104,11 +104,11 @@ History: Git and revision/backup manifest
     const end = concat([u32(0x06054b50), u16(0), u16(0), u16(members.length), u16(members.length),
       u32(directory.length), u32(offset), u16(0)]);
     const blob = new Blob([...local, directory, end], { type: "application/zip" });
-    if (blob.size > LIMIT_BYTES) throw new Error("snapshot exceeds 2 MiB package limit");
+    if (blob.size > LIMIT_BYTES) throw new Error("snapshot_package_bound_exceeded");
     return blob;
   };
 
-  const getState = () => {
+  const getState = (mode = "standalone-preview") => {
     const selected = document.querySelector("#selected-resident");
     const residentName = selected?.querySelector("b")?.textContent?.trim() || "unavailable";
     const residentRole = selected?.querySelector("small")?.textContent?.trim() || "unavailable";
@@ -118,7 +118,7 @@ History: Git and revision/backup manifest
     return {
       schema: "riverview-v2-browser-snapshot/2",
       captured_at: new Date().toISOString(),
-      product: "Riverview V2 workspace preview",
+      product: "Riverview V2 workspace",
       build_version: "v2-workspace-shell/1.2",
       source_commit: null,
       source_commit_status: "not supplied by the preview server",
@@ -129,16 +129,18 @@ History: Git and revision/backup manifest
       sidebars: { navigation: shell?.dataset.leftState || "unknown", context: shell?.dataset.rightState || "unknown" },
       browser: { user_agent: navigator.userAgent.slice(0, 240), language: navigator.language.slice(0, 32),
         viewport_css_px: { width: innerWidth, height: innerHeight }, device_pixel_ratio: Math.min(4, devicePixelRatio || 1) },
-      data_connection: { mode: "fixture-only", live_backend_connected: false, details: "V2 preview reads local fixture data; no Riverview API is connected." },
+      data_connection: mode === "authenticated-dashboard"
+        ? { mode, live_backend_connected: true, details: "Authenticated shared Dashboard projections captured; V2 workspace views remain identified as preview fixtures." }
+        : { mode: "fixture-only", live_backend_connected: false, details: "Standalone V2 preview reads local fixture data; no Riverview API is connected." },
       communication_diagnostics: {
         grace_chat: { status: "not_connected", handoff_available: Boolean(document.getElementById("grace-chat-handoff")), history_owner: "authenticated V1 Dashboard", messages_captured: false },
         comms5: { status: "unverified", outbound_count: null, inbound_count: null, inspectable_messages: false, correlation_ids: "unavailable", reason: "No authorized Comms5 event feed is connected to V2." }
       },
       rendered_view_text: viewText,
       browser_errors: errors.slice(-20),
-      network_diagnostics: { status: "not instrumented", detail: "The fixture-only V2 preview makes no API requests. Resource timing is not a network-success/failure signal." },
-      server_diagnostics: { status: "not available", detail: "The static preview exposes no server diagnostics endpoint." },
-      omissions: ["No live Grace/CME/account data", "No conversation or message contents", "No server logs or runtime Git commit", "No pixel screenshot; browser DOM and rendered text are captured"],
+      network_diagnostics: { status: "captured by snapshot request inventory", detail: "Only fixed same-origin Dashboard read endpoints are used; response bodies and credentials are not copied into request diagnostics." },
+      server_diagnostics: mode === "authenticated-dashboard" ? { status: "available", detail: "See diagnostics/dashboard-status.json and diagnostics/operational-snapshot.json." } : { status: "not available", detail: "The standalone static preview exposes no server diagnostics endpoint." },
+      omissions: ["No conversation or message contents", "No credentials, cookies, authorization headers, or form values", "No Comms5 messages or counts; Comms5 remains UNVERIFIED"],
       privacy: { credentials: "excluded", cookies: "excluded", storage: "excluded except the selected theme value above", "arbitrary page markup": "excluded" }
     };
   };
@@ -152,47 +154,111 @@ History: Git and revision/backup manifest
   };
   const button = document.getElementById("snapshot-action");
   const status = document.getElementById("snapshot-status");
+  const dashboardMode = document.querySelector('meta[name="rv-v2-snapshot-mode"]')?.content === "authenticated-dashboard";
+  const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const safeFileName = value => String(value).replace(/[^a-z0-9._-]+/gi,"_");
+  const controlsFor = root => [...root.querySelectorAll('button,a[href],input,select,textarea,summary,[role="button"],[role="link"],[tabindex]')].map(el => ({
+    id:el.id||null, tag:el.tagName.toLowerCase(), type:el.getAttribute("type"), role:el.getAttribute("role"),
+    accessible_name:(el.getAttribute("aria-label")||el.innerText||el.getAttribute("title")||el.name||el.type||"control").trim().slice(0,160),
+    action:el.dataset.view?`view:${el.dataset.view}`:el.dataset.go?`navigate:${el.dataset.go}`:null,
+    disabled:Boolean(el.disabled), expanded:el.getAttribute("aria-expanded"), pressed:el.getAttribute("aria-pressed"),
+    state:el.disabled?"disabled":el.getClientRects().length&&!el.hidden?"rendered":"available"
+  }));
+  const redactClone = clone => {
+    clone.querySelectorAll("script,iframe,object,embed").forEach(el=>el.remove());
+    clone.querySelectorAll("input").forEach(el=>{el.removeAttribute("value");el.setAttribute("value","[redacted]");});
+    clone.querySelectorAll("textarea").forEach(el=>{el.textContent="[redacted]";});
+    clone.querySelectorAll("[contenteditable=true]").forEach(el=>{el.textContent="[redacted]";});
+    return clone;
+  };
+  const readWorkspaceCss = async () => {
+    const response=await fetch("/v2/assets/workspace.css",{credentials:"same-origin",cache:"no-store"});
+    if(!response.ok)throw new Error(`v2_stylesheet_http_${response.status}`);
+    const css=await response.text();if(css.length>512*1024)throw new Error("v2_stylesheet_exceeds_bound");return css.replace(/<\/style/gi,"<\\/style");
+  };
+  const captureScreens = async css => {
+    const shell=document.querySelector(".app-shell"), navButtons=[...document.querySelectorAll("#primary-nav button[data-view]")];
+    if(!shell||navButtons.length<5)throw new Error("v2_screen_inventory_incomplete");
+    const original=document.querySelector("#primary-nav [aria-current='page']")?.dataset.view;
+    const screens=[];
+    try {
+      for(const nav of navButtons){
+        nav.click();await nextFrame();
+        const view=nav.dataset.view, title=document.querySelector("#page-title")?.textContent?.trim()||view;
+        const clone=redactClone(document.body.cloneNode(true));
+        const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))} · Riverview V2 screen capture</title><style>${css}\n.capture-banner{padding:10px 14px;background:#1d2935;color:#fff;font:12px Arial,sans-serif}</style></head><body><header class="capture-banner">Riverview V2 rendered screen · ${view} · controls are inert in this offline capture</header>${clone.innerHTML}</body></html>`;
+        screens.push({view,title,html,rendered_view_text:(document.querySelector("#view-content")?.innerText||"").slice(0,CONTENT_LIMIT),page_text:(document.body.innerText||"").slice(0,CONTENT_LIMIT),controls:controlsFor(document.body)});
+      }
+    } finally {
+      const restore=navButtons.find(nav=>nav.dataset.view===original);if(restore){restore.click();await nextFrame();}
+    }
+    return screens;
+  };
+  const fetchWorkflowDiagnostics = async getJson => {
+    const [workflowIndex,graphIndex]=await Promise.all([getJson("/api/v1/snapshot/workflow-index"),getJson("/api/v1/graphs")]);
+    if(workflowIndex.status!=="available"||!Array.isArray(workflowIndex.items)||graphIndex.status!=="available"||!Array.isArray(graphIndex.items)||workflowIndex.items.length!==graphIndex.items.length||graphIndex.items.length<1)throw new Error("workflow_inventory_unavailable");
+    const workflowIds=new Set(workflowIndex.items.map(item=>item.graph_id));
+    if(graphIndex.items.some(item=>!workflowIds.has(item.graph_id)))throw new Error("workflow_inventory_mismatch");
+    const workflows=[];
+    for(let offset=0;offset<graphIndex.items.length;offset+=4){
+      const batch=graphIndex.items.slice(offset,offset+4);
+      workflows.push(...await Promise.all(batch.map(async item=>({graph_id:item.graph_id,response:await getJson(`/api/v1/graphs/${encodeURIComponent(item.graph_id)}`)}))));
+    }
+    if(workflows.length!==graphIndex.items.length||workflows.some(item=>item.response.status!=="available"||item.response.graph?.graph_id!==item.graph_id))throw new Error("workflow_diagnostic_capture_incomplete");
+    return {workflowIndex,graphIndex,workflows};
+  };
+  const presentArchived = (archived,local,statusNode) => {
+    statusNode.textContent=`V2 diagnostic ZIP archived; browser download ${local?"requested":"could not be started"}. `;
+    const link=document.createElement("a");link.href=archived.release_url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open private GitHub release";statusNode.append(link);
+    const copy=document.createElement("button");copy.type="button";copy.textContent="Copy GitHub Link";copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(archived.release_url);copy.textContent="Copied";}catch(_){copy.textContent="Copy unavailable; use release link";}});
+    statusNode.append(document.createTextNode(" · "),copy);
+  };
   button.disabled = false;
   button.addEventListener("click", async () => {
-    button.disabled = true;
-    status.textContent = "Preparing bounded V2 snapshot…";
+    button.disabled = true;status.textContent="Preparing V2 diagnostic snapshot…";
     try {
-      let state = getState(), payloads, identity = null, archived = null;
-      if (location.pathname === "/v2/" || location.pathname === "/v2") {
-        status.textContent = "Reading authenticated Riverview diagnostics…";
-        const getJson = async (path) => { const response = await fetch(path, {credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}}); if(!response.ok) throw new Error(`dashboard_http_${response.status}`); return response.json(); };
-        const [dashboardStatus, operational] = await Promise.all([getJson("/api/v1/status"), getJson("/api/v1/snapshot")]);
-        state = {...state, product:"Riverview V2 dashboard", source_commit:dashboardStatus.source?.source_commit||"unknown", source_commit_status:dashboardStatus.source?.source_commit?"reported by dashboard":"unavailable", data_connection:{mode:"authenticated-dashboard",live_backend_connected:true}};
-        const capturedAt = new Date().toISOString(), captureId = crypto.randomUUID();
-        payloads = [
-          {name:"website/v2/workspace-state.json",data:bytes(JSON.stringify(state,null,2)+"\n")},
-          {name:"website/v2/rendered-view.txt",data:bytes(`# Riverview V2 rendered view\nCaptured: ${capturedAt}\nRoute: ${state.route}\nView: ${state.current_view}\n\n${state.rendered_view_text}\n`)},
-          {name:"diagnostics/dashboard-status.json",data:bytes(JSON.stringify(dashboardStatus,null,2)+"\n")},
-          {name:"diagnostics/operational-snapshot.json",data:bytes(JSON.stringify(operational,null,2)+"\n")},
-          {name:"README.txt",data:bytes("Riverview V2 diagnostic snapshot. Read manifest.json first. V2 interface data is separated from shared authenticated dashboard diagnostics.\n")}
-        ];
-        const files=[]; for(const item of payloads) files.push({path:item.name,size_bytes:item.data.length,sha256:await sha256(item.data)});
-        const manifest={schema_version:"rv.website.diagnostic-snapshot.v1",dashboard_version:"v2",capture_id:captureId,captured_at:capturedAt,source_commit:state.source_commit,deployment_id:dashboardStatus.source?.deployment_id||"unconfigured",files,privacy:{authentication_material:"excluded",cookies:"excluded",authorization_headers:"excluded",passwords_and_form_values:"redacted",conversation_and_request_bodies:"excluded",account_detail_rows:"redacted"},capture:{v2_interface_diagnostics:"website/v2/workspace-state.json",shared_system_diagnostics:["diagnostics/dashboard-status.json","diagnostics/operational-snapshot.json"]}};
-        payloads.push({name:"manifest.json",data:bytes(JSON.stringify(manifest,null,2)+"\n")});
-        const zip=makeZip(payloads.map(item=>({name:item.name,data:item.data}))); identity={dashboard_version:"v2",capture_id:captureId,asset_name:`riverview-v2-${capturedAt.replace(/:/g,"-")}-${captureId}.zip`};
-        try { archived=await archive(zip,identity); } catch(error) { console.warn("V2 snapshot archive failed",String(error?.message||"archive_failed")); }
-        let local=false;try{local=downloadZip(zip,identity.asset_name);}catch(_){local=false;}
-        if(archived){status.textContent=`V2 snapshot archived; local ZIP download ${local?"requested":"could not be started"}. `; const link=document.createElement("a");link.href=archived.release_url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open private GitHub release";status.append(link);const copy=document.createElement("button");copy.type="button";copy.textContent="Copy GitHub Link";copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(archived.release_url);copy.textContent="Copied";}catch(_){copy.textContent="Copy unavailable; use release link";}});status.append(document.createTextNode(" · "),copy);}
-        else status.textContent=`GitHub archival failed; local ZIP download ${local?"requested":"unavailable"}.`;
-        document.dispatchEvent(new CustomEvent("rvv2:snapshot-complete",{detail:{size:zip.size,filename:identity.asset_name,archived:Boolean(archived)}}));
-      } else {
-        const stateBytes = bytes(JSON.stringify(state, null, 2) + "\n");
-        const viewBytes = bytes(`# Riverview V2 rendered view\nCaptured: ${state.captured_at}\nRoute: ${state.route}\nView: ${state.current_view}\n\n${state.rendered_view_text}\n`);
-        const readmeBytes = bytes("Riverview V2 local preview snapshot\n\nThis package represents the active V2 browser view and its local fixture context. It does not contain live or server data. Read manifest.json first.\n");
-        const members = [{ name: "workspace-state.json", data: stateBytes }, { name: "rendered-view.txt", data: viewBytes }, { name: "README.txt", data: readmeBytes }];
-        const fileEntries = []; for (const payload of members) fileEntries.push({ name: payload.name, data: payload.data, size_bytes: payload.data.length, sha256: await sha256(payload.data) });
-        const manifest = { schema: "riverview-v2-snapshot-manifest/1", created_at: state.captured_at, package_limit_bytes: LIMIT_BYTES, package_bytes_before_manifest: members.reduce((sum,item)=>sum+item.data.length,0), members:fileEntries, package_sha256:"Not embedded; compute SHA-256 over the downloaded ZIP to identify this complete package." };
-        const zip=makeZip([...members,{name:"manifest.json",data:bytes(JSON.stringify(manifest,null,2)+"\n")}]); downloadZip(zip,`riverview-v2-snapshot-${state.captured_at.replace(/[-:]/g,"").replace(/\.\d{3}/,"")}.zip`);
-        status.textContent=`V2 snapshot downloaded (${zip.size.toLocaleString()} bytes). No server upload was attempted.`;
-        document.dispatchEvent(new CustomEvent("rvv2:snapshot-complete",{detail:{size:zip.size,filename:"standalone-v2-snapshot.zip",archived:false}}));
+      if(!dashboardMode){
+        const state=getState(),stateBytes=bytes(JSON.stringify(state,null,2)+"\n"),viewBytes=bytes(`# Riverview V2 rendered preview\nCaptured: ${state.captured_at}\nRoute: ${state.route}\nView: ${state.current_view}\n\n${state.rendered_view_text}\n`),readmeBytes=bytes("Riverview V2 standalone preview ZIP. This is not a full diagnostic snapshot and is not eligible for archival acceptance.\n");
+        const previewMembers=[{name:"workspace-state.json",data:stateBytes},{name:"rendered-view.txt",data:viewBytes},{name:"README.txt",data:readmeBytes}],members=[];
+        for(const item of previewMembers)members.push({name:item.name,data:item.data});
+        const manifest={schema_version:"rv.website.diagnostic-snapshot.preview.v1",dashboard_version:"v2",capture_mode:"standalone-preview",capture_complete:false,captured_at:state.captured_at,files:await Promise.all(members.map(async item=>({path:item.name,size_bytes:item.data.length,sha256:await sha256(item.data)}))),omissions:["No authenticated Dashboard diagnostics","No V2 screen inventory","No workflow diagnostics"]};
+        const zip=makeZip([...members,{name:"manifest.json",data:bytes(JSON.stringify(manifest,null,2)+"\n")}]),filename=`riverview-v2-preview-${state.captured_at.replace(/:/g,"-")}.zip`;
+        downloadZip(zip,filename);status.textContent=`Standalone preview ZIP downloaded (${zip.size.toLocaleString()} bytes). It is not a full V2 diagnostic snapshot.`;
+        document.dispatchEvent(new CustomEvent("rvv2:snapshot-complete",{detail:{size:zip.size,filename,archived:false,full_diagnostic:false,capture_mode:"standalone-preview"}}));return;
       }
+      status.textContent="Capturing V2 screens and authenticated Dashboard diagnostics…";
+      const capturedAt=new Date().toISOString(),captureId=crypto.randomUUID();
+      const getJson=async path=>{const response=await fetch(path,{credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"}});if(!response.ok)throw new Error(`dashboard_http_${response.status}`);return response.json();};
+      const [dashboardStatus,operational,css]=await Promise.all([getJson("/api/v1/status"),getJson("/api/v1/snapshot"),readWorkspaceCss()]);
+      const workflow=await fetchWorkflowDiagnostics(getJson);
+      const screens=await captureScreens(css),state=getState("authenticated-dashboard");
+      state.product="Riverview V2 dashboard";state.source_commit=dashboardStatus.source?.source_commit||"unknown";state.source_commit_status=dashboardStatus.source?.source_commit?"reported by dashboard":"unavailable";
+      state.screen_inventory=screens.map(screen=>({view:screen.view,title:screen.title,html:`website/v2/screens/${safeFileName(screen.view)}.html`,diagnostics:`website/v2/screens/${safeFileName(screen.view)}.json`}));
+      state.workflow_inventory={status:workflow.workflowIndex.status,count:workflow.workflowIndex.inventory_count,graph_count:workflow.graphIndex.items.length,captured:workflow.workflows.length};
+      const controls={schema_version:"rv.website.v2-control-inventory.v1",captured_at:capturedAt,screens:screens.map(screen=>({view:screen.view,controls:screen.controls})),privacy:{form_values:"excluded",passwords:"excluded",cookies:"excluded"}};
+      const payloads=[
+        {name:"website/v2/workspace-state.json",data:bytes(JSON.stringify(state,null,2)+"\n")},
+        {name:"website/v2/control-inventory.json",data:bytes(JSON.stringify(controls,null,2)+"\n")},
+        {name:"diagnostics/dashboard-status.json",data:bytes(JSON.stringify(dashboardStatus,null,2)+"\n")},
+        {name:"diagnostics/operational-snapshot.json",data:bytes(JSON.stringify(operational,null,2)+"\n")},
+        {name:"diagnostics/workflow-index.json",data:bytes(JSON.stringify(workflow.workflowIndex,null,2)+"\n")},
+        {name:"diagnostics/graph-index.json",data:bytes(JSON.stringify(workflow.graphIndex,null,2)+"\n")},
+        {name:"diagnostics/browser-errors.json",data:bytes(JSON.stringify({schema_version:"rv.website.v2-browser-errors.v1",errors:errors.slice(-30)},null,2)+"\n")}
+      ];
+      for(const screen of screens){const base=`website/v2/screens/${safeFileName(screen.view)}`;payloads.push({name:`${base}.html`,data:bytes(screen.html)},{name:`${base}.json`,data:bytes(JSON.stringify({schema_version:"rv.website.v2-screen-capture.v1",captured_at:capturedAt,view:screen.view,title:screen.title,rendered_view_text:screen.rendered_view_text,page_text:screen.page_text,controls:screen.controls,privacy:{form_values:"redacted",passwords:"excluded"}},null,2)+"\n")});}
+      for(let index=0;index<workflow.workflows.length;index++){const item=workflow.workflows[index],name=`diagnostics/workflows/${String(index+1).padStart(3,"0")}-${safeFileName(item.graph_id)}.json`;payloads.push({name,data:bytes(JSON.stringify(item.response,null,2)+"\n")});}
+      payloads.push({name:"README.txt",data:bytes(`Riverview V2 full diagnostic snapshot. This archive contains ${screens.length} rendered V2 workspace screens, per-screen control inventories, browser diagnostics, and ${workflow.workflows.length} authenticated workflow graph diagnostics with execution-position projections. Grace message contents and Comms5 message/counter data are excluded; Comms5 remains UNVERIFIED.\n`)});
+      const files=[];for(const item of payloads)files.push({path:item.name,size_bytes:item.data.length,sha256:await sha256(item.data)});
+      const manifest={schema_version:"rv.website.diagnostic-snapshot.v2",dashboard_version:"v2",capture_mode:"authenticated-dashboard",capture_complete:true,capture_id:captureId,captured_at:capturedAt,source_commit:state.source_commit,deployment_id:dashboardStatus.source?.deployment_id||"unconfigured",expected:{screens:document.querySelectorAll("#primary-nav button[data-view]").length,workflows:workflow.graphIndex.items.length},exported:{screens:screens.length,controls:screens.reduce((sum,screen)=>sum+screen.controls.length,0),workflows:workflow.workflows.length,workflow_nodes:workflow.workflows.reduce((sum,item)=>sum+(item.response.graph.nodes?.length||0),0),workflow_edges:workflow.workflows.reduce((sum,item)=>sum+(item.response.graph.edges?.length||0),0)},files,privacy:{authentication_material:"excluded",cookies:"excluded",authorization_headers:"excluded",passwords_and_form_values:"redacted",conversation_and_request_bodies:"excluded",account_detail_rows:"redacted",comms5_messages_and_counters:"excluded"},capture:{v2_screens:screens.map(screen=>`website/v2/screens/${safeFileName(screen.view)}.html`),control_inventory:"website/v2/control-inventory.json",shared_system_diagnostics:["diagnostics/dashboard-status.json","diagnostics/operational-snapshot.json"],workflow_diagnostics:"diagnostics/workflows/",workflow_index:"diagnostics/workflow-index.json",graph_index:"diagnostics/graph-index.json"}};
+      if(screens.length<5||screens.length!==manifest.expected.screens||workflow.workflows.length<1||workflow.workflows.length!==manifest.expected.workflows)throw new Error("v2_full_diagnostic_acceptance_incomplete");
+      const zip=makeZip([...payloads,{name:"manifest.json",data:bytes(JSON.stringify(manifest,null,2)+"\n")}]);
+      const identity={dashboard_version:"v2",capture_id:captureId,asset_name:`riverview-v2-${capturedAt.replace(/:/g,"-")}-${captureId}.zip`};let archived=null;
+      try{archived=await archive(zip,identity);}catch(error){console.warn("V2 snapshot archive failed",String(error?.message||"archive_failed"));}
+      let local=false;try{local=downloadZip(zip,identity.asset_name);}catch(_){local=false;}
+      if(archived)presentArchived(archived,local,status);else status.textContent=`GitHub archival failed; full V2 diagnostic ZIP download ${local?"requested":"unavailable"}.`;
+      document.dispatchEvent(new CustomEvent("rvv2:snapshot-complete",{detail:{size:zip.size,filename:identity.asset_name,archived:Boolean(archived),full_diagnostic:true,manifest}}));
     } catch (error) {
-      status.textContent = "Snapshot could not be created. No data was uploaded.";
+      status.textContent = `V2 diagnostic snapshot could not be completed: ${String(error?.message||"snapshot_error").slice(0,100)}. No archive success is claimed.`;
       document.dispatchEvent(new CustomEvent("rvv2:snapshot-error", { detail: { reason: String(error?.message || "snapshot_error").slice(0, 120) } }));
     } finally { button.disabled = false; }
   });
