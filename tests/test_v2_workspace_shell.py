@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.9
+# Revision: 1.0.11
 # Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -9,6 +9,7 @@
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
 # Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Assert same-origin authenticated V2 snapshot compatibility while retaining standalone local mode
+# Changed: 2026-10-21 UTC | RV-V2-SNAPSHOT-FIREFOX-DOWNLOAD-20261020 | Require a rendered offscreen V2 ZIP download anchor with deferred cleanup
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -138,6 +139,10 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("shared system diagnostics only on authenticated dashboard", html)
         self.assertIn("archives and downloads the same V2 diagnostic ZIP", html)
         self.assertIn('fetch("/api/v1/snapshot/archive"', snapshot)
+        self.assertIn('link.style.cssText="position:fixed;left:-10000px;top:0"', snapshot)
+        self.assertIn("setTimeout(()=>link.remove(),1000)", snapshot)
+        self.assertNotIn("link.hidden=true", snapshot)
+        self.assertNotIn("link.click();link.remove()", snapshot)
         self.assertIn('dashboard_version:"v2"', snapshot)
         self.assertIn('rv.website.diagnostic-snapshot.v1', snapshot)
         self.assertIn('Copy GitHub Link', snapshot)

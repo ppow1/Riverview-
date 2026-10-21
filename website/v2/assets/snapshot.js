@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/snapshot.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.4
+Revision: 1.0.6
 Purpose: Create a bounded V2 snapshot; same-origin dashboard mode uses shared archive API
 Execution Model: Explicit browser click; standalone local preview or authenticated same-origin archive
 Observability: Visible completion/error message and package manifest
@@ -12,6 +12,7 @@ Authority: Same-origin authenticated Steward snapshot API in /v2 mode; standalon
 Changed: 2026-10-20 UTC | RV-WEB-V2-SNAPSHOT-001 | Mark source commit unavailable instead of guessing
 Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Add authenticated same-origin archive mode and retain local-only standalone preview
 Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-FINAL-001 | Preserve latest V2 communication diagnostics in both integrated and standalone snapshot manifests
+Changed: 2026-10-21 UTC | RV-V2-SNAPSHOT-FIREFOX-DOWNLOAD-20261020 | Use an offscreen rendered download anchor and defer cleanup for Firefox
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_snapshot_chrome.py
 History: Git and revision/backup manifest
@@ -141,7 +142,7 @@ History: Git and revision/backup manifest
       privacy: { credentials: "excluded", cookies: "excluded", storage: "excluded except the selected theme value above", "arbitrary page markup": "excluded" }
     };
   };
-  const downloadZip=(zip,filename)=>{const link=document.createElement("a");link.href=URL.createObjectURL(zip);link.download=filename;link.hidden=true;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(link.href),30000);return true;};
+  const downloadZip=(zip,filename)=>{const url=URL.createObjectURL(zip),link=document.createElement("a");link.href=url;link.download=filename;link.setAttribute("aria-hidden","true");link.style.cssText="position:fixed;left:-10000px;top:0";document.body.append(link);try{link.click();}catch(error){link.remove();URL.revokeObjectURL(url);throw error;}setTimeout(()=>link.remove(),1000);setTimeout(()=>URL.revokeObjectURL(url),30000);return true;};
   const archive=async(blob,identity)=>{
     const csrf=document.cookie.split(";").map(x=>x.trim()).find(x=>x.startsWith("rv_account_csrf="))?.slice("rv_account_csrf=".length);if(!csrf)throw new Error("steward_account_session_required");
     const response=await fetch("/api/v1/snapshot/archive",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/zip","Accept":"application/json","X-Riverview-CSRF":decodeURIComponent(csrf)},body:blob});
