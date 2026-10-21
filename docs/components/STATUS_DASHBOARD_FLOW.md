@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.13
+**Document Revision:** 1.0.14
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -13,7 +13,7 @@
 flowchart LR
   subgraph g_rv_steward_dashboard_status["STEWARD-DASHBOARD / status-projection.v1"]
     g_rv_steward_dashboard_status_ingest_66a3387a(["Browser shell and status request"])
-    g_rv_steward_dashboard_status_authenticate_64fc5881{"Host, loopback and bearer or active account session valid?"}
+    g_rv_steward_dashboard_status_authenticate_64fc5881{"Host, loopback and bearer or active account session valid for status or telemetry read?"}
     g_rv_steward_dashboard_status_deny_request_776de47b[["Reject unauthorized or mutating request"]]
     g_rv_steward_dashboard_status_objective_scope_db1133cf{"Steward global view or exact account-owned conversation progress?"}
     g_rv_steward_dashboard_status_read_ledger_6f000d0e["Read bounded PostgreSQL projection"]
@@ -55,6 +55,10 @@ flowchart LR
     g_rv_steward_dashboard_status_navigate_to_jump_target_3b9bb3fe["Load destination workflow and focus the exact target node"]
     g_rv_steward_dashboard_status_jump_target_unavailable_a040d015[["Show target unavailable and retain the source return path"]]
     g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6["Return to the source workflow and focus its originating jump node"]
+    g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73["Serve bounded authenticated GET /api/v1/resources/telemetry"]
+    g_rv_steward_dashboard_status_resource_gpu_source_5155a557["Read GPU metrics through strict-pinned SSH and the host forced-command collector"]
+    g_rv_steward_dashboard_status_resource_model_source_6bb51838["Read allowlisted model health, model identity and active slots; queue depth stays unavailable"]
+    g_rv_steward_dashboard_status_resource_render_1188c907["Return timestamped redacted measurements or explicit per-source unavailable states"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -118,6 +122,11 @@ flowchart LR
   g_rv_steward_dashboard_status_authenticate_64fc5881 -->|Objective projection request| g_rv_steward_dashboard_status_objective_scope_db1133cf
   g_rv_steward_dashboard_status_objective_scope_db1133cf -->|Steward global access or owner and exact read grant verified| g_rv_steward_dashboard_status_read_ledger_6f000d0e
   g_rv_steward_dashboard_status_objective_scope_db1133cf -->|diagnostic_branch: Missing Steward role, account principal, owner match, or read grant| g_rv_steward_dashboard_status_deny_request_776de47b
+  g_rv_steward_dashboard_status_authenticate_64fc5881 -->|Authorized bounded telemetry request| g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73
+  g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73 -->|Strict known-host key and fixed remote collector command| g_rv_steward_dashboard_status_resource_gpu_source_5155a557
+  g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73 -->|Fixed allowlisted model API reads with bounded timeouts| g_rv_steward_dashboard_status_resource_model_source_6bb51838
+  g_rv_steward_dashboard_status_resource_gpu_source_5155a557 -->|Redacted GPU readings and source timestamp| g_rv_steward_dashboard_status_resource_render_1188c907
+  g_rv_steward_dashboard_status_resource_model_source_6bb51838 -->|Readiness/model/slot data; queue unavailable| g_rv_steward_dashboard_status_resource_render_1188c907
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
