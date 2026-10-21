@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.21
+# Revision: 1.0.22
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Verify correlated separate grounding results and sanitized exceptions
 # Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Cover DB-size-aware outcome pruning and translated SQLSTATE diagnostics
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject ambiguous deliverable prose as lifecycle-only criteria
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Verify the bounded reasoning caller deadline
@@ -792,3 +793,87 @@ class LifecycleEvidenceClassificationTests(unittest.TestCase):
             "The conversation summary includes every cited source."))
         self.assertIsNone(lifecycle_evidence_event(
             "Write a grounded report of the source implementation."))
+
+
+class GroundingCallDiagnosticsTests(unittest.TestCase):
+    def test_logs_separate_correlated_grounding_results_without_private_content(self):
+        import json
+        from riverview_core.resident_reasoning import ResidentReasoner
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+
+        class Registry:
+            def __init__(self):
+                self.state = {}
+                self.revision = 0
+
+            def authorize_office_state(self, _credential, _office_id):
+                return {
+                    "state": dict(self.state),
+                    "state_revision": self.revision,
+                    "occupant_id": "occupant:grounding-test",
+                    "provider_ref": "provider.must-not-run",
+                    "binding_revision": 1,
+                    "implementation_revision": "implementation:test",
+                }
+
+            def set_office_state(self, _credential, _office_id, state, *, expected_revision):
+                self.state = state
+                self.revision = expected_revision + 1
+                return self.revision
+
+        class Assignments:
+            def read(self, assignment_id):
+                return {
+                    "id": assignment_id,
+                    "revision": "3",
+                    "objective": "private assignment text sentinel",
+                    "acceptance_criteria": ["private criterion sentinel"],
+                }
+
+        class Knowledge:
+            supports_reasoning_diagnostics = True
+
+            def __init__(self):
+                self.contexts = []
+
+            def ground_assignment(self, _assignment, *, diagnostic_context=None):
+                self.contexts.append(diagnostic_context)
+                return KnowledgeResult(
+                    KnowledgeStatus.UNVERIFIED, source_revision="source:test",
+                    retrieval_complete=False)
+
+            def reground_assignment(self, _assignment, _trigger, *, diagnostic_context=None):
+                self.contexts.append(diagnostic_context)
+                raise RuntimeError("private exception detail sentinel")
+
+        knowledge = Knowledge()
+        reasoner = ResidentReasoner(
+            registry=Registry(), office_id="office:test", resident_credential="CREDENTIAL_SENTINEL",
+            assignments=Assignments(), knowledge=knowledge, providers={}, timeout_seconds=1)
+        with self.assertLogs("riverview_core.resident_reasoning", level="INFO") as captured:
+            result = reasoner.propose(
+                "objective:grounding-diagnostic", trigger="diagnostic_test", token_budget=20)
+
+        diagnostics = [json.loads(record.getMessage()) for record in captured.records
+                       if json.loads(record.getMessage()).get("stage") == "knowledge_call_result"]
+        self.assertEqual(result.detail_code, "GROUNDING_NOT_VERIFIED")
+        self.assertEqual(len(diagnostics), 2)
+        self.assertEqual([event["operation"] for event in diagnostics],
+                         ["ground_assignment", "reground_assignment"])
+        self.assertEqual(diagnostics[0]["status"], "UNVERIFIED")
+        self.assertEqual(diagnostics[0]["source_revision"], "source:test")
+        self.assertFalse(diagnostics[0]["source_hash_present"])
+        self.assertFalse(diagnostics[0]["retrieval_complete"])
+        self.assertEqual(diagnostics[0]["reference_count"], 0)
+        self.assertEqual(diagnostics[1]["status"], "UNAVAILABLE")
+        self.assertEqual(diagnostics[1]["exception_type"], "RuntimeError")
+        self.assertEqual(diagnostics[1]["failure_reason"], "KNOWLEDGE_CALL_EXCEPTION")
+        self.assertEqual({event["request_id"] for event in diagnostics}, {result.request_id})
+        self.assertEqual({event["assignment_id"] for event in diagnostics},
+                         {"objective:grounding-diagnostic"})
+        self.assertEqual({context["request_id"] for context in knowledge.contexts},
+                         {result.request_id})
+        self.assertNotIn("private assignment text sentinel", captured.output)
+        self.assertNotIn("private criterion sentinel", captured.output)
+        self.assertNotIn("private exception detail sentinel", captured.output)
+        self.assertNotIn("CREDENTIAL_SENTINEL", captured.output)
