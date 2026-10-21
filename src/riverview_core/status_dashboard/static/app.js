@@ -1,6 +1,8 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.21
+// Revision: 1.4.23
+// Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Preserve the archive-plus-download snapshot action's accessible name.
+// Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Keep the user-facing Snapshot control name concise.
 // Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Show persistent authenticated objective and assignment progress linked to the active Grace conversation.
 // Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Label assignment-lease freshness separately from worker process liveness.
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
@@ -946,7 +948,7 @@
     dialog.addEventListener("click",(event)=>{if(event.target===dialog)dialog.close();});
     dialog.addEventListener("close",()=>{if(state.chatDialogReturnFocus?.isConnected)state.chatDialogReturnFocus.focus();else {const trigger=document.querySelector("[data-chat-option='details']");if(trigger)trigger.focus();}state.chatDialogReturnFocus=null;});
   });
-  $("snapshot").setAttribute("aria-label","Download comprehensive offline diagnostic snapshot");
+  $("snapshot").setAttribute("aria-label","Snapshot");
   const approvalLink=location.hash.match(/^#account-approval\?enrollment_id=([0-9a-fA-F-]{36})$/);
   if(approvalLink) state.pendingEnrollmentId=approvalLink[1];
   const authLink = location.hash.match(/^#account-verify\?(.*)$/);

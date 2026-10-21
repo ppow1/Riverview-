@@ -1,7 +1,7 @@
 {
   "schema_version": "rv.website.capabilities.v1",
   "registry_id": "rv:steward-dashboard:website-capabilities",
-  "revision": "1.1.2",
+  "revision": "1.1.3",
   "purpose": "Describe dashboard pages, controls, data sources, workflow surfaces and diagnostic export representations. A declaration is not evidence of control operation.",
   "pages": [
     {
@@ -340,7 +340,7 @@
     {
       "id": "snapshot.download",
       "selector": "#snapshot",
-      "action": "Build and download this bounded offline diagnostic ZIP",
+      "action": "Snapshot: archive and download the same bounded offline diagnostic ZIP",
       "component": "diagnostic snapshot",
       "capability_version": "1.0.0"
     },

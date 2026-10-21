@@ -1,6 +1,8 @@
 <!-- Riverview~ controlled asset; component STEWARD-DASHBOARD. -->
 <!-- Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Expose capability-registry-driven downloadable offline diagnostic ZIP. -->
-<!-- Revision: 1.1.22 -->
+<!-- Revision: 1.1.24 -->
+<!-- Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Make archive plus browser ZIP download the primary snapshot action. -->
+<!-- Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Keep the V1 action label simply Snapshot. -->
 <!-- Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Clarify worker registry and lease-heartbeat signals do not establish process liveness. -->
 <!-- Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Expose existing authenticated institutional proposal lifecycle controls. -->
 <!-- Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Show persistent conversation-linked objective and verifier/rework progress from the authenticated dashboard projection. -->
@@ -43,7 +45,7 @@
         <button class="nav-item" id="account-nav" data-view="account" aria-label="Account access" title="Account access" hidden><span class="nav-mark" aria-hidden="true">♙</span><span class="nav-label">Account access</span></button>
         <button class="nav-item" id="resident-permissions-nav" data-view="resident-permissions" aria-label="Resident permissions" title="Resident permissions" hidden><span class="nav-mark" aria-hidden="true">⚿</span><span class="nav-label">Resident permissions</span></button>
       </nav>
-      <div class="rail-foot"><span class="pulse-dot" id="pulse-dot" role="img" aria-label="Source health: connecting"></span><span id="rail-health">Connecting</span><button id="snapshot" class="quiet-button" aria-label="Download comprehensive offline diagnostic snapshot" title="Download comprehensive offline diagnostic snapshot"><span class="snapshot-label">Download Snapshot</span><span aria-hidden="true"> ↓</span></button></div>
+      <div class="rail-foot"><span class="pulse-dot" id="pulse-dot" role="img" aria-label="Source health: connecting"></span><span id="rail-health">Connecting</span><button id="snapshot" class="quiet-button" aria-label="Snapshot" title="Snapshot"><span class="snapshot-label">Snapshot</span><span aria-hidden="true"> ↓</span></button></div>
     </aside>
     <main>
       <header class="topbar"><div><div class="eyebrow">STEWARD CONSOLE <span>/</span> DASHBOARD MILESTONE M3.1</div><h1 id="page-title">Operations overview</h1></div><div class="top-right"><div class="freshness" id="freshness">Awaiting source</div><span id="account-label" class="muted"></span><button id="sign-out" class="secondary" hidden>Sign out</button><button id="refresh" class="icon-button" aria-label="Refresh projections" title="Refresh">↻</button><button id="auth-open" class="icon-button" aria-label="Legacy recovery connection" title="Legacy recovery">⌑</button></div></header>

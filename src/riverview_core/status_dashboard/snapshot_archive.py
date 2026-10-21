@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/snapshot_archive.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Archive validated redacted dashboard snapshots as private GitHub Release assets.
 # Execution Model: Synchronous request-driven upload from the dashboard backend; no background worker or disk staging.
 # Observability: Safe error codes and release metadata; credentials and response bodies are never logged.
@@ -9,6 +9,7 @@
 # Authority: Steward-triggered snapshot archive only; does not grant repository administration.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Initial private Release asset archival with ZIP, manifest and redaction validation.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Reject repository path traversal and require exact generated release tags.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Validate dashboard version and name assets from capture identity while retaining legacy V1 packages.
 # Contracts: docs/components/STATUS_DASHBOARD.md; docs/components/STATUS_DASHBOARD_COOKBOOK.md
 # Tests: tests/test_snapshot_archive.py
 # History: Git and revision/backup manifest
@@ -33,6 +34,9 @@ MAX_PACKAGE_BYTES = 96 * 1024 * 1024
 MAX_UPLOAD_BYTES = MAX_PACKAGE_BYTES + 1024 * 1024
 _REPOSITORY = re.compile(r"^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$")
 _TOKEN = re.compile(r"^[A-Za-z0-9_.-]{20,256}$")
+_DASHBOARD_VERSION = re.compile(r"^v[12]$")
+_CAPTURE_ID = re.compile(r"^[A-Za-z0-9-]{1,80}$")
+_CAPTURE_TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$")
 _REQUIRED_PRIVACY = {
     "authentication_material": "excluded", "cookies": "excluded",
     "authorization_headers": "excluded", "passwords_and_form_values": "redacted",
@@ -137,15 +141,25 @@ class GitHubReleaseArchive:
                 if listed_paths != set(names) - {"manifest.json"}:
                     raise SnapshotArchiveError("snapshot_archive_manifest_mismatch", 400)
                 capture_id = manifest.get("capture_id")
-                if not isinstance(capture_id, str) or not 1 <= len(capture_id) <= 80:
+                if not isinstance(capture_id, str) or not _CAPTURE_ID.fullmatch(capture_id):
+                    raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
+                dashboard_version = manifest.get("dashboard_version", "v1")
+                if not isinstance(dashboard_version, str) or not _DASHBOARD_VERSION.fullmatch(dashboard_version):
                     raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
                 for key, maximum in (("captured_at", 64), ("source_commit", 128), ("deployment_id", 128)):
                     value = manifest.get(key)
                     if (not isinstance(value, str) or not value or len(value) > maximum
                             or any(ord(character) < 32 for character in value)):
                         raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
-                return {key: manifest.get(key) for key in
-                        ("capture_id", "captured_at", "source_commit", "deployment_id", "schema_version")}
+                if not _CAPTURE_TIME.fullmatch(manifest["captured_at"]):
+                    raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
+                try:
+                    datetime.fromisoformat(manifest["captured_at"].replace("Z", "+00:00"))
+                except ValueError:
+                    raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400) from None
+                return {"dashboard_version": dashboard_version, **{
+                    key: manifest.get(key) for key in
+                    ("capture_id", "captured_at", "source_commit", "deployment_id", "schema_version")}}
         except SnapshotArchiveError:
             raise
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, zipfile.BadZipFile):
@@ -179,8 +193,11 @@ class GitHubReleaseArchive:
         timestamp = self._now().astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         snapshot_id = f"rvdiag-{timestamp}-{self._id_factory().hex}"
         tag = snapshot_id
-        asset_name = snapshot_id + ".zip"
+        asset_timestamp = manifest["captured_at"].replace(":", "-")
+        asset_name = (f"riverview-{manifest['dashboard_version']}-{asset_timestamp}-"
+                      f"{manifest['capture_id']}.zip")
         metadata = {"schema_version": "rv.website.snapshot-archive.v1", "snapshot_id": snapshot_id,
+                    "dashboard_version": manifest["dashboard_version"],
                     "capture_id": manifest["capture_id"], "captured_at": manifest.get("captured_at"),
                     "source_commit": manifest.get("source_commit"), "deployment_id": manifest.get("deployment_id"),
                     "archive_sha256": sha256(data).hexdigest(), "archive_size_bytes": len(data),
@@ -210,6 +227,7 @@ class GitHubReleaseArchive:
                 self._cleanup_draft(base, release["id"], tag)
             raise
         return {"status": "archived", "snapshot_id": snapshot_id,
+                "dashboard_version": manifest["dashboard_version"], "capture_id": manifest["capture_id"],
                 "release_url": f"https://github.com/{self.repository}/releases/tag/{tag}",
                 "asset_name": asset_name, "archive_sha256": metadata["archive_sha256"],
                 "archive_size_bytes": len(data), "retention": "permanent"}

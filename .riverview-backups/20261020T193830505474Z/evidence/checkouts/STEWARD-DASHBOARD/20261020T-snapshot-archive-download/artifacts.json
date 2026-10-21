@@ -1,0 +1,17 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "8eb528c9f1ed6e87b1ca6a7a1be78d269e1b9ca4a9d88154b2fa4e471546f715",
+      "size_bytes": 8231
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.0",
+      "sha256": "7bb14953235abe8240f34be16dbb333e2c974c649a58a61cb7259425fbcff961",
+      "size_bytes": 5857
+    }
+  }
+}
