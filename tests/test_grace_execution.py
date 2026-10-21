@@ -868,12 +868,10 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.record_proposal(objective_id, PlanProposal(
             "Draft a project-status report and map its fields", (
                 PlanStep("prepare", "Create the requested project-status assessment",
-                         ("The assigned report answers the assessment using only the original request and verified records",
-                          "The report discloses when historical assignment analysis was not performed"),
+                         ("The assigned report answers the assessment using only the original request and verified records",),
                          artifact_requirements=(ArtifactRequirement("status-report", "reports/project-status.json",
-                             "application/json", ("The assigned report answers the assessment using only the original request and verified records",
-                             "The report discloses when historical assignment analysis was not performed")),)),
-                PlanStep("followup", "Map report fields from verified assignment records",
+                             "application/json", ("The assigned report answers the assessment using only the original request and verified records",)),)),
+                PlanStep("followup", "Map report fields from verified assignment records and disclose when historical assignment analysis was not performed",
                          ("The report discloses when historical assignment analysis was not performed",),
                          depends_on=("prepare",), artifact_requirements=(ArtifactRequirement(
                              "analysis-data", "reports/assignment-analysis.json", "application/json",

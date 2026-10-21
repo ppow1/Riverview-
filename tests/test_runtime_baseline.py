@@ -456,6 +456,23 @@ class CredentialTerminalTests(unittest.TestCase):
             self.assertEqual((nested / "runtime.py").stat().st_mode & 0o777, 0o644)
 
 
+class InstallerQualificationTests(unittest.TestCase):
+    def test_installer_uses_separate_pinned_environment_and_unprivileged_pytest(self):
+        project = Path(__file__).resolve().parents[1]
+        script = (project / "deploy/install_baseline.sh").read_text()
+        requirements = (project / "deploy/qualification-requirements.txt").read_text()
+        self.assertIn('install -d -o root -g root -m 0755 /opt/riverview/qualification', script)
+        self.assertIn('python3 -m venv "$qualification_root/venv"', script)
+        self.assertIn('pip install --disable-pip-version-check --no-deps --only-binary=:all: -r deploy/qualification-requirements.txt', script)
+        self.assertIn('command -v runuser >/dev/null', script)
+        self.assertIn('runuser -u riverview -- env', script)
+        self.assertIn('pytest" -p no:cacheprovider -q tests', script)
+        self.assertNotIn('python -m unittest discover -s tests', script)
+        for dependency in ("PyJWT[crypto]==2.10.1", "jsonschema==4.23.0",
+                           "pytest==8.3.5", "psycopg[binary]==3.2.10"):
+            self.assertIn(dependency, requirements)
+
+
 class PackageShellCompatibilityTests(unittest.TestCase):
     scripts = ("deploy/install_baseline.sh", "deploy/rollback_baseline.sh")
     supervised_script = "scripts/run_supervised_grace_execution.sh"
