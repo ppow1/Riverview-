@@ -2,16 +2,19 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.16
+File Revision: 1.0.18
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Register OCTO1 dynamic topology, five-second refresh, and source-gap states
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell and Grace integration flow
 
 **Task:** `RV-WEB-V2-SHELL-001` · **Component:** `RIVERVIEW-V2-WORKSPACE-SHELL`  
 **Source:** canonical JSON `process_graphs/riverview-v2/workspace-shell.json`; Mermaid below is generated.
+
+The OCTO1 flow uses the authenticated Dashboard telemetry projection, dynamically joins live service labels to GPU devices, and polls every five seconds only while Resources is visible. It pauses on view exit/tab hiding. Unsupported chassis controller readings and request attribution remain explicit unavailable states. See the OCTO1 console section in the component contract and its troubleshooting cookbook.
 
 ```mermaid
 flowchart LR
@@ -81,6 +84,13 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_resource_host_telemetry_ssh_32f5aaf1["Read OCTOMINER1 NVIDIA data through the dedicated host-restricted telemetry command"]
     g_rv_riverview_v2_workspace_shell_resource_model_apis_2e3457cd["Read fixed model health, loaded identity, and active slots; leave unsupported queue depth unavailable"]
     g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4["Render measured GPU/model fields as text with per-source timestamps and honest unavailable states"]
+    g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae["Join allowlisted GPU service labels to live model endpoint projections; never infer physical slot positions"]
+    g_rv_riverview_v2_workspace_shell_octo1_select_details_ba729f3e["Selecting a GPU, model, or chassis category reveals source-backed detail and explicit unavailable fields"]
+    g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3{"Resources selected and document visible? Start a five-second telemetry refresh only in this state"}
+    g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81["Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples; retain at most twelve in browser memory"]
+    g_rv_riverview_v2_workspace_shell_octo1_poll_pause_0cfdc8df["Stop the polling timer when Resources closes or the browser tab is hidden"]
+    g_rv_riverview_v2_workspace_shell_octo1_controller_unavailable_b3f8cf21["Keep OCTO1 chassis fan, sensor, PSU, and watchdog readings unavailable until an OCTO1 source is verified"]
+    g_rv_riverview_v2_workspace_shell_octo1_request_attribution_unavailable_bb827151["Do not associate GPU activity with a Grace request; current model APIs expose no correlation or generation phase"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -181,6 +191,15 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef -->|Collect fixed model health, identity, and slot sources| g_rv_riverview_v2_workspace_shell_resource_model_apis_2e3457cd
   g_rv_riverview_v2_workspace_shell_resource_host_telemetry_ssh_32f5aaf1 -->|diagnostic_branch: GPU host source failed or credentials/host pin unavailable| g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928
   g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|Snapshot records only safe availability metadata| g_rv_riverview_v2_workspace_shell_resource_snapshot_redaction_41c4cee2
+  g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|Build the interactive OCTO1 view from current GPU and model source projections| g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae
+  g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae -->|Steward selects a logical device/model/system; no chassis position is assigned| g_rv_riverview_v2_workspace_shell_octo1_select_details_ba729f3e
+  g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae -->|Controller-only fields remain unavailable because no OCTO1 projection exists| g_rv_riverview_v2_workspace_shell_octo1_controller_unavailable_b3f8cf21
+  g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae -->|Display the model-server correlation/phase limitation beside the activity timeline| g_rv_riverview_v2_workspace_shell_octo1_request_attribution_unavailable_bb827151
+  g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|While the Resources view is open, evaluate view and document visibility| g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3
+  g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3 -->|Resources selected and tab visible; request a fresh authenticated projection at five-second cadence| g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81
+  g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81 -->|Render new measured values, states, timestamps, and timeline sample| g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4
+  g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3 -->|diagnostic_branch: View is closed or document hidden; do not schedule another sample| g_rv_riverview_v2_workspace_shell_octo1_poll_pause_0cfdc8df
+  g_rv_riverview_v2_workspace_shell_octo1_poll_pause_0cfdc8df -->|recovery_route: Resources reopens or tab becomes visible; request a fresh observation| g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

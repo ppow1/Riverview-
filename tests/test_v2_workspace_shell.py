@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.18
+# Revision: 1.0.19
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -9,6 +9,7 @@
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify authenticated telemetry route and safe Snapshot boundary.
+# Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Verify OCTO1 console, live selectors, source gaps, and bounded refresh
 # Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Verify authenticated read-only objective and assignment Work view
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
@@ -152,9 +153,15 @@ class WorkspacePreviewTests(unittest.TestCase):
         monitor = (ROOT / "website/v2/assets/resource-monitor.js").read_text(encoding="utf-8")
         snapshot = (ROOT / "website/v2/assets/snapshot.js").read_text(encoding="utf-8")
         self.assertIn('data-view="resources"', html)
-        self.assertIn("Hardware &amp; AI Resource Monitor", html)
+        self.assertIn("OCTO1 Hardware &amp; AI", html)
         self.assertIn('id="resource-cards"', html)
         self.assertIn('id="resource-host-cards"', html)
+        self.assertIn('id="octo1-console"', html)
+        self.assertIn('id="octo1-gpu-selectors"', html)
+        self.assertIn('id="octo1-model-selectors"', html)
+        self.assertIn('id="octo1-activity-list"', html)
+        self.assertIn("Steward’s front-panel, open-chassis, controller-board", html)
+        self.assertIn("GPU indexes are device identifiers, not physical slot positions", html)
         self.assertIn("resource-telemetry.v1", monitor)
         self.assertIn("No values are inferred", monitor)
         self.assertIn('"/api/v1/auth/session"', monitor)
@@ -165,7 +172,13 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertNotIn("fetch(", html)
         self.assertNotRegex(monitor, r"192\.168\.1\.(160|162)|:8080|:18080")
         self.assertNotIn("innerHTML", monitor)
-        self.assertNotIn("setInterval(", monitor)
+        self.assertIn("const POLL_MS = 5000", monitor)
+        self.assertIn('detail?.view==="resources"', monitor)
+        self.assertIn('document.visibilityState==="hidden"', monitor)
+        self.assertIn('request_attribution:"unavailable_from_current_model_server_contract"', monitor)
+        self.assertIn('"chassis-fans":"Chassis fans"', monitor)
+        self.assertIn('"Prompt vs generation phase"', monitor)
+        self.assertNotIn("fan PWM", monitor)
         self.assertIn("hardware_ai_resource_monitor", snapshot)
         self.assertIn("worker counts, assignment states, hardware values, model identities and request details are excluded", snapshot)
 

@@ -2,11 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.16
+File Revision: 1.0.18
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated live GPU/model reads and source gaps.
 Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Record Work release, preserved composite, and live verification
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Document five-second OCTO1 polling, dynamic mapping, and missing physical/tracing sources
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Clarify isolated desktop screenshot and historical controller references
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -195,6 +197,29 @@ python3 scripts/verify_v2_workspace_browser.py --base-url http://127.0.0.1:8877
 ```
 
 The local browser run tests fixture/no-network behavior and is not live telemetry acceptance. Live acceptance requires a trusted LAN HTTPS browser profile with an authorized Dashboard session.
+
+#### OCTO1 console operation and limits
+
+Open **Hardware & AI** on the authenticated LAN HTTPS `/v2/` page. The monitor checks the existing same-origin account session before requesting status and resource telemetry. It refreshes every five seconds only while Resources is the selected view and the browser tab is visible. Switching views or hiding the tab stops the interval; returning requests a fresh source observation. An in-flight GET may complete, and an existing in-flight guard prevents overlapping telemetry requests. The rolling list is browser-session presentation state, limited to the newest 12 observations; it is not an operational event ledger.
+
+Select a GPU or model to inspect detail. Model-to-GPU membership is joined from the current Dashboard GPU `active_services` labels and the fixed model-service projections. This supports the current 80B P100 group and 30B RTX 4090 mapping only when the live response contains those assignments. It does not display PCIe slot positions. A model is reported loaded from `loaded_models`, ready from the fixed health/model checks, processing when `/slots` reports a positive `is_processing` count, and idle when ready with a measured zero active slots. Token generation phase, per-request activity, and inference queue depth are not exposed by the current model-server contract.
+
+The page separately labels NVIDIA GPU fan percent. It does not use that value as chassis fan RPM/PWM. Chassis fan channels, thermal board, PSUs, and watchdog show unavailable until an OCTO1-authorized read-only source is implemented and included in the Dashboard projection. Historical OctoFan controller API records cited in the source documentation describe OCTO2 and are not sufficient to configure an OCTO1 collector. No read-only UI element invokes any control endpoint.
+
+For isolated tests, run:
+
+```sh
+node scripts/verify_v2_resource_monitor.cjs
+node scripts/verify_v2_octo1_browser.cjs --evidence-dir <checkout-evidence-dir>
+```
+
+The Chrome test launches an ephemeral loopback HTTPS fixture, injects clearly synthetic telemetry, captures a desktop screenshot with a visible fixture watermark, and checks a narrow viewport for horizontal overflow. It does not contact Camrui, OCTO1, production APIs, or any Steward account. The screenshot is visual evidence for the data-driven console only; it cannot qualify the missing manufacturer chassis drawing or prove live telemetry. To inspect live measurements, use the authorized V2 browser session and compare observation timestamps and GPU/model values with the originating Dashboard source evidence. Do not call OctoFan control commands during this read-only task.
+
+**Physical-reference dependency:** the four Steward-supplied images (manufacturer front, open chassis, watchdog/fan controller board, and earlier V2 design concept) were not present in this checkout or searched local engineering asset folders. Keep geometry, fan mapping, sensor positions, GPU slots, and PSU positions unrendered until the images are provided and the actual OCTO1 arrangement is confirmed. The concept image informs style only. Do not draw replacement artwork or treat OCTO2 controller layouts as OCTO1 evidence.
+
+The reviewed historical references were `RIVERVIEW_OCTO_CONTROL_FEATURES_AND_API_2026-09-14.md`, `OCTO2_FAN_WATCHDOG_REBOOT_FORENSICS_2026-09-22.md`, and `OCTOMINER_REMOTE_POWER_AND_WOL.md` in `ppow1/Riverview`. Their OctoFan fan/PSU/sensor/watchdog API records are tied to OCTO2's host and controller and do not establish OCTO1 channel or physical-component mappings.
+
+**Request-trace dependency:** the current Dashboard telemetry response has no Grace request/correlation ID. OCTO1 model `/slots` exposes occupancy only, and `/metrics` returns 501. GPU load or active slot samples must never be attributed to a particular Grace attempt. A safe end-to-end trace needs request IDs propagated from Grace's router/provider dispatch into the model-server ingress/response records and back to Grace validation/persistence, then exposed through a permission-filtered Dashboard projection.
 
 ### Rollback and resume
 

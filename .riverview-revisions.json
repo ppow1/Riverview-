@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.103"
+      "revision": "1.1.105"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -20,6 +20,30 @@
       "revision": "1.0.0",
       "sha256": "2e4d7446b1d64b13a76b3d0ce037465df182ca1c209b692c69cce881c5b28b7a",
       "size_bytes": 2957
+    },
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md": {
+      "path": "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
+      "revision": "1.0.3",
+      "sha256": "9591bd1aca778eb8157872cbf461ca36e0973c3c16e3fe729bc25341bdd12fa4",
+      "size_bytes": 12135
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+      "revision": "1.0.25",
+      "sha256": "d34a12371c14b414e3d72ec4437e0cb69c55a26a179a3c9b112446894e7bff07",
+      "size_bytes": 44220
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+      "revision": "1.0.18",
+      "sha256": "0b4d144aabacde4b6d7f81d327d45ccf82bf850ac7527bc262d3c0d4f3fcf8a5",
+      "size_bytes": 36411
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
+      "revision": "1.0.18",
+      "sha256": "642215040bfd1fe9857f678701e0dbd39efda66c2fe6e2011efeed16650deaf5",
+      "size_bytes": 32460
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
@@ -209,9 +233,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.56",
-      "sha256": "3d6557d8239cbd26fd672490db6454199b61f24419947371d60cf22772437c2d",
-      "size_bytes": 322906
+      "revision": "1.0.57",
+      "sha256": "6ed31b1ac50088fb10d0fbc836aa2e36d67f8d3d30b604b8f5fee22aaae17244",
+      "size_bytes": 331059
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
@@ -251,9 +275,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.16",
-      "sha256": "58f7beea10f8745b77ae3f6efa2968568675440e47fc8e31c5e98c1cdd992ad1",
-      "size_bytes": 64665
+      "revision": "1.0.17",
+      "sha256": "3266abb82b613c84ea0ad23a0578023899f3e8ab56d2c0119aa5649640cc0bb4",
+      "size_bytes": 71692
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -279,6 +303,30 @@
       "sha256": "f9576ede49fe6a9ce7ee20e9198f5c0ee52528d1ec23f02bc059817654d6e9fa",
       "size_bytes": 30113
     },
+    "scripts/verify_v2_octo1_browser.cjs": {
+      "path": "scripts/verify_v2_octo1_browser.cjs",
+      "revision": "1.0.5",
+      "sha256": "930cc3a7c5606ef585309f614bc189cefa45f58b98a081f5710a3a0982207aef",
+      "size_bytes": 14337
+    },
+    "scripts/verify_v2_resource_monitor.cjs": {
+      "path": "scripts/verify_v2_resource_monitor.cjs",
+      "revision": "1.2.1",
+      "sha256": "917e57f01d2f07e5650f9d4c52a736a72e6378c34404b398eb4d1f2a1fb16554",
+      "size_bytes": 10029
+    },
+    "scripts/verify_v2_work_monitor.cjs": {
+      "path": "scripts/verify_v2_work_monitor.cjs",
+      "revision": "1.0.0",
+      "sha256": "c6d9c84cd0661c1768b036db1eab8b5fe1cd268940c834dc043ba36ad4fa2ab5",
+      "size_bytes": 7923
+    },
+    "scripts/verify_v2_workspace_mobile.cjs": {
+      "path": "scripts/verify_v2_workspace_mobile.cjs",
+      "revision": "1.0.10",
+      "sha256": "5635be654448af72c95b378a3c8dbe21d8f265d2d01aa3106839283a5e173676",
+      "size_bytes": 14929
+    },
     "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
       "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
       "revision": "1.0.0",
@@ -303,53 +351,23 @@
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
     },
-    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
-      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
-      "revision": "1.0.24",
-      "sha256": "574e3f7013fb49abdf547b9be3addc0ee12f62755660b2c33c16b9f6cd3a7120",
-      "size_bytes": 40930
-    },
-    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
-      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
-      "revision": "1.0.16",
-      "sha256": "793177c055f85d2593f9c5360315985bcd9869505084e3d6c5c5d8ee72fdf4e8",
-      "size_bytes": 32067
-    },
-    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
-      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
-      "revision": "1.0.16",
-      "sha256": "e02ae66b0349c1189f4dda1557a294e7278703acee4f9b6f45ee8d29a12304e2",
-      "size_bytes": 28723
-    },
-    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md": {
-      "path": "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
-      "revision": "1.0.3",
-      "sha256": "9591bd1aca778eb8157872cbf461ca36e0973c3c16e3fe729bc25341bdd12fa4",
-      "size_bytes": 12135
-    },
-    "scripts/verify_v2_workspace_mobile.cjs": {
-      "path": "scripts/verify_v2_workspace_mobile.cjs",
-      "revision": "1.0.10",
-      "sha256": "5635be654448af72c95b378a3c8dbe21d8f265d2d01aa3106839283a5e173676",
-      "size_bytes": 14929
-    },
-    "scripts/verify_v2_work_monitor.cjs": {
-      "path": "scripts/verify_v2_work_monitor.cjs",
-      "revision": "1.0.0",
-      "sha256": "c6d9c84cd0661c1768b036db1eab8b5fe1cd268940c834dc043ba36ad4fa2ab5",
-      "size_bytes": 7923
-    },
     "tests/test_v2_workspace_shell.py": {
       "path": "tests/test_v2_workspace_shell.py",
-      "revision": "1.0.18",
-      "sha256": "d175934bc768e51b23f36008ead9668c40b1c8eb8f43c3cfa11eec935dc73515",
-      "size_bytes": 27280
+      "revision": "1.0.19",
+      "sha256": "0c736f6df6291bc1f9fdde188d58bfde800506eb1d9bfd5e0bf33ce02106e75b",
+      "size_bytes": 28208
     },
-    "website/v2/index.html": {
-      "path": "website/v2/index.html",
-      "revision": "1.0.11",
-      "sha256": "c431909564cb16b956a6f614250922710373f71c3cde06b9f5b97fa06db47e6b",
-      "size_bytes": 22803
+    "website/v2/assets/resource-monitor.css": {
+      "path": "website/v2/assets/resource-monitor.css",
+      "revision": "1.1.0",
+      "sha256": "b45138da121ddd5aa95954956be1ba9ea3960bca7205fc949a6920936b60f0dd",
+      "size_bytes": 12233
+    },
+    "website/v2/assets/resource-monitor.js": {
+      "path": "website/v2/assets/resource-monitor.js",
+      "revision": "1.2.0",
+      "sha256": "faf665e6b939bf95baee06a5d9490592b907d8741f8f63a0bd7f479c1fb06f69",
+      "size_bytes": 28413
     },
     "website/v2/assets/snapshot.js": {
       "path": "website/v2/assets/snapshot.js",
@@ -357,11 +375,11 @@
       "sha256": "ff556e3ced320c829f04d2ae8bd79cad78aa6e30d9c88cbddba84d8fe1778c02",
       "size_bytes": 15258
     },
-    "website/v2/assets/workspace.js": {
-      "path": "website/v2/assets/workspace.js",
-      "revision": "1.0.6",
-      "sha256": "d9fa1a0bdec0ce9c79c88263dab8657999edae1c9cff849c1670bbdf1d7dfab7",
-      "size_bytes": 9223
+    "website/v2/assets/work-monitor.css": {
+      "path": "website/v2/assets/work-monitor.css",
+      "revision": "1.0.0",
+      "sha256": "2230776d3683b77cfbb447836eafbf287aa0f48de658a2d732f04f3a32b2b436",
+      "size_bytes": 4039
     },
     "website/v2/assets/work-monitor.js": {
       "path": "website/v2/assets/work-monitor.js",
@@ -369,30 +387,18 @@
       "sha256": "b618d8ef3a450d6910f3951abc8cb473fbe51e5f2828f10b06bf20c4fe450876",
       "size_bytes": 10017
     },
-    "website/v2/assets/work-monitor.css": {
-      "path": "website/v2/assets/work-monitor.css",
-      "revision": "1.0.0",
-      "sha256": "2230776d3683b77cfbb447836eafbf287aa0f48de658a2d732f04f3a32b2b436",
-      "size_bytes": 4039
+    "website/v2/assets/workspace.js": {
+      "path": "website/v2/assets/workspace.js",
+      "revision": "1.0.6",
+      "sha256": "d9fa1a0bdec0ce9c79c88263dab8657999edae1c9cff849c1670bbdf1d7dfab7",
+      "size_bytes": 9223
     },
-    "website/v2/assets/resource-monitor.js": {
-      "path": "website/v2/assets/resource-monitor.js",
-      "revision": "1.1.0",
-      "sha256": "1c00c374d546284ac4b498ecc5f1aa0008edc0d31be8acc77d180122d6915cfc",
-      "size_bytes": 15223
-    },
-    "website/v2/assets/resource-monitor.css": {
-      "path": "website/v2/assets/resource-monitor.css",
-      "revision": "1.0.1",
-      "sha256": "ea0b1288a5f7f48b447d69ac011f3af81c2bee0ed4dab3dc9611d8c7f0506750",
-      "size_bytes": 5686
-    },
-    "scripts/verify_v2_resource_monitor.cjs": {
-      "path": "scripts/verify_v2_resource_monitor.cjs",
-      "revision": "1.1.0",
-      "sha256": "8ed45fe252c45acfe7540d79dd57e8d1e405dd496a2ab2f1a98f54e06ab4089a",
-      "size_bytes": 6337
+    "website/v2/index.html": {
+      "path": "website/v2/index.html",
+      "revision": "1.0.12",
+      "sha256": "fad50d0b346e8ea2c02b85da9f68dbe0f6679113a5afd7daf73e9307116fc213",
+      "size_bytes": 27442
     }
   },
-  "manifest_revision": "1.1.103"
+  "manifest_revision": "1.1.104"
 }
