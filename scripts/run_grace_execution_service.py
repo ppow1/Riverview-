@@ -3,7 +3,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.8
+# Revision: 1.2.9
+# Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Raise the default structured proposal completion budget to 2048 tokens
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Bind bounded verifier to the persisted objective pipeline
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Wire persisted assignment-defined artifacts to the independent set verifier
 # Purpose: Run persistent Grace dispatch, bounded worker, and independent verification cycles
@@ -535,7 +536,7 @@ def main() -> int:
             artifact_root=artifact_root,
             max_dispatch_failures=int(os.environ.get("RIVERVIEW_GRACE_MAX_DISPATCH_FAILURES", "3")),
             resident_reasoner=resident_reasoner,
-            resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "768")),
+            resident_token_budget=int(os.environ.get("RIVERVIEW_RESIDENT_REASONING_TOKENS", "2048")),
             verifier=outcome_verifier, execution_capability=execution_capability,
             execution_workers=execution_workers, verifiers=outcome_verifiers,
             conversation_result_publisher=conversation_service.review_verified_work_order,

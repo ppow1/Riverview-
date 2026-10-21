@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.46
+# Revision: 1.0.47
+# Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Require a 2048-token default proposal completion budget
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Prove never-attempted and least-recently-attempted grounded objectives take fair reasoning turns, including repeated failures.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Cover arbitrary multi-artifact bounded contracts and repair PostgreSQL proposal fixtures
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
@@ -231,7 +232,7 @@ class CodingWorkOrderContractTests(unittest.TestCase):
         service = GraceExecutionService(None, None, Worker(), dispatch_credential="dispatch",
             authority_ref="work-order:test", verifier_id="verifier",
             verifier_credential="verify", artifact_root="/tmp/unused")
-        self.assertEqual(service.resident_token_budget, 768)
+        self.assertEqual(service.resident_token_budget, 2048)
 
     def test_dual_capability_worker_failure_isolated_from_peer(self):
         from riverview_core.resident_execution.service import GraceExecutionService
