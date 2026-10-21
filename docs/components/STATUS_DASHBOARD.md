@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.10
+File Revision: 1.1.11
+Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
 Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate dashboard identity from the pinned Grace knowledge source.
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
@@ -91,6 +92,7 @@ verification decision and pinned source revision.
 | --- | --- | --- |
 | `GET /api/v1/objectives?conversation_id=<uuid>&limit=<n>` | The bounded, progress-only objective projection filtered by immutable conversation origin; includes lifecycle stage, latest meaningful event, verifier summary/rework state and Steward-action-needed flag for the persistent Talk with Grace activity panel. No request text, scope, submitter, acceptance criteria, artifact path/digest, source digest, transcript body or artifact content. | Requires an active account session. A non-Steward account must provide a conversation it owns; the route validates ownership through the existing `ConversationService.history()` exact read-authority and owner check, then filters objectives by that principal and exact conversation. Default 25, max 100. |
 | `GET /api/v1/status` | Database/schema/migration identity, event cursor and lifecycle counts, CME heartbeat/freshness, aggregate per-worker health counts, verifier relation presence, source/deployment identity. | Fixed size. |
+| `GET /api/v1/resources/telemetry` | Bounded, request-driven GPU inventory/metrics and allowlisted inference readiness/model/active-slot projection for verified hosts. | Account/bearer authenticated; GET/HEAD only; GPU SSH uses a dedicated systemd credential and host-side forced command. Queue depth is explicitly unavailable for current llama.cpp builds. |
 | `GET /api/v1/objectives?limit=<n>` | Bounded objective, assignment, artifact, verification and source-revision summaries. | Steward account role required for the global list. Dashboard bearer alone and non-Steward account sessions are denied. Default 25, max 100. |
 | `GET /api/v1/objectives/<id>` | One objective's persisted lifecycle and verified result summary. | Steward account role receives the existing summary. A non-Steward account is filtered by its principal and receives the progress-only shape only after the originating conversation passes the existing exact `resident.conversation.read` grant and conversation-owner check. No artifact body. |
 | `POST /api/v1/objectives` | Persist a bounded human request and attempt commit-pinned grounding. | Dashboard bearer plus `X-Riverview-Authority` exact `objective.submit` grant for supplied scope; maximum JSON body 16 KiB. |
@@ -286,3 +288,11 @@ requires Steward-visible installed unattended operation, independent external
 observer, full console/chat/command and later M3 features as applicable, blocker
 clearance, operational fault/recovery and explicit Steward acceptance. This
 document does not claim those future obligations complete.
+
+### Authenticated hardware and inference telemetry
+
+`GET /api/v1/resources/telemetry` is protected by the same `_authorized()` account-session or Dashboard bearer gate as every other projection. It is a request-driven, uncached read; writes return `405`. The collector has fixed Camrui and OCTOMINER1 model endpoint allowlists and one OCTOMINER1 GPU source using `nvidia-smi` over a dedicated SSH identity. That identity is delivered with systemd `LoadCredential`, requires strict host-key checking, and is forced on the GPU host to `/usr/local/libexec/rv-gpu-telemetry` with no PTY, forwarding, or arbitrary command. The remote command exposes only GPU name/index, utilization, memory, temperature, power, fan when supported, and allowlisted Grace service labels; UUIDs and PIDs are discarded before returning to the Dashboard.
+
+Model readiness is sampled from the configured llama.cpp `/health`, `/v1/models`, and `/slots` endpoints. Only safe model basenames and the count of processing slots are projected. The current servers do not expose request queue depth or metrics; queue state therefore remains `unavailable`, never zero. OctoMiner2 has a documented inventory row but its identity/source is not independently verified; its projection remains unavailable. Camrui's GPU inventory is unavailable, while its local 0.6B model endpoint may report readiness and model identity. No inference controls, prompt data, slot details, PIDs, GPU UUIDs, or host credential data are exposed.
+
+The projection schema is `rv.dashboard.resource-telemetry.v1`. Per-source state and source observation timestamps remain visible. Missing credentials, host-key mismatch, source timeout, invalid source data, and unavailable host APIs remain unavailable with sanitized error codes. The Dashboard does not cache prior observations. Operational credential installation and rollback are documented in `STATUS_DASHBOARD_COOKBOOK.md`.

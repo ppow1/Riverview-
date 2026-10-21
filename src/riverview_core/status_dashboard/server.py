@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.31
+# Revision: 1.3.32
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate knowledge source commit from dashboard code identity.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Accept typed artifact contracts in authenticated proposal submission
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -51,6 +51,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Ground against the active immutable release and make conversation intake recoverable/idempotent.
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Add authenticated revision decisions, explicit conversational commands, and existing-pipeline promotion API
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-CHAT-WIRING | Attach the existing internal Comms5 read tools to the dashboard Grace router
+# Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Add authenticated live GPU and inference status projection.
 # =============================================================================
 """Loopback-only Steward dashboard with read projections and receipt-only writes."""
 
@@ -242,7 +243,7 @@ class _BoundedHTTPServer(HTTPServer):
     def __init__(self, address, handler, *, token, projection, notification_service,
                  objective_pipeline, conversation_service, account_auth_service,
                  permission_store, static_dir, proposal_registry,
-                 steward_review_exchange=None):
+                 steward_review_exchange=None, resource_telemetry=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -264,6 +265,7 @@ class _BoundedHTTPServer(HTTPServer):
                 steward_review_bridge=(StewardReviewBridge(steward_review_exchange)
                     if steward_review_exchange is not None else None))
         self._static_dir = Path(static_dir)
+        self._resource_telemetry = resource_telemetry
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
         super().__init__(address, handler)
 
@@ -985,6 +987,20 @@ def make_handler():
                     if self.server._account_auth_service is not None:
                         status["account_auth"] = self.server._account_auth_service.status()
                     self._json(200, status, request_id)
+                elif parsed.path == "/api/v1/resources/telemetry":
+                    if self.command not in {"GET", "HEAD"}:
+                        self._error(405, "method_not_allowed", request_id)
+                    elif self.server._resource_telemetry is None:
+                        self._json(200, {
+                            "schema_version": "rv.dashboard.resource-telemetry.v1",
+                            "component_id": "STEWARD-DASHBOARD-RESOURCE-TELEMETRY",
+                            "status": "unavailable", "observed_at": None,
+                            "freshness_window_seconds": 30,
+                            "collection_model": "request_driven_no_cache",
+                            "hosts": [], "error_code": "telemetry_not_configured",
+                        }, request_id)
+                    else:
+                        self._json(200, self.server._resource_telemetry.read(), request_id)
                 elif parsed.path == "/api/v1/assignments":
                     page = self.server._projection.assignments(
                         after=query.get("after", [None])[0],
@@ -1916,7 +1932,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  notification_service=None, objective_pipeline=None,
                  conversation_service=None, account_auth_service=None,
                  permission_store=None, proposal_registry=None,
-                 steward_review_exchange=None):
+                 steward_review_exchange=None, resource_telemetry=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -1931,7 +1947,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          account_auth_service=account_auth_service,
                          permission_store=permission_store,
                          static_dir=static_dir, proposal_registry=proposal_registry,
-                         steward_review_exchange=steward_review_exchange)
+                         steward_review_exchange=steward_review_exchange,
+                         resource_telemetry=resource_telemetry)
 
 
 def _release_commit() -> str:
@@ -2030,6 +2047,8 @@ def main():
         source_commit=os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit()),
         deployment_id=os.environ.get("RIVERVIEW_DEPLOYMENT_ID", "unconfigured"),
         heartbeat_stale_seconds=int(os.environ.get("RIVERVIEW_STALE_AFTER_SECONDS", "30")))
+    from riverview_core.status_dashboard.resource_telemetry import DashboardResourceTelemetry
+    resource_telemetry = DashboardResourceTelemetry()
     from riverview_core.notifications import NotificationService
     from riverview_core.account_auth import (
         AccountAuthService, DisabledEmailTransport, FileDevelopmentEmailTransport)
@@ -2208,7 +2227,8 @@ def main():
                                  account_auth_service=account_auth_service,
                                  permission_store=permission_store,
                                  proposal_registry=proposal_registry,
-                                 steward_review_exchange=steward_review_exchange)
+                                 steward_review_exchange=steward_review_exchange,
+                                 resource_telemetry=resource_telemetry)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)
