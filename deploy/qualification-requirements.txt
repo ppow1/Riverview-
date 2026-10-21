@@ -1,3 +1,9 @@
+# RIVERVIEW~ CONTROLLED DEPENDENCY LOCK
+# File: deploy/qualification-requirements.txt
+# Component: RUNTIME-BASELINE
+# File Revision: 1.0.0
+# Purpose: Reproducible dependencies for the baseline qualification suite
+# Authority: Isolated test environment only; never installed in the production runtime venv
 # Exact qualification environment for the documented `pytest -p no:cacheprovider -q tests` suite.
 # Transitive dependencies are pinned because the installer uses pip --no-deps.
 attrs==25.3.0

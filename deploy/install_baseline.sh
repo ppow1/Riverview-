@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: deploy/install_baseline.sh
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Commission versioned code, isolated qualification, and systemd credential delivery
 # Execution Model: Explicit one-time operational installation; repeatable
 # Observability: Checksums, retained root-only rollback records and baseline JSON
 # Dependencies: Root, systemd 250+, Python 3/venv/pip, runuser, sha256sum, packaged release
 # Authority: OS commissioning only; no DB writes/password reset/public-schema change
 # Changed: 2026-10-10 UTC | RV-M1.1-007 | Recover partial releases and normalize read access
+# Changed: 2026-10-21 UTC | RV-180-INSTALLER-QUALIFICATION-METADATA-001 | Version and preserve isolated qualification installer correction
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py; Camrui commissioning NOT VERIFIED
 # History: New file; no predecessor; Git; deployed unit backups below /var/backups
