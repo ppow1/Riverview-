@@ -2237,7 +2237,7 @@ class GraceExecutionTests(unittest.TestCase):
         for suffix in ("verify-isolation-a", "verify-isolation-b"):
             objective_id = "objective:" + suffix
             self.pipeline.submit_objective(objective_id,
-                "record independently checked repository provenance",
+                "record independently checked repository provenance at reports/work-proof.json",
                 ["artifact includes the requested work and provenance"],
                 credential=self.credentials["steward"], scope_ref=self.scope)
             self.pipeline.ground_objective(objective_id)
