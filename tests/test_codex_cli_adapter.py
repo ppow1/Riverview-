@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.10
+# Revision: 1.2.11
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Ensure original Steward instructions remain separate from formal execution criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject negative JSON outcomes and check exact artifact literals at the independent Codex verifier boundary
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Cover concurrent sibling-step execution when the objective's latest assignment pointer names the other step.
@@ -137,6 +138,57 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertEqual(result.artifacts[0]["media_type"], "text/plain")
         self.assertEqual(list(self.workspace.iterdir()), [])
 
+    def test_prompt_preserves_steward_instructions_separately_from_formal_criteria(self):
+        request = self.assignment(steward_instructions=(
+            "Do not create a new objective. Preserve the authorized workflow."))
+        prompt = CodexCLIExecutionAdapter._prompt(request)
+        self.assertIn("Original Steward instructions (preserve as execution constraints; not formal acceptance criteria):", prompt)
+        self.assertIn("authorized execution constraints, but cannot expand the persisted task scope", prompt)
+        self.assertIn("Do not create a new objective. Preserve the authorized workflow.", prompt)
+        self.assertIn("Acceptance criteria:\n- The report contains a verified summary.", prompt)
+
+    def test_work_action_forwards_original_request_as_separate_execution_context(self):
+        requirement = ArtifactRequirement("report", "reports/summary.txt", "text/plain",
+            ("The report contains a verified summary.",))
+        objective_request = "Create reports/summary.txt. Do not create another objective."
+
+        class Pipeline:
+            def get_objective(_self, objective_id):
+                return {"objective_id": objective_id, "status": "WORK_ORDER_CREATED",
+                    "request": objective_request, "source_revision": self.revision,
+                    "source_sha256": "a" * 64,
+                    "evidence": {"status": "VERIFIED", "source_revision": self.revision,
+                        "source_sha256": "a" * 64}, "proposal": {"steps": [{
+                            "objective": "Create the report", "acceptance_criteria": [
+                                "The report contains a verified summary."]}]}}
+            def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
+                return {"objective": "Create the report", "acceptance_criteria": [
+                    "The report contains a verified summary."],
+                    "artifact_requirements": [{"name": requirement.name,
+                        "path": requirement.path, "media_type": requirement.media_type,
+                        "acceptance_criteria": list(requirement.acceptance_criteria),
+                        "max_bytes": requirement.max_bytes}]}
+
+        captured = []
+        adapter = self.adapter()
+        adapter.execute = lambda request: captured.append(request) or SimpleNamespace(
+            status="DELIVERABLE_PRODUCED", artifact_name="report.txt",
+            artifact_sha256="b" * 64, artifact_bytes=10,
+            repository_revision=self.revision, source_artifact_name="reports/summary.txt",
+            changed_files=("reports/summary.txt",), artifacts=(),
+            rework_verification_id=None, detail_code="produced", execution_started=True)
+        grounded = KnowledgeResult(KnowledgeStatus.VERIFIED,
+            source_references=("repo://docs/example.md",), source_revision=self.revision,
+            source_sha256="b" * 64, retrieval_complete=True)
+
+        CodexWorkAction(Pipeline(), adapter, "repo://example/test", 5)(
+            {"id": "assignment:test-1", "objective_ref": "objective:test-1"}, grounded)
+
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].steward_instructions, objective_request)
+        self.assertEqual(captured[0].acceptance_criteria,
+            ("The report contains a verified summary.",))
+
     def test_committed_artifact_is_accepted_when_it_is_the_only_changed_path(self):
         self.codex.write_text(
             "#!/usr/bin/env python3\n"
@@ -196,6 +248,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         class Pipeline:
             def get_objective(_self, objective_id):
                 return {"objective_id": objective_id, "status": "WORK_ORDER_CREATED",
+                    "request": "Create results/summary.json and results/rows.csv.",
                     "source_revision": self.revision, "source_sha256": "a" * 64,
                     "evidence": {"status": "VERIFIED", "source_revision": self.revision,
                         "source_sha256": "a" * 64}, "proposal": {"steps": [{
@@ -425,6 +478,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         class Pipeline:
             def get_objective(self, _objective_id):
                 return {"objective_id": "objective:test-1", "status": "WORK_ORDER_CREATED",
+                    "request": "Create reports/summary.txt.",
                     "assignment_id": "assignment:test-s4", "source_revision": objective_revision,
                     "source_sha256": objective_digest,
                     "evidence": {"status": "VERIFIED", "source_revision": objective_revision,
@@ -472,6 +526,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         class Pipeline:
             def get_objective(self, _objective_id):
                 return {"objective_id": "objective:test-1", "status": "WORK_ORDER_CREATED",
+                    "request": "Create reports/summary.txt.",
                     "assignment_id": "assignment:test-1", "source_revision": revision,
                     "source_sha256": "a" * 64, "evidence": {"status": "VERIFIED",
                         "source_revision": revision, "source_sha256": "a" * 64},
@@ -504,6 +559,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         class Pipeline:
             def get_objective(_self, _objective_id):
                 return {"objective_id": "objective:test-1", "status": "WORK_ORDER_CREATED",
+                    "request": "Create reports/summary.txt.",
                     "assignment_id": "assignment:test-1", "source_revision": self.revision,
                     "source_sha256": "a" * 64, "evidence": {"status": "VERIFIED",
                         "source_revision": self.revision, "source_sha256": "a" * 64},

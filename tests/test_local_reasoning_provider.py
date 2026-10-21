@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.22
+# Revision: 1.1.23
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Keep request constraints distinct from formal acceptance criteria in proposal instructions
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Prove lifecycle-only acceptance criteria stay out of one deliverable step
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Accept bounded provider HTTP deadlines above the prior 60-second cap
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify token-truncated proposal JSON without exposing model output
@@ -198,8 +199,8 @@ class LocalReasoningProviderTests(unittest.TestCase):
         sent = self.requests[0]
         prompt = sent["messages"][0]["content"]
         context = json.loads(sent["messages"][1]["content"])
-        self.assertIn("negative constraints or prohibitions", prompt)
-        self.assertIn("beginning with 'Do not'", prompt)
+        self.assertIn("use only assignment.acceptance_criteria as formal objective acceptance criteria", prompt)
+        self.assertIn("do not promote other request instructions or prohibitions into acceptance criteria", prompt)
         self.assertIn("prior_plan is an unaccepted earlier attempt, not approval", prompt)
         self.assertEqual(context["prior_plan"], prior_plan)
         self.assertEqual(context["assignment"]["acceptance_criteria"],
@@ -359,6 +360,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
                          criteria)
         sent = self.requests[0]
         prompt = sent["messages"][0]["content"]
+        self.assertIn("use only assignment.acceptance_criteria as formal objective acceptance criteria", prompt)
         self.assertIn("For artifact steps, include artifact_requirements", prompt)
         step_schema = sent["response_format"]["json_schema"]["schema"]
         variants = step_schema["properties"]["steps"]["items"]["oneOf"]

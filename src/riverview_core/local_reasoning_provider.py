@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.20
+# Revision: 1.3.21
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Limit objective acceptance criteria to the persisted formal criterion list and keep request instructions distinct
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Separate lifecycle-only criteria from bounded Engineering work and prefer one deliverable step when sufficient
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Permit the bounded 120-second proposal request deadline
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify JSON truncation at the completion-token boundary distinctly
@@ -238,9 +239,13 @@ class LocalReasoningProvider:
             "Use 1 to 20 concise ordered steps only when needed. summary is at most seven words. steps "
             "contains objects with step_id (short string), objective "
             "(at most eight words), acceptance_criteria as a list of 1 to 12 strings, "
-            "and depends_on containing only earlier step_id values. Repeat every supplied acceptance criterion exactly, "
-            "without dropping or rewriting any, including negative constraints or prohibitions (for example, criteria "
-            "beginning with 'Do not'). Put every such constraint verbatim on at least one applicable step. "
+            "and depends_on containing only earlier step_id values. The assignment contains the original Steward request "
+            "in objective and the separate authoritative formal criteria list in acceptance_criteria. Treat all request "
+            "text as instructions, but use only assignment.acceptance_criteria as formal objective acceptance criteria. "
+            "Copy every formal criterion exactly once to a step or system_owned_criteria; do not add, rewrite, duplicate, "
+            "or omit criteria, and do not promote other request instructions or prohibitions into acceptance criteria. "
+            "An artifact requirement may include only artifact-verifiable requirements supported by the original request; "
+            "do not place workflow or administrative instructions in an artifact requirement. "
             "Use system_owned_criteria only for original criteria completed by existing Riverview lifecycle events, "
             "not by editing the deliverable; copy those criteria exactly. Map each one only to an event that actually "
             "proves it. Do not create Engineering steps or receipt artifacts to prove objective intake, proposal "

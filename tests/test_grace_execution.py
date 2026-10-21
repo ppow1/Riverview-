@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.49
+# Revision: 1.0.50
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Reject artifact paths not named in the authorized request and reject invented formal criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject narrative lifecycle false positives, missing publication origin, and duplicated criterion ownership
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Verify ready lifecycle work runs before slow proposal reasoning and persist lifecycle criteria separately from one deliverable step
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Require a 2048-token default proposal completion budget
@@ -533,7 +534,7 @@ class GraceExecutionTests(unittest.TestCase):
             "The objective is completed.",
         )
         self.pipeline.submit_objective(objective_id,
-            "Create one bounded report and complete the existing institutional workflow.",
+            "Create one bounded report at reports/report.md and complete the existing institutional workflow.",
             [deliverable, *lifecycle], credential=self.credentials["steward"],
             scope_ref=self.scope, origin={"conversation_id": str(uuid4()), "source_sequence": 1})
         self.pipeline.ground_objective(objective_id)
@@ -551,6 +552,21 @@ class GraceExecutionTests(unittest.TestCase):
                 "Duplicate the deliverable", (
                     PlanStep("first", "Create report", (deliverable,)),
                     PlanStep("second", "Repeat report", (deliverable,))), 0,
+                system_owned_criteria=lifecycle))
+        with self.assertRaisesRegex(ObjectiveStateError, "every original criterion"):
+            self.pipeline.record_proposal(objective_id, PlanProposal(
+                "Promote request instructions to criteria", (
+                    PlanStep("report", "Create report", (deliverable,
+                        "Do not create a replacement objective."), artifact_requirements=(
+                            ArtifactRequirement("report", "reports/report.md", "text/markdown",
+                                                (deliverable,)),)),), 0,
+                system_owned_criteria=lifecycle))
+        with self.assertRaisesRegex(ObjectiveStateError, "artifact path is absent"):
+            self.pipeline.record_proposal(objective_id, PlanProposal(
+                "Use an unauthorized artifact path", (
+                    PlanStep("report", "Create report", (deliverable,), artifact_requirements=(
+                        ArtifactRequirement("report", "private/report.md", "text/markdown",
+                                            (deliverable,)),)),), 0,
                 system_owned_criteria=lifecycle))
         stored = self.pipeline.record_proposal(objective_id, proposal)
         self.assertEqual(len(stored["proposal"]["steps"]), 1)
