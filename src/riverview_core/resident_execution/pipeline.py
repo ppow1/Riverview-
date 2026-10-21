@@ -170,6 +170,7 @@ class GraceExecutionPipeline:
                     if (row is None or row["revision"] != expected_revision or
                             row["status"] != "GROUNDED" or row["proposal"] is not None or
                             row["assignment_id"] is not None or
+                            row["scope_ref"] != "work-order:engineering" or
                             row["submitter_id"] != actor_id or
                             row["acceptance_criteria"] != expected_before or
                             not isinstance(row["evidence"], dict) or

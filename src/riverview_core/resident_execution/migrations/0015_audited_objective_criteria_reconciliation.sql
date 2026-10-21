@@ -11,8 +11,74 @@
 -- Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Enforce one approved audited heading removal and append-only event storage.
 -- =============================================================================
 DO $$
-DECLARE schema_name TEXT := current_schema();
+DECLARE
+    schema_name TEXT := current_schema();
+    authority_schema TEXT;
+    target_id TEXT := 'objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1';
+    actor TEXT := 'steward:camrui';
+    fixed_grant_id TEXT := 'grace-criteria-reconciliation:8416c5da-bde5-5294-9276-c0163418fae1';
+    active_actor BOOLEAN;
+    valid_grant BOOLEAN;
 BEGIN
+    authority_schema := schema_name;
+    IF to_regclass('riverview_authority.authority_grants') IS NOT NULL THEN
+        authority_schema := 'riverview_authority';
+    END IF;
+    IF to_regclass(format('%I.authority_grants', authority_schema)) IS NULL THEN
+        RAISE EXCEPTION 'criteria reconciliation requires the existing authority grant registry';
+    END IF;
+    IF to_regclass(format('%I.capability_catalog', authority_schema)) IS NOT NULL THEN
+        EXECUTE format($grant$
+            INSERT INTO %I.capability_catalog(capability_id,description,authority_action,
+                owner_office,implementation_ref,dependencies,approval_default)
+            VALUES ('steward.objective.criteria.reconcile',
+                'Apply the Steward-approved single-objective structural-heading reconciliation',
+                'objective.criteria.reconcile','office:steward',
+                'grace.criteria-reconciliation.v1',
+                '["exact-objective","revision-cas","append-only-audit"]',true)
+            ON CONFLICT (capability_id) DO NOTHING;
+            INSERT INTO %I.resource_catalog(resource_id,resource_kind,description,
+                classification,owner_office,dependencies)
+            VALUES (%L,'institutional',
+                'One objective authorized for a single audited structural-heading correction',
+                'confidential','office:steward','["steward-approval","revision-2-cas"]')
+            ON CONFLICT (resource_id) DO NOTHING;
+            INSERT INTO %I.capability_resources(capability_id,resource_id,implementation_ref)
+            VALUES ('steward.objective.criteria.reconcile',%L,
+                'grace.criteria-reconciliation.v1') ON CONFLICT DO NOTHING
+        $grant$, authority_schema, authority_schema, target_id, authority_schema, target_id);
+    END IF;
+    EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I.institutional_principals
+        WHERE principal_id=$1 AND principal_kind=''steward'' AND status=''active'')',
+        authority_schema) INTO active_actor USING actor;
+    IF active_actor THEN
+        EXECUTE format('INSERT INTO %I.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES ($1,$2,''objective.criteria.reconcile'',$3,$2,
+              ''rv.policy:steward-approved-criteria-reconciliation.v1'')
+            ON CONFLICT (grant_id) DO NOTHING', authority_schema)
+            USING fixed_grant_id, actor, target_id;
+        EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I.authority_grants
+            WHERE grant_id=$1 AND principal_id=$2
+              AND action=''objective.criteria.reconcile'' AND scope_ref=$3
+              AND granted_by=$2 AND revoked_at IS NULL)', authority_schema)
+            INTO valid_grant USING fixed_grant_id, actor, target_id;
+        IF NOT valid_grant THEN
+            RAISE EXCEPTION 'approved criteria reconciliation grant conflicts with existing authority';
+        END IF;
+        EXECUTE format('INSERT INTO %I.institutional_authority_events
+            (event_id,event_type,actor_id,subject_id,grant_id,payload)
+            SELECT gen_random_uuid(),''authority_granted'',$2,$2,$1,
+              jsonb_build_object(''action'',''objective.criteria.reconcile'',
+                ''scope_ref'',$3,''policy_ref'',
+                ''rv.policy:steward-approved-criteria-reconciliation.v1'',
+                ''approval_basis'',
+                ''explicit Steward approval in W4 criteria reconciliation authorization'')
+            WHERE NOT EXISTS (SELECT 1 FROM %I.institutional_authority_events
+                WHERE event_type=''authority_granted'' AND grant_id=$1)',
+            authority_schema, authority_schema)
+            USING fixed_grant_id, actor, target_id;
+    END IF;
     EXECUTE format($ddl$
         CREATE OR REPLACE FUNCTION %I.reject_grace_objective_event_mutation()
         RETURNS trigger LANGUAGE plpgsql AS $function$
@@ -30,15 +96,44 @@ BEGIN
         CREATE OR REPLACE FUNCTION %I.guard_grace_derived_objective_criteria()
         RETURNS trigger LANGUAGE plpgsql AS $function$
         DECLARE audit_event RECORD;
-                authority_schema TEXT;
+                grant_schema TEXT;
                 checked_grant TEXT;
+                expected_criteria JSONB;
+                total_count BIGINT;
+                unique_count BIGINT;
         BEGIN
             IF NEW.acceptance_criteria IS DISTINCT FROM OLD.acceptance_criteria THEN
+                IF OLD.acceptance_criteria='[]'::jsonb AND OLD.status='GROUNDED'
+                   AND NEW.status='PROPOSED' AND OLD.proposal IS NULL
+                   AND NEW.proposal IS NOT NULL THEN
+                    WITH criteria AS (
+                        SELECT step.ordinality AS step_order,item.ordinality AS item_order,
+                               item.value AS criterion
+                        FROM jsonb_array_elements(NEW.proposal->'steps') WITH ORDINALITY AS step(value,ordinality)
+                        CROSS JOIN LATERAL jsonb_array_elements(step.value->'acceptance_criteria')
+                            WITH ORDINALITY AS item(value,ordinality)
+                        UNION ALL
+                        SELECT 2147483647,item.ordinality,item.value
+                        FROM jsonb_array_elements(NEW.proposal->'system_owned_criteria')
+                            WITH ORDINALITY AS item(value,ordinality)
+                    )
+                    SELECT jsonb_agg(criterion ORDER BY step_order,item_order),count(*),
+                           count(DISTINCT criterion)
+                    INTO expected_criteria,total_count,unique_count FROM criteria;
+                    IF expected_criteria IS NULL OR NEW.acceptance_criteria<>expected_criteria
+                       OR total_count<>unique_count OR total_count>20 THEN
+                        RAISE EXCEPTION 'objective criteria must exactly match unique bounded proposal criteria';
+                    END IF;
+                    RETURN NEW;
+                END IF;
                 IF OLD.objective_id <> 'objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1'
                    OR OLD.revision <> 2 OR NEW.revision <> 3
                    OR OLD.status <> 'GROUNDED' OR NEW.status <> 'GROUNDED'
                    OR OLD.proposal IS NOT NULL OR NEW.proposal IS DISTINCT FROM OLD.proposal
                    OR OLD.assignment_id IS NOT NULL OR NEW.assignment_id IS DISTINCT FROM OLD.assignment_id
+                   OR OLD.scope_ref <> 'work-order:engineering'
+                   OR OLD.evidence->>'status' IS DISTINCT FROM 'VERIFIED'
+                   OR OLD.evidence->>'retrieval_complete' IS DISTINCT FROM 'true'
                    OR NEW.request IS DISTINCT FROM OLD.request
                    OR NEW.scope_ref IS DISTINCT FROM OLD.scope_ref
                    OR NEW.submitter_id IS DISTINCT FROM OLD.submitter_id
@@ -67,10 +162,17 @@ BEGIN
                     INTO audit_event
                     USING OLD.objective_id, 'objective.criteria_reconciled',
                         'grace-criteria-reconciled:' || OLD.objective_id || ':r2';
-                IF NOT FOUND OR audit_event.actor_id<>OLD.submitter_id
-                   OR audit_event.payload->'before_criteria' IS DISTINCT FROM OLD.acceptance_criteria
-                   OR audit_event.payload->'after_criteria' IS DISTINCT FROM NEW.acceptance_criteria
-                   OR audit_event.payload->>'reason' IS NULL
+                IF NOT FOUND THEN
+                    RAISE EXCEPTION 'objective criteria reconciliation audit event is missing';
+                END IF;
+                IF audit_event.actor_id IS DISTINCT FROM OLD.submitter_id THEN
+                    RAISE EXCEPTION 'objective criteria reconciliation actor mismatch';
+                END IF;
+                IF audit_event.payload->'before_criteria' IS DISTINCT FROM OLD.acceptance_criteria
+                   OR audit_event.payload->'after_criteria' IS DISTINCT FROM NEW.acceptance_criteria THEN
+                    RAISE EXCEPTION 'objective criteria reconciliation criteria snapshot mismatch';
+                END IF;
+                IF audit_event.payload->>'reason' IS NULL
                    OR length(btrim(audit_event.payload->>'reason'))=0
                    OR audit_event.payload->>'authorized_actor' IS DISTINCT FROM audit_event.actor_id
                    OR audit_event.payload->>'authorization_action' IS DISTINCT FROM 'objective.criteria.reconcile'
@@ -78,14 +180,14 @@ BEGIN
                    OR audit_event.payload->>'authorization_grant_id' IS NULL
                    OR audit_event.payload->>'expected_revision' IS DISTINCT FROM '2'
                    OR audit_event.payload->>'new_revision' IS DISTINCT FROM '3' THEN
-                    RAISE EXCEPTION 'objective criteria reconciliation audit event is missing or invalid';
+                    RAISE EXCEPTION 'objective criteria reconciliation audit metadata mismatch';
                 END IF;
-                authority_schema := TG_TABLE_SCHEMA;
+                grant_schema := TG_TABLE_SCHEMA;
                 IF to_regprocedure('riverview_authority.authorize_exact_principal_grant(text,text,text)') IS NOT NULL THEN
-                    authority_schema := 'riverview_authority';
+                    grant_schema := 'riverview_authority';
                 END IF;
                 EXECUTE format('SELECT grant_id FROM %%I.authorize_exact_principal_grant($1,$2,$3)',
-                    authority_schema)
+                    grant_schema)
                     INTO checked_grant
                     USING audit_event.actor_id, 'objective.criteria.reconcile', OLD.objective_id;
                 IF checked_grant IS NULL OR checked_grant IS DISTINCT FROM
