@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.18
+# Revision: 1.1.19
+# Changed: 2026-10-20 UTC | RV-GRACE-TYPED-PROPOSAL-SCHEMA | Require complete capability-specific structured proposal output
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Require dynamic artifact sets on bounded artifact proposals
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Cover retry prompt and verbatim negative criteria
@@ -117,6 +118,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
             text = json.dumps({"summary": "Inspect and report.", "steps": [{
                 "step_id": "inspect", "objective": "Inspect one file",
                 "acceptance_criteria": ["Record its revision"], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
                 "artifact_requirements": [{"name":"report", "path":"reports/inspection.txt",
                     "media_type":"text/plain", "acceptance_criteria":["Record its revision"]}]}]})
         return json.dumps({"model": served, "choices": [{"message": {"content": text},
@@ -208,11 +210,15 @@ class LocalReasoningProviderTests(unittest.TestCase):
     def test_bounded_multi_step_proposal_preserves_dependency_order(self):
         self.response_body = self._response(text=json.dumps({"summary": "Inspect then verify", "steps": [
             {"step_id": "inspect", "objective": "Inspect the source", "acceptance_criteria": [
-                "Record source identity"], "depends_on": [], "artifact_requirements": [{
+                "Record source identity"], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{
                     "name":"identity", "path":"reports/source.json", "media_type":"application/json",
                     "acceptance_criteria":["Record source identity"]}]},
             {"step_id": "verify", "objective": "Verify the change", "acceptance_criteria": [
-                "Record test evidence"], "depends_on": ["inspect"], "artifact_requirements": [{
+                "Record test evidence"], "depends_on": ["inspect"],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{
                     "name":"tests", "path":"reports/test-results.csv", "media_type":"text/csv",
                     "acceptance_criteria":["Record test evidence"]}]},
         ]}))
@@ -229,6 +235,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
             "summary": "Request second opinion", "steps": [{
                 "step_id": "review", "objective": "Review verified facts",
                 "acceptance_criteria": ["Return advisory evidence"], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
                 "artifact_requirements": [{"name":"advisory", "path":"records/advisory.json",
                     "media_type":"application/json", "acceptance_criteria":["Return advisory evidence"]}]}],
             "external_escalation": {"reason": "capability_gap",
@@ -243,7 +250,10 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.response_body = self._response(text=json.dumps({
             "summary": "Request second opinion", "steps": [{
                 "step_id": "review", "objective": "Review verified facts",
-                "acceptance_criteria": ["Return advisory evidence"], "depends_on": []}],
+                "acceptance_criteria": ["Return advisory evidence"], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name":"advisory", "path":"records/advisory.json",
+                    "media_type":"application/json", "acceptance_criteria":["Return advisory evidence"]}]}],
             "external_escalation": {"reason": "capability_gap",
                                      "target_provider_id": "chatgpt:other"}}))
         self.assertEqual(self.provider.propose(self.request).detail_code,
@@ -274,9 +284,63 @@ class LocalReasoningProviderTests(unittest.TestCase):
                          "repo://ppow1/Riverview-")
         self.assertEqual(proposal.steps[0].repository_revision, revision)
         schema = self.requests[0]["response_format"]["json_schema"]["schema"]
-        step_properties = schema["properties"]["steps"]["items"]["properties"]
+        step_properties = schema["properties"]["steps"]["items"]["oneOf"][1]["properties"]
         self.assertIn("repository_reference", step_properties)
         self.assertIn("repository_revision", step_properties)
+
+    def test_smoke_artifact_proposal_requires_complete_typed_requirements(self):
+        criteria = tuple("Acceptance criterion %d remains unchanged" % index
+                         for index in range(1, 9))
+        valid_step = {
+            "step_id": "smoke-report",
+            "objective": "Produce smoke evidence",
+            "acceptance_criteria": list(criteria),
+            "depends_on": [],
+            "execution_capability": "engineering.codex-cli-artifact.v1",
+            "artifact_requirements": [{
+                "name": "smoke-evidence",
+                "path": "reports/grace-smoke.md",
+                "media_type": "text/markdown",
+                "acceptance_criteria": list(criteria),
+                "max_bytes": 8192,
+            }],
+        }
+        self.request = replace(self.request, assignment={
+            "id": "assignment-1", "objective": "Produce smoke evidence",
+            "acceptance_criteria": list(criteria)})
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Produce smoke evidence", "steps": [valid_step]}))
+
+        proposal = self.provider.propose(self.request)
+
+        self.assertEqual(proposal.steps[0].acceptance_criteria, criteria)
+        self.assertEqual(proposal.steps[0].artifact_requirements[0].acceptance_criteria,
+                         criteria)
+        sent = self.requests[0]
+        prompt = sent["messages"][0]["content"]
+        self.assertIn("For artifact steps, include artifact_requirements", prompt)
+        step_schema = sent["response_format"]["json_schema"]["schema"]
+        variants = step_schema["properties"]["steps"]["items"]["oneOf"]
+        artifact_schema, source_schema = variants
+        self.assertIn("artifact_requirements", artifact_schema["required"])
+        self.assertIn("execution_capability", artifact_schema["required"])
+        self.assertNotIn("authorized_paths", artifact_schema["properties"])
+        self.assertNotIn("artifact_requirements", source_schema["properties"])
+
+        del valid_step["artifact_requirements"]
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Produce smoke evidence", "steps": [valid_step]}))
+        self.assertEqual(self.provider.propose(self.request).detail_code,
+                         "PROPOSAL_SCHEMA_INVALID")
+
+        valid_step["artifact_requirements"] = [{
+            "name": "smoke-evidence", "path": "reports/grace-smoke.md",
+            "media_type": "text/markdown", "acceptance_criteria": list(criteria)}]
+        valid_step["authorized_paths"] = ["src/not-authorized.py"]
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Produce smoke evidence", "steps": [valid_step]}))
+        self.assertEqual(self.provider.propose(self.request).detail_code,
+                         "PROPOSAL_SCHEMA_INVALID")
 
     def test_stream_chat_emits_text_before_terminal_chunk_and_validates_provenance(self):
         chunks = [

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.16
+# Revision: 1.3.17
+# Changed: 2026-10-20 UTC | RV-GRACE-TYPED-PROPOSAL-SCHEMA | Require capability-specific fields in structured proposal schema
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Make prior rejected plans explicitly preserve every criterion, including prohibitions
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Return fixed sanitized proposal parse, schema, provenance and token-budget codes
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
@@ -236,8 +237,10 @@ class LocalReasoningProvider:
             "(at most eight words), acceptance_criteria as a list of 1 to 12 strings, "
             "and depends_on containing only earlier step_id values. Repeat every supplied acceptance criterion exactly, "
             "without dropping or rewriting any, including negative constraints or prohibitions (for example, criteria "
-            "beginning with 'Do not'). Put every such constraint verbatim on at least one applicable step. Optional execution_capability may be "
+            "beginning with 'Do not'). Put every such constraint verbatim on at least one applicable step. Set execution_capability on every step to either "
             "engineering.codex-cli-artifact.v1 or engineering.codex-cli-source-change.v1. "
+            "For artifact steps, include artifact_requirements and omit authorized_paths, test_targets, repository_reference, and repository_revision. "
+            "For source-change steps, include the required source scope and omit artifact_requirements. "
             "Use source-change capability only when the original Steward request or accepted "
             "criteria explicitly names every exact file path. If you select source-change, you "
             "MUST include non-empty authorized_paths and test_targets arrays, copy each exact "
@@ -282,34 +285,48 @@ class LocalReasoningProvider:
             context = self._content(request)
             if not context or len(context.encode("utf-8")) > self.MAX_PROMPT_BYTES:
                 return ProposalValidationFailure("PROPOSAL_REQUEST_INVALID")
+            common_step_properties = {
+                "step_id": {"type": "string", "minLength": 1, "maxLength": 16},
+                "objective": {"type": "string", "minLength": 1, "maxLength": 64},
+                "acceptance_criteria": {"type": "array", "minItems": 1, "maxItems": 12,
+                    "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+                "depends_on": {"type": "array", "maxItems": 19,
+                    "items": {"type": "string", "minLength": 1, "maxLength": 16}},
+            }
+            artifact_requirements_schema = {"type": "array", "minItems": 1, "maxItems": 8,
+                "items": {"type": "object", "properties": {
+                    "name": {"type": "string", "minLength": 1, "maxLength": 64},
+                    "path": {"type": "string", "minLength": 1, "maxLength": 240},
+                    "media_type": {"type": "string", "enum": ["text/markdown", "text/plain", "application/json", "text/csv", "application/xml"]},
+                    "acceptance_criteria": {"type": "array", "minItems": 1, "maxItems": 12,
+                        "items": {"type": "string", "minLength": 1, "maxLength": 1000}},
+                    "max_bytes": {"type": "integer", "minimum": 1, "maximum": 32768}},
+                    "required": ["name", "path", "media_type", "acceptance_criteria"],
+                    "additionalProperties": False}}
+            step_schema = {"oneOf": [
+                {"type": "object", "properties": {**common_step_properties,
+                    "execution_capability": {"type": "string", "enum": ["engineering.codex-cli-artifact.v1"]},
+                    "artifact_requirements": artifact_requirements_schema},
+                 "required": ["step_id", "objective", "acceptance_criteria", "depends_on",
+                              "execution_capability", "artifact_requirements"],
+                 "additionalProperties": False},
+                {"type": "object", "properties": {**common_step_properties,
+                    "execution_capability": {"type": "string", "enum": ["engineering.codex-cli-source-change.v1"]},
+                    "authorized_paths": {"type": "array", "minItems": 1, "maxItems": 32,
+                        "items": {"type": "string", "minLength": 1, "maxLength": 240}},
+                    "test_targets": {"type": "array", "minItems": 1, "maxItems": 32,
+                        "items": {"type": "string", "minLength": 1, "maxLength": 240}},
+                    "repository_reference": {"type": "string", "pattern": "^repo://[A-Za-z0-9._/-]{1,240}$"},
+                    "repository_revision": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"}},
+                 "required": ["step_id", "objective", "acceptance_criteria", "depends_on",
+                              "execution_capability", "authorized_paths", "test_targets",
+                              "repository_reference", "repository_revision"],
+                 "additionalProperties": False},
+            ]}
             schema_properties = {
                 "summary": {"type": "string", "minLength": 1, "maxLength": 60},
-                "steps": {"type": "array", "minItems": 1, "maxItems": 20, "items": {
-                    "type": "object",
-                    "properties": {
-                        "step_id": {"type": "string", "minLength": 1, "maxLength": 16},
-                        "objective": {"type": "string", "minLength": 1, "maxLength": 64},
-                        "acceptance_criteria": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
-                        "depends_on": {"type": "array", "maxItems": 19, "items": {"type": "string", "minLength": 1, "maxLength": 16}},
-                        "execution_capability": {"type": "string", "enum": ["engineering.codex-cli-artifact.v1", "engineering.codex-cli-source-change.v1"]},
-                        "authorized_paths": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 240}},
-                        "test_targets": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 240}},
-                        "repository_reference": {"type": "string", "pattern": "^repo://[A-Za-z0-9._/-]{1,240}$"},
-                        "repository_revision": {"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
-                        "artifact_requirements": {"type": "array", "minItems": 1, "maxItems": 8,
-                            "items": {"type": "object", "properties": {
-                                "name": {"type": "string", "minLength": 1, "maxLength": 64},
-                                "path": {"type": "string", "minLength": 1, "maxLength": 240},
-                                "media_type": {"type": "string", "enum": ["text/markdown", "text/plain", "application/json", "text/csv", "application/xml"]},
-                                "acceptance_criteria": {"type": "array", "minItems": 1, "maxItems": 12,
-                                    "items": {"type": "string", "minLength": 1, "maxLength": 1000}},
-                                "max_bytes": {"type": "integer", "minimum": 1, "maximum": 32768}},
-                                "required": ["name", "path", "media_type", "acceptance_criteria"],
-                                "additionalProperties": False}},
-                    },
-                    "required": ["step_id", "objective", "acceptance_criteria", "depends_on"],
-                    "additionalProperties": False,
-                }},
+                "steps": {"type": "array", "minItems": 1, "maxItems": 20,
+                    "items": step_schema},
             }
             if request.external_reasoning_targets:
                 schema_properties["external_escalation"] = {
