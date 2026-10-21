@@ -2,17 +2,17 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.13
+File Revision: 1.0.14
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
-Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Document Work reads, release source mismatch, and deployment hold
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Clarify Work read procedure is target release, not currently deployed
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
 
 ## Phase 1 Work status projection
 
-On the integrated HTTPS `/v2/` page, choose **Work**. The panel first checks `GET /api/v1/auth/session`, then issues the two bounded read-only requests `GET /api/v1/objectives?limit=25` and `GET /api/v1/assignments?limit=25`. It refreshes when the Work view opens or when the user presses **Refresh work status**; it does not poll. Only status/progress summaries appear. The old sample cards remain separately labeled as examples.
+After the Phase 1 release is deployed, choose **Work** on integrated HTTPS `/v2/`. The panel will first check `GET /api/v1/auth/session`, then issue the two bounded read-only requests `GET /api/v1/objectives?limit=25` and `GET /api/v1/assignments?limit=25`. It refreshes when the Work view opens or when the user presses **Refresh**; it does not poll. Only status/progress summaries appear. The sample cards remain separately labeled as examples. **This feature is not present in the currently served LAN preview;** use the source/browser tests in the checkout for pre-deployment verification.
 
 | Symptom | Expected meaning and recovery |
 |---|---|

@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.21
+File Revision: 1.0.22
 Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
-Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Connect bounded Work projections and record live snapshot source divergence
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Document PR implementation and current live release hold
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
@@ -90,7 +90,7 @@ Future authoritative residents, assignments, work, model/resource controls, and 
 
 ### Work status integration (RV-V2-CAPABILITY-INTEGRATION-P1)
 
-The existing Work view now contains a request-driven, read-only panel backed by Dashboard projections. On the authenticated LAN HTTPS origin, it checks the existing account session before requesting `/api/v1/objectives?limit=25` and `/api/v1/assignments?limit=25`. It shows persisted lifecycle and progress summaries; it omits private human request text, acceptance criteria, artifact paths/digests, and event payloads. No polling, write endpoint, model host, new grant, or new backend component was added. Clearly labeled fixture work cards remain below the live summaries and are not represented as production records.
+The PR #166 source now includes a request-driven, read-only panel backed by Dashboard projections. In the target authenticated LAN HTTPS release, it checks the existing account session before requesting `/api/v1/objectives?limit=25` and `/api/v1/assignments?limit=25`. It shows persisted lifecycle and progress summaries; it omits private human request text, acceptance criteria, artifact paths/digests, and event payloads. No polling, write endpoint, model host, new grant, or new backend component was added. Clearly labeled fixture work cards remain below the summaries and are not represented as production records. The current LAN preview still serves fixture-only Work; this source feature is not deployed.
 
 The capability-by-capability mapping among V2, historical Estate Office sources, and the current Riverview backend is in [RIVERVIEW_V2_CAPABILITY_MATRIX.md](RIVERVIEW_V2_CAPABILITY_MATRIX.md). That matrix distinguishes current connected contracts from historical-only file views and available-but-not-yet-exposed Dashboard projections. Hardware per-GPU values and Comms5 activity remain unavailable/unverified.
 
