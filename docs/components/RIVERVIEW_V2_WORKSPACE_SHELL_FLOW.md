@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.13
+File Revision: 1.0.15
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Regenerate the graph for the same-origin Dashboard chat integration
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell and Grace integration flow
@@ -73,6 +73,11 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_resource_filter_refresh_3d743915["Allow bounded manual refresh, local filters, and per-source details without background polling"]
     g_rv_riverview_v2_workspace_shell_resource_snapshot_redaction_41c4cee2["Capture only source availability metadata in Snapshot; omit hardware values and work counts"]
     g_rv_riverview_v2_workspace_shell_resource_telemetry_contract_c56ce823["Future same-origin timestamped read-only resource projection is documented but not implemented"]
+    g_rv_riverview_v2_workspace_shell_work_read_view_2f68c969["Open Work and request persisted objective and assignment summaries"]
+    g_rv_riverview_v2_workspace_shell_work_auth_session_945271a7{"Require the existing authenticated Dashboard account session before requesting projections"}
+    g_rv_riverview_v2_workspace_shell_work_read_projections_1aa38b7b["Fetch bounded read-only objective and assignment projections from the same origin"]
+    g_rv_riverview_v2_workspace_shell_work_render_summary_4e4cc3b4["Render only lifecycle and persisted progress fields; keep fixture examples separate"]
+    g_rv_riverview_v2_workspace_shell_work_unavailable_bff8a4d2[["Show sign-in, partial, empty, or unavailable states without polling or writes"]]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -159,6 +164,13 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_resource_monitor_view_55ba762e -->|Use local search/filter/details or explicit refresh| g_rv_riverview_v2_workspace_shell_resource_filter_refresh_3d743915
   g_rv_riverview_v2_workspace_shell_resource_operational_projection_57d5cc51 -->|Snapshot captures source metadata only, not counts or metric values| g_rv_riverview_v2_workspace_shell_resource_snapshot_redaction_41c4cee2
   g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928 -->|documentation: Record the future read-only integration seam and blocker| g_rv_riverview_v2_workspace_shell_resource_telemetry_contract_c56ce823
+  g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Select Work status view| g_rv_riverview_v2_workspace_shell_work_read_view_2f68c969
+  g_rv_riverview_v2_workspace_shell_work_read_view_2f68c969 -->|Check existing Dashboard session| g_rv_riverview_v2_workspace_shell_work_auth_session_945271a7
+  g_rv_riverview_v2_workspace_shell_work_auth_session_945271a7 -->|Authenticated; request bounded objective and assignment summaries| g_rv_riverview_v2_workspace_shell_work_read_projections_1aa38b7b
+  g_rv_riverview_v2_workspace_shell_work_auth_session_945271a7 -->|diagnostic_branch: No authenticated session; do not request work projections| g_rv_riverview_v2_workspace_shell_work_unavailable_bff8a4d2
+  g_rv_riverview_v2_workspace_shell_work_read_projections_1aa38b7b -->|Render sanitized persisted fields and separate fixture cards| g_rv_riverview_v2_workspace_shell_work_render_summary_4e4cc3b4
+  g_rv_riverview_v2_workspace_shell_work_read_projections_1aa38b7b -->|diagnostic_branch: Projection absent, partial, or unavailable; show truthful state| g_rv_riverview_v2_workspace_shell_work_unavailable_bff8a4d2
+  g_rv_riverview_v2_workspace_shell_work_unavailable_bff8a4d2 -->|recovery_route: User requests refresh; bounded read only, no background polling| g_rv_riverview_v2_workspace_shell_work_read_view_2f68c969
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

@@ -1,14 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.16
+# Revision: 1.0.17
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
-# Changed: 2026-10-21 UTC | RV-WEB-V2-HW-AI-RESOURCE-001 | Verify resource monitor provenance, unavailable metrics, and authorization behavior
+# Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Verify authenticated read-only objective and assignment Work view
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -92,7 +92,7 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn(b"Fixture workspace", body)
         self.assertIn("connect-src 'none'", headers["Content-Security-Policy"])
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
-        for asset in ("fixtures.js", "workspace.js", "workspace.css", "communications.js", "communications.css", "resource-monitor.js", "resource-monitor.css", "grace-chat.js"):
+        for asset in ("fixtures.js", "workspace.js", "workspace.css", "communications.js", "communications.css", "resource-monitor.js", "resource-monitor.css", "work-monitor.js", "work-monitor.css", "grace-chat.js"):
             self.assertEqual(self.request("GET", f"/assets/{asset}")[0], 200)
 
     def test_grace_conversation_is_mounted_in_center_workspace(self):
@@ -161,12 +161,42 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('"/api/v1/status"', monitor)
         self.assertIn('credentials: "same-origin"', monitor)
         self.assertIn('schema_version !== "rv.dashboard.status.v1"', monitor)
-        self.assertNotIn("/api/v1/", html)
+        self.assertNotIn("fetch(", html)
         self.assertNotRegex(monitor, r"192\.168\.1\.(160|162)|:8080|:18080")
         self.assertNotIn("innerHTML", monitor)
         self.assertNotIn("setInterval(", monitor)
         self.assertIn("hardware_ai_resource_monitor", snapshot)
         self.assertIn("worker counts, assignment states, hardware values, model identities and request details are excluded", snapshot)
+
+    def test_work_view_is_bounded_authenticated_read_only_and_separate_from_examples(self):
+        html = (ROOT / "website/v2/index.html").read_text(encoding="utf-8")
+        workspace = (ROOT / "website/v2/assets/workspace.js").read_text(encoding="utf-8")
+        monitor = (ROOT / "website/v2/assets/work-monitor.js").read_text(encoding="utf-8")
+        snapshot = (ROOT / "website/v2/assets/snapshot.js").read_text(encoding="utf-8")
+        self.assertIn('id="work-monitor-workspace"', html)
+        self.assertIn("GET /api/v1/objectives?limit=25", html)
+        self.assertIn("GET /api/v1/assignments?limit=25", html)
+        self.assertIn("Workspace examples", workspace)
+        self.assertIn('"/api/v1/auth/session"', monitor)
+        self.assertIn('"/api/v1/objectives?limit=25"', monitor)
+        self.assertIn('"/api/v1/assignments?limit=25"', monitor)
+        self.assertIn('credentials: "same-origin"', monitor)
+        self.assertIn('cache: "no-store"', monitor)
+        self.assertIn("secureV2Route", monitor)
+        self.assertNotIn("setInterval(", monitor)
+        self.assertNotIn("innerHTML", monitor)
+        self.assertIn('if (isWork) window.RiverviewV2WorkMonitor?.render();', workspace)
+        self.assertIn("institutional_work_monitor", snapshot)
+        self.assertIn("includes_objective_text: false", snapshot)
+        self.assertIn("includes_record_ids: false", snapshot)
+
+    def test_work_monitor_runtime_auth_and_partial_source_failures(self):
+        result = subprocess.run(
+            ["node", str(ROOT / "scripts/verify_v2_work_monitor.cjs")],
+            cwd=ROOT, capture_output=True, text=True, timeout=15,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PASS:", result.stdout)
 
     def test_resource_monitor_runtime_auth_provenance_and_failure_cases(self):
         result = subprocess.run(
@@ -199,7 +229,8 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("not reported as zero", html)
         self.assertIn("fixtures[view]", js)
         self.assertIn("fixture-resident-02", fixtures)
-        self.assertNotIn("/api/v1/", html + js + fixtures)
+        self.assertNotIn("/api/v1/", js + fixtures)
+        self.assertIn("/api/v1/objectives?limit=25", (ROOT / "website/v2/assets/work-monitor.js").read_text())
         self.assertNotIn("fetch(", js)
         self.assertIn('localStorage.getItem("rv.v2.theme")', js)
         self.assertIn('localStorage.setItem("rv.v2.theme", choice)', js)

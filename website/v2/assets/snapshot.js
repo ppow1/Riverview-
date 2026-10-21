@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: website/v2/assets/snapshot.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.8
+Revision: 1.0.9
 Purpose: Create a bounded, redacted ZIP of active V2 view and truthful integration state
 Execution Model: Explicit browser click; in-memory collection and local download
 Observability: Visible completion/error message and package manifest
 Dependencies: Browser DOM, Web Crypto, Blob, TextEncoder, URL
 Inputs/Outputs: Current V2 view and fixture context; local ZIP download
 Authority: Read-only presentation snapshot; no credentials, chat bodies, or persistent writes
-Changed: 2026-10-21 UTC | RV-WEB-V2-HW-AI-RESOURCE-001 | Include only sanitized monitor-source state in V2 snapshot
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Include only sanitized work-projection status in V2 snapshot
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_snapshot_chrome.py
 History: Git and revision/backup manifest
@@ -114,16 +114,19 @@ History: Git and revision/backup manifest
     const chat = window.RiverviewGraceChat?.snapshotDiagnostics() || { status: "unavailable", durable_history_loaded: false, persisted_event_count: null };
     const communications = window.RiverviewV2Communications?.snapshotDiagnostics() || { status: "unverified", source_configured: false, outbound_count: null, inbound_count: null, pending_count: null, failed_count: null, completed_count: null, last_local_check_at: null };
     const resourceMonitor = window.RiverviewV2ResourceMonitor?.snapshotDiagnostics() || { status: "not_loaded", dashboard_projection: "not_observed", freshness: "unknown", gpu_inventory: "unavailable", gpu_utilization: "unavailable", vram: "unavailable", gpu_thermals_power_fan: "unavailable", loaded_models: "unavailable_in_v2", inference_server_readiness: "unavailable_in_v2", inference_jobs_and_queues: "unavailable", diagnostics_include_response_body: false, diagnostics_include_credentials: false };
+    const workMonitor = window.RiverviewV2WorkMonitor?.snapshotDiagnostics() || { status: "not_loaded", objectives_source: "not_observed", assignments_source: "not_observed", fetched_at: null, includes_record_ids: false, includes_objective_text: false, includes_acceptance_criteria: false, includes_artifacts: false, includes_event_payloads: false };
     const viewText = view === "grace"
       ? `Grace authenticated conversation view selected. Connection: ${chat.status}. Durable history loaded: ${Boolean(chat.durable_history_loaded)}.`
       : view === "resources"
         ? "Hardware & AI Resource Monitor selected. Snapshot contains only source-availability metadata; GPU, model and workload values are excluded."
+      : view === "work"
+        ? "Work view selected. Snapshot contains only work-source status and fetch time; objective and assignment records are excluded."
       : (document.querySelector("#view-content")?.innerText || "").slice(0, CONTENT_LIMIT);
     return {
       schema: "riverview-v2-browser-snapshot/2",
       captured_at: new Date().toISOString(),
       product: "Riverview V2 workspace preview",
-      build_version: "v2-workspace-shell/1.3",
+      build_version: "v2-workspace-shell/1.4",
       source_commit: null,
       source_commit_status: "not supplied by the preview server",
       route: location.pathname,
@@ -133,11 +136,12 @@ History: Git and revision/backup manifest
       sidebars: { navigation: shell?.dataset.leftState || "unknown", context: shell?.dataset.rightState || "unknown" },
       browser: { user_agent: navigator.userAgent.slice(0, 240), language: navigator.language.slice(0, 32),
         viewport_css_px: { width: innerWidth, height: innerHeight }, device_pixel_ratio: Math.min(4, devicePixelRatio || 1) },
-      data_connection: { mode: view === "grace" ? "authenticated Grace conversation" : view === "resources" ? "authenticated read-only Dashboard status projection" : "fixture workspace", live_backend_connected: view === "grace" ? chat.status === "connected" : view === "resources" ? resourceMonitor.dashboard_projection === "healthy" : false, details: view === "grace" ? "Grace conversation status reflects the existing same-origin Dashboard API; message content is excluded." : view === "resources" ? "Snapshot records only the sanitized source state and timestamps; worker counts, assignment states, hardware values, model identities and request details are excluded." : "Workspace overview and non-Grace views use fixtures. Grace has a separate authenticated Dashboard connection state." },
+      data_connection: { mode: view === "grace" ? "authenticated Grace conversation" : view === "resources" ? "authenticated read-only Dashboard status projection" : view === "work" ? "authenticated read-only Dashboard objective and assignment projections" : "fixture workspace", live_backend_connected: view === "grace" ? chat.status === "connected" : view === "resources" ? resourceMonitor.dashboard_projection === "healthy" : view === "work" ? workMonitor.status === "available" || workMonitor.status === "partial" : false, details: view === "grace" ? "Grace conversation status reflects the existing same-origin Dashboard API; message content is excluded." : view === "resources" ? "Snapshot records only the sanitized source state and timestamps; worker counts, assignment states, hardware values, model identities and request details are excluded." : view === "work" ? "Snapshot includes only source states and fetch timestamp; objective IDs/text, assignment IDs, artifact details and event payloads are excluded." : "Workspace overview and non-Grace views use fixtures. Grace has a separate authenticated Dashboard connection state." },
       communication_diagnostics: {
         grace_chat: chat,
         comms5: { ...communications, inspectable_messages: false, correlation_ids: "unavailable", reason: "No authorized Comms5 event feed is connected to V2." },
-        hardware_ai_resource_monitor: resourceMonitor
+        hardware_ai_resource_monitor: resourceMonitor,
+        institutional_work_monitor: workMonitor
       },
       rendered_view_text: viewText,
       browser_errors: errors.slice(-20),

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.14",
+  "graph_revision": "1.0.15",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -17,12 +17,17 @@
     "website/v2/assets/communications.js",
     "website/v2/assets/communications.css",
     "website/v2/assets/resource-monitor.js",
-    "website/v2/assets/resource-monitor.css"
+    "website/v2/assets/resource-monitor.css",
+    "website/v2/assets/work-monitor.js",
+    "website/v2/assets/work-monitor.css",
+    "scripts/verify_v2_work_monitor.cjs",
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
   ],
   "documentation_references": [
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
-    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md"
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
   ],
   "verification_evidence": [
     "tests/test_v2_workspace_shell.py",
@@ -30,7 +35,8 @@
     "scripts/verify_v2_workspace_mobile.cjs",
     "scripts/verify_v2_workspace_snapshot_chrome.py",
     "scripts/verify_v2_grace_chat_chrome.py",
-    "scripts/verify_v2_resource_monitor.cjs"
+    "scripts/verify_v2_resource_monitor.cjs",
+    "scripts/verify_v2_work_monitor.cjs"
   ],
   "nodes": [
     {
@@ -1007,6 +1013,91 @@
       "id": "rv:riverview-v2:workspace-shell:resource-telemetry-contract",
       "type": "process",
       "label": "Future same-origin timestamped read-only resource projection is documented but not implemented"
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-read-view",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Open Work and request persisted objective and assignment summaries",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/assets/work-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-auth-session",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Require the existing authenticated Dashboard account session before requesting projections",
+      "source_references": [
+        "website/v2/assets/work-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-read-projections",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Fetch bounded read-only objective and assignment projections from the same origin",
+      "source_references": [
+        "website/v2/assets/work-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-render-summary",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render only lifecycle and persisted progress fields; keep fixture examples separate",
+      "source_references": [
+        "website/v2/assets/work-monitor.js",
+        "website/v2/index.html",
+        "website/v2/assets/work-monitor.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs",
+        "scripts/verify_v2_workspace_mobile.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Show sign-in, partial, empty, or unavailable states without polling or writes",
+      "source_references": [
+        "website/v2/assets/work-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs"
+      ]
     }
   ],
   "edges": [
@@ -1508,6 +1599,48 @@
       "to": "rv:riverview-v2:workspace-shell:resource-telemetry-contract",
       "type": "documentation",
       "label": "Record the future read-only integration seam and blocker"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:work-read-view",
+      "type": "runtime_transition",
+      "label": "Select Work status view"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-read-view",
+      "to": "rv:riverview-v2:workspace-shell:work-auth-session",
+      "type": "runtime_transition",
+      "label": "Check existing Dashboard session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-auth-session",
+      "to": "rv:riverview-v2:workspace-shell:work-read-projections",
+      "type": "runtime_transition",
+      "label": "Authenticated; request bounded objective and assignment summaries"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-auth-session",
+      "to": "rv:riverview-v2:workspace-shell:work-unavailable",
+      "type": "diagnostic_branch",
+      "label": "No authenticated session; do not request work projections"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-read-projections",
+      "to": "rv:riverview-v2:workspace-shell:work-render-summary",
+      "type": "runtime_transition",
+      "label": "Render sanitized persisted fields and separate fixture cards"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-read-projections",
+      "to": "rv:riverview-v2:workspace-shell:work-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Projection absent, partial, or unavailable; show truthful state"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-unavailable",
+      "to": "rv:riverview-v2:workspace-shell:work-read-view",
+      "type": "recovery_route",
+      "label": "User requests refresh; bounded read only, no background polling"
     }
   ]
 }

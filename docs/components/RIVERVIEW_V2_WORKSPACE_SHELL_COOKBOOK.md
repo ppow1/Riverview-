@@ -2,13 +2,28 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.11
+File Revision: 1.0.12
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
-Changed: 2026-10-21 UTC | RV-WEB-V2-HW-AI-RESOURCE-001 | Add monitor source checks, truthful unavailable states, and V2-only recovery
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Document Work projection auth, refresh and troubleshooting
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
+
+## Phase 1 Work status projection
+
+On the integrated HTTPS `/v2/` page, choose **Work**. The panel first checks `GET /api/v1/auth/session`, then issues the two bounded read-only requests `GET /api/v1/objectives?limit=25` and `GET /api/v1/assignments?limit=25`. It refreshes when the Work view opens or when the user presses **Refresh work status**; it does not poll. Only status/progress summaries appear. The old sample cards remain separately labeled as examples.
+
+| Symptom | Expected meaning and recovery |
+|---|---|
+| Sign in to load work status | No authenticated Dashboard session. Sign in through the existing V1 account flow, then revisit Work or press Refresh. No work data request is made before the session check succeeds. |
+| No objective or assignment records | The authorized projection returned an empty collection. This does not synthesize a record; fixture examples below are separately labeled. |
+| Partial/unavailable state or request failure | One read projection failed or timed out. Press Refresh after confirming V1 Dashboard health; the successful projection may still be shown. No retry loop or write operation runs. |
+| A lifecycle/event label looks stale | The table shows persisted backend timestamps and the last persisted assignment event, not an estimated percentage. Refresh to request a new bounded page. |
+
+The browser sends same-origin GETs with `credentials: same-origin` and `cache: no-store`; it never sends an API token or body. It renders API values with text nodes and does not show objective text, acceptance criteria, artifact locations/digests, or raw event payloads. It does not call Comms5, workers, model hosts, or notification acknowledgement. A 401 is an auth boundary, not a reason to bypass Dashboard authorization. The HTTP fixture preview intentionally does not call these APIs.
+
+**Phase 1 rollback:** the Work view can be restored to the prior fixture-only behavior by deploying the protected predecessor V2 static release and restoring only the V2 Nginx alias through the established V2 release procedure. Do not alter V1 `/`, `/api/v1/`, dashboard services, grants, or databases. The deploy record on issue #164 names the exact predecessor and protected backup path.
 
 The first procedures cover the isolated HTTP fixture preview; the integrated HTTPS route and Grace API procedures are separate below. This guide does not restart the V1 Dashboard. The fixture preview uses HTTP and must stay on the trusted Riverview LAN; it is not safe over public Wi-Fi or an untrusted network.
 

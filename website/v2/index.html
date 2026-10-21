@@ -2,14 +2,14 @@
 Riverview~ Controlled Document
 File: website/v2/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.9
+File Revision: 1.0.10
 Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
 Execution Model: Interactive browser presentation; request-driven Dashboard API calls
 Observability: Live conversation state from rv.resident.conversation.v1; Comms5 stays unverified
 Dependencies: Same-origin static assets under website/v2/assets
 Inputs/Outputs: Local fixture records plus authenticated Grace conversation API; durable messages remain Dashboard-owned
 Authority: Account session plus server-checked resident.conversation.read/send grants; LAN preview
-Changed: 2026-10-21 UTC | RV-WEB-V2-HW-AI-RESOURCE-001 | Add V2 Hardware & AI Resource Monitor with bounded telemetry status
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Connect existing Work view to authenticated read-only objective and assignment status
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -25,8 +25,10 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/workspace.css">
   <link rel="stylesheet" href="assets/communications.css">
   <link rel="stylesheet" href="assets/resource-monitor.css">
+  <link rel="stylesheet" href="assets/work-monitor.css">
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/resource-monitor.js"></script>
+  <script defer src="assets/work-monitor.js"></script>
   <script defer src="assets/workspace.js"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
@@ -40,7 +42,7 @@ History: Git and revision/backup manifest
       <nav id="primary-nav">
         <button class="nav-item active" data-view="overview" aria-label="Overview" data-tooltip="Show workspace overview"><span aria-hidden="true">⌂</span><span class="nav-label">Overview</span></button>
         <button class="nav-item" data-view="residents" aria-label="Residents" data-tooltip="Browse resident directory"><span aria-hidden="true">◉</span><span class="nav-label">Residents</span></button>
-        <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show fixture work items"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
+        <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show institutional work status and workspace examples"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
         <button class="nav-item" data-view="resources" aria-label="Hardware and AI resources" data-tooltip="Inspect hardware and AI resource telemetry"><span aria-hidden="true">◇</span><span class="nav-label">Hardware &amp; AI</span></button>
         <button class="nav-item" data-view="knowledge" aria-label="Knowledge" data-tooltip="Browse preview knowledge"><span aria-hidden="true">⌕</span><span class="nav-label">Knowledge</span></button>
         <button class="nav-item" data-view="communications" aria-label="Communications activity" data-tooltip="Inspect verified Riverview communications activity"><span aria-hidden="true">⇄</span><span class="nav-label">Communications</span></button>
@@ -61,6 +63,13 @@ History: Git and revision/backup manifest
             <article class="metric-card"><span>Needs attention</span><strong>01</strong><small>Sample only · no live status</small></article>
           </div>
           <div class="section-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h2 id="view-heading">Resident directory</h2></div><span class="subtle-label">Read-only preview</span></div>
+          <section class="work-monitor" id="work-monitor-workspace" aria-labelledby="work-monitor-heading" data-state="not-checked" hidden>
+            <div class="work-monitor-heading"><div><p class="eyebrow">DURABLE INSTITUTIONAL STATE</p><h2 id="work-monitor-heading">Objectives &amp; assignments</h2><p class="muted">Read-only summaries from the authenticated Riverview Dashboard. Request text, acceptance criteria, artifacts and private event payloads are not displayed.</p></div><span class="work-monitor-state" id="work-source-state" data-state="not-checked">NOT CHECKED</span></div>
+            <div class="work-monitor-toolbar"><p id="work-refresh-status" role="status" aria-live="polite">Open Work on LAN HTTPS to check the existing Dashboard account session and read current objective and assignment summaries.</p><button id="work-refresh" type="button" aria-describedby="work-refresh-status">Refresh</button></div>
+            <label class="work-search">Filter visible records<input id="work-search" type="search" maxlength="100" placeholder="Objective, assignment, state, owner, or progress event"></label>
+            <section class="work-records" aria-labelledby="work-objectives-heading"><h3 id="work-objectives-heading">Objectives</h3><p class="work-source-note">Source: <code>GET /api/v1/objectives?limit=25</code> · database record timestamps are shown as stored.</p><div class="work-table-wrap"><table><caption class="visually-hidden">Persisted objective status, linked assignment, independent verification, and update time</caption><thead><tr><th scope="col">Objective</th><th scope="col">State</th><th scope="col">Assignment</th><th scope="col">Verification</th><th scope="col">Updated</th></tr></thead><tbody id="work-objectives-body"></tbody></table></div><p id="work-objectives-empty" class="work-empty">Objective status has not been checked.</p></section>
+            <section class="work-records" aria-labelledby="work-assignments-heading"><h3 id="work-assignments-heading">Assignment progress</h3><p class="work-source-note">Source: <code>GET /api/v1/assignments?limit=25</code> · progress is the last persisted institutional event, not an estimated percentage.</p><div class="work-table-wrap"><table><caption class="visually-hidden">Persisted assignment state, owner, workflow step and last progress event</caption><thead><tr><th scope="col">Assignment</th><th scope="col">State</th><th scope="col">Owner / step</th><th scope="col">Last progress</th></tr></thead><tbody id="work-assignments-body"></tbody></table></div><p id="work-assignments-empty" class="work-empty">Assignment progress has not been checked.</p></section>
+          </section>
           <div id="view-content"></div>
           </div>
           <section class="resource-monitor" id="resource-monitor-workspace" aria-labelledby="resource-monitor-heading" data-state="not-checked" hidden>

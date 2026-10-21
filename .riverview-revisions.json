@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.100"
+      "revision": "1.1.101"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -209,9 +209,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.54",
-      "sha256": "5d2161fae790406145ebd914d6807078137a63a686e3fb7398d9b7029f18fcad",
-      "size_bytes": 313239
+      "revision": "1.0.55",
+      "sha256": "c8b2fa4044e27eb9dcd0099b1fa75759f5441f394f0b8da926d0dfb58e778729",
+      "size_bytes": 319130
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
@@ -251,9 +251,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.14",
-      "sha256": "d0300ae23ff1d8a84c74b467ca6b41915420f617d121898f0cad9e2874dc39da",
-      "size_bytes": 56331
+      "revision": "1.0.15",
+      "sha256": "acff6824ef554416df3542f3d492d9022adcf82ca9bd03eda2ee5c2d5ade6f5b",
+      "size_bytes": 61403
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -302,6 +302,78 @@
       "revision": "1.0.0",
       "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
       "size_bytes": 1226
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+      "revision": "1.0.20",
+      "sha256": "54cdd5826edef3b4724ddb065bb2e83525faaa3ff0c17f38b0b78be1037f1478",
+      "size_bytes": 41877
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+      "revision": "1.0.12",
+      "sha256": "6dd44325b3de7e76dd28b9dcb4c52ea7f916cf9e821e585070e5ae3e62d2fb2f",
+      "size_bytes": 31721
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
+      "revision": "1.0.15",
+      "sha256": "302b6b46b0903a91a3477c8a37bcbffea8e4fd6ee5947ad0a05ffb3f0e7de65c",
+      "size_bytes": 26752
+    },
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md": {
+      "path": "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
+      "revision": "1.0.0",
+      "sha256": "b839052b6915436da4de9a74f981ec5b2c9231d73fc47112ff5af2e2574d597b",
+      "size_bytes": 10362
+    },
+    "scripts/verify_v2_workspace_mobile.cjs": {
+      "path": "scripts/verify_v2_workspace_mobile.cjs",
+      "revision": "1.0.10",
+      "sha256": "5635be654448af72c95b378a3c8dbe21d8f265d2d01aa3106839283a5e173676",
+      "size_bytes": 14929
+    },
+    "scripts/verify_v2_work_monitor.cjs": {
+      "path": "scripts/verify_v2_work_monitor.cjs",
+      "revision": "1.0.0",
+      "sha256": "c6d9c84cd0661c1768b036db1eab8b5fe1cd268940c834dc043ba36ad4fa2ab5",
+      "size_bytes": 7923
+    },
+    "tests/test_v2_workspace_shell.py": {
+      "path": "tests/test_v2_workspace_shell.py",
+      "revision": "1.0.17",
+      "sha256": "55b6acd860442c90106f6fcd0cf31ae68a28ad607306c373be010712e3800936",
+      "size_bytes": 27153
+    },
+    "website/v2/index.html": {
+      "path": "website/v2/index.html",
+      "revision": "1.0.10",
+      "sha256": "d06f4140ceba7871db3f79f40b04e9034e7db50f441680b5c26116f2755830de",
+      "size_bytes": 27750
+    },
+    "website/v2/assets/snapshot.js": {
+      "path": "website/v2/assets/snapshot.js",
+      "revision": "1.0.9",
+      "sha256": "ff556e3ced320c829f04d2ae8bd79cad78aa6e30d9c88cbddba84d8fe1778c02",
+      "size_bytes": 15258
+    },
+    "website/v2/assets/workspace.js": {
+      "path": "website/v2/assets/workspace.js",
+      "revision": "1.0.6",
+      "sha256": "d9fa1a0bdec0ce9c79c88263dab8657999edae1c9cff849c1670bbdf1d7dfab7",
+      "size_bytes": 9223
+    },
+    "website/v2/assets/work-monitor.js": {
+      "path": "website/v2/assets/work-monitor.js",
+      "revision": "1.0.0",
+      "sha256": "b618d8ef3a450d6910f3951abc8cb473fbe51e5f2828f10b06bf20c4fe450876",
+      "size_bytes": 10017
+    },
+    "website/v2/assets/work-monitor.css": {
+      "path": "website/v2/assets/work-monitor.css",
+      "revision": "1.0.0",
+      "sha256": "2230776d3683b77cfbb447836eafbf287aa0f48de658a2d732f04f3a32b2b436",
+      "size_bytes": 4039
     }
   },
   "manifest_revision": "1.1.100"
