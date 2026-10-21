@@ -1,0 +1,17 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "20261021T224535Z/octo1-live-telemetry.json": {
+      "path": "20261021T224535Z/octo1-live-telemetry.json",
+      "sha256": "7077ab550618afb5f14dd52dcadc7480a356dd0994d36810a176a069055ffb15",
+      "size_bytes": 3427,
+      "revision": "1.0.0"
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "sha256": "7b5ad13c54eb5b60edf0e704f79baeb5600405beaf5300cb02452f2e040ad1f2",
+      "size_bytes": 3155,
+      "revision": "1.0.0"
+    }
+  }
+}

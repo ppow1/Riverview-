@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.23
+File Revision: 1.0.25
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -44,7 +44,8 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_session_cookie_158419c1["Revalidate linked account session and exact grants on every request; legacy cookie also remains supported"]
     g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c[["Pause automatic history requests after 403 until explicit reconnect"]]
     g_rv_resident_conversation_browser_chat_readiness_route_7e67f750{"Route substantive turns to 80B; exact acknowledgments to 0.6B; narrow simple facts to provisional 30B"}
-    g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3["Emit sanitized provider attempts with bounded timing and error codes; never include conversation text"]
+    g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3["Persist sanitized provider attempt outcomes and timing with an explicit flag distinguishing a readiness-only router observation from an actual provider dispatch"]
+    g_rv_resident_conversation_browser_chat_provider_client_observations_adedaab5["Record correlated response ID, response headers, first streamed text when present, and body completion as client observations; do not claim server receipt, prompt processing, or token-generation timing"]
     g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6["Persist complex turn and required capability when 80B is unavailable or busy"]
     g_rv_resident_conversation_browser_chat_resume_reasoning_55d48b14["Poll only due durable deferred turns, claim a cross-process lease, preserve original request/capability identity, apply persistent bounded retry scheduling, and atomically publish one correlated assistant response"]
     g_rv_resident_conversation_browser_chat_reasoning_router_failure_43c1e7f2[["Record sanitized readiness/completion diagnostics; deterministic provider errors are terminal while transient provider errors retain durable deferred work under the retry budget"]]
@@ -102,7 +103,7 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_auth_denial_latch_1556f60c -->|recovery_route: User reconnects with an authorized credential| g_rv_resident_conversation_browser_chat_session_connect_2f037c66
   g_rv_resident_conversation_browser_chat_inference_8bca7614 --> g_rv_resident_conversation_browser_chat_readiness_route_7e67f750
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|Provider selected; begin bounded inference attempt| g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3
-  g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3 -->|Success or authorized interim fallback; persist served provider and attempts| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
+  g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3 -->|Successful provider response returned to the client| g_rv_resident_conversation_browser_chat_provider_client_observations_adedaab5
   g_rv_resident_conversation_browser_chat_attempt_diagnostics_6b1cc0a3 -->|diagnostic_branch: Required provider failed or is unavailable; keep request durable| g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|80B ready or bounded provisional path selected| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
   g_rv_resident_conversation_browser_chat_readiness_route_7e67f750 -->|diagnostic_branch: Substantive turn requires unavailable or busy 80B| g_rv_resident_conversation_browser_chat_defer_reasoning_7d693ff6
@@ -144,5 +145,6 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|No current lookup is required; omit the internal tool catalog| g_rv_resident_conversation_browser_chat_inference_8bca7614
   g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|Current lookup is required; include only the selected schema| g_rv_resident_conversation_browser_chat_inference_8bca7614
   g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|diagnostic_branch: Protected context plus one selected schema cannot fit the exact provider byte limit; reject before inference| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
+  g_rv_resident_conversation_browser_chat_provider_client_observations_adedaab5 -->|Persist the correlated response after client-observed completion| g_rv_resident_conversation_browser_chat_persist_response_dc11fb6b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

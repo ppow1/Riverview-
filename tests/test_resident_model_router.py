@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.19
+# Revision: 1.0.22
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Verify persisted conversation ID reaches selected local provider and response evidence is attempt-scoped
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Distinguish true provider dispatch from readiness-only router attempts
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -19,6 +21,7 @@
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Prove legacy over-limit failure and independent three-capability readiness.
 # Changed: 2026-10-19 UTC | RV-GRACE-TOOL-CATALOG-CONTEXT-001 | Regress large internal tool catalogs and selected-schema prompting
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Preserve fixed diagnostic subcodes through routing
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Pass durable conversation correlation into model calls and retain response evidence
 # =============================================================================
 """Focused tests for Grace's readiness-aware three-stage router."""
 
@@ -126,6 +129,47 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(result.served_model, "qwen-0.6b")
         self.assertEqual(result.reasoning_stage, "autonomic")
         self.assertTrue(result.provisional)
+
+    def test_durable_request_id_reaches_local_model_and_response_evidence_is_attempt_scoped(self):
+        class CorrelationProvider(LocalReasoningProvider):
+            def __init__(self, model):
+                super().__init__("http://127.0.0.1:8767/v1",model,"a"*64)
+                self.received_request_ids=[]
+
+            def readiness(self):
+                return ProviderReadiness("READY",self.model,"fixture_ready")
+
+            def complete_chat(self,messages,*,max_tokens,expected_revision,
+                              timeout_seconds=120,request_id=None):
+                self.received_request_ids.append(request_id)
+                return ChatCompletion("bounded answer",self.model,2,3,"stop",
+                    provider_id=self.provider_id,model_response_id="chatcmpl-trace-1",
+                    response_headers_observed_at="2026-10-21T00:00:00+00:00",
+                    response_body_completed_observed_at="2026-10-21T00:00:01+00:00")
+
+        cpu=CorrelationProvider("qwen-0.6b")
+        vision=CorrelationProvider("huihui-30b")
+        reasoner=CorrelationProvider("qwen-80b")
+        router=GraceModelRouter(autonomic=cpu,vision=vision,reasoning=reasoner)
+        request_id="c4a3a8e7-daf8-4aab-89d2-fd1c0a5a45a2"
+        result=router.complete_chat([{"role":"user",
+            "content":"Analyze the system's dependency ordering and failure modes."}],
+            max_tokens=256,expected_revision=router.model_sha256,request_id=request_id)
+        self.assertEqual(reasoner.received_request_ids,[request_id])
+        self.assertEqual(result.provider_attempts[0]["model_response_id"],"chatcmpl-trace-1")
+        self.assertEqual(result.provider_attempts[0]["response_headers_observed_at"],
+            "2026-10-21T00:00:00+00:00")
+        self.assertTrue(result.provider_attempts[0]["provider_call_dispatched"])
+        self.assertNotIn("content",json.dumps(result.provider_attempts))
+
+    def test_readiness_only_attempt_is_not_reported_as_provider_dispatch(self):
+        self.reasoner.state="MODEL_BUSY"
+        with self.assertRaises(ReasoningDeferred) as caught:
+            self.router.complete_chat([{"role":"user","content":"Analyze this objective deeply."}],
+                max_tokens=256,expected_revision=self.router.model_sha256,
+                required_capability="grace.reasoning.80b")
+        self.assertFalse(caught.exception.attempts[0]["provider_call_dispatched"])
+        self.assertEqual(self.reasoner.calls,[])
 
     def test_streaming_routes_each_grace_stage_and_preserves_provenance(self):
         for request,required,expected in (

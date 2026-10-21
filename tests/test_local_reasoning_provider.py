@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.26
+# Revision: 1.1.28
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Verify correlation header, bounded response ID, and honest streaming/nonstream timing semantics
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Reject a streamed response that changes its server correlation ID mid-response
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Match the revised prompt's formal-criteria boundary.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Verify derived and Steward-supplied criteria prompt paths.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-PRIOR-PLAN-CRITERIA-20261021 | Ignore stale prior-plan criteria not present in the persisted formal list
@@ -46,6 +48,7 @@
 # Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Keep external advice separate from verified context and authority
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Verify the typed external escalation decision is limited to configured providers
 # Changed: 2026-10-18 UTC | RV-REASONING-ADAPTER-COMPAT-001 | Verify ordered local chat text and fail-closed tool/refusal/content handling
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Verify durable request correlation header and client-observed response milestones
 # =============================================================================
 """Contract tests for the replaceable local reasoning provider."""
 
@@ -427,8 +430,8 @@ class LocalReasoningProviderTests(unittest.TestCase):
 
     def test_stream_chat_emits_text_before_terminal_chunk_and_validates_provenance(self):
         chunks = [
-            {"model":"fixture-model","choices":[{"delta":{"content":"first"},"finish_reason":None}]},
-            {"model":"fixture-model","choices":[{"delta":{"content":" token"},"finish_reason":"stop"}],
+            {"id":"chatcmpl-fixture-1","model":"fixture-model","choices":[{"delta":{"content":"first"},"finish_reason":None}]},
+            {"id":"chatcmpl-fixture-1","model":"fixture-model","choices":[{"delta":{"content":" token"},"finish_reason":"stop"}],
              "usage":{"completion_tokens":2}},
         ]
         body = b"".join(b"data: "+json.dumps(item).encode()+b"\n\n" for item in chunks)+b"data: [DONE]\n\n"
@@ -436,13 +439,20 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.urlopen.return_value = _SSEResponse(BytesIO(body))
         emitted=[]
         completion=self.provider.stream_chat([{"role":"user","content":"bounded request"}],
-            max_tokens=64,expected_revision=MODEL_SHA,on_delta=emitted.append)
+            max_tokens=64,expected_revision=MODEL_SHA,on_delta=emitted.append,
+            request_id="c4a3a8e7-daf8-4aab-89d2-fd1c0a5a45a2")
         self.assertEqual(emitted,["first"," token"])
         self.assertEqual(completion.content,"first token")
         self.assertEqual(completion.served_model,"fixture-model")
         self.assertEqual(completion.provider_id,self.provider.provider_id)
         self.assertEqual(completion.finish_reason,"stop")
+        self.assertEqual(completion.model_response_id,"chatcmpl-fixture-1")
+        self.assertIsNotNone(completion.response_headers_observed_at)
+        self.assertIsNotNone(completion.first_content_received_at)
+        self.assertIsNotNone(completion.response_body_completed_observed_at)
         request=self.urlopen.call_args.args[0]
+        self.assertEqual(request.get_header("X-riverview-request-id"),
+            "c4a3a8e7-daf8-4aab-89d2-fd1c0a5a45a2")
         sent=json.loads(request.data)
         self.assertTrue(sent["stream"])
         self.assertEqual(sent["stream_options"],{"include_usage":True})
@@ -458,6 +468,19 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertEqual(emitted,["partial"])
         self.assertEqual(caught.exception.code,"response_incomplete")
         self.assertEqual(caught.exception.finish_reason,"length")
+
+    def test_stream_chat_rejects_response_id_change(self):
+        chunks=[
+            {"id":"chatcmpl-first","model":"fixture-model","choices":[{"delta":{"content":"first"},"finish_reason":None}]},
+            {"id":"chatcmpl-second","model":"fixture-model","choices":[{"delta":{"content":" second"},"finish_reason":"stop"}]},
+        ]
+        body=b"".join(b"data: "+json.dumps(item).encode()+b"\n\n" for item in chunks)+b"data: [DONE]\n\n"
+        self.urlopen.side_effect=None
+        self.urlopen.return_value=_SSEResponse(BytesIO(body))
+        with self.assertRaises(LocalReasoningUnavailable) as caught:
+            self.provider.stream_chat([{"role":"user","content":"bounded request"}],
+                max_tokens=64,expected_revision=MODEL_SHA,on_delta=lambda _text:None)
+        self.assertEqual(caught.exception.code,"response_contract_invalid")
 
     def test_non_grace_offices_do_not_receive_grace_identity(self):
         request = replace(self.request, office_id="office:engineering")
@@ -623,7 +646,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
             self.provider._capacity.release()
 
     def test_bounded_chat_uses_existing_pinned_loopback_endpoint(self):
-        self.response_body = json.dumps({"model":"fixture-model","choices":[{
+        self.response_body = json.dumps({"id":"chatcmpl-fixture-2","model":"fixture-model","choices":[{
             "message":{"content":"Hello from the bound resident."},
             "finish_reason":"stop"}],"usage":{"prompt_tokens":31,"completion_tokens":8}}).encode()
         result = self.provider.complete_chat([
@@ -638,6 +661,26 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertEqual(self.requests[0]["max_tokens"], 64)
         self.assertEqual(self.request_calls[0][1], 120)
         self.assertFalse(self.requests[0]["stream"])
+
+    def test_nonstream_chat_records_server_response_id_and_only_client_observed_stages(self):
+        request_id="c4a3a8e7-daf8-4aab-89d2-fd1c0a5a45a2"
+        self.response_body=json.dumps({"id":"chatcmpl-fixture-2","model":"fixture-model",
+            "choices":[{"message":{"content":"hello"},"finish_reason":"stop"}],
+            "usage":{"prompt_tokens":2,"completion_tokens":1}}).encode()
+        result=self.provider.complete_chat([{"role":"user","content":"hello"}],
+            max_tokens=64,expected_revision=MODEL_SHA,request_id=request_id)
+        self.assertEqual(result.model_response_id,"chatcmpl-fixture-2")
+        self.assertIsNotNone(result.response_headers_observed_at)
+        self.assertIsNone(result.first_content_received_at)
+        self.assertIsNotNone(result.response_body_completed_observed_at)
+        request=self.urlopen.call_args.args[0]
+        self.assertEqual(request.get_header("X-riverview-request-id"),request_id)
+
+    def test_invalid_conversation_correlation_id_is_rejected_before_transport(self):
+        with self.assertRaises(LocalReasoningUnavailable) as caught:
+            self.provider.complete_chat([{"role":"user","content":"hello"}],
+                max_tokens=64,expected_revision=MODEL_SHA,request_id="not-a-uuid")
+        self.assertEqual(caught.exception.code,"request_contract_invalid")
 
     def test_chat_rejects_binding_mismatch_wrong_model_and_incomplete_output(self):
         messages = [{"role":"user","content":"hello"}]

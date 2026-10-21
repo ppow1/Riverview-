@@ -1,0 +1,11 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "octo1-live-telemetry.json": {
+      "path": "octo1-live-telemetry.json",
+      "sha256": "7077ab550618afb5f14dd52dcadc7480a356dd0994d36810a176a069055ffb15",
+      "size_bytes": 3427,
+      "revision": "1.0.0"
+    }
+  }
+}
