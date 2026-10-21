@@ -11748,36 +11748,41 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.1.18",
+      "graph_revision": "1.1.20",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
       "source_references": [
         "deploy/riverview-status-dashboard.service",
+        "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
         "scripts/bootstrap_account_steward.py",
         "scripts/run_status_dashboard.py",
         "scripts/runtime_baseline.py",
+        "scripts/rv_gpu_telemetry_command.py",
         "scripts/verify_diagnostic_snapshot_browser.py",
         "src/riverview_core/account_auth/__init__.py",
         "src/riverview_core/account_auth/migrations/0001_account_authentication.sql",
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/status_dashboard/markdown.py",
         "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/resource_telemetry.py",
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/status_dashboard/static/app.js",
         "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
         "src/riverview_core/status_dashboard/static/workflow.js",
         "tests/test_account_auth.py",
         "tests/test_account_auth_http.py",
+        "tests/test_gpu_telemetry_command.py",
+        "tests/test_resource_telemetry.py",
         "tests/test_status_dashboard.py"
       ],
       "documentation_references": [
+        "docs/components/ACCOUNT_AUTHENTICATION.md",
+        "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md",
         "docs/components/STATUS_DASHBOARD.md",
         "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
         "docs/components/STATUS_DASHBOARD_FLOW.md",
-        "process_graphs/README.md",
-        "docs/components/ACCOUNT_AUTHENTICATION.md",
-        "docs/components/ACCOUNT_AUTHENTICATION_COOKBOOK.md"
+        "process_graphs/README.md"
       ],
       "verification_evidence": [
         "evidence/checkouts/STEWARD-DASHBOARD/20261010T2145Z-ba831a7/commissioning.md",
@@ -11813,7 +11818,7 @@
           "id": "rv:steward-dashboard:status:authenticate",
           "node_revision": "1.1.0",
           "type": "decision",
-          "label": "Host, loopback and bearer or active account session valid?",
+          "label": "Host, loopback and bearer or active account session valid for status or telemetry read?",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py"
           ],
@@ -12497,6 +12502,73 @@
             "docs/components/STATUS_DASHBOARD.md"
           ],
           "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:status:resource-telemetry-route",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Serve bounded authenticated GET /api/v1/resources/telemetry",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/status_dashboard/resource_telemetry.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:resource-gpu-source",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read GPU metrics through strict-pinned SSH and the host forced-command collector",
+          "source_references": [
+            "src/riverview_core/status_dashboard/resource_telemetry.py",
+            "scripts/rv_gpu_telemetry_command.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+            "evidence/checkouts/V2-HARDWARE-AI-TELEMETRY/20261021T1735Z-live-source/artifacts.json"
+          ],
+          "verification_evidence": [
+            "tests/test_resource_telemetry.py",
+            "tests/test_gpu_telemetry_command.py",
+            "evidence/checkouts/V2-HARDWARE-AI-TELEMETRY/20261021T1735Z-live-source/source-observation.json"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:resource-model-source",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read allowlisted model health, model identity and active slots; queue depth stays unavailable",
+          "source_references": [
+            "src/riverview_core/status_dashboard/resource_telemetry.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resource_telemetry.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:resource-render",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Return timestamped redacted measurements or explicit per-source unavailable states",
+          "source_references": [
+            "src/riverview_core/status_dashboard/resource_telemetry.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resource_telemetry.py",
+            "tests/test_status_dashboard.py"
+          ]
         }
       ],
       "edges": [
@@ -12831,6 +12903,36 @@
           "to": "rv:steward-dashboard:status:deny-request",
           "type": "diagnostic_branch",
           "label": "Missing Steward role, account principal, owner match, or read grant"
+        },
+        {
+          "from": "rv:steward-dashboard:status:authenticate",
+          "to": "rv:steward-dashboard:status:resource-telemetry-route",
+          "type": "runtime_transition",
+          "label": "Authorized bounded telemetry request"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-telemetry-route",
+          "to": "rv:steward-dashboard:status:resource-gpu-source",
+          "type": "runtime_transition",
+          "label": "Strict known-host key and fixed remote collector command"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-telemetry-route",
+          "to": "rv:steward-dashboard:status:resource-model-source",
+          "type": "runtime_transition",
+          "label": "Fixed allowlisted model API reads with bounded timeouts"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-gpu-source",
+          "to": "rv:steward-dashboard:status:resource-render",
+          "type": "runtime_transition",
+          "label": "Redacted GPU readings and source timestamp"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-model-source",
+          "to": "rv:steward-dashboard:status:resource-render",
+          "type": "runtime_transition",
+          "label": "Readiness/model/slot data; queue unavailable"
         }
       ]
     },
@@ -15319,6 +15421,10 @@
     "rv:steward-dashboard:status:render-cached",
     "rv:steward-dashboard:status:render-documentation",
     "rv:steward-dashboard:status:render-process-graph",
+    "rv:steward-dashboard:status:resource-gpu-source",
+    "rv:steward-dashboard:status:resource-model-source",
+    "rv:steward-dashboard:status:resource-render",
+    "rv:steward-dashboard:status:resource-telemetry-route",
     "rv:steward-dashboard:status:return-to-source-jump",
     "rv:steward-dashboard:status:select-cross-workflow-jump",
     "rv:steward-dashboard:status:service-start",

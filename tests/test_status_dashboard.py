@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.60
+# Revision: 1.0.61
+# Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify telemetry endpoint authentication, projection, and read-only methods.
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Verify knowledge source pin is independent of dashboard source identity.
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Cover persisted-sequence binding and visible recovery when the retry dialog cannot open.
 # Predecessor: .riverview-backups/20261020T153249910848Z/tests/test_status_dashboard.py (SHA-256 fa08f2763f1eb9234a217974196ab49d416edd73b76987fa104ade8d38ebe1ba)
@@ -491,6 +492,22 @@ class DashboardHTTPTests(unittest.TestCase):
         result = (response.status, response.getheaders(), body)
         conn.close()
         return result
+
+    def test_resource_telemetry_route_uses_dashboard_auth_and_is_read_only(self):
+        projection = {"schema_version": "rv.dashboard.resource-telemetry.v1",
+                      "status": "partial", "hosts": []}
+        class Telemetry:
+            def read(self):
+                return projection
+        self.server._resource_telemetry = Telemetry()
+        status, _, body = self.request("GET", "/api/v1/resources/telemetry")
+        self.assertEqual(status, 401)
+        status, _, body = self.request("GET", "/api/v1/resources/telemetry", token=self.token)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), projection)
+        status, _, body = self.request("POST", "/api/v1/resources/telemetry", token=self.token)
+        self.assertEqual(status, 405)
+        self.assertEqual(json.loads(body)["error"], "read_only_method")
 
     def test_authenticated_result_rereview_route_is_exact_scoped_bounded_and_request_only(self):
         from riverview_core.resident_execution import ObjectiveNotAuthorized
