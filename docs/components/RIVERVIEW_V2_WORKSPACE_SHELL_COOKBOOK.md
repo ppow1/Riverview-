@@ -2,17 +2,17 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.14
+File Revision: 1.0.15
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
-Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Clarify Work read procedure is target release, not currently deployed
+Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Record Work release, preserved composite, and live verification
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
 
 ## Phase 1 Work status projection
 
-After the Phase 1 release is deployed, choose **Work** on integrated HTTPS `/v2/`. The panel will first check `GET /api/v1/auth/session`, then issue the two bounded read-only requests `GET /api/v1/objectives?limit=25` and `GET /api/v1/assignments?limit=25`. It refreshes when the Work view opens or when the user presses **Refresh**; it does not poll. Only status/progress summaries appear. The sample cards remain separately labeled as examples. **This feature is not present in the currently served LAN preview;** use the source/browser tests in the checkout for pre-deployment verification.
+Choose **Work** on integrated HTTPS `/v2/` in release `RV-WEB-V2-WORK-INTEGRATION-20261021-01`. The panel will first check `GET /api/v1/auth/session`, then issue the two bounded read-only requests `GET /api/v1/objectives?limit=25` and `GET /api/v1/assignments?limit=25`. It refreshes when the Work view opens or when the user presses **Refresh**; it does not poll. Only status/progress summaries appear. The sample cards remain separately labeled as examples. The immutable predecessor `RV-WEB-V2-C2-ARCHIVE-6733F29D` remains available for alias-only rollback. Production verification confirmed the panel and referenced assets load over HTTPS; without an authenticated Dashboard session, the panel correctly requests sign-in and does not fetch work records.
 
 | Symptom | Expected meaning and recovery |
 |---|---|
@@ -25,9 +25,11 @@ The browser sends same-origin GETs with `credentials: same-origin` and `cache: n
 
 **Phase 1 rollback:** the Work view can be restored to the prior fixture-only behavior by deploying the protected predecessor V2 static release and restoring only the V2 Nginx alias through the established V2 release procedure. Do not alter V1 `/`, `/api/v1/`, dashboard services, grants, or databases. The deploy record on issue #164 names the exact predecessor and protected backup path.
 
-### Do not switch a release while snapshot source hashes diverge
+### Work release preservation and rollback
 
-Read-only inspection on 2026-10-21 confirmed `/v2/` HTTP 200, V1 `/` HTTP 200, and anonymous `/api/v1/status` HTTP 401 with the existing strict CSP/no-store headers. The active `assets/snapshot.js` is SHA-256 `d5d163c15a5dd231be8a4d2b3154995bfa7f4db4535214173438a9cd67c17f02`; it differs from the snapshot asset in the PR #166 checkout and corresponds to the separately reviewed full-diagnostic snapshot source. The live HTML also has an authenticated-dashboard mode meta marker absent from PR #166 source. Do not point Nginx at a full static directory assembled only from PR #166 until those live snapshot assets are reconciled, included, hashed, and tested. This avoids losing the active authenticated archive workflow. Existing V2 Nginx alias and V1 routes remain unchanged. Linux SSH access to Camrui is unavailable in this execution session (`camrui` is a Windows-only alias here; direct LAN SSH returned public-key/password rejection); deployment requires the established Windows operator SSH context.
+The deployed V2 alias is `/etc/nginx/snippets/riverview-v2.conf`, included by `/etc/nginx/sites-enabled/riverview-lan`. Release `RV-WEB-V2-WORK-INTEGRATION-20261021-01` is assembled from the previously deployed `RV-WEB-V2-C2-ARCHIVE-6733F29D` composite plus the Work panel, routing, and styles. The exact deployed Snapshot implementation and its `authenticated-dashboard` Nginx-injected marker are retained. Work reads remain same-origin, GET-only, and gated by the existing Dashboard account session; no credentials or grants were changed.
+
+Rollback changes only the `/v2/` alias in `/etc/nginx/snippets/riverview-v2.conf` back to `/var/www/riverview-v2-preview/releases/RV-WEB-V2-C2-ARCHIVE-6733F29D/`, runs `sudo nginx -t`, then `sudo systemctl reload nginx`. Preserve the integrated release directory and protected alias predecessor for diagnosis. Confirm V1 `/` still returns 200 after reload.
 
 The first procedures cover the isolated HTTP fixture preview; the integrated HTTPS route and Grace API procedures are separate below. This guide does not restart the V1 Dashboard. The fixture preview uses HTTP and must stay on the trusted Riverview LAN; it is not safe over public Wi-Fi or an untrusted network.
 

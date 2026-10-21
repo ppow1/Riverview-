@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.101"
+      "revision": "1.1.102"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -305,15 +305,15 @@
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
-      "revision": "1.0.22",
-      "sha256": "563f219e9d04ccaa95797fac5bbaff8f4a7b79606d726e421d3b4ae1c985c450",
-      "size_bytes": 42434
+      "revision": "1.0.23",
+      "sha256": "ca1fc26e5fe82462231aa064c95ad93131035c90090cf44d400e54fadb74d79a",
+      "size_bytes": 42529
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
-      "revision": "1.0.14",
-      "sha256": "e97977601c1260cd10c405a17dcb875dbed9e55b8ec1287dcf310527c1355a3e",
-      "size_bytes": 32970
+      "revision": "1.0.15",
+      "sha256": "442f82455c063dff12d7b92352b826cf6e3b0e9fe7e8b05b1e40f0596101532f",
+      "size_bytes": 32995
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
@@ -376,5 +376,5 @@
       "size_bytes": 4039
     }
   },
-  "manifest_revision": "1.1.100"
+  "manifest_revision": "1.1.102"
 }
