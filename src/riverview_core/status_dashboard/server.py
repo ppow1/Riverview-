@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.30
+# Revision: 1.3.31
+# Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate knowledge source commit from dashboard code identity.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Accept typed artifact contracts in authenticated proposal submission
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
@@ -1960,6 +1961,19 @@ def _knowledge_root(*, release_root=None, configured=None) -> Path:
     return Path("/opt/riverview-core")
 
 
+def _knowledge_commit(*, configured=None, dashboard_source_commit=None, release_commit=None) -> str:
+    """Resolve the knowledge pin independently from dashboard code provenance."""
+    if configured is None:
+        configured = os.environ.get("RIVERVIEW_KNOWLEDGE_COMMIT")
+    if configured:
+        return configured
+    if dashboard_source_commit is None:
+        dashboard_source_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT")
+    if dashboard_source_commit:
+        return dashboard_source_commit
+    return _release_commit() if release_commit is None else release_commit
+
+
 def _find_conversation_objective(pipeline, conversation_id, source_sequence):
     """Find the durable objective already bound to one authenticated source message."""
     with pipeline.ledger.db.cursor() as cur:
@@ -2051,7 +2065,7 @@ def main():
         lambda: psycopg.connect(dsn, connect_timeout=2),
         schema=os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority"))
     repository_root = _knowledge_root()
-    pinned_commit = os.environ.get("RIVERVIEW_SOURCE_COMMIT", _release_commit())
+    pinned_commit = _knowledge_commit()
     objective_ledger = None
     steward_review_ledger = None
     steward_review_exchange = None
