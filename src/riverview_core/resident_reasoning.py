@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.23
+# Revision: 1.0.24
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Restrict lifecycle ownership to complete canonical criterion forms
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Model typed lifecycle criteria separately from Engineering steps while retaining exact objective criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Require explicit lifecycle language before classifying conversation and grounding criteria as system-owned
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Allow the bounded caller deadline to exceed the provider HTTP timeout
@@ -167,32 +168,32 @@ def lifecycle_evidence_event(criterion: str) -> str | None:
     if not isinstance(criterion, str):
         return None
     value = " ".join(criterion.lower().split())
-    has_publication_action = any(word in value for word in
-        ("return", "publish", "report", "deliver", "display", "appear"))
-    if (("conversation" in value and "result" in value and has_publication_action) or
-            ("conversation" in value and "response" in value and has_publication_action) or
-            ("steward response" in value and has_publication_action) or
-            ("grace reports" in value and "result" in value) or
-            ("result is returned" in value) or ("result is published" in value)):
+    if re.fullmatch(
+            r"(?:grace )?(?:returns?|publishes?|reports?) (?:the )?(?:result|response) "
+            r"to (?:the )?(?:steward )?conversation\.?|"
+            r"(?:the )?(?:result|response) is (?:returned|published) "
+            r"to (?:the )?(?:steward )?conversation\.?", value):
         return "conversation.result_published"
-    if ("independent verification" in value or "independently verified" in value or
-            "verifier accepts" in value or "verification is accepted" in value):
+    if re.fullmatch(
+            r"(?:independent verification is accepted|the result is independently verified)\.?",
+            value):
         return "execution.step_verified"
-    if ("work order" in value or "assignment" in value) and any(
-            word in value for word in ("created", "dispatched", "queued", "assigned")):
+    if re.fullmatch(
+            r"(?:the )?(?:approved )?(?:engineering )?(?:work order|assignment) "
+            r"(?:is )?(?:created|dispatched|queued|assigned)\.?", value):
         return "work_order.dispatched"
-    if "proposal" in value and any(word in value for word in
-            ("saved", "persisted", "registered", "recorded")):
+    if re.fullmatch(
+            r"(?:the )?proposal (?:is )?(?:saved|persisted|registered|recorded)\.?",
+            value):
         return "work_order.proposed"
-    if (("objective" in value and any(word in value for word in
-            ("grounded", "grounding verified", "grounding is verified"))) or
-            "grounding is verified" in value):
+    if re.fullmatch(
+            r"(?:the )?objective (?:is )?(?:grounded(?: before execution)?|"
+            r"grounding is verified)\.?",
+            value):
         return "objective.grounded"
-    if "objective" in value and any(word in value for word in
-            ("received", "persisted", "created")):
+    if re.fullmatch(r"(?:the )?objective (?:is )?(?:received|persisted|created)\.?", value):
         return "objective.received"
-    if "objective" in value and any(word in value for word in
-            ("completed", "complete", "closed")):
+    if re.fullmatch(r"(?:the )?objective (?:is )?(?:completed|complete|closed)\.?", value):
         return "objective.completed"
     return None
 

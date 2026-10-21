@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.48
+# Revision: 1.0.49
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject narrative lifecycle false positives, missing publication origin, and duplicated criterion ownership
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Verify ready lifecycle work runs before slow proposal reasoning and persist lifecycle criteria separately from one deliverable step
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Require a 2048-token default proposal completion budget
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Prove never-attempted and least-recently-attempted grounded objectives take fair reasoning turns, including repeated failures.
@@ -518,6 +519,10 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertIn("execution.reasoning_attempted", event_types)
 
     def test_lifecycle_criteria_remain_durable_without_receipt_work_steps(self):
+        from riverview_core.resident_reasoning import lifecycle_evidence_event
+
+        self.assertIsNone(lifecycle_evidence_event(
+            "The report contains a section describing the proposal being saved."))
         objective_id = "objective:lifecycle-criteria:" + uuid4().hex
         deliverable = "The report contains exact phrase `verified delivery`."
         lifecycle = (
@@ -541,6 +546,12 @@ class GraceExecutionTests(unittest.TestCase):
             self.pipeline.record_proposal(objective_id, PlanProposal(
                 "Omit the lifecycle requirements", (PlanStep("wrong", "Create report",
                     (deliverable,)),), 0))
+        with self.assertRaisesRegex(ObjectiveStateError, "every original criterion"):
+            self.pipeline.record_proposal(objective_id, PlanProposal(
+                "Duplicate the deliverable", (
+                    PlanStep("first", "Create report", (deliverable,)),
+                    PlanStep("second", "Repeat report", (deliverable,))), 0,
+                system_owned_criteria=lifecycle))
         stored = self.pipeline.record_proposal(objective_id, proposal)
         self.assertEqual(len(stored["proposal"]["steps"]), 1)
         self.assertEqual(stored["proposal"]["system_owned_criteria"], list(lifecycle))
@@ -560,6 +571,19 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(assignment["workflow_step"], "report")
         self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".assignments '
             "WHERE objective_ref=%s", (objective_id,)).fetchone()[0], 1)
+
+        no_origin_id = "objective:lifecycle-no-origin:" + uuid4().hex
+        no_origin = self.pipeline.submit_objective(no_origin_id,
+            "Create a bounded report and return the result to the Steward conversation.",
+            ["The bounded report exists.",
+             "Grace returns the result to the Steward conversation."],
+            credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(no_origin["objective_id"])
+        with self.assertRaisesRegex(ObjectiveStateError, "every original criterion"):
+            self.pipeline.record_proposal(no_origin["objective_id"], PlanProposal(
+                "Return the result", (PlanStep("report", "Create the report",
+                    ("The bounded report exists.",)),), 0,
+                system_owned_criteria=("Grace returns the result to the Steward conversation.",)))
 
     def test_authorized_objective_executes_and_is_independently_verified(self):
         with self.assertRaises(ObjectiveNotAuthorized):

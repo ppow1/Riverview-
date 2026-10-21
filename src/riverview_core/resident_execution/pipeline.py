@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.20
+# Revision: 1.1.21
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Require unique criterion ownership and conversation origin for publication lifecycle evidence
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Persist lifecycle criteria separately from Engineering steps and bind them to durable workflow evidence
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Order grounded reasoning candidates by their most recent persisted attempt, with never-attempted objectives first.
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Advance independently accepted steps through persisted dependencies and bound rejected-step retries with durable escalation pending.
@@ -283,12 +284,23 @@ class GraceExecutionPipeline:
                 not evidence.get("source_references") or not evidence.get("source_sha256")):
             raise ObjectiveStateError("proposal cannot use missing or incomplete evidence")
         requested = set(objective["acceptance_criteria"])
-        proposed = {criterion for step in proposal.steps
-                    for criterion in step.acceptance_criteria}
+        step_criteria = [criterion for step in proposal.steps
+                         for criterion in step.acceptance_criteria]
+        proposed = set(step_criteria)
         lifecycle = set(proposal.system_owned_criteria)
+        received = next((event for event in self.objective_events(objective_id)
+                         if event["event_type"] == "objective.received"), None)
+        origin = (received or {}).get("payload", {}).get("origin")
+        has_conversation_origin = (isinstance(origin, dict) and
+                                   isinstance(origin.get("conversation_id"), str) and
+                                   bool(origin["conversation_id"]))
         if (proposed & lifecycle or
+                len(step_criteria) != len(proposed) or
                 any(criterion not in requested or lifecycle_evidence_event(criterion) is None
                     for criterion in lifecycle) or
+                (not has_conversation_origin and any(
+                    lifecycle_evidence_event(criterion) == "conversation.result_published"
+                    for criterion in lifecycle)) or
                 proposed | lifecycle != requested):
             raise ObjectiveStateError(
                 "proposal must bind every original criterion to an Engineering step or a supported lifecycle event")
