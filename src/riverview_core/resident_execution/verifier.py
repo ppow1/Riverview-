@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/verifier.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject machine-readable negative outcomes and independently verify explicit artifact literals
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Independently verify the complete bounded artifact set against persisted assignment identity
 # Purpose: Independently reopen and validate bounded Grace artifacts against persisted assignment contracts
 # Execution Model: Read-only in-process verification separated from worker action
@@ -29,6 +30,98 @@ import stat
 from ..resident_reasoning import ArtifactRequirement
 from ..worker_adapter.verifier import VerificationResult, VerificationStatus
 from .worker import CAPABILITY, MAX_ARTIFACT_BYTES, MAX_ARTIFACT_COUNT
+
+
+_NEGATIVE_OUTCOME_KEYS = {
+    "status", "decision", "outcome", "result", "verdict", "acceptance_status",
+    "verification_status", "completion_status", "review_decision",
+    "verification_decision", "acceptance_decision", "completion_decision",
+    "task_status", "test_status", "error",
+}
+_POSITIVE_OUTCOME_KEYS = {"success", "succeeded", "accepted", "approved", "passed", "verified"}
+_NEGATIVE_OUTCOMES = {
+    "reject", "rejected", "fail", "failed", "failure", "blocked", "error", "denied",
+    "not_accepted", "not_approved", "unsuccessful",
+}
+
+
+def json_has_authoritative_negative_outcome(value):
+    """Recognize explicit negative decisions anywhere in a JSON result document."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            normalized_key = str(key).strip().lower()
+            if normalized_key in _NEGATIVE_OUTCOME_KEYS and isinstance(item, str):
+                normalized = item.strip().lower().replace(" ", "_").replace("-", "_")
+                negative_token = re.search(
+                    r"(?:^|_)(?:reject(?:ed)?|fail(?:ed|ure)?|blocked|error|denied|"
+                    r"not_accepted|not_approved|unsuccessful)(?:_|$)", normalized)
+                if normalized in _NEGATIVE_OUTCOMES or negative_token:
+                    return True
+            if normalized_key in _POSITIVE_OUTCOME_KEYS and item is False:
+                return True
+            if json_has_authoritative_negative_outcome(item):
+                return True
+    elif isinstance(value, list):
+        return any(json_has_authoritative_negative_outcome(item) for item in value)
+    return False
+
+
+def explicit_artifact_literals(criterion):
+    """Extract only independently checkable literal clauses and quoted source paths."""
+    if not isinstance(criterion, str):
+        return ()
+    cites_sources = bool(re.search(r"(?i)\b(cite|cites|citing|reference|references|list|name)\b",
+                                   criterion))
+    values = []
+    for item in re.findall(r"`([^`\n]{1,512})`", criterion):
+        item = item.strip()
+        if not item:
+            continue
+        is_path = bool(re.fullmatch(r"(?:src|tests|docs)/[A-Za-z0-9._/-]+|[A-Za-z0-9_.-]+\.[A-Za-z0-9]{1,8}", item))
+        if not is_path or cites_sources:
+            values.append(item)
+    if cites_sources:
+        values.extend(path for path in re.findall(
+            r"\b(?:src|tests|docs)/[A-Za-z0-9._/-]+", criterion) if path not in values)
+    for match in re.finditer(r"(?i)(?:exact phrase|literal|contains exactly)\s*[:=]?\s*['\"“](.{1,512}?)['\"”]", criterion):
+        value = match.group(1).strip()
+        if value and value not in values:
+            values.append(value)
+    return tuple(values)
+
+
+def artifact_literals_satisfied(raw, criteria, media_type=None):
+    """Check quoted deliverable requirements without pretending to grade prose semantics."""
+    try:
+        text = raw.decode("utf-8")
+    except (UnicodeError, AttributeError):
+        return False
+    if media_type == "application/json":
+        try:
+            document = json.loads(text)
+        except json.JSONDecodeError:
+            return False
+        metadata = {"acceptance_criteria", "step_acceptance_criteria", "criteria",
+            "artifact_schema", "artifact_name", "artifact_path", "media_type",
+            "objective_id", "assignment_id", "repository_reference", "repository_revision",
+            "allowed_operations", "timeout_seconds", "source_revision", "source_sha256",
+            "source_references"}
+        content = []
+        def collect(value, *, key=None):
+            if key in metadata:
+                return
+            if isinstance(value, str):
+                content.append(value)
+            elif isinstance(value, dict):
+                for child_key, child in value.items():
+                    collect(child, key=str(child_key).lower())
+            elif isinstance(value, list):
+                for child in value:
+                    collect(child)
+        collect(document)
+        text = "\n".join(content)
+    expected = [literal for criterion in criteria for literal in explicit_artifact_literals(criterion)]
+    return all(literal in text for literal in expected)
 
 
 class BoundedArtifactVerifier:
@@ -123,6 +216,7 @@ class BoundedArtifactVerifier:
         except (UnicodeError, json.JSONDecodeError):
             return False
         return bool(isinstance(artifact, dict) and
+            not json_has_authoritative_negative_outcome(artifact) and
             artifact.get("artifact_schema") == "rv.grace.work-product.v2" and
             artifact.get("artifact_name") == entry.get("name") and
             artifact.get("artifact_path") == entry.get("path") and
@@ -164,6 +258,8 @@ class BoundedArtifactVerifier:
             "artifact_integrity_and_assignment_provenance_verified": False,
             "source_provenance_matches_persisted_objective": False,
             "artifact_projection_matches_contract": False,
+            "artifact_semantic_outcome_not_negative": True,
+            "explicit_artifact_acceptance_clauses_satisfied": True,
         }
         evidence = (f"urn:rv:worker-attempt:{attempt.get('attempt_id', 'unknown')}",)
         try:
@@ -198,8 +294,22 @@ class BoundedArtifactVerifier:
                     raise ValueError("artifact metadata differs from persisted contract")
                 raw = self._read(entry.get("storage_name"),
                     self._storage_name(assignment_id, requirement), requirement.max_bytes)
+                if requirement.media_type == "application/json":
+                    try:
+                        criteria["artifact_semantic_outcome_not_negative"] = (
+                            criteria["artifact_semantic_outcome_not_negative"] and
+                            not json_has_authoritative_negative_outcome(
+                                json.loads(raw.decode("utf-8"))))
+                    except (UnicodeError, json.JSONDecodeError):
+                        criteria["artifact_semantic_outcome_not_negative"] = False
+                criteria["explicit_artifact_acceptance_clauses_satisfied"] = (
+                    criteria["explicit_artifact_acceptance_clauses_satisfied"] and
+                    artifact_literals_satisfied(raw, requirement.acceptance_criteria,
+                                                requirement.media_type))
                 if (hashlib.sha256(raw).hexdigest() != entry.get("sha256") or
                         len(raw) != entry.get("bytes") or
+                        not criteria["artifact_semantic_outcome_not_negative"] or
+                        not criteria["explicit_artifact_acceptance_clauses_satisfied"] or
                         not self._json_work_product(raw, entry, assignment, objective or {}, step or {})):
                     raise ValueError("artifact integrity or work product validation failed")
                 verified.append(entry)

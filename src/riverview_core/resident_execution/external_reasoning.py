@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.2
+# Revision: 1.1.3
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Bind system-owned lifecycle criteria into exact external review subjects
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept sanitized C2 bridge exception codes as terminal ambiguous receipts.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Bind duplicate receipt replay to a one-way lease-token digest.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Import namespace UUID function for stable doorbell attempt identity.
@@ -143,14 +144,19 @@ def _digest(value):
 def proposal_review_content(proposal):
     """Return execution-relevant proposal content, excluding model telemetry."""
     from dataclasses import is_dataclass
-    from ..resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
+    from ..resident_reasoning import (ArtifactRequirement, PlanProposal, PlanStep,
+                                      lifecycle_evidence_event)
     if is_dataclass(proposal):
         proposal = asdict(proposal)
     if not isinstance(proposal, Mapping):
         raise ValueError("review proposal must be an object")
     summary, steps = proposal.get("summary"), proposal.get("steps")
+    system_owned = proposal.get("system_owned_criteria", ())
     if (not isinstance(summary, str) or not summary.strip() or len(summary) > 4000
-            or not isinstance(steps, (list, tuple)) or not 1 <= len(steps) <= 20):
+            or not isinstance(steps, (list, tuple)) or not 1 <= len(steps) <= 20
+            or not isinstance(system_owned, (list, tuple))
+            or any(not isinstance(item, str) or lifecycle_evidence_event(item) is None
+                   for item in system_owned)):
         raise ValueError("review proposal content is invalid")
     normalized_steps = []
     allowed_step_keys = set(PlanStep.__dataclass_fields__)
@@ -174,9 +180,13 @@ def proposal_review_content(proposal):
             else:
                 data[key] = tuple(data[key])
         normalized_steps.append(PlanStep(**data))
-    normalized = PlanProposal(summary, tuple(normalized_steps), 0)
-    return {"summary": normalized.summary,
-            "steps": [asdict(step) for step in normalized.steps]}
+    normalized = PlanProposal(summary, tuple(normalized_steps), 0,
+                              system_owned_criteria=tuple(system_owned))
+    content = {"summary": normalized.summary,
+               "steps": [asdict(step) for step in normalized.steps]}
+    if normalized.system_owned_criteria:
+        content["system_owned_criteria"] = list(normalized.system_owned_criteria)
+    return content
 
 
 def build_review_subject(subject_id, revision, proposal):

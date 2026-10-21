@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.22
+# Revision: 1.0.23
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Model typed lifecycle criteria separately from Engineering steps while retaining exact objective criteria
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Require explicit lifecycle language before classifying conversation and grounding criteria as system-owned
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Allow the bounded caller deadline to exceed the provider HTTP timeout
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
@@ -160,6 +162,41 @@ class ExternalEscalationIntent:
             raise ValueError("external escalation intent is invalid")
 
 
+def lifecycle_evidence_event(criterion: str) -> str | None:
+    """Map narrowly recognizable system-owned criteria to durable lifecycle evidence."""
+    if not isinstance(criterion, str):
+        return None
+    value = " ".join(criterion.lower().split())
+    has_publication_action = any(word in value for word in
+        ("return", "publish", "report", "deliver", "display", "appear"))
+    if (("conversation" in value and "result" in value and has_publication_action) or
+            ("conversation" in value and "response" in value and has_publication_action) or
+            ("steward response" in value and has_publication_action) or
+            ("grace reports" in value and "result" in value) or
+            ("result is returned" in value) or ("result is published" in value)):
+        return "conversation.result_published"
+    if ("independent verification" in value or "independently verified" in value or
+            "verifier accepts" in value or "verification is accepted" in value):
+        return "execution.step_verified"
+    if ("work order" in value or "assignment" in value) and any(
+            word in value for word in ("created", "dispatched", "queued", "assigned")):
+        return "work_order.dispatched"
+    if "proposal" in value and any(word in value for word in
+            ("saved", "persisted", "registered", "recorded")):
+        return "work_order.proposed"
+    if (("objective" in value and any(word in value for word in
+            ("grounded", "grounding verified", "grounding is verified"))) or
+            "grounding is verified" in value):
+        return "objective.grounded"
+    if "objective" in value and any(word in value for word in
+            ("received", "persisted", "created")):
+        return "objective.received"
+    if "objective" in value and any(word in value for word in
+            ("completed", "complete", "closed")):
+        return "objective.completed"
+    return None
+
+
 @dataclass(frozen=True)
 class PlanProposal:
     summary: str
@@ -170,6 +207,7 @@ class PlanProposal:
     model_revision: str | None = None
     reasoning_stage: str | None = None
     external_escalation: ExternalEscalationIntent | None = None
+    system_owned_criteria: tuple[str, ...] = ()
 
     def __post_init__(self):
         if not isinstance(self.summary, str) or not self.summary.strip() or len(self.summary) > 4000:
@@ -192,6 +230,13 @@ class PlanProposal:
             prior.add(step.step_id)
         if type(self.tokens_used) is not int or self.tokens_used < 0:
             raise ValueError("tokens_used must be a non-negative integer")
+        if (not isinstance(self.system_owned_criteria, tuple) or
+                len(self.system_owned_criteria) > 20 or
+                any(not isinstance(item, str) or not item.strip() or len(item) > 1000 or
+                    lifecycle_evidence_event(item) is None
+                    for item in self.system_owned_criteria) or
+                len(set(self.system_owned_criteria)) != len(self.system_owned_criteria)):
+            raise ValueError("system-owned criteria must map to durable Riverview lifecycle evidence")
         provenance = (self.provider_id, self.served_model, self.model_revision,
                       self.reasoning_stage)
         if any(value is not None for value in provenance):

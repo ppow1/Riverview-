@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.9
+# Revision: 1.2.10
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject negative JSON outcomes and check exact artifact literals at the independent Codex verifier boundary
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Cover concurrent sibling-step execution when the objective's latest assignment pointer names the other step.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify paraphrased substantive content passes integrity checks and Grace receives only digest-verified bounded artifact text.
@@ -226,6 +227,71 @@ class CodexCLIAdapterTests(unittest.TestCase):
             {"status": "succeeded", "capability": CAPABILITY,
              "attempt_id": "attempt:changed-contract"}, changed)
         self.assertEqual(rejected.status.value, "REJECTED")
+
+    def test_codex_verifier_rejects_negative_json_and_requires_explicit_literal(self):
+        from hashlib import sha256
+        from riverview_core.resident_execution.codex_workflow import CodexArtifactVerifier
+
+        assignment_id = "assignment:semantic-verifier"
+        objective_id = "objective:semantic-verifier"
+        requirement = {"name": "decision", "path": "reports/decision.json",
+            "media_type": "application/json",
+            "acceptance_criteria": ["Create `decision.json` containing exact phrase `verified delivery`."],
+            "max_bytes": 32768}
+        class Pipeline:
+            def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
+                return {"artifact_requirements": [requirement]}
+
+        storage_dir = "codex-" + sha256(assignment_id.encode()).hexdigest()
+        basename = sha256(requirement["name"].encode()).hexdigest()[:12]
+        artifact_directory = self.artifacts / storage_dir
+        artifact_directory.mkdir(mode=0o700)
+        artifact = artifact_directory / basename
+
+        def result_for(body):
+            raw = body.encode("utf-8")
+            artifact.write_bytes(raw)
+            artifact.chmod(0o600)
+            digest = sha256(raw).hexdigest()
+            entry = {"name": requirement["name"], "path": requirement["path"],
+                "media_type": requirement["media_type"], "acceptance_criteria":
+                    requirement["acceptance_criteria"], "storage_name": storage_dir + "/" + basename,
+                "sha256": digest, "bytes": len(raw)}
+            return {"status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.artifacts.v3",
+                "assignment_id": assignment_id, "objective_id": objective_id,
+                "artifact_name": entry["storage_name"], "artifact_path": str(artifact),
+                "artifact_sha256": digest, "artifact_bytes": len(raw),
+                "source_artifact_name": requirement["path"],
+                "changed_files": [requirement["path"]], "source_revision": "a" * 40,
+                "source_sha256": "b" * 64, "repository_revision": "c" * 40,
+                "artifact_contract": [requirement], "artifacts": [entry]}
+
+        assignment = {"id": assignment_id, "objective_ref": objective_id}
+        attempt = {"status": "succeeded", "capability": CAPABILITY,
+            "attempt_id": "attempt:semantic-verifier"}
+        verifier = CodexArtifactVerifier(self.artifacts, Pipeline())
+        for negative_json in (
+                '{"decision":"REJECTED","report":"verified delivery"}',
+                '{"verification_decision":"FAILED_TESTS","report":"verified delivery"}',
+                '{"result":{"status":"blocked"},"report":"verified delivery"}'):
+            rejected = verifier.verify(assignment, attempt, result_for(negative_json))
+            self.assertEqual(rejected.status.value, "REJECTED")
+            self.assertFalse(rejected.criteria["artifact_semantic_outcome_not_negative"])
+
+        missing_literal = verifier.verify(assignment, attempt,
+            result_for('{"decision":"ACCEPTED","report":"delivery verified"}'))
+        self.assertEqual(missing_literal.status.value, "REJECTED")
+        self.assertFalse(missing_literal.criteria["explicit_artifact_acceptance_clauses_satisfied"])
+
+        metadata_only = verifier.verify(assignment, attempt,
+            result_for('{"decision":"ACCEPTED"}'))
+        self.assertEqual(metadata_only.status.value, "REJECTED")
+        self.assertFalse(metadata_only.criteria["explicit_artifact_acceptance_clauses_satisfied"],
+                         "echoing the criterion in artifact metadata is not deliverable evidence")
+
+        accepted = verifier.verify(assignment, attempt,
+            result_for('{"decision":"ACCEPTED","report":"verified delivery"}'))
+        self.assertEqual(accepted.status.value, "ACCEPTED", dict(accepted.criteria))
 
     def test_recovery_finds_assignment_bound_extensionless_multi_artifact_set(self):
         assignment_id = "assignment:recovery-dynamic-artifacts"

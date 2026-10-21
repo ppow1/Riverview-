@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.19
+# Revision: 1.3.20
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Separate lifecycle-only criteria from bounded Engineering work and prefer one deliverable step when sufficient
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Permit the bounded 120-second proposal request deadline
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify JSON truncation at the completion-token boundary distinctly
 # Changed: 2026-10-20 UTC | RV-GRACE-TYPED-PROPOSAL-SCHEMA | Require capability-specific fields in structured proposal schema
@@ -57,7 +58,7 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 from .resident_reasoning import (ArtifactRequirement, ExternalEscalationIntent, PlanProposal, PlanStep,
-                                 ProposalValidationFailure,
+                                 lifecycle_evidence_event, ProposalValidationFailure,
                                  ReasoningRequest)
 from .resident_execution.grace_role_context import build_grace_role_context
 
@@ -233,13 +234,20 @@ class LocalReasoningProvider:
         if request.implementation_revision != self.model_sha256:
             return ProposalValidationFailure("PROPOSAL_PROVENANCE_INVALID")
         system_instruction = (
-            "Return exactly one JSON object with keys summary and steps. "
+            "Return exactly one JSON object with keys summary, steps, and system_owned_criteria. "
             "Use 1 to 20 concise ordered steps only when needed. summary is at most seven words. steps "
             "contains objects with step_id (short string), objective "
             "(at most eight words), acceptance_criteria as a list of 1 to 12 strings, "
             "and depends_on containing only earlier step_id values. Repeat every supplied acceptance criterion exactly, "
             "without dropping or rewriting any, including negative constraints or prohibitions (for example, criteria "
-            "beginning with 'Do not'). Put every such constraint verbatim on at least one applicable step. Set execution_capability on every step to either "
+            "beginning with 'Do not'). Put every such constraint verbatim on at least one applicable step. "
+            "Use system_owned_criteria only for original criteria completed by existing Riverview lifecycle events, "
+            "not by editing the deliverable; copy those criteria exactly. Map each one only to an event that actually "
+            "proves it. Do not create Engineering steps or receipt artifacts to prove objective intake, proposal "
+            "persistence, dispatch, verification, completion, or conversation publication; CME and the conversation "
+            "outbox own those records. Keep all other original criteria on deliverable steps. When one bounded "
+            "deliverable satisfies the Engineering criteria, use exactly one step; use multiple steps only for "
+            "genuinely separate deliverables or required dependencies. Set execution_capability on every step to either "
             "engineering.codex-cli-artifact.v1 or engineering.codex-cli-source-change.v1. "
             "For artifact steps, include artifact_requirements and omit authorized_paths, test_targets, repository_reference, and repository_revision. "
             "For source-change steps, include the required source scope and omit artifact_requirements. "
@@ -329,6 +337,8 @@ class LocalReasoningProvider:
                 "summary": {"type": "string", "minLength": 1, "maxLength": 60},
                 "steps": {"type": "array", "minItems": 1, "maxItems": 20,
                     "items": step_schema},
+                "system_owned_criteria": {"type": "array", "maxItems": 20,
+                    "items": {"type": "string", "minLength": 1, "maxLength": 1000}},
             }
             if request.external_reasoning_targets:
                 schema_properties["external_escalation"] = {
@@ -356,7 +366,7 @@ class LocalReasoningProvider:
                         "schema": {
                             "type": "object",
                             "properties": schema_properties,
-                            "required": ["summary", "steps"],
+                            "required": ["summary", "steps", "system_owned_criteria"],
                             "additionalProperties": False,
                         },
                     },
@@ -415,8 +425,9 @@ class LocalReasoningProvider:
             return ProposalValidationFailure("PROPOSAL_TOKEN_BUDGET_EXCEEDED")
         if (finish_reason not in ("stop", "length") or not isinstance(plan, dict) or
                 not {"summary", "steps"} <= set(plan) or
-                not set(plan) <= {"summary", "steps", "external_escalation"} or
-                not isinstance(plan["steps"], list)):
+                not set(plan) <= {"summary", "steps", "system_owned_criteria", "external_escalation"} or
+                not isinstance(plan["steps"], list) or
+                not isinstance(plan.get("system_owned_criteria", []), list)):
             return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
         try:
             steps = []
@@ -457,9 +468,13 @@ class LocalReasoningProvider:
                     raw_escalation["reason"], raw_escalation["target_provider_id"])
                 if escalation.target_provider_id not in request.external_reasoning_targets:
                     return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
+            lifecycle_criteria = tuple(plan.get("system_owned_criteria", []))
+            if any(lifecycle_evidence_event(item) is None for item in lifecycle_criteria):
+                return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
             return PlanProposal(plan["summary"], tuple(steps), completion_tokens,
                 provider_id=self.provider_id, served_model=served_model,
                 model_revision=self.model_sha256, reasoning_stage="reasoning",
+                system_owned_criteria=lifecycle_criteria,
                 external_escalation=escalation)
         except (KeyError, TypeError, ValueError):
             return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")

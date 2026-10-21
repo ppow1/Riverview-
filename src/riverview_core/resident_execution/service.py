@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.35
+# Revision: 1.0.36
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Service ready dispatch, execution, verification, completion and conversation publication before potentially slow model planning
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Provide enough bounded completion tokens for full typed proposals with dynamic objective criteria
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Persist reasoning turns and skip externally blocked candidates without starving later grounded objectives.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Route bounded and Codex artifacts through integrity-checked Grace review context
@@ -917,18 +918,21 @@ class GraceExecutionService:
             review_subject=review_subject, review_parent=review_parent)
 
     def run_once(self):
-        """Run bounded dispatch, advisory reasoning, independent workers and verification."""
+        """Advance ready durable work before a possibly slow reasoning request."""
         try:
-            doorbell = self._run_doorbell_worker()
-            rejected_reviewed = self.publish_rejected_work_order_reviews()
-            external_reasoned = self.consume_external_reasoning()
-            reasoned = self.reason_one_grounded_objective()
+            # Existing authorized work is latency-sensitive. A provider call can
+            # take tens of seconds; do not put it ahead of work already admitted
+            # under Steward scope or its verification/result-return path.
             dispatched = self.dispatch_proposed()
             worker_result = self._run_workers()
             verified = self.verify_one()
             completed = self.reconcile_completions()
             returned = self.publish_conversation_results()
             proposal_updates = self.reconcile_proposal_lifecycle()
+            rejected_reviewed = self.publish_rejected_work_order_reviews()
+            external_reasoned = self.consume_external_reasoning()
+            reasoned = self.reason_one_grounded_objective()
+            doorbell = self._run_doorbell_worker()
             worker_failures = (worker_result.get("status") == "FAILED" or
                 (isinstance(worker_result.get("capabilities"), dict) and any(
                     item.get("status") == "FAILED" for item in worker_result["capabilities"].values())))

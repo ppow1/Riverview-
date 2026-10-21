@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.19
+# Revision: 1.1.20
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Persist lifecycle criteria separately from Engineering steps and bind them to durable workflow evidence
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Order grounded reasoning candidates by their most recent persisted attempt, with never-attempted objectives first.
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Advance independently accepted steps through persisted dependencies and bound rejected-step retries with durable escalation pending.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
@@ -58,7 +59,7 @@ import json
 import re
 
 from ..assignment_intake import AuthorizedAssignmentIntake, AssignmentIntakeDenied
-from ..resident_reasoning import PlanProposal
+from ..resident_reasoning import PlanProposal, lifecycle_evidence_event
 from ..worker_adapter.knowledge import KnowledgeStatus
 
 
@@ -284,8 +285,13 @@ class GraceExecutionPipeline:
         requested = set(objective["acceptance_criteria"])
         proposed = {criterion for step in proposal.steps
                     for criterion in step.acceptance_criteria}
-        if not requested.issubset(proposed):
-            raise ObjectiveStateError("proposal omits one or more human acceptance criteria")
+        lifecycle = set(proposal.system_owned_criteria)
+        if (proposed & lifecycle or
+                any(criterion not in requested or lifecycle_evidence_event(criterion) is None
+                    for criterion in lifecycle) or
+                proposed | lifecycle != requested):
+            raise ObjectiveStateError(
+                "proposal must bind every original criterion to an Engineering step or a supported lifecycle event")
         # A model cannot turn a general objective into filesystem authority.
         # Every source path must have been explicitly named in the Steward's
         # original request or accepted criteria; the adapter allowlist is only
@@ -361,6 +367,10 @@ class GraceExecutionPipeline:
                             f"grace-work-order-proposed:{objective_id}", actor_id,
                             {"proposal_sha256": hashlib.sha256(_json(document).encode()).hexdigest(),
                              "step_ids": [step.step_id for step in proposal.steps],
+                             "system_owned_criteria": [
+                                 {"criterion": criterion,
+                                  "evidence_event_type": lifecycle_evidence_event(criterion)}
+                                 for criterion in proposal.system_owned_criteria],
                              "approved": False})
                 if external_exchange is not None:
                     self._event(cur, objective_id,
@@ -431,6 +441,32 @@ class GraceExecutionPipeline:
             (objective_id,))
         row = cur.fetchone()
         return bool(row and row["complete"])
+
+    def _system_criterion_evidence(self, cur, objective_id, proposal, completion_cycle):
+        """Resolve every lifecycle-only criterion to actual or deterministic future event evidence."""
+        evidence = []
+        for criterion in proposal.get("system_owned_criteria", []):
+            event_type = lifecycle_evidence_event(criterion)
+            if event_type is None:
+                raise ObjectiveStateError("system-owned criterion has no lifecycle evidence contract")
+            if event_type == "objective.completed":
+                keys = [f"grace-objective-completed:{objective_id}:{completion_cycle}"]
+            elif event_type == "conversation.result_published":
+                keys = [f"grace-conversation-result-published:{objective_id}:{completion_cycle}"]
+            else:
+                acceptable_types = (("execution.step_verified", "objective.completed")
+                    if event_type == "execution.step_verified" else (event_type,))
+                cur.execute("""SELECT idempotency_key FROM grace_objective_events
+                    WHERE objective_id=%s AND event_type=ANY(%s)
+                    ORDER BY sequence""", (objective_id, list(acceptable_types)))
+                keys = [row["idempotency_key"] for row in cur.fetchall()]
+                if event_type == "execution.step_verified" and not keys:
+                    keys = [f"grace-objective-completed:{objective_id}:{completion_cycle}"]
+                if not keys:
+                    raise ObjectiveStateError("required lifecycle evidence is not durable")
+            evidence.append({"criterion": criterion, "evidence_event_type": event_type,
+                             "event_keys": keys})
+        return evidence
 
     def proposal_step_for_assignment(self, objective_id, assignment_id):
         """Resolve proposal content through the durable objective-step assignment link."""
@@ -657,10 +693,16 @@ class GraceExecutionPipeline:
             verification = cur.fetchone()
         if not verification:
             raise ObjectiveStateError("persisted independent verification is required")
+        events = self.objective_events(objective_id)
+        received = next((item for item in events if item.get("event_type") ==
+                         "objective.received"), None)
+        has_conversation_origin = bool(
+            isinstance((received or {}).get("payload"), dict) and
+            isinstance(received["payload"].get("origin"), dict))
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
-                cur.execute("""SELECT step_id,step_order FROM grace_objective_steps
+                cur.execute("""SELECT step_id,step_order,status FROM grace_objective_steps
                     WHERE objective_id=%s AND assignment_id=%s FOR UPDATE""",
                     (objective_id, assignment_id))
                 step_row = cur.fetchone()
@@ -674,6 +716,19 @@ class GraceExecutionPipeline:
                     raise ObjectiveStateError("step verification state is inconsistent")
                 all_steps = self.objective_steps_complete(cur, objective_id)
         completion_cycle = step_row["step_order"]
+        grace_accepted = any(
+            item.get("event_type") in {"conversation.result_published",
+                                       "conversation.result_review_published"} and
+            isinstance(item.get("payload"), dict) and
+            item["payload"].get("completion_cycle") == str(completion_cycle) and
+            item["payload"].get("review_decision") == "OBJECTIVE_COMPLETE"
+            for item in events)
+        await_grace_acceptance = bool(all_steps and has_conversation_origin and not grace_accepted)
+        if await_grace_acceptance and step_row["status"] == "verified":
+            # The verifier result has already been durably surfaced. Wait for
+            # Grace's correlated substantive review without rewriting state or
+            # producing repeated completion events on each CME poll.
+            return objective
         payload = {"assignment_id": assignment_id, "step_id": step_row["step_id"],
                    "completion_cycle": completion_cycle,
                    "verification_id": str(verification["verification_id"]),
@@ -685,6 +740,14 @@ class GraceExecutionPipeline:
                    "evidence_references": list(verification["evidence_references"])}
         if all_steps:
             payload["proposal"] = objective.get("proposal")
+            payload["objective_acceptance_criteria"] = list(objective.get(
+                "acceptance_criteria", ()))
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                payload["system_owned_criteria_evidence"] = self._system_criterion_evidence(
+                    cur, objective_id, objective.get("proposal") or {}, completion_cycle)
+        if await_grace_acceptance:
+            payload["awaiting_grace_acceptance"] = True
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT wr.result FROM worker_attempts wa
@@ -708,11 +771,12 @@ class GraceExecutionPipeline:
                 cur.execute("""UPDATE grace_objectives SET status=%s,revision=revision+1,
                     updated_at=clock_timestamp() WHERE objective_id=%s
                     AND status='WORK_ORDER_CREATED' AND assignment_id=%s""",
-                    ("COMPLETED" if all_steps else "WORK_ORDER_CREATED",
+                    ("COMPLETED" if all_steps and not await_grace_acceptance
+                     else "WORK_ORDER_CREATED",
                      objective_id, assignment_id))
                 if cur.rowcount != 1:
                     raise ObjectiveStateError("objective completion raced with another update")
-                if all_steps:
+                if all_steps and not await_grace_acceptance:
                     self._event(cur, objective_id, "objective.completed",
                                 f"grace-objective-completed:{objective_id}:{completion_cycle}", "verifier:independent",
                                 payload)
@@ -1054,11 +1118,19 @@ class GraceExecutionPipeline:
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
-                cur.execute("""SELECT status FROM grace_objectives
+                cur.execute("""SELECT status,proposal FROM grace_objectives
                     WHERE objective_id=%s FOR UPDATE""", (objective_id,))
                 row = cur.fetchone()
                 if not row:
                     raise ObjectiveStateError("objective is missing before chat return")
+                lifecycle_evidence = []
+                proposal = row.get("proposal") if isinstance(row.get("proposal"), dict) else {}
+                for criterion in proposal.get("system_owned_criteria", []):
+                    if lifecycle_evidence_event(criterion) == "conversation.result_published":
+                        lifecycle_evidence.append({"criterion": criterion,
+                            "evidence_event_type": "conversation.result_published",
+                            "event_keys": [f"grace-conversation-result-published:{objective_id}:"
+                                f"{receipt['completion_cycle']}"]})
                 cur.execute("""SELECT 1 FROM grace_objective_events
                     WHERE objective_id=%s
                       AND event_type IN ('execution.step_verified','objective.completed')
@@ -1089,7 +1161,10 @@ class GraceExecutionPipeline:
                     f"{receipt['completion_cycle']}" if generation == 1 else
                     f"grace-conversation-result-review-published:{objective_id}:"
                     f"{receipt['completion_cycle']}:{generation}")
-                self._event(cur, objective_id, event_type, event_key, "office:grace", receipt)
+                event_payload = dict(receipt)
+                if lifecycle_evidence:
+                    event_payload["system_owned_criteria_evidence"] = lifecycle_evidence
+                self._event(cur, objective_id, event_type, event_key, "office:grace", event_payload)
         return True
 
     def pending_rejected_work_order_reviews(self, *, limit=10):

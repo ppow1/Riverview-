@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.26
+File Revision: 1.1.27
+Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Diagnose scheduler ordering, split lifecycle criteria, and distinguish verifier rejection from Grace acceptance
 Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Diagnose dynamic bounded artifact contracts and verifier outcomes
 Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Document assignment-defined artifact diagnosis and bounded recovery
 Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Diagnose sibling-step pointer mismatches and document same-assignment no-artifact recovery evidence.
@@ -306,3 +307,40 @@ allow the owner loop to resume review. For `retry_limit_exhausted`, a Steward
 must decide the next scoped action; do not silently raise the bound or assume
 an external reasoning provider is commissioned. Assignment, verification and
 rejection history remains intact.
+
+## W4 cycle ordering, criteria, and completion review
+
+`GraceExecutionService.run_once()` advances existing dispatch, leased worker,
+independent verification, completion reconciliation, and result publication
+before grounded-objective or external reasoning requests that may wait on a
+model/provider. This uses the existing owner-session cycle and fair
+grounded-objective selector; it does not add a queue. The measured baseline
+reasoning request took 54.912 seconds in the provider and 56.207 seconds end to
+end. Ready work is therefore handled before that call in the same cycle. The
+service heartbeat may still wait until the reasoning call returns; diagnose the
+actual cycle order before changing any timeout.
+
+When a typed proposal has one deliverable but also includes objective intake,
+work-order, verification, completion, or conversation-return requirements,
+check the durable `work_order.proposed` event's `system_owned_criteria` mapping.
+Each original criterion must remain byte-for-byte present either on a real
+Engineering step or as a lifecycle criterion mapped to a supported durable
+event. A lifecycle-only criterion must not produce a receipt assignment.
+Distinct deliverables and real dependencies still use multiple ordered steps.
+
+For a Codex JSON artifact, inspect the independent verification criteria. A
+parseable envelope is insufficient: `REJECTED`, failed, blocked, denied, or
+equivalent authoritative negative outcomes reject the artifact. Exact-literal
+checks read deliverable content, not echoed `acceptance_criteria` or provenance
+metadata. These checks establish integrity, required structure, and explicitly
+testable literals only; Grace's reasoning decision remains responsible for
+substantive acceptance.
+
+An independently accepted final assignment on a conversation-origin objective
+first remains `WORK_ORDER_CREATED` while Grace reviews the artifact and
+verification evidence. Check the same-cycle `conversation.result_published` or
+`conversation.result_review_published` event for `review_decision`. Only
+`OBJECTIVE_COMPLETE` allows the normal completion reconciler to append
+`objective.completed`. Other decisions leave the objective open; preserve the
+receipt and follow the established evidence, continuation, or Steward-action
+path. Do not modify objective state manually or replay the original smoke test.

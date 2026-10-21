@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.15
+# Revision: 1.2.16
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject explicit negative JSON outcomes and verify literal artifact acceptance clauses independently
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Resolve Codex assignment provenance through the durable proposal-step link when sibling steps are dispatched concurrently.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Separate independent artifact integrity/provenance checks from Grace's substantive acceptance review and expose only a digest-verified bounded artifact snapshot.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Validate source execution against dispatch-time target snapshot, checkout HEAD, and verifier result provenance.
@@ -47,6 +48,7 @@ import xml.etree.ElementTree as ET
 from ..worker_adapter.knowledge import KnowledgeStatus
 from ..worker_adapter.verifier import VerificationResult, VerificationStatus
 from ..resident_reasoning import ArtifactRequirement
+from .verifier import artifact_literals_satisfied, json_has_authoritative_negative_outcome
 from .codex_cli import CAPABILITY, CodexAssignment, CodexCLIExecutionAdapter
 from .codex_source_change import (CAPABILITY as SOURCE_CHANGE_CAPABILITY,
     CodexSourceChangeAdapter, CodexSourceChangeAssignment, CodexSourceChangeResult,
@@ -314,6 +316,8 @@ class CodexArtifactVerifier:
             "all_required_artifacts_integrity_and_type_verified": False,
             "artifact_path_projection_matches_contract": False,
             "authorized_acceptance_criteria_bound": False,
+            "artifact_semantic_outcome_not_negative": True,
+            "explicit_artifact_acceptance_clauses_satisfied": True,
             "source_provenance_is_pinned": bool(
                 re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(result.get("source_revision", ""))) and
                 re.fullmatch(r"[0-9a-f]{64}", str(result.get("source_sha256", "")))),
@@ -349,6 +353,14 @@ class CodexArtifactVerifier:
                     raw = self._open_verified(entry, assignment["id"],
                         result.get("rework_verification_id"))
                     verified.append(entry)
+                    if entry.get("media_type") == "application/json":
+                        criteria["artifact_semantic_outcome_not_negative"] = (
+                            criteria["artifact_semantic_outcome_not_negative"] and
+                            not json_has_authoritative_negative_outcome(json.loads(raw.decode("utf-8"))))
+                    criteria["explicit_artifact_acceptance_clauses_satisfied"] = (
+                        criteria["explicit_artifact_acceptance_clauses_satisfied"] and
+                        artifact_literals_satisfied(raw, entry.get("acceptance_criteria", ()),
+                                                    entry.get("media_type")))
                     evidence += ("workspace://" + entry["storage_name"],
                                  "sha256:" + entry["sha256"])
                 criteria["all_required_artifacts_integrity_and_type_verified"] = len(verified) == len(contract)

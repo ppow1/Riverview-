@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.2.1
+# Revision: 1.2.2
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Preserve lifecycle criteria in provider-reviewed proposal subject digests
 # Purpose: Expose the durable advisory exchange through authenticated MCP Streamable HTTP
 # Execution Model: Request-driven, sessionless HTTP JSON-RPC adapter
 # Observability: Sanitized request outcomes; authoritative exchange state remains PostgreSQL
@@ -510,7 +511,8 @@ class ExternalReasoningMCPAdapter:
                 or not isinstance(subject["sha256"], str)
                 or not _SHA256.fullmatch(subject["sha256"])
                 or not isinstance(proposal, Mapping)
-                or set(proposal) != {"summary", "steps"}
+                or set(proposal) not in ({"summary", "steps"},
+                    {"summary", "steps", "system_owned_criteria"})
                 or not isinstance(proposal["summary"], str)
                 or not proposal["summary"].strip() or len(proposal["summary"]) > 4000
                 or not isinstance(proposal["steps"], (list, tuple))
@@ -543,7 +545,11 @@ class ExternalReasoningMCPAdapter:
                     else:
                         step_data[field] = tuple(values)
                 normalized_steps.append(PlanStep(**step_data))
-            validated_proposal = PlanProposal(proposal["summary"], tuple(normalized_steps), 0)
+            system_owned = proposal.get("system_owned_criteria", [])
+            if not isinstance(system_owned, (list, tuple)):
+                raise ValueError
+            validated_proposal = PlanProposal(proposal["summary"], tuple(normalized_steps), 0,
+                system_owned_criteria=tuple(system_owned))
             normalized_steps_data = []
             for original, step in zip(proposal["steps"], validated_proposal.steps):
                 record = asdict(step)
@@ -552,6 +558,9 @@ class ExternalReasoningMCPAdapter:
                 normalized_steps_data.append(record)
             normalized_proposal = {"summary": validated_proposal.summary,
                 "steps": normalized_steps_data}
+            if "system_owned_criteria" in proposal:
+                normalized_proposal["system_owned_criteria"] = list(
+                    validated_proposal.system_owned_criteria)
         except (TypeError, ValueError, KeyError):
             raise ValueError("review_subject_invalid") from None
         digest_input = {"subject_id": subject_id, "revision": subject["revision"],

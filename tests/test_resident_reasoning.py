@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.18
+# Revision: 1.0.19
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject ambiguous deliverable prose as lifecycle-only criteria
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Verify the bounded reasoning caller deadline
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Keep persistent reasoning rehydration tests on the durable event contract.
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Verify sanitized failure codes persist without response content
@@ -603,3 +604,17 @@ class ResidentReasoningTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LifecycleEvidenceClassificationTests(unittest.TestCase):
+    def test_only_explicit_lifecycle_actions_are_system_owned(self):
+        from riverview_core.resident_reasoning import lifecycle_evidence_event
+        self.assertEqual(lifecycle_evidence_event(
+            "Grace returns the result to the Steward conversation."),
+            "conversation.result_published")
+        self.assertEqual(lifecycle_evidence_event(
+            "The objective is grounded before execution."), "objective.grounded")
+        self.assertIsNone(lifecycle_evidence_event(
+            "The conversation summary includes every cited source."))
+        self.assertIsNone(lifecycle_evidence_event(
+            "Write a grounded report of the source implementation."))

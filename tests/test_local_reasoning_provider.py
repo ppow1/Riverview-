@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.21
+# Revision: 1.1.22
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Prove lifecycle-only acceptance criteria stay out of one deliverable step
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Accept bounded provider HTTP deadlines above the prior 60-second cap
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify token-truncated proposal JSON without exposing model output
 # Changed: 2026-10-20 UTC | RV-GRACE-TYPED-PROPOSAL-SCHEMA | Require complete capability-specific structured proposal output
@@ -144,6 +145,44 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("Director of Operations", sent["messages"][0]["content"])
         self.assertIn("Alfred", sent["messages"][0]["content"])
         self.assertIn("grants no permission", sent["messages"][0]["content"])
+
+    def test_single_deliverable_separates_system_lifecycle_criteria(self):
+        from riverview_core.resident_reasoning import PlanProposal
+        deliverable = "The report contains exact phrase `verified delivery`."
+        lifecycle = (
+            "The objective is grounded before execution.",
+            "The approved work order is dispatched.",
+            "Independent verification is accepted.",
+            "Grace returns the result to the Steward conversation.",
+            "The objective is completed.",
+        )
+        all_criteria = (deliverable, *lifecycle)
+        self.request = replace(self.request, assignment={"id": "assignment-1",
+            "objective": "Prepare one report", "acceptance_criteria": list(all_criteria)})
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Prepare one report", "system_owned_criteria": list(lifecycle),
+            "steps": [{"step_id": "report", "objective": "Create the report",
+                "acceptance_criteria": [deliverable], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "reports/report.md",
+                    "media_type": "text/markdown", "acceptance_criteria": [deliverable]}]}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertIsInstance(proposal, PlanProposal)
+        self.assertEqual(len(proposal.steps), 1)
+        self.assertEqual(proposal.steps[0].acceptance_criteria, (deliverable,))
+        self.assertEqual(proposal.system_owned_criteria, lifecycle)
+        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
+        self.assertIn("system_owned_criteria", schema["required"])
+        self.assertIn("system_owned_criteria", self.requests[0]["messages"][0]["content"])
+
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Invalid lifecycle", "system_owned_criteria": [{"not": "text"}],
+            "steps": [{"step_id": "report", "objective": "Create the report",
+                "acceptance_criteria": [deliverable], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "reports/report.md",
+                    "media_type": "text/markdown", "acceptance_criteria": [deliverable]}]}]}))
+        self.assertEqual(self.provider.propose(self.request).detail_code, "PROPOSAL_SCHEMA_INVALID")
 
     def test_retry_prompt_repairs_prior_plan_omitting_negative_criterion(self):
         required = "Do not modify source files, repository contents, services, production configuration, or credentials."

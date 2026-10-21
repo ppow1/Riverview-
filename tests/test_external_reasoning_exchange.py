@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.1
+# Revision: 1.1.2
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Preserve and digest-bind lifecycle criteria in externally reviewed proposals
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify sanitized C2 exception receipts terminate without duplicate wake retries.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify duplicate receipt replay remains bound to the original lease token.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify deterministic doorbell attempt identity using disposable PostgreSQL.
@@ -150,13 +151,20 @@ class ReviewSubjectUnitTests(unittest.TestCase):
         subject_id = str(uuid4())
         proposal = PlanProposal("bounded proposal", (PlanStep("step-1", "review",
             ("keep advisory unapproved",)),), 19, provider_id="model:local",
-            served_model="fixture", model_revision="c" * 64, reasoning_stage="reasoning")
+            served_model="fixture", model_revision="c" * 64, reasoning_stage="reasoning",
+            system_owned_criteria=("The objective is completed.",))
         subject = build_review_subject(subject_id, 1, proposal)
+        self.assertEqual(subject["proposal"]["system_owned_criteria"],
+                         ["The objective is completed."])
         canonical = json.dumps({"subject_id": subject_id, "revision": 1,
             "proposal": subject["proposal"]}, ensure_ascii=False, sort_keys=True,
             separators=(",", ":"), allow_nan=False).encode("utf-8")
         self.assertEqual(subject["sha256"], hashlib.sha256(canonical).hexdigest())
         self.assertEqual(validate_review_subject(subject), subject)
+        routed = ExternalReasoningMCPAdapter._review_subject(
+            {}, {"review_subject": subject})
+        self.assertEqual(routed, subject,
+                         "the provider-facing MCP contract preserves digest-bound lifecycle criteria")
         changed = {**subject, "proposal": {**subject["proposal"], "summary": "changed"}}
         with self.assertRaisesRegex(ValueError, "digest mismatch"):
             validate_review_subject(changed)
