@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-conversation:browser-chat",
-  "graph_revision": "1.0.22",
+  "graph_revision": "1.0.24",
   "component_id": "RESIDENT-CONVERSATION",
   "workflow_id": "resident.conversation.v1",
   "diagram_order": 14,
@@ -493,9 +493,9 @@
     },
     {
       "id": "rv:resident-conversation:browser-chat:attempt-diagnostics",
-      "node_revision": "1.0.1",
+      "node_revision": "1.0.3",
       "type": "verification",
-      "label": "Emit sanitized provider attempts with bounded timing and error codes; never include conversation text",
+      "label": "Persist sanitized provider attempt outcomes and timing with an explicit flag distinguishing a readiness-only router observation from an actual provider dispatch",
       "source_references": [
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/conversation.py",
@@ -507,6 +507,23 @@
       "verification_evidence": [
         "tests/test_resident_model_router.py",
         "tests/test_resident_conversation.py"
+      ]
+    },
+    {
+      "id": "rv:resident-conversation:browser-chat:provider-client-observations",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Record correlated response ID, response headers, first streamed text when present, and body completion as client observations; do not claim server receipt, prompt processing, or token-generation timing",
+      "source_references": [
+        "src/riverview_core/local_reasoning_provider.py",
+        "src/riverview_core/resident_execution/model_router.py"
+      ],
+      "documentation_references": [
+        "docs/components/RESIDENT_CONVERSATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_local_reasoning_provider.py",
+        "tests/test_resident_model_router.py"
       ]
     },
     {
@@ -1096,9 +1113,9 @@
     },
     {
       "from": "rv:resident-conversation:browser-chat:attempt-diagnostics",
-      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "to": "rv:resident-conversation:browser-chat:provider-client-observations",
       "type": "runtime_transition",
-      "label": "Success or authorized interim fallback; persist served provider and attempts"
+      "label": "Successful provider response returned to the client"
     },
     {
       "from": "rv:resident-conversation:browser-chat:attempt-diagnostics",
@@ -1340,6 +1357,12 @@
       "to": "rv:resident-conversation:browser-chat:provider-failure",
       "type": "diagnostic_branch",
       "label": "Protected context plus one selected schema cannot fit the exact provider byte limit; reject before inference"
+    },
+    {
+      "from": "rv:resident-conversation:browser-chat:provider-client-observations",
+      "to": "rv:resident-conversation:browser-chat:persist-response",
+      "type": "runtime_transition",
+      "label": "Persist the correlated response after client-observed completion"
     }
   ]
 }

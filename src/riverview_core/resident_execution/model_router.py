@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.8
+# Revision: 1.2.9
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Carry durable request identity to providers and persist bounded response evidence per attempt
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Trim oldest conversational context to the provider byte limit while preserving system instructions and the active turn.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Preserve sanitized HTTP failure classes for bounded deferred recovery.
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Preserve typed sanitized proposal-failure codes from the 80B adapter
@@ -192,7 +193,7 @@ class GraceModelRouter:
         raise ReasoningDeferred(states["vision"].state)
 
     def complete_chat(self, messages, *, max_tokens, expected_revision,
-                      timeout_seconds=120, required_capability=None):
+                      timeout_seconds=120, required_capability=None, request_id=None):
         if expected_revision != self.model_sha256:
             raise LocalReasoningUnavailable("router_binding_mismatch")
         try:
@@ -243,19 +244,22 @@ class GraceModelRouter:
         try:
             started_at = datetime.now(UTC)
             started = monotonic()
-            completion = provider.complete_chat(routed, max_tokens=stage_max_tokens,
-                expected_revision=provider.model_sha256,
-                timeout_seconds=min(timeout_seconds, self.TIMEOUTS[stage]))
+            completion = self._complete_provider(provider, routed,
+                max_tokens=stage_max_tokens, expected_revision=provider.model_sha256,
+                timeout_seconds=min(timeout_seconds, self.TIMEOUTS[stage]),
+                request_id=request_id)
             attempts.append(self._attempt(stage, provider, started_at, started,
                 outcome="succeeded", finish_reason=completion.finish_reason,
                 completion_tokens=completion.completion_tokens,
-                completion_token_limit=stage_max_tokens))
+                completion_token_limit=stage_max_tokens, completion=completion,
+                provider_call_dispatched=True))
         except LocalReasoningUnavailable as exc:
             attempts.append(self._attempt(stage, provider, started_at, started,
                 outcome="failed", error_code=self._safe_error(exc),
                 finish_reason=getattr(exc, "finish_reason", None),
                 completion_tokens=getattr(exc, "completion_tokens", None),
-                completion_token_limit=getattr(exc, "completion_token_limit", None)))
+                completion_token_limit=getattr(exc, "completion_token_limit", None),
+                provider_call_dispatched=True))
             if stage == "reasoning":
                 code = self._safe_error(exc)
                 if not self._retryable_provider_error(code):
@@ -272,15 +276,18 @@ class GraceModelRouter:
                     fallback_started_at = datetime.now(UTC)
                     fallback_started = monotonic()
                     try:
-                        completion = autonomic.complete_chat(routed,
-                        max_tokens=fallback_max_tokens, expected_revision=autonomic.model_sha256,
-                        timeout_seconds=self.TIMEOUTS["autonomic"])
+                        completion = self._complete_provider(autonomic, routed,
+                            max_tokens=fallback_max_tokens,
+                            expected_revision=autonomic.model_sha256,
+                            timeout_seconds=self.TIMEOUTS["autonomic"],
+                            request_id=request_id)
                         attempts.append(self._attempt("autonomic", autonomic,
                             fallback_started_at, fallback_started, outcome="succeeded",
                             fallback_reason="interim_30b_provider_failure",
                             completion_token_limit=fallback_max_tokens,
                             completion_tokens=completion.completion_tokens,
-                            finish_reason=completion.finish_reason))
+                            finish_reason=completion.finish_reason, completion=completion,
+                            provider_call_dispatched=True))
                     except LocalReasoningUnavailable as fallback_exc:
                         attempts.append(self._attempt("autonomic", autonomic,
                             fallback_started_at, fallback_started, outcome="failed",
@@ -289,7 +296,8 @@ class GraceModelRouter:
                             finish_reason=getattr(fallback_exc, "finish_reason", None),
                             completion_tokens=getattr(fallback_exc, "completion_tokens", None),
                             completion_token_limit=getattr(fallback_exc, "completion_token_limit",
-                                                           fallback_max_tokens)))
+                                                           fallback_max_tokens),
+                            provider_call_dispatched=True))
                         raise LocalReasoningUnavailable("all_models_unavailable",
                             attempts=attempts) from None
                     stage = "autonomic"
@@ -329,16 +337,17 @@ class GraceModelRouter:
                 retry_started_at = datetime.now(UTC)
                 retry_started = monotonic()
                 try:
-                    completion = provider.complete_chat(retry_messages,
+                    completion = self._complete_provider(provider, retry_messages,
                         max_tokens=min(stage_max_tokens, 128),
                         expected_revision=provider.model_sha256,
-                        timeout_seconds=self.TIMEOUTS[stage])
+                        timeout_seconds=self.TIMEOUTS[stage], request_id=request_id)
                     attempts.append(self._attempt(stage, provider, retry_started_at,
                         retry_started, outcome="succeeded",
                         fallback_reason="required_tool_call_retry",
                         finish_reason=completion.finish_reason,
                         completion_tokens=completion.completion_tokens,
-                        completion_token_limit=min(stage_max_tokens, 128)))
+                        completion_token_limit=min(stage_max_tokens, 128),
+                        completion=completion,provider_call_dispatched=True))
                     call = self._internal_tool_call(completion.content)
                 except LocalReasoningUnavailable as exc:
                     attempts.append(self._attempt(stage, provider, retry_started_at,
@@ -347,7 +356,8 @@ class GraceModelRouter:
                         error_code=self._safe_error(exc),
                         finish_reason=getattr(exc, "finish_reason", None),
                         completion_tokens=getattr(exc, "completion_tokens", None),
-                        completion_token_limit=min(stage_max_tokens, 128)))
+                        completion_token_limit=min(stage_max_tokens, 128),
+                        provider_call_dispatched=True))
                     call = None
             if required_tool and (call is None or call[0] != required_tool):
                 tool_results = ({
@@ -382,10 +392,30 @@ class GraceModelRouter:
                         "Describe errors clearly. Do not claim a successful action. "
                         "Do not request or emit another tool call.")}]
                 followup = self._bound_provider_bytes(followup, provider=provider)
-                final = provider.complete_chat(followup,
-                    max_tokens=self._stage_token_limit(stage, max_tokens),
-                    expected_revision=provider.model_sha256,
-                    timeout_seconds=self.TIMEOUTS[stage])
+                followup_started_at = datetime.now(UTC)
+                followup_started = monotonic()
+                followup_limit = self._stage_token_limit(stage, max_tokens)
+                try:
+                    final = self._complete_provider(provider, followup,
+                        max_tokens=followup_limit,
+                        expected_revision=provider.model_sha256,
+                        timeout_seconds=self.TIMEOUTS[stage], request_id=request_id)
+                except LocalReasoningUnavailable as exc:
+                    attempts.append(self._attempt(stage, provider, followup_started_at,
+                        followup_started, outcome="failed", error_code=self._safe_error(exc),
+                        finish_reason=exc.finish_reason,
+                        completion_tokens=exc.completion_tokens,
+                        completion_token_limit=exc.completion_token_limit or followup_limit,
+                        fallback_reason="internal_tool_result_followup",
+                        provider_call_dispatched=True))
+                    raise LocalReasoningUnavailable(self._safe_error(exc),
+                        attempts=attempts) from None
+                attempts.append(self._attempt(stage, provider, followup_started_at,
+                    followup_started, outcome="succeeded", finish_reason=final.finish_reason,
+                    completion_tokens=final.completion_tokens,
+                    completion_token_limit=followup_limit,
+                    fallback_reason="internal_tool_result_followup", completion=final,
+                    provider_call_dispatched=True))
                 if self._internal_tool_call(final.content) is not None:
                     final = replace(final, content=(
                         "I could not complete the requested internal lookup because the "
@@ -435,7 +465,7 @@ class GraceModelRouter:
 
     def stream_chat(self, messages, *, max_tokens, expected_revision, on_delta,
                     on_reset=lambda: None, timeout_seconds=120,
-                    required_capability=None, selected_route=None):
+                    required_capability=None, selected_route=None, request_id=None):
         """Stream one routed answer while preserving the non-streaming route policy."""
         if expected_revision != self.model_sha256 or not callable(on_delta) or not callable(on_reset):
             raise LocalReasoningUnavailable("router_binding_mismatch")
@@ -462,15 +492,18 @@ class GraceModelRouter:
             started_at = datetime.now(UTC)
             started = monotonic()
             try:
-                result = selected_provider.stream_chat(selected_messages,
-                    max_tokens=selected_limit,
-                    expected_revision=selected_provider.model_sha256,
-                    on_delta=emit,
-                    timeout_seconds=min(timeout_seconds, self.TIMEOUTS[selected_stage]))
+                options = {"max_tokens": selected_limit,
+                    "expected_revision": selected_provider.model_sha256,
+                    "on_delta": emit,
+                    "timeout_seconds": min(timeout_seconds, self.TIMEOUTS[selected_stage])}
+                if isinstance(selected_provider, LocalReasoningProvider) and request_id is not None:
+                    options["request_id"] = request_id
+                result = selected_provider.stream_chat(selected_messages, **options)
                 attempts.append(self._attempt(selected_stage, selected_provider,
                     started_at, started, outcome="succeeded", fallback_reason=fallback_reason,
                     finish_reason=result.finish_reason, completion_tokens=result.completion_tokens,
-                    completion_token_limit=selected_limit))
+                    completion_token_limit=selected_limit, completion=result,
+                    provider_call_dispatched=True))
                 return result
             except LocalReasoningUnavailable as exc:
                 attempts.append(self._attempt(selected_stage, selected_provider,
@@ -478,7 +511,8 @@ class GraceModelRouter:
                     error_code=self._safe_error(exc),
                     finish_reason=exc.finish_reason,
                     completion_tokens=exc.completion_tokens,
-                    completion_token_limit=exc.completion_token_limit or selected_limit))
+                    completion_token_limit=exc.completion_token_limit or selected_limit,
+                    provider_call_dispatched=True))
                 raise
 
         try:
@@ -637,11 +671,21 @@ class GraceModelRouter:
                 or 500 <= status < 600)
 
     @staticmethod
+    def _complete_provider(provider, messages, *, max_tokens, expected_revision,
+                           timeout_seconds, request_id=None):
+        options = {"max_tokens": max_tokens, "expected_revision": expected_revision,
+                  "timeout_seconds": timeout_seconds}
+        if isinstance(provider, LocalReasoningProvider) and request_id is not None:
+            options["request_id"] = request_id
+        return provider.complete_chat(messages, **options)
+
+    @staticmethod
     def _attempt(stage, provider, started_at, started, *, outcome,
                  error_code=None, fallback_reason=None, finish_reason=None,
-                 completion_tokens=None, completion_token_limit=None):
+                 completion_tokens=None, completion_token_limit=None, completion=None,
+                 provider_call_dispatched=False):
         ended_at = datetime.now(UTC)
-        return {"selected_provider": getattr(provider, "provider_id", stage),
+        result = {"selected_provider": getattr(provider, "provider_id", stage),
             "selected_model": getattr(provider, "model", stage),
             "reasoning_stage": stage, "started_at": started_at.isoformat(),
             "ended_at": ended_at.isoformat(),
@@ -650,4 +694,12 @@ class GraceModelRouter:
             "fallback_reason": fallback_reason,
             "finish_reason": finish_reason,
             "completion_tokens": completion_tokens,
-            "completion_token_limit": completion_token_limit}
+            "completion_token_limit": completion_token_limit,
+            "provider_call_dispatched": provider_call_dispatched is True}
+        if completion is not None:
+            for field in ("model_response_id", "response_headers_observed_at",
+                          "first_content_received_at", "response_body_completed_observed_at"):
+                value = getattr(completion, field, None)
+                if value is not None:
+                    result[field] = value
+        return result

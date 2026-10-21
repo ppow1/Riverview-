@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.23
+# Revision: 1.3.24
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Forward conversation correlation ID and retain client-observed provider response milestones
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Let Grace derive proposed formal criteria only when the Steward omitted them.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-PRIOR-PLAN-CRITERIA-20261021 | Keep stale prior-plan instructions from promoting request constraints into formal criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Separate lifecycle-only criteria from bounded Engineering work and prefer one deliverable step when sufficient
@@ -52,6 +53,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 import ipaddress
 import json
 import threading
@@ -98,6 +100,10 @@ class ChatCompletion:
     provisional: bool = False
     provider_attempts: tuple[dict, ...] = ()
     internal_tool_results: tuple[dict, ...] = ()
+    model_response_id: str | None = None
+    response_headers_observed_at: str | None = None
+    first_content_received_at: str | None = None
+    response_body_completed_observed_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -495,21 +501,24 @@ class LocalReasoningProvider:
             return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
 
     def complete_chat(self, messages, *, max_tokens: int,
-                      expected_revision: str, timeout_seconds: float = 120) -> ChatCompletion:
+                      expected_revision: str, timeout_seconds: float = 120,
+                      request_id: str | None = None) -> ChatCompletion:
         if not self._capacity.acquire(blocking=False):
             raise LocalReasoningUnavailable("endpoint_busy")
         with self._capacity_lock:
             self._in_flight += 1
         try:
             return self._complete_chat(messages, max_tokens=max_tokens,
-                expected_revision=expected_revision, timeout_seconds=timeout_seconds)
+                expected_revision=expected_revision, timeout_seconds=timeout_seconds,
+                request_id=request_id)
         finally:
             with self._capacity_lock:
                 self._in_flight -= 1
             self._capacity.release()
 
     def stream_chat(self, messages, *, max_tokens: int, expected_revision: str,
-                    on_delta, timeout_seconds: float = 120) -> ChatCompletion:
+                    on_delta, timeout_seconds: float = 120,
+                    request_id: str | None = None) -> ChatCompletion:
         """Stream validated text deltas; return only after a complete stop response.
 
         The callback receives text only. It is called after model identity and payload
@@ -524,14 +533,14 @@ class LocalReasoningProvider:
         try:
             return self._stream_chat(messages, max_tokens=max_tokens,
                 expected_revision=expected_revision, on_delta=on_delta,
-                timeout_seconds=timeout_seconds)
+                timeout_seconds=timeout_seconds, request_id=request_id)
         finally:
             with self._capacity_lock:
                 self._in_flight -= 1
             self._capacity.release()
 
     def _stream_chat(self, messages, *, max_tokens, expected_revision, on_delta,
-                     timeout_seconds):
+                     timeout_seconds, request_id=None):
         if (expected_revision != self.model_sha256 or type(max_tokens) is not int
                 or not 1 <= max_tokens <= 512 or not isinstance(messages, list)
                 or not 1 <= len(messages) <= self.MAX_CHAT_MESSAGES
@@ -559,8 +568,11 @@ class LocalReasoningProvider:
                 ensure_ascii=False).encode("utf-8")
         except (TypeError, ValueError):
             raise LocalReasoningUnavailable("request_contract_invalid") from None
+        headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
+        if request_id is not None:
+            headers["X-Riverview-Request-ID"] = self._validated_request_id(request_id)
         request = Request(self.endpoint, data=body,
-            headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+            headers=headers,
             method="POST")
         chunks = []
         output_bytes = 0
@@ -568,10 +580,15 @@ class LocalReasoningProvider:
         finish_reason = None
         prompt_tokens = None
         completion_tokens = None
+        response_id = None
+        headers_observed_at = None
+        first_content_received_at = None
+        body_completed_observed_at = None
         try:
             with urlopen(request, timeout=timeout_seconds) as response:
                 if response.status != 200:
                     raise LocalReasoningUnavailable("endpoint_status_invalid")
+                headers_observed_at = datetime.now(UTC).isoformat()
                 while True:
                     line = response.readline(65537)
                     if not line:
@@ -592,6 +609,11 @@ class LocalReasoningProvider:
                             if model != self.model or (served_model and model != served_model):
                                 raise LocalReasoningUnavailable("response_contract_invalid")
                             served_model = model
+                        candidate_response_id = self._validated_response_id(document.get("id"))
+                        if (candidate_response_id is not None and response_id is not None
+                                and candidate_response_id != response_id):
+                            raise LocalReasoningUnavailable("response_contract_invalid")
+                        response_id = candidate_response_id or response_id
                         usage = document.get("usage")
                         if isinstance(usage, dict):
                             prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
@@ -619,6 +641,8 @@ class LocalReasoningProvider:
                             if output_bytes > 8192:
                                 raise LocalReasoningUnavailable("response_too_large")
                             chunks.append(text)
+                            if first_content_received_at is None:
+                                first_content_received_at = datetime.now(UTC).isoformat()
                             on_delta(text)
                         reason = choice.get("finish_reason")
                         if reason is not None:
@@ -627,6 +651,7 @@ class LocalReasoningProvider:
                         raise
                     except Exception:
                         raise LocalReasoningUnavailable("response_contract_invalid") from None
+            body_completed_observed_at = datetime.now(UTC).isoformat()
         except HTTPError as exc:
             status = exc.code
             exc.close()
@@ -652,10 +677,14 @@ class LocalReasoningProvider:
             raise LocalReasoningUnavailable("response_contract_invalid")
         return ChatCompletion(text, served_model, prompt_tokens, completion_tokens,
                               finish_reason, provider_id=self.provider_id,
-                              reasoning_stage="primary")
+                              reasoning_stage="primary", model_response_id=response_id,
+                              response_headers_observed_at=headers_observed_at,
+                              first_content_received_at=first_content_received_at,
+                              response_body_completed_observed_at=body_completed_observed_at)
 
     def _complete_chat(self, messages, *, max_tokens: int,
-                       expected_revision: str, timeout_seconds: float) -> ChatCompletion:
+                       expected_revision: str, timeout_seconds: float,
+                       request_id: str | None = None) -> ChatCompletion:
         """Generate ordinary conversation text; this method has no tool or work-order API."""
         if (expected_revision != self.model_sha256 or type(max_tokens) is not int
                 or not 1 <= max_tokens <= 512 or not isinstance(messages, list)
@@ -684,13 +713,18 @@ class LocalReasoningProvider:
                 ensure_ascii=False).encode("utf-8")
         except (TypeError, ValueError):
             raise LocalReasoningUnavailable("request_contract_invalid") from None
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if request_id is not None:
+            headers["X-Riverview-Request-ID"] = self._validated_request_id(request_id)
         request = Request(self.endpoint, data=body,
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            headers=headers,
             method="POST")
+        headers_observed_at = None
         try:
             with urlopen(request, timeout=timeout_seconds) as response:
                 if response.status != 200:
                     raise LocalReasoningUnavailable("endpoint_status_invalid")
+                headers_observed_at = datetime.now(UTC).isoformat()
                 raw = response.read(self.MAX_RESPONSE_BYTES + 1)
         except HTTPError as exc:
             status = exc.code
@@ -720,6 +754,7 @@ class LocalReasoningProvider:
             finish_reason = choice["finish_reason"]
             usage = document["usage"]
             served_model = document["model"]
+            response_id = self._validated_response_id(document.get("id"))
             text = self._normalize_chat_content(message["content"])
             prompt_tokens = usage["prompt_tokens"]
             completion_tokens = usage["completion_tokens"]
@@ -736,11 +771,35 @@ class LocalReasoningProvider:
                 raise ValueError("response contract invalid")
             return ChatCompletion(text, served_model, prompt_tokens,
                                   completion_tokens, finish_reason,
-                                  provider_id=self.provider_id)
+                                  provider_id=self.provider_id,
+                                  model_response_id=response_id,
+                                  response_headers_observed_at=headers_observed_at,
+                                  first_content_received_at=None,
+                                  response_body_completed_observed_at=datetime.now(UTC).isoformat())
         except LocalReasoningUnavailable:
             raise
         except Exception:
             raise LocalReasoningUnavailable("response_contract_invalid") from None
+
+    @staticmethod
+    def _validated_request_id(value):
+        """Accept only a canonical UUID before forwarding the conversation correlation ID."""
+        from uuid import UUID
+        try:
+            parsed = UUID(str(value))
+        except (TypeError, ValueError, AttributeError):
+            raise LocalReasoningUnavailable("request_contract_invalid") from None
+        if str(parsed) != str(value).lower():
+            raise LocalReasoningUnavailable("request_contract_invalid")
+        return str(parsed)
+
+    @staticmethod
+    def _validated_response_id(value):
+        """Retain only bounded opaque server response IDs, never response payloads."""
+        if (isinstance(value, str) and 1 <= len(value) <= 128
+                and all(char.isalnum() or char in "._:-" for char in value)):
+            return value
+        return None
 
     @staticmethod
     def _normalize_chat_content(content):

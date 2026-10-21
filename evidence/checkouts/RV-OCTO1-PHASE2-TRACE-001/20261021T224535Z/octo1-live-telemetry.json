@@ -1,0 +1,39 @@
+{
+  "evidence_revision": "1.0.0",
+  "task_id": "RV-OCTO1-PHASE2-TRACE-001",
+  "source": "existing riverview-status-dashboard DashboardResourceTelemetry collector using its restricted strict-host-key OCTO1 command",
+  "read_only": true,
+  "captured_at": "2026-10-21T22:45:35.121Z",
+  "host": "OCTO1",
+  "host_state": "healthy",
+  "gpu_inventory_state": "healthy",
+  "sample_status": "partial",
+  "sample_status_reason": "OCTO2 identity remains unverified/unavailable; this does not alter OCTO1 health",
+  "gpu_devices": [
+    {"index": 0, "model": "Tesla P100-PCIE-16GB", "assigned_service": "grace-reasoning-80b", "utilization_percent": 0, "vram_used_gb": 13.93, "vram_total_gb": 17.18, "temperature_celsius": 48, "power_watts": 44.23, "nvidia_gpu_fan_percent": null},
+    {"index": 1, "model": "NVIDIA GeForce RTX 4090", "assigned_service": "grace-vision-30b", "utilization_percent": 0, "vram_used_gb": 17.45, "vram_total_gb": 25.76, "temperature_celsius": 37, "power_watts": 35.24, "nvidia_gpu_fan_percent": 50},
+    {"index": 2, "model": "NVIDIA GeForce RTX 3060 Ti", "assigned_service": null, "utilization_percent": 0, "vram_used_gb": 0.012, "vram_total_gb": 8.59, "temperature_celsius": 35, "power_watts": 30.46, "nvidia_gpu_fan_percent": 50},
+    {"index": 3, "model": "Tesla P100-PCIE-16GB", "assigned_service": "grace-reasoning-80b", "utilization_percent": 49, "vram_used_gb": 12.44, "vram_total_gb": 17.18, "temperature_celsius": 46, "power_watts": 41.25, "nvidia_gpu_fan_percent": null},
+    {"index": 4, "model": "Tesla P100-PCIE-16GB", "assigned_service": "grace-reasoning-80b", "utilization_percent": 60, "vram_used_gb": 12.44, "vram_total_gb": 17.18, "temperature_celsius": 44, "power_watts": 39.36, "nvidia_gpu_fan_percent": null},
+    {"index": 5, "model": "Tesla P100-PCIE-16GB", "assigned_service": "grace-reasoning-80b", "utilization_percent": 17, "vram_used_gb": 12.32, "vram_total_gb": 17.18, "temperature_celsius": 55, "power_watts": 47.82, "nvidia_gpu_fan_percent": null}
+  ],
+  "inference_services": [
+    {"service": "grace-autonomic-0.6b", "host": "Camrui", "state": "ready", "loaded_model": "qwen3-0.6b-q8_0-local", "active_slots": "0/1", "queue_depth": "unavailable"},
+    {"service": "grace-reasoning-80b", "host": "OCTO1", "state": "ready", "loaded_model": "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf", "active_slots": "1/1", "queue_depth": "unavailable"},
+    {"service": "grace-vision-30b", "host": "OCTO1", "state": "ready", "loaded_model": "Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf", "active_slots": "0/8", "queue_depth": "unavailable"}
+  ],
+  "controller_measurements": {
+    "chassis_fan_rpm_per_channel": "not_exposed_by_current_dashboard_telemetry",
+    "chassis_fan_pwm_per_channel": "not_exposed_by_current_dashboard_telemetry",
+    "control_mode_and_targets": "not_exposed_by_current_dashboard_telemetry",
+    "controller_temperature_sensors": "not_exposed_by_current_dashboard_telemetry",
+    "psu_telemetry": "not_exposed_by_current_dashboard_telemetry",
+    "watchdog_state_heartbeat_reset_counters": "not_exposed_by_current_dashboard_telemetry"
+  },
+  "mapping_limits": {
+    "gpu_device_to_model_service": "reported from current host process-to-GPU mapping",
+    "gpu_device_to_physical_riser": "not_included_or_verified",
+    "controller_channel_to_physical_fan": "not_included_or_verified",
+    "gpu_utilization_to_specific_grace_request": "not_attributed"
+  }
+}

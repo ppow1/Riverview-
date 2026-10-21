@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.26
+# Revision: 1.2.27
+# Changed: 2026-10-21 UTC | RV-OCTO1-GRACE-REQUEST-TRACE-001 | Correlate inference with durable Grace request IDs and retain sanitized server-response/client-timing evidence
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Carry assignment-defined artifact sets through review and continuation
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Validate and present all verifier-checked assignment artifacts to Grace
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
@@ -67,7 +68,7 @@ import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
 from ..institutional_authority.grants import InstitutionalPrincipal
-from ..local_reasoning_provider import LocalReasoningUnavailable
+from ..local_reasoning_provider import LocalReasoningProvider, LocalReasoningUnavailable
 from .grace_role_context import ROLE_CONTEXT_REVISION, build_grace_role_context
 from .operational_context import CAPABILITY_ID as OPERATIONAL_CONTEXT_CAPABILITY
 
@@ -82,7 +83,17 @@ _LOG = logging.getLogger(__name__)
 _DIAGNOSTIC_FIELDS = ("selected_provider", "selected_model", "reasoning_stage",
     "started_at", "ended_at", "elapsed_ms", "outcome", "error_code",
     "fallback_reason", "final_served_provider", "final_served_model",
-    "finish_reason", "completion_tokens", "completion_token_limit")
+    "finish_reason", "completion_tokens", "completion_token_limit",
+    "provider_call_dispatched", "model_response_id", "response_headers_observed_at",
+    "first_content_received_at", "response_body_completed_observed_at")
+
+
+def _complete_with_correlation(provider, messages, *, request_id, **kwargs):
+    """Pass the durable conversation ID only through the local provider/router contract."""
+    from .model_router import GraceModelRouter
+    if isinstance(provider, (GraceModelRouter, LocalReasoningProvider)):
+        kwargs["request_id"] = str(request_id)
+    return provider.complete_chat(messages, **kwargs)
 _SAFE_DIAGNOSTIC_CODES = frozenset({"endpoint_busy", "endpoint_timeout",
     "endpoint_unavailable", "endpoint_loading", "endpoint_http_400",
     "endpoint_http_404", "endpoint_http_408", "endpoint_http_413",
@@ -1233,8 +1244,13 @@ class ResidentConversationService:
                   "expected_revision": binding.get("implementation_revision")}
         if required_capability:
             kwargs["required_capability"] = required_capability
+        proposal_request_id = uuid5(NAMESPACE_URL,
+            "riverview:proposal-draft:" + str(conversation_id) + ":" +
+            ",".join(str(sequence) for sequence in source_sequences) + ":" +
+            hashlib.sha256(instruction.strip().encode("utf-8")).hexdigest())
         try:
-            completion = provider.complete_chat(messages, **kwargs)
+            completion = _complete_with_correlation(provider,messages,
+                request_id=proposal_request_id,**kwargs)
         except Exception as exc:
             # A required capability must never be retried as an unconstrained request.
             if isinstance(exc, ConversationUnavailable):
@@ -1272,19 +1288,23 @@ class ResidentConversationService:
                     raise ValueError
                 return {"status": "clarification_required",
                         "clarification": result["clarification"].strip(),
-                        "reasoning": self._proposal_reasoning_provenance(binding, provider, completion, snapshot)}
+                        "reasoning": self._proposal_reasoning_provenance(binding, provider,
+                            completion, snapshot, proposal_request_id)}
             if result["decision"] != "PROPOSAL" or result["clarification"] is not None:
                 raise ValueError
             content = ProposalContent.parse(result["proposal"])
         except (ValueError, TypeError, json.JSONDecodeError, ProposalValidationError):
             raise ConversationUnavailable("proposal response did not match the typed contract") from None
         return {"status": "draft_ready", "content": content.document(),
-                "reasoning": self._proposal_reasoning_provenance(binding, provider, completion, snapshot),
+                "reasoning": self._proposal_reasoning_provenance(binding, provider,
+                    completion, snapshot, proposal_request_id),
                 "source_references": [{"kind": "resident_conversation",
                     "conversation_id": str(conversation_id), "sequences": source_sequences}]}
 
-    def _proposal_reasoning_provenance(self, binding, provider, completion, snapshot):
+    def _proposal_reasoning_provenance(self, binding, provider, completion, snapshot,
+                                       request_id=None):
         return {"office_id": self.office_id,
+            "request_id": str(request_id) if request_id is not None else None,
             "implementation_id": binding.get("implementation_id"),
             "implementation_revision": binding.get("implementation_revision"),
             "binding_revision": binding.get("binding_revision"),
@@ -1293,6 +1313,7 @@ class ResidentConversationService:
             "served_model": getattr(completion, "served_model", None),
             "reasoning_stage": getattr(completion, "reasoning_stage", "reasoning"),
             "finish_reason": getattr(completion, "finish_reason", None),
+            "provider_attempts": list(getattr(completion, "provider_attempts", ())),
             "role_context_revision": ROLE_CONTEXT_REVISION,
             "operational_context": self._context_provenance(snapshot)}
 
@@ -1411,12 +1432,16 @@ class ResidentConversationService:
                 stream_options={"max_tokens":self.max_response_tokens,
                     "expected_revision":binding["implementation_revision"],
                     "on_delta":callback,"timeout_seconds":120}
+                from .model_router import GraceModelRouter
+                if isinstance(provider, (GraceModelRouter, LocalReasoningProvider)):
+                    stream_options["request_id"] = str(request_id)
                 if hasattr(provider,"select"):
                     stream_options.update(on_reset=reset_callback,
                         selected_route=(stage,selected))
                 completion=provider.stream_chat(messages,**stream_options)
             else:
-                completion=provider.complete_chat(messages,max_tokens=self.max_response_tokens,
+                completion=_complete_with_correlation(provider,messages,
+                    request_id=request_id,max_tokens=self.max_response_tokens,
                     expected_revision=binding["implementation_revision"])
                 self.store.append_stream_delta(request_id,completion.content)
             if (not isinstance(completion.content,str) or not completion.content.strip()
@@ -1675,7 +1700,8 @@ class ResidentConversationService:
         if router_capability:
             kwargs["required_capability"] = router_capability
         try:
-            model_completion = provider.complete_chat(messages, **kwargs)
+            model_completion = _complete_with_correlation(provider,messages,
+                request_id=request_id,**kwargs)
         except Exception as exc:
             from .model_router import ReasoningDeferred
             if isinstance(exc, ReasoningDeferred):
@@ -2016,7 +2042,8 @@ class ResidentConversationService:
             if router_capability:
                 kwargs["required_capability"] = router_capability
             try:
-                model_completion = provider.complete_chat(messages, **kwargs)
+                model_completion = _complete_with_correlation(provider,messages,
+                    request_id=request_id,**kwargs)
             except Exception as exc:
                 from .model_router import ReasoningDeferred
                 if isinstance(exc, ReasoningDeferred):
@@ -2168,7 +2195,8 @@ class ResidentConversationService:
             packed = json.dumps(messages, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             if len(packed) > _CONTEXT_LIMIT:
                 raise ConversationContextTooLarge("conversation context exceeds 32 KiB")
-            completion = provider.complete_chat(messages, max_tokens=self.max_response_tokens,
+            completion = _complete_with_correlation(provider,messages,
+                request_id=request_id,max_tokens=self.max_response_tokens,
                 expected_revision=binding.get("implementation_revision"))
             if (not isinstance(getattr(completion, "content", None), str)
                     or not completion.content.strip()
@@ -2366,7 +2394,8 @@ class ResidentConversationService:
                     completion=router.stream_chat(messages,max_tokens=self.max_response_tokens,
                         expected_revision=current["implementation_revision"],on_delta=on_delta,
                         on_reset=on_reset,timeout_seconds=120,
-                        required_capability=required_capability,selected_route=selected_route)
+                        required_capability=required_capability,selected_route=selected_route,
+                        request_id=str(row["request_id"]))
                 else:
                     if stream_enabled:
                         # Tool-enabled routers use the non-streaming completion
@@ -2378,7 +2407,8 @@ class ResidentConversationService:
                     completion = router.complete_chat(messages,
                         max_tokens=self.max_response_tokens,
                         expected_revision=current["implementation_revision"],
-                        required_capability=required_capability)
+                        required_capability=required_capability,
+                        request_id=str(row["request_id"]))
                 if (completion.reasoning_stage != "reasoning"
                         or completion.provisional):
                     raise LocalReasoningUnavailable("required_capability_not_satisfied",
