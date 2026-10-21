@@ -1,15 +1,17 @@
 # RIVERVIEW~ CONTROLLED CONFIGURATION
 # File: .gitattributes
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Keep Linux deployment shell and systemd checkout files LF on Windows
 # Execution Model: Git configuration; no operational lifecycle
 # Observability: git check-attr and packaged byte regression tests
 # Dependencies: Git
 # Authority: Checkout normalization only; package builder reads immutable blob bytes
 # Changed: 2026-10-10 UTC | RV-M1.1-002 | Prevent deployment CRLF conversion
+# Changed: 2026-10-21 UTC | RV-WEB-V2-HW-AI-RESOURCE-001 | Preserve byte-exact archived predecessors while allowing their original Markdown hard breaks
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py
 # History: New file; no predecessor
 *.sh text eol=lf
 *.service text eol=lf
+.riverview-backups/** whitespace=-trailing-space

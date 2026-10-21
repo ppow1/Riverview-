@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: website/v2/assets/snapshot.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.7
+Revision: 1.0.8
 Purpose: Create a bounded, redacted ZIP of active V2 view and truthful integration state
 Execution Model: Explicit browser click; in-memory collection and local download
 Observability: Visible completion/error message and package manifest
 Dependencies: Browser DOM, Web Crypto, Blob, TextEncoder, URL
 Inputs/Outputs: Current V2 view and fixture context; local ZIP download
 Authority: Read-only presentation snapshot; no credentials, chat bodies, or persistent writes
-Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Include safe Communications Activity source state in V2 snapshot
+Changed: 2026-10-21 UTC | RV-WEB-V2-HW-AI-RESOURCE-001 | Include only sanitized monitor-source state in V2 snapshot
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_snapshot_chrome.py
 History: Git and revision/backup manifest
@@ -113,8 +113,11 @@ History: Git and revision/backup manifest
     const view = document.querySelector("#workspace-main")?.dataset.currentView || "unknown";
     const chat = window.RiverviewGraceChat?.snapshotDiagnostics() || { status: "unavailable", durable_history_loaded: false, persisted_event_count: null };
     const communications = window.RiverviewV2Communications?.snapshotDiagnostics() || { status: "unverified", source_configured: false, outbound_count: null, inbound_count: null, pending_count: null, failed_count: null, completed_count: null, last_local_check_at: null };
+    const resourceMonitor = window.RiverviewV2ResourceMonitor?.snapshotDiagnostics() || { status: "not_loaded", dashboard_projection: "not_observed", freshness: "unknown", gpu_inventory: "unavailable", gpu_utilization: "unavailable", vram: "unavailable", gpu_thermals_power_fan: "unavailable", loaded_models: "unavailable_in_v2", inference_server_readiness: "unavailable_in_v2", inference_jobs_and_queues: "unavailable", diagnostics_include_response_body: false, diagnostics_include_credentials: false };
     const viewText = view === "grace"
       ? `Grace authenticated conversation view selected. Connection: ${chat.status}. Durable history loaded: ${Boolean(chat.durable_history_loaded)}.`
+      : view === "resources"
+        ? "Hardware & AI Resource Monitor selected. Snapshot contains only source-availability metadata; GPU, model and workload values are excluded."
       : (document.querySelector("#view-content")?.innerText || "").slice(0, CONTENT_LIMIT);
     return {
       schema: "riverview-v2-browser-snapshot/2",
@@ -130,10 +133,11 @@ History: Git and revision/backup manifest
       sidebars: { navigation: shell?.dataset.leftState || "unknown", context: shell?.dataset.rightState || "unknown" },
       browser: { user_agent: navigator.userAgent.slice(0, 240), language: navigator.language.slice(0, 32),
         viewport_css_px: { width: innerWidth, height: innerHeight }, device_pixel_ratio: Math.min(4, devicePixelRatio || 1) },
-      data_connection: { mode: view === "grace" ? "authenticated Grace conversation" : "fixture workspace", live_backend_connected: chat.status === "connected", details: view === "grace" ? "Grace conversation status reflects the existing same-origin Dashboard API; message content is excluded." : "Workspace overview and non-Grace views use fixtures. Grace has a separate authenticated Dashboard connection state." },
+      data_connection: { mode: view === "grace" ? "authenticated Grace conversation" : view === "resources" ? "authenticated read-only Dashboard status projection" : "fixture workspace", live_backend_connected: view === "grace" ? chat.status === "connected" : view === "resources" ? resourceMonitor.dashboard_projection === "healthy" : false, details: view === "grace" ? "Grace conversation status reflects the existing same-origin Dashboard API; message content is excluded." : view === "resources" ? "Snapshot records only the sanitized source state and timestamps; worker counts, assignment states, hardware values, model identities and request details are excluded." : "Workspace overview and non-Grace views use fixtures. Grace has a separate authenticated Dashboard connection state." },
       communication_diagnostics: {
         grace_chat: chat,
-        comms5: { ...communications, inspectable_messages: false, correlation_ids: "unavailable", reason: "No authorized Comms5 event feed is connected to V2." }
+        comms5: { ...communications, inspectable_messages: false, correlation_ids: "unavailable", reason: "No authorized Comms5 event feed is connected to V2." },
+        hardware_ai_resource_monitor: resourceMonitor
       },
       rendered_view_text: viewText,
       browser_errors: errors.slice(-20),
@@ -153,7 +157,7 @@ History: Git and revision/backup manifest
       const state = getState();
       const stateBytes = bytes(JSON.stringify(state, null, 2) + "\n");
       const viewBytes = bytes(`# Riverview V2 rendered view\nCaptured: ${state.captured_at}\nRoute: ${state.route}\nView: ${state.current_view}\n\n${state.rendered_view_text}\n`);
-      const readmeBytes = bytes("Riverview V2 local preview snapshot\n\nThis package represents the active V2 browser view and local fixture context. It may include the observed Grace connection state and safe history count; it excludes conversation contents, account identity, credentials, cookies, and server logs. Comms5 status is unverified when no authorized event feed is connected. Read manifest.json first.\n");
+      const readmeBytes = bytes("Riverview V2 local preview snapshot\n\nThis package represents the active V2 browser view and local fixture context. It may include the observed Grace connection state and safe history count; it excludes conversation contents, account identity, credentials, cookies, and server logs. Hardware & AI monitor metadata contains source availability only; worker counts, assignment states, GPU values, model identities, and inference workloads are excluded. Comms5 status is unverified when no authorized event feed is connected. Read manifest.json first.\n");
       const payloads = [{ name: "workspace-state.json", data: stateBytes }, { name: "rendered-view.txt", data: viewBytes }, { name: "README.txt", data: readmeBytes }];
       const fileEntries = [];
       for (const payload of payloads) fileEntries.push({ name: payload.name, data: payload.data, size_bytes: payload.data.length, sha256: await sha256(payload.data) });

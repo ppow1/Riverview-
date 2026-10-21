@@ -1,14 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.15
-# Purpose: Verify V2 preview, authenticated Grace integration, and truthful Communications Activity state
+# Revision: 1.0.16
+# Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
-# Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Verify communications monitor contract and unavailable-source behavior
+# Changed: 2026-10-21 UTC | RV-WEB-V2-HW-AI-RESOURCE-001 | Verify resource monitor provenance, unavailable metrics, and authorization behavior
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -92,7 +92,7 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn(b"Fixture workspace", body)
         self.assertIn("connect-src 'none'", headers["Content-Security-Policy"])
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
-        for asset in ("fixtures.js", "workspace.js", "workspace.css", "communications.js", "communications.css", "grace-chat.js"):
+        for asset in ("fixtures.js", "workspace.js", "workspace.css", "communications.js", "communications.css", "resource-monitor.js", "resource-monitor.css", "grace-chat.js"):
             self.assertEqual(self.request("GET", f"/assets/{asset}")[0], 200)
 
     def test_grace_conversation_is_mounted_in_center_workspace(self):
@@ -145,6 +145,36 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("pending_count: null", snapshot)
         self.assertIn("failed_count: null", snapshot)
         self.assertIn("completed_count: null", snapshot)
+
+    def test_hardware_ai_monitor_distinguishes_dashboard_status_from_unavailable_gpu_metrics(self):
+        html = (ROOT / "website/v2/index.html").read_text(encoding="utf-8")
+        monitor = (ROOT / "website/v2/assets/resource-monitor.js").read_text(encoding="utf-8")
+        snapshot = (ROOT / "website/v2/assets/snapshot.js").read_text(encoding="utf-8")
+        self.assertIn('data-view="resources"', html)
+        self.assertIn("Hardware &amp; AI Resource Monitor", html)
+        self.assertIn("GPU devices", html)
+        self.assertIn("Utilization, memory &amp; thermals", html)
+        self.assertIn("Loaded models &amp; server readiness", html)
+        self.assertIn("Active jobs &amp; queues", html)
+        self.assertIn("Unavailable", html)
+        self.assertIn('"/api/v1/auth/session"', monitor)
+        self.assertIn('"/api/v1/status"', monitor)
+        self.assertIn('credentials: "same-origin"', monitor)
+        self.assertIn('schema_version !== "rv.dashboard.status.v1"', monitor)
+        self.assertNotIn("/api/v1/", html)
+        self.assertNotRegex(monitor, r"192\.168\.1\.(160|162)|:8080|:18080")
+        self.assertNotIn("innerHTML", monitor)
+        self.assertNotIn("setInterval(", monitor)
+        self.assertIn("hardware_ai_resource_monitor", snapshot)
+        self.assertIn("worker counts, assignment states, hardware values, model identities and request details are excluded", snapshot)
+
+    def test_resource_monitor_runtime_auth_provenance_and_failure_cases(self):
+        result = subprocess.run(
+            ["node", str(ROOT / "scripts/verify_v2_resource_monitor.cjs")],
+            cwd=ROOT, capture_output=True, text=True, timeout=15,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("PASS:", result.stdout)
 
     def test_rejects_mutations_and_traversal(self):
         for method in ("POST", "PUT", "PATCH", "DELETE"):
@@ -232,7 +262,8 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("excludes conversation contents", snapshot)
         self.assertNotIn("does not contain live or server data", snapshot)
         self.assertIn('name: "manifest.json"', snapshot)
-        self.assertIn("live_backend_connected: chat.status === \"connected\"", snapshot)
+        self.assertIn('view === "grace" ? chat.status === "connected"', snapshot)
+        self.assertIn('view === "resources" ? resourceMonitor.dashboard_projection === "healthy"', snapshot)
         self.assertIn('view === "grace" ? "grace-conversation" : view', snapshot)
         self.assertIn('schema: "riverview-v2-browser-snapshot/2"', snapshot)
         self.assertIn('outbound_count: null, inbound_count: null', snapshot)

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.13",
+  "graph_revision": "1.0.14",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -15,7 +15,9 @@
     "website/v2/assets/grace-chat.js",
     "deploy/nginx/riverview-v2.location.conf",
     "website/v2/assets/communications.js",
-    "website/v2/assets/communications.css"
+    "website/v2/assets/communications.css",
+    "website/v2/assets/resource-monitor.js",
+    "website/v2/assets/resource-monitor.css"
   ],
   "documentation_references": [
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -27,7 +29,8 @@
     "scripts/verify_v2_workspace_browser.py",
     "scripts/verify_v2_workspace_mobile.cjs",
     "scripts/verify_v2_workspace_snapshot_chrome.py",
-    "scripts/verify_v2_grace_chat_chrome.py"
+    "scripts/verify_v2_grace_chat_chrome.py",
+    "scripts/verify_v2_resource_monitor.cjs"
   ],
   "nodes": [
     {
@@ -840,6 +843,170 @@
       "verification_evidence": [
         "tests/test_v2_workspace_shell.py"
       ]
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-monitor-view",
+      "type": "process",
+      "label": "Render V2 Hardware & AI Resource Monitor with per-source provenance"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
+      "type": "decision",
+      "label": "Check existing same-origin Dashboard account session before reading status"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "type": "process",
+      "label": "Read only rv.dashboard.status.v1 through authenticated GET /api/v1/status"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-operational-projection",
+      "type": "process",
+      "label": "Render timestamped Dashboard worker leases and institutional assignment counts separately from inference workloads"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "type": "decision",
+      "label": "Determine whether an approved timestamped host/model telemetry projection exists"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "type": "process",
+      "label": "Keep GPU/model/queue metrics unavailable rather than zero when no authorized source exists"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/resource-monitor.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-filter-refresh",
+      "type": "process",
+      "label": "Allow bounded manual refresh, local filters, and per-source details without background polling"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/assets/snapshot.js",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-snapshot-redaction",
+      "type": "process",
+      "label": "Capture only source availability metadata in Snapshot; omit hardware values and work counts"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-telemetry-contract",
+      "type": "process",
+      "label": "Future same-origin timestamped read-only resource projection is documented but not implemented"
     }
   ],
   "edges": [
@@ -1281,6 +1448,66 @@
       "to": "rv:riverview-v2:workspace-shell:snapshot-capture",
       "type": "runtime_transition",
       "label": "Snapshot records safe status and null counters only"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:resource-monitor-view",
+      "type": "runtime_transition",
+      "label": "Select Hardware & AI resources"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-monitor-view",
+      "to": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
+      "type": "runtime_transition",
+      "label": "First view or explicit refresh on LAN HTTPS"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
+      "to": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "type": "runtime_transition",
+      "label": "Existing account session is authenticated"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "type": "diagnostic_branch",
+      "label": "Session absent or local fixture origin; do not call protected API"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "to": "rv:riverview-v2:workspace-shell:resource-operational-projection",
+      "type": "runtime_transition",
+      "label": "Validate status-v1 schema and retain allowed timestamped aggregates"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "type": "runtime_transition",
+      "label": "Dashboard status has no host GPU or inference queue fields"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "type": "diagnostic_branch",
+      "label": "No approved timestamped resource feed; values remain unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-monitor-view",
+      "to": "rv:riverview-v2:workspace-shell:resource-filter-refresh",
+      "type": "runtime_transition",
+      "label": "Use local search/filter/details or explicit refresh"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-operational-projection",
+      "to": "rv:riverview-v2:workspace-shell:resource-snapshot-redaction",
+      "type": "runtime_transition",
+      "label": "Snapshot captures source metadata only, not counts or metric values"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "to": "rv:riverview-v2:workspace-shell:resource-telemetry-contract",
+      "type": "documentation",
+      "label": "Record the future read-only integration seam and blocker"
     }
   ]
 }
