@@ -1,8 +1,8 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.5  
+**Document Revision:** 1.0.6  
 **Status:** Working agent guidance  
-**Date:** 2026-10-16  
+**Date:** 2026-10-21  
 **Component:** ENG-AGENT-GUIDANCE  
 **Purpose:** Startup instructions for any AI agent performing engineering work on Riverview~.  
 **Authority:** Guidance for work in this repository; subordinate to the user's explicit instructions and the governing engineering standards.
@@ -18,7 +18,7 @@
 7. Make the smallest coherent change. Maintain intended **persistent/event-driven** behavior when required. Do not silently replace continuous agents with turn-based, one-shot, or human-approval loops.
 8. Test affected behavior and relevant regressions. Record actual commands, exit codes, pass/fail/skip counts, environment, and limitations. Never report unexecuted tests as PASS.
 9. Review the diff, verify only intended files changed, and confirm predecessor restoration remains possible. Do not commit, push, deploy, or alter production data unless the task authorizes it.
-10. End with a precise handoff: files and revisions changed, predecessor locations, test evidence, commit/deployment status, outstanding problems, and next action.
+10. End with a precise handoff: files and revisions changed, predecessor locations, test evidence, commit/deployment status, outstanding problems, and next action. **After the handoff, display the final Codex completion banner required by `docs/CODEX_ENGINEERING_CAMPAIGN.md` (Mandatory Codex session completion indicator), with window identifier, SUCCESS/BLOCKED/FAILED status, and task.** The banner does not replace Definition of Done evidence.
 
 
 ## Machine access and operational recovery
@@ -60,6 +60,8 @@ If the task is to suggest, formalize, submit, review, or track a Riverview propo
 Before editing, briefly report: repository/branch/HEAD, applicable standards, task scope, relevant code/dependencies, predecessor-preservation plan, and tests to run. If the task is purely informational, do not modify files.
 
 ## Revision history
+
+- **1.0.6 — 2026-10-21:** Point the final-handoff instruction to the campaign's mandatory Codex completion banner; predecessor: `docs/history/AI_HINTS_rev1.0.5.md` (original blob `44b9af171babb5dba7c2ab8897441cf83b98f0de`).
 
 - **1.0.5 — 2026-10-19:** Add direct machine-access index link for Camrui, OctoMiner1, OctoMiner2 and development workstation. Predecessor: `docs/history/AI_HINTS_rev1.0.4.md`.
 
