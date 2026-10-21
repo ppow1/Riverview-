@@ -1,33 +1,35 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.15",
+  "graph_revision": "1.0.16",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
   "source_references": [
-    "website/v2/index.html",
-    "website/v2/assets/fixtures.js",
-    "website/v2/assets/workspace.js",
+    "deploy/nginx/riverview-v2.location.conf",
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
     "scripts/serve_v2_workspace_preview.py",
     "scripts/setup_v2_workspace_preview_auth.py",
-    "website/v2/assets/workspace.css",
-    "website/v2/assets/snapshot.js",
-    "website/v2/assets/grace-chat.js",
-    "deploy/nginx/riverview-v2.location.conf",
-    "website/v2/assets/communications.js",
-    "website/v2/assets/communications.css",
-    "website/v2/assets/resource-monitor.js",
-    "website/v2/assets/resource-monitor.css",
-    "website/v2/assets/work-monitor.js",
-    "website/v2/assets/work-monitor.css",
     "scripts/verify_v2_work_monitor.cjs",
-    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+    "website/v2/assets/communications.css",
+    "website/v2/assets/communications.js",
+    "website/v2/assets/fixtures.js",
+    "website/v2/assets/grace-chat.js",
+    "website/v2/assets/resource-monitor.css",
+    "website/v2/assets/resource-monitor.js",
+    "website/v2/assets/snapshot.js",
+    "website/v2/assets/work-monitor.css",
+    "website/v2/assets/work-monitor.js",
+    "website/v2/assets/workspace.css",
+    "website/v2/assets/workspace.js",
+    "website/v2/index.html"
   ],
   "documentation_references": [
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
-    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+    "docs/components/STATUS_DASHBOARD.md",
+    "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
   ],
   "verification_evidence": [
     "tests/test_v2_workspace_shell.py",
@@ -589,8 +591,7 @@
       "type": "decision",
       "label": "Check the existing Dashboard account session; request sign-in only when absent",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -607,8 +608,7 @@
       "type": "process",
       "label": "Submit Dashboard credentials directly to the same-origin HTTPS login API; retain only server-issued cookies",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -625,8 +625,7 @@
       "type": "decision",
       "label": "Dashboard verifies Steward identity and exact resident.conversation.read/send grants",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -643,8 +642,7 @@
       "type": "failure",
       "label": "Show authentication, CSRF, grant, or conversation-service denial without retrying a send",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -661,8 +659,7 @@
       "type": "process",
       "label": "Read authorized conversation index and durable selected history; store only selected conversation ID",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -679,8 +676,7 @@
       "type": "process",
       "label": "Submit one typed message with a unique client message ID through the existing streamed conversation endpoint",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -697,8 +693,7 @@
       "type": "decision",
       "label": "Check durable response status and matched assistant event without inferring completion from acceptance",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -715,8 +710,7 @@
       "type": "verification",
       "label": "Render real persisted Grace response, event sequence, timestamp, and durable history after reload",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -733,8 +727,7 @@
       "type": "recovery",
       "label": "Refresh durable history and resume read-only status checks; never automatically repeat uncertain send",
       "source_references": [
-        "website/v2/assets/grace-chat.js",
-        "src/riverview_core/status_dashboard/server.py"
+        "website/v2/assets/grace-chat.js"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -884,13 +877,12 @@
       ],
       "id": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
       "type": "decision",
-      "label": "Check existing same-origin Dashboard account session before reading status"
+      "label": "Check existing same-origin Dashboard account session before reading status and host telemetry"
     },
     {
       "node_revision": "1.0.0",
       "source_references": [
         "website/v2/assets/resource-monitor.js",
-        "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/status_dashboard/projection.py"
       ],
       "documentation_references": [
@@ -903,7 +895,7 @@
       ],
       "id": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
       "type": "process",
-      "label": "Read only rv.dashboard.status.v1 through authenticated GET /api/v1/status"
+      "label": "Read rv.dashboard.status.v1 and rv.dashboard.resource-telemetry.v1 through authenticated same-origin GETs"
     },
     {
       "node_revision": "1.0.0",
@@ -921,7 +913,7 @@
       ],
       "id": "rv:riverview-v2:workspace-shell:resource-operational-projection",
       "type": "process",
-      "label": "Render timestamped Dashboard worker leases and institutional assignment counts separately from inference workloads"
+      "label": "Render timestamped Dashboard worker leases and assignments separately from GPU and model telemetry"
     },
     {
       "node_revision": "1.0.0",
@@ -939,7 +931,7 @@
       ],
       "id": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
       "type": "decision",
-      "label": "Determine whether an approved timestamped host/model telemetry projection exists"
+      "label": "Collect allowlisted GPU and model-server readings through Dashboard backend sources"
     },
     {
       "node_revision": "1.0.0",
@@ -958,7 +950,7 @@
       ],
       "id": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
       "type": "process",
-      "label": "Keep GPU/model/queue metrics unavailable rather than zero when no authorized source exists"
+      "label": "Keep each stale, unsupported, unverified, or unavailable source explicit; never infer zero"
     },
     {
       "node_revision": "1.0.0",
@@ -1012,7 +1004,7 @@
       ],
       "id": "rv:riverview-v2:workspace-shell:resource-telemetry-contract",
       "type": "process",
-      "label": "Future same-origin timestamped read-only resource projection is documented but not implemented"
+      "label": "Preserve queue depth and unverified-host measurements as unavailable until authoritative sources exist"
     },
     {
       "id": "rv:riverview-v2:workspace-shell:work-read-view",
@@ -1097,6 +1089,54 @@
       ],
       "verification_evidence": [
         "scripts/verify_v2_work_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read OCTOMINER1 NVIDIA data through the dedicated host-restricted telemetry command",
+      "source_references": [],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:resource-model-apis",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read fixed model health, loaded identity, and active slots; leave unsupported queue depth unavailable",
+      "source_references": [],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render measured GPU/model fields as text with per-source timestamps and honest unavailable states",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
       ]
     }
   ],
@@ -1556,7 +1596,7 @@
       "from": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
       "to": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
       "type": "runtime_transition",
-      "label": "Existing account session is authenticated"
+      "label": "Authenticated session; fetch bounded status and live telemetry"
     },
     {
       "from": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
@@ -1571,16 +1611,10 @@
       "label": "Validate status-v1 schema and retain allowed timestamped aggregates"
     },
     {
-      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
-      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
-      "type": "runtime_transition",
-      "label": "Dashboard status has no host GPU or inference queue fields"
-    },
-    {
-      "from": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "from": "rv:riverview-v2:workspace-shell:resource-model-apis",
       "to": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
       "type": "diagnostic_branch",
-      "label": "No approved timestamped resource feed; values remain unavailable"
+      "label": "Unavailable host, queue, or endpoint remains explicit"
     },
     {
       "from": "rv:riverview-v2:workspace-shell:resource-monitor-view",
@@ -1641,6 +1675,54 @@
       "to": "rv:riverview-v2:workspace-shell:work-read-view",
       "type": "recovery_route",
       "label": "User requests refresh; bounded read only, no background polling"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+      "to": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "type": "runtime_transition",
+      "label": "Backend returns redacted measurements and timestamps"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-model-apis",
+      "to": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "type": "runtime_transition",
+      "label": "Backend returns model readiness and measured active slots"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:resource-filter-refresh",
+      "type": "runtime_transition",
+      "label": "Steward reviews live values, freshness, and unsupported queue depth"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "type": "runtime_transition",
+      "label": "Authenticated status read also requests the live resource projection"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "to": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+      "type": "runtime_transition",
+      "label": "Collect approved GPU inventory from the verified host"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "to": "rv:riverview-v2:workspace-shell:resource-model-apis",
+      "type": "runtime_transition",
+      "label": "Collect fixed model health, identity, and slot sources"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "type": "diagnostic_branch",
+      "label": "GPU host source failed or credentials/host pin unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:resource-snapshot-redaction",
+      "type": "runtime_transition",
+      "label": "Snapshot records only safe availability metadata"
     }
   ]
 }

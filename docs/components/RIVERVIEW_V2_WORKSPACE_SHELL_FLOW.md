@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.15
+File Revision: 1.0.16
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
@@ -65,19 +65,22 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_communications_unverified_50cc0073["Keep source UNVERIFIED, counts unavailable, and ledger empty without implying zero traffic"]
     g_rv_riverview_v2_workspace_shell_communications_local_refresh_0f9e83ae["Refresh local source configuration state without sending an unauthenticated request"]
     g_rv_riverview_v2_workspace_shell_resource_monitor_view_55ba762e["Render V2 Hardware & AI Resource Monitor with per-source provenance"]
-    g_rv_riverview_v2_workspace_shell_resource_dashboard_auth_60501e27{"Check existing same-origin Dashboard account session before reading status"}
-    g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3["Read only rv.dashboard.status.v1 through authenticated GET /api/v1/status"]
-    g_rv_riverview_v2_workspace_shell_resource_operational_projection_57d5cc51["Render timestamped Dashboard worker leases and institutional assignment counts separately from inference workloads"]
-    g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef{"Determine whether an approved timestamped host/model telemetry projection exists"}
-    g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928["Keep GPU/model/queue metrics unavailable rather than zero when no authorized source exists"]
+    g_rv_riverview_v2_workspace_shell_resource_dashboard_auth_60501e27{"Check existing same-origin Dashboard account session before reading status and host telemetry"}
+    g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3["Read rv.dashboard.status.v1 and rv.dashboard.resource-telemetry.v1 through authenticated same-origin GETs"]
+    g_rv_riverview_v2_workspace_shell_resource_operational_projection_57d5cc51["Render timestamped Dashboard worker leases and assignments separately from GPU and model telemetry"]
+    g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef{"Collect allowlisted GPU and model-server readings through Dashboard backend sources"}
+    g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928["Keep each stale, unsupported, unverified, or unavailable source explicit; never infer zero"]
     g_rv_riverview_v2_workspace_shell_resource_filter_refresh_3d743915["Allow bounded manual refresh, local filters, and per-source details without background polling"]
     g_rv_riverview_v2_workspace_shell_resource_snapshot_redaction_41c4cee2["Capture only source availability metadata in Snapshot; omit hardware values and work counts"]
-    g_rv_riverview_v2_workspace_shell_resource_telemetry_contract_c56ce823["Future same-origin timestamped read-only resource projection is documented but not implemented"]
+    g_rv_riverview_v2_workspace_shell_resource_telemetry_contract_c56ce823["Preserve queue depth and unverified-host measurements as unavailable until authoritative sources exist"]
     g_rv_riverview_v2_workspace_shell_work_read_view_2f68c969["Open Work and request persisted objective and assignment summaries"]
     g_rv_riverview_v2_workspace_shell_work_auth_session_945271a7{"Require the existing authenticated Dashboard account session before requesting projections"}
     g_rv_riverview_v2_workspace_shell_work_read_projections_1aa38b7b["Fetch bounded read-only objective and assignment projections from the same origin"]
     g_rv_riverview_v2_workspace_shell_work_render_summary_4e4cc3b4["Render only lifecycle and persisted progress fields; keep fixture examples separate"]
     g_rv_riverview_v2_workspace_shell_work_unavailable_bff8a4d2[["Show sign-in, partial, empty, or unavailable states without polling or writes"]]
+    g_rv_riverview_v2_workspace_shell_resource_host_telemetry_ssh_32f5aaf1["Read OCTOMINER1 NVIDIA data through the dedicated host-restricted telemetry command"]
+    g_rv_riverview_v2_workspace_shell_resource_model_apis_2e3457cd["Read fixed model health, loaded identity, and active slots; leave unsupported queue depth unavailable"]
+    g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4["Render measured GPU/model fields as text with per-source timestamps and honest unavailable states"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -156,11 +159,10 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_communications_unverified_50cc0073 -->|Snapshot records safe status and null counters only| g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
   g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Select Hardware & AI resources| g_rv_riverview_v2_workspace_shell_resource_monitor_view_55ba762e
   g_rv_riverview_v2_workspace_shell_resource_monitor_view_55ba762e -->|First view or explicit refresh on LAN HTTPS| g_rv_riverview_v2_workspace_shell_resource_dashboard_auth_60501e27
-  g_rv_riverview_v2_workspace_shell_resource_dashboard_auth_60501e27 -->|Existing account session is authenticated| g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3
+  g_rv_riverview_v2_workspace_shell_resource_dashboard_auth_60501e27 -->|Authenticated session; fetch bounded status and live telemetry| g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3
   g_rv_riverview_v2_workspace_shell_resource_dashboard_auth_60501e27 -->|diagnostic_branch: Session absent or local fixture origin; do not call protected API| g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928
   g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3 -->|Validate status-v1 schema and retain allowed timestamped aggregates| g_rv_riverview_v2_workspace_shell_resource_operational_projection_57d5cc51
-  g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3 -->|Dashboard status has no host GPU or inference queue fields| g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef
-  g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef -->|diagnostic_branch: No approved timestamped resource feed; values remain unavailable| g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928
+  g_rv_riverview_v2_workspace_shell_resource_model_apis_2e3457cd -->|diagnostic_branch: Unavailable host, queue, or endpoint remains explicit| g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928
   g_rv_riverview_v2_workspace_shell_resource_monitor_view_55ba762e -->|Use local search/filter/details or explicit refresh| g_rv_riverview_v2_workspace_shell_resource_filter_refresh_3d743915
   g_rv_riverview_v2_workspace_shell_resource_operational_projection_57d5cc51 -->|Snapshot captures source metadata only, not counts or metric values| g_rv_riverview_v2_workspace_shell_resource_snapshot_redaction_41c4cee2
   g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928 -->|documentation: Record the future read-only integration seam and blocker| g_rv_riverview_v2_workspace_shell_resource_telemetry_contract_c56ce823
@@ -171,6 +173,14 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_work_read_projections_1aa38b7b -->|Render sanitized persisted fields and separate fixture cards| g_rv_riverview_v2_workspace_shell_work_render_summary_4e4cc3b4
   g_rv_riverview_v2_workspace_shell_work_read_projections_1aa38b7b -->|diagnostic_branch: Projection absent, partial, or unavailable; show truthful state| g_rv_riverview_v2_workspace_shell_work_unavailable_bff8a4d2
   g_rv_riverview_v2_workspace_shell_work_unavailable_bff8a4d2 -->|recovery_route: User requests refresh; bounded read only, no background polling| g_rv_riverview_v2_workspace_shell_work_read_view_2f68c969
+  g_rv_riverview_v2_workspace_shell_resource_host_telemetry_ssh_32f5aaf1 -->|Backend returns redacted measurements and timestamps| g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4
+  g_rv_riverview_v2_workspace_shell_resource_model_apis_2e3457cd -->|Backend returns model readiness and measured active slots| g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4
+  g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|Steward reviews live values, freshness, and unsupported queue depth| g_rv_riverview_v2_workspace_shell_resource_filter_refresh_3d743915
+  g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3 -->|Authenticated status read also requests the live resource projection| g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef
+  g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef -->|Collect approved GPU inventory from the verified host| g_rv_riverview_v2_workspace_shell_resource_host_telemetry_ssh_32f5aaf1
+  g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef -->|Collect fixed model health, identity, and slot sources| g_rv_riverview_v2_workspace_shell_resource_model_apis_2e3457cd
+  g_rv_riverview_v2_workspace_shell_resource_host_telemetry_ssh_32f5aaf1 -->|diagnostic_branch: GPU host source failed or credentials/host pin unavailable| g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928
+  g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|Snapshot records only safe availability metadata| g_rv_riverview_v2_workspace_shell_resource_snapshot_redaction_41c4cee2
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

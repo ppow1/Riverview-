@@ -2,9 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.15
+File Revision: 1.0.16
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
+Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated live GPU/model reads and source gaps.
 Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Record Work release, preserved composite, and live verification
 History: Git and revision/backup manifest
 -->
@@ -172,18 +173,18 @@ The fixture preview uses no SQL, migration, service manager, Nginx, firewall, or
 
 ### Hardware & AI Resource Monitor (RV-WEB-V2-HW-AI-RESOURCE-001)
 
-Open `https://192.168.1.155/v2/` and choose **Hardware & AI**. The monitor makes one authenticated same-origin read when first opened, and a new read only when **Refresh** is pressed. It requests the existing account session and then `GET /api/v1/status`; it never calls a model host, uses a service bearer, polls in the background, or sends writes. The local HTTP fixture preview deliberately does not call the Dashboard API. A user who needs status access signs in through the existing Dashboard account flow in Talk with Grace; this panel does not collect or store credentials.
+Open `https://192.168.1.155/v2/`, sign in through the existing Dashboard flow if needed, choose **Hardware & AI**, and press **Refresh**. After the account-session check, the page reads same-origin `/api/v1/status` and `/api/v1/resources/telemetry`. There is no browser-to-host request, polling timer, or write/control operation. The preview HTTP fixture deliberately makes no API request.
 
-The **Institutional work fleet** card reports Dashboard assignment counts and worker lease-heartbeat summaries, not GPU jobs or model inference queues. It shows the Dashboard's `observed_at` and `freshness`; worker `unknown` or `stale` states are not healthy. Hardware inventory, utilization, VRAM, temperatures, power/fan, loaded models, model-server readiness, and inference queue/slot metrics currently show **Unavailable** because no approved, timestamped Dashboard resource projection exists. `Unavailable` is not zero, and the page does not reuse a past model health check as live status.
+The Dashboard telemetry route is account/bearer authenticated and GET/HEAD-only. It reports a fresh request observation, per-host status, per-GPU utilization/VRAM/temperature/power/fan when available, loaded models, readiness, and measured active slots. Queue depth is explicitly unavailable: current llama.cpp `/metrics` returns 501 and `/slots` does not expose a queue count. OctoMiner2 is documented but identity-unverified and remains unavailable. Missing or stale values are not replaced with zero or an earlier read. Snapshot diagnostics contain only source state/freshness/time, never metric values or model identifiers.
 
 | Symptom | Verify | Expected interpretation | Recovery |
 | --- | --- | --- | --- |
-| `SIGN-IN REQUIRED` | Open Talk with Grace on the same `/v2/` origin and complete the existing Dashboard account flow; then return and press Refresh | The resource panel has no account cookie; it does not receive credentials from the chat code | Sign in through Dashboard, not by adding a token to browser storage or a URL |
-| `ACCESS DENIED` or HTTP 403 | Preserve only the status label and sanitized failure class; do not capture cookies or response bodies | The Dashboard's current account policy denied the read | Have the account administrator review existing access; do not widen API grants from V2 |
-| `UNAVAILABLE` / projection unavailable | Confirm `/api/v1/status` is healthy through the existing Dashboard diagnostics; inspect status freshness and Dashboard service logs using the Dashboard cookbook | No current projection was received; UI retains no previous successful values as current | Restore the Dashboard projection through its established procedure; press Refresh. No GPU value is inferred |
-| Dashboard card is current but GPU cards say unavailable | Review the source inventory in the component contract | Expected until a reviewed same-origin `rv.dashboard.resource-telemetry.v1` projection exists; current model endpoints are not browser sources | Do not point DevTools/browser at private inference HTTP. Implement the read-only Dashboard seam separately before claiming GPU telemetry |
-| Local HTTP fixture preview shows unavailable | Confirm URL is the loopback or LAN fixture server rather than the TLS `/v2/` mount | Expected: fixture preview CSP is `connect-src 'none'` and never calls production APIs | Use the authenticated LAN HTTPS `/v2/` route for the existing Dashboard status read |
-| Metric is filtered out | Reset `Filter resources` to All sources and clear Find a metric | Filters are client-side and do not alter or query telemetry | Clear filters; use source details to inspect the metric provenance |
+| `SIGN-IN REQUIRED` | Complete the existing account session on the same `/v2/` origin and refresh | Browser has no active Dashboard session | Sign in through Dashboard; never add a token to browser storage or a URL |
+| GPU source unavailable | Check Dashboard journal for sanitized telemetry errors; verify the restricted Camrui→OCTOMINER1 SSH key and exact host pin | Independent model endpoints may still show readiness while GPU inventory is unavailable | Restore the dedicated credential/host pin using the Dashboard cookbook; do not reuse operator SSH keys |
+| Model source unavailable | Check each fixed health/model/slot endpoint from Camrui | One endpoint failure affects its own service card only | Restore that model service through its own runbook; Hardware page is read-only |
+| Queue unavailable | Inspect API source limitation | Expected until the model server exposes an authoritative queue metric | Do not present active slots or institutional assignments as queue depth |
+| OctoMiner2 unavailable | Verify machine identity and trusted host access before adding any source | Current inventory entry is unverified | Keep unavailable; do not guess its address, identity, or GPU configuration |
+| Metric filtered out | Reset filters or clear search | Filtering is local to rendered cards | Refresh after clearing filters |
 
 Focused verification:
 
@@ -191,10 +192,9 @@ Focused verification:
 python3 -m unittest tests.test_v2_workspace_shell -v
 node scripts/verify_v2_resource_monitor.cjs
 python3 scripts/verify_v2_workspace_browser.py --base-url http://127.0.0.1:8877
-node scripts/verify_v2_workspace_mobile.cjs --url http://127.0.0.1:8877/ --width 390 --height 844
 ```
 
-The local browser run verifies the unavailable/no-network fixture behavior and layout only; it is not authenticated production telemetry acceptance. The live LAN acceptance must use the existing trusted certificate and Dashboard session. Snapshot includes source-state metadata only and excludes worker/assignment counts, model identifiers, and all hardware/workload values.
+The local browser run tests fixture/no-network behavior and is not live telemetry acceptance. Live acceptance requires a trusted LAN HTTPS browser profile with an authorized Dashboard session.
 
 ### Rollback and resume
 

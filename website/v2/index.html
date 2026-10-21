@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: website/v2/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.10
+File Revision: 1.0.11
 Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
 Execution Model: Interactive browser presentation; request-driven Dashboard API calls
 Observability: Live conversation state from rv.resident.conversation.v1; Comms5 stays unverified
 Dependencies: Same-origin static assets under website/v2/assets
 Inputs/Outputs: Local fixture records plus authenticated Grace conversation API; durable messages remain Dashboard-owned
 Authority: Account session plus server-checked resident.conversation.read/send grants; LAN preview
+Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Render live hardware and model projections in the existing monitor.
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Connect existing Work view to authenticated read-only objective and assignment status
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
@@ -74,48 +75,16 @@ History: Git and revision/backup manifest
           </div>
           <section class="resource-monitor" id="resource-monitor-workspace" aria-labelledby="resource-monitor-heading" data-state="not-checked" hidden>
             <div class="resource-heading"><div><p class="eyebrow">HARDWARE · INFERENCE · WORK FLEET</p><h2 id="resource-monitor-heading">Hardware &amp; AI Resource Monitor</h2><p class="muted">A metric is shown only when its authorized source supplies a value and observation time. Unavailable is not zero.</p></div><span class="resource-state" id="resource-source-state" data-state="not-checked">NOT CHECKED</span></div>
-            <div class="resource-toolbar"><p id="resource-refresh-status" role="status" aria-live="polite">Use Refresh to check the existing authenticated Dashboard status projection. GPU and inference telemetry are not connected to V2.</p><button id="resource-refresh" type="button" aria-describedby="resource-refresh-status">Refresh</button></div>
+            <div class="resource-toolbar"><p id="resource-refresh-status" role="status" aria-live="polite">Telemetry is read through the authenticated Dashboard projection. Unavailable sources remain explicitly unavailable.</p><button id="resource-refresh" type="button" aria-describedby="resource-refresh-status">Refresh</button></div>
             <div class="resource-filters">
               <label>Filter resources<select id="resource-filter"><option value="all">All sources</option><option value="hardware">Hardware metrics</option><option value="inference">Inference services</option><option value="dashboard">Dashboard work fleet</option></select></label>
               <label>Find a metric<input id="resource-search" type="search" maxlength="80" placeholder="Host, metric, or source"></label>
             </div>
-            <div class="resource-grid" id="resource-cards">
-              <article class="resource-card" data-resource-card data-resource-kind="hardware" data-search="gpu inventory device identity">
-                <div class="resource-card-top"><div><p class="eyebrow">HARDWARE INVENTORY</p><h3>GPU devices</h3></div><span class="resource-tag unavailable">UNAVAILABLE</span></div>
-                <dl><div><dt>Inventory</dt><dd>Unavailable</dd></div><div><dt>Source</dt><dd>No authorized host telemetry projection</dd></div><div><dt>Observed</dt><dd>Not reported</dd></div></dl>
-                <details><summary>Source details</summary><p>V2 does not have a read-only host inventory API. No GPU count, model, UUID, or host-to-device mapping is inferred from historical allocations.</p></details>
-              </article>
-              <article class="resource-card" data-resource-card data-resource-kind="hardware" data-search="gpu utilization vram memory temperature power fan">
-                <div class="resource-card-top"><div><p class="eyebrow">GPU METRICS</p><h3>Utilization, memory &amp; thermals</h3></div><span class="resource-tag unavailable">UNAVAILABLE</span></div>
-                <dl><div><dt>Utilization</dt><dd>Unavailable</dd></div><div><dt>Used / total VRAM</dt><dd>Unavailable</dd></div><div><dt>Temperature · power · fan</dt><dd>Unavailable</dd></div><div><dt>Measurement time</dt><dd>Not reported</dd></div></dl>
-                <details><summary>Source details</summary><p>No authorized source currently reports per-device utilization, memory, temperature, power, or fan measurements. Values are not estimated.</p></details>
-              </article>
-              <article class="resource-card" data-resource-card data-resource-kind="inference" data-search="inference model loaded server readiness model identity">
-                <div class="resource-card-top"><div><p class="eyebrow">INFERENCE SERVICES</p><h3>Loaded models &amp; server readiness</h3></div><span class="resource-tag unavailable">UNAVAILABLE IN V2</span></div>
-                <dl><div><dt>Model identity</dt><dd>Not projected</dd></div><div><dt>Server readiness</dt><dd>Not projected</dd></div><div><dt>Source observation time</dt><dd>Not available</dd></div></dl>
-                <details><summary>Source details</summary><p>The model health and model-list endpoints are private HTTP services without a V2 same-origin authorized projection or source timestamp. This browser does not call inference hosts directly.</p></details>
-              </article>
-              <article class="resource-card" data-resource-card data-resource-kind="inference" data-search="inference jobs queue active requests slots concurrency">
-                <div class="resource-card-top"><div><p class="eyebrow">INFERENCE WORKLOAD</p><h3>Active jobs &amp; queues</h3></div><span class="resource-tag unavailable">UNAVAILABLE</span></div>
-                <dl><div><dt>Active inference jobs</dt><dd>Unavailable</dd></div><div><dt>Queued requests</dt><dd>Unavailable</dd></div><div><dt>Concurrency / wait</dt><dd>Unavailable</dd></div><div><dt>Measurement time</dt><dd>Not reported</dd></div></dl>
-                <details><summary>Source details</summary><p>Dashboard assignment counts describe institutional work, not inference requests. No model-server queue or slot projection is connected to V2.</p></details>
-              </article>
-            </div>
+            <div class="resource-grid" id="resource-cards" aria-live="polite"><p id="resource-telemetry-state">Live host telemetry has not been requested.</p></div>
             <section class="resource-hosts" aria-labelledby="resource-hosts-heading">
               <div class="resource-card-top"><div><p class="eyebrow">VERIFIED SOURCE IDENTITIES</p><h3 id="resource-hosts-heading">Host status</h3></div><span class="resource-tag unavailable">HARDWARE FEED UNAVAILABLE</span></div>
-              <div class="resource-grid">
-                <article class="resource-card" data-resource-card data-resource-kind="hardware" data-search="camrui dashboard controller host inventory gpu">
-                  <div class="resource-card-top"><div><p class="eyebrow">CONTROLLER · DOCUMENTED IDENTITY</p><h3>Camrui</h3></div><span class="resource-tag" data-host-state="camrui">REPORTED</span></div>
-                  <dl><div><dt>Source role</dt><dd>Dashboard / V2 LAN preview</dd></div><div><dt>Host hardware</dt><dd>Unavailable from Dashboard API</dd></div><div><dt>GPU inventory</dt><dd>Unavailable · not inferred</dd></div></dl>
-                  <details><summary>Host source details</summary><p>Machine identity is documented in the Riverview machine-access index. The authenticated Dashboard status projection reports institutional services and work, not local CPU, memory, GPU, or thermal measurements.</p></details>
-                </article>
-                <article class="resource-card" data-resource-card data-resource-kind="inference" data-search="octominer1 inference host 80b 30b model gpu">
-                  <div class="resource-card-top"><div><p class="eyebrow">INFERENCE HOST · REPORTED IDENTITY</p><h3>OctoMiner1</h3></div><span class="resource-tag unavailable">NOT PROJECTED</span></div>
-                  <dl><div><dt>Host identity</dt><dd>Documented; V2 has no host-status source</dd></div><div><dt>Inference services</dt><dd>Model endpoints not projected</dd></div><div><dt>GPU mapping &amp; load</dt><dd>Unavailable · not inferred</dd></div></dl>
-                  <details><summary>Host source details</summary><p>A one-time source check from Camrui confirmed the documented model endpoints responded, but the model APIs provide no GPU telemetry or observation timestamp. V2 does not contact those private endpoints.</p></details>
-                </article>
-              </div>
-              <p class="resource-footnote">Other hosts are not listed as live resources until their identity and a permitted telemetry source are verified.</p>
+              <div class="resource-grid" id="resource-host-cards" aria-live="polite"><p>Host status has not been requested.</p></div>
+              <p class="resource-footnote">OctoMiner2 remains explicitly unverified until its host identity and telemetry source are confirmed.</p>
             </section>
             <section class="resource-dashboard" data-resource-card data-resource-kind="dashboard" data-search="dashboard worker assignment cme institutional work fleet">
               <div class="resource-card-top"><div><p class="eyebrow">AUTHENTICATED DASHBOARD PROJECTION</p><h3>Institutional work fleet <span class="resource-subtitle">(not an inference queue)</span></h3></div><span class="resource-tag" id="resource-dashboard-state">NOT CHECKED</span></div>
