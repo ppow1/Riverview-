@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.10
+# Revision: 1.0.11
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Expose the criteria source alongside effective objective criteria.
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Project durable rework escalation-pending events as actionable Steward holds.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Add principal-scoped, minimized Engineering progress projections
 # Purpose: Project authoritative PostgreSQL/CME state into bounded safe views
@@ -628,6 +629,9 @@ class DashboardProjection:
                     "request": str(row["request"])[:512], "scope_ref": row["scope_ref"],
                     "submitter_id": row["submitter_id"],
                     "acceptance_criteria": row["acceptance_criteria"],
+                    "acceptance_criteria_source": received_payload.get(
+                        "acceptance_criteria_source",
+                        "steward_supplied" if row["acceptance_criteria"] else "legacy_unspecified"),
                     "status": row["status"], "assignment_id": row["assignment_id"],
                     "assignment_state": assignment_state,
                     "origin": ({"conversation_id": origin.get("conversation_id"),
