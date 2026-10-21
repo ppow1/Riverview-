@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.45
+# Revision: 1.0.46
+# Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Prove never-attempted and least-recently-attempted grounded objectives take fair reasoning turns, including repeated failures.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Cover arbitrary multi-artifact bounded contracts and repair PostgreSQL proposal fixtures
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Assert incomplete-proposal exceptions map to a fixed safe diagnostic code
@@ -181,7 +182,7 @@ class CodingWorkOrderContractTests(unittest.TestCase):
             def execute(self, query, params):
                 if query.lstrip().startswith("SELECT count(*)"):
                     self.row = {"failures": len(self.db.failures)}
-                else:
+                elif "execution.reasoning_failed" in query:
                     self.db.failures.append(params[1])
             def fetchone(self): return self.row
 
@@ -317,7 +318,6 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
         self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
             RuntimeError("untrusted provider message")), "REASONING_CYCLE_FAILED")
 
-
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
 class GraceExecutionTests(unittest.TestCase):
     def setUp(self):
@@ -384,6 +384,91 @@ class GraceExecutionTests(unittest.TestCase):
         self.admin.execute("DROP SCHEMA IF EXISTS " + self.schema + " CASCADE")
         self.admin.close()
         self.temp.cleanup()
+
+    def _create_grounded_reasoning_objective(self, objective_id):
+        row = self.pipeline.submit_objective(
+            objective_id, "Document worker retry contract",
+            ["artifact contains the task and verified repository provenance"],
+            credential=self.credentials["steward"], scope_ref=self.scope)
+        return self.pipeline.ground_objective(row["objective_id"])
+
+    def _reasoning_service(self, reasoner):
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        return GraceExecutionService(
+            self.pipeline, None, None, dispatch_credential="dispatch",
+            authority_ref=self.scope, verifier_id=self.verifier_id,
+            verifier_credential=self.credentials["verifier"],
+            artifact_root=str(self.root), resident_reasoner=reasoner)
+
+    def test_grounded_reasoning_schedules_never_attempted_then_least_recently_attempted(self):
+        from types import SimpleNamespace
+
+        older_id = "objective:queue-fairness-older"
+        newer_id = "objective:queue-fairness-newer"
+        self._create_grounded_reasoning_objective(older_id)
+        self._create_grounded_reasoning_objective(newer_id)
+
+        class FailingReasoner:
+            office_id = "office:grace-test"
+            providers = {"provider.test": object()}
+
+            def __init__(self):
+                self.calls = []
+
+            def propose(inner_self, objective_id, **_kwargs):
+                inner_self.calls.append(objective_id)
+                return SimpleNamespace(status=ReasoningStatus.INVALID_PROPOSAL,
+                    detail_code="PROPOSAL_SCHEMA_OR_BUDGET",
+                    request_id=f"failed-{len(inner_self.calls)}", proposal=None)
+
+        reasoner = FailingReasoner()
+        service = self._reasoning_service(reasoner)
+        for _ in range(4):
+            self.assertFalse(service.reason_one_grounded_objective())
+
+        self.assertEqual(reasoner.calls, [older_id, newer_id, older_id, newer_id])
+        for objective_id in (older_id, newer_id):
+            event_types = [event["event_type"] for event in
+                           self.pipeline.objective_events(objective_id)]
+            self.assertEqual(event_types.count("execution.reasoning_attempted"), 2)
+            self.assertEqual(event_types.count("execution.reasoning_failed"), 2)
+
+    def test_single_grounded_objective_can_still_persist_its_typed_proposal(self):
+        from types import SimpleNamespace
+
+        from riverview_core.resident_reasoning import PlanProposal, PlanStep
+
+        objective_id = "objective:queue-fairness-single"
+        objective = self._create_grounded_reasoning_objective(objective_id)
+        criterion = objective["acceptance_criteria"][0]
+        proposal = PlanProposal("Document the retry contract", (
+            PlanStep("document", "Create a bounded retry-contract work product",
+                     (criterion,)),), 0)
+
+        class ProposingReasoner:
+            office_id = "office:grace-test"
+            providers = {"provider.test": object()}
+
+            def __init__(inner_self):
+                inner_self.calls = []
+
+            def propose(inner_self, objective_id, **_kwargs):
+                inner_self.calls.append(objective_id)
+                return SimpleNamespace(status=ReasoningStatus.PROPOSED,
+                    request_id="proposal-request", proposal=proposal)
+
+        reasoner = ProposingReasoner()
+        service = self._reasoning_service(reasoner)
+
+        self.assertTrue(service.reason_one_grounded_objective())
+        self.assertEqual(reasoner.calls, [objective_id])
+        persisted = self.pipeline.get_objective(objective_id)
+        self.assertEqual(persisted["status"], "PROPOSED")
+        self.assertEqual(persisted["proposal"]["summary"], proposal.summary)
+        event_types = [event["event_type"] for event in
+                       self.pipeline.objective_events(objective_id)]
+        self.assertIn("execution.reasoning_attempted", event_types)
 
     def test_authorized_objective_executes_and_is_independently_verified(self):
         with self.assertRaises(ObjectiveNotAuthorized):
