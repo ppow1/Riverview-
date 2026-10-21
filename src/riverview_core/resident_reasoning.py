@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.26
+# Revision: 1.0.27
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Correlate separate grounding provider outcomes without request content
 # Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Keep office-state writes within the database JSONB text bound and expose safe SQLSTATE diagnostics
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Restrict lifecycle ownership to complete canonical criterion forms
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Model typed lifecycle criteria separately from Engineering steps while retaining exact objective criteria
@@ -545,11 +546,43 @@ class ResidentReasoner:
                                           "external_advisory": advisory_provenance},
                              proposal=proposal)
 
-    def _call_knowledge(self, operation, *args):
-        ok, result = self._timed_call.run(
-            lambda: getattr(self.knowledge, operation)(*args), self.timeout_seconds)
-        if not ok or not isinstance(result, KnowledgeResult):
-            return KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
+    def _call_knowledge(self, operation, *args, request_id=None, assignment_id=None):
+        diagnostic_context = {"request_id": request_id, "assignment_id": assignment_id}
+        provider_call = getattr(self.knowledge, operation)
+        supports_diagnostics = getattr(
+            self.knowledge, "supports_reasoning_diagnostics", False) is True
+
+        def invoke():
+            if supports_diagnostics:
+                return provider_call(*args, diagnostic_context=diagnostic_context)
+            return provider_call(*args)
+
+        started = time.monotonic()
+        outcome, result, exception_type = self._timed_call.run_diagnostic(
+            invoke, self.timeout_seconds)
+        elapsed_ms = round((time.monotonic() - started) * 1000)
+        failure_reason = None
+        if outcome == "timeout":
+            failure_reason = "KNOWLEDGE_CALL_TIMEOUT"
+        elif outcome == "capacity_unavailable":
+            failure_reason = "KNOWLEDGE_CALL_CAPACITY_UNAVAILABLE"
+        elif outcome == "failed":
+            failure_reason = "KNOWLEDGE_CALL_EXCEPTION"
+        elif not isinstance(result, KnowledgeResult):
+            failure_reason = "KNOWLEDGE_RESULT_INVALID"
+        if not isinstance(result, KnowledgeResult):
+            result = KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
+        _reasoning_diagnostic(
+            "knowledge_call_result", request_id=request_id,
+            assignment_id=assignment_id, correlation_id=request_id,
+            operation=operation, elapsed_ms=elapsed_ms,
+            outcome=outcome, status=result.status.value,
+            source_revision=result.source_revision,
+            source_hash_present=bool(result.source_sha256),
+            retrieval_complete=result.retrieval_complete,
+            reference_count=len(result.source_references),
+            failure_reason=failure_reason,
+            exception_type=exception_type)
         return result
 
     @classmethod
@@ -651,8 +684,12 @@ class ResidentReasoner:
                 context_failure_code = "ASSIGNMENT_CONTEXT_REDACTION_REJECTED"
                 raise ValueError("assignment context contains a protected credential field")
             context_failure_code = None
-            grounded = self._call_knowledge("ground_assignment", assignment)
-            regrounded = self._call_knowledge("reground_assignment", assignment, trigger)
+            grounded = self._call_knowledge(
+                "ground_assignment", assignment, request_id=request_id,
+                assignment_id=assignment_id)
+            regrounded = self._call_knowledge(
+                "reground_assignment", assignment, trigger, request_id=request_id,
+                assignment_id=assignment_id)
         except Exception:
             grounded = regrounded = KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
             assignment = {"id": assignment_id, "revision": "unavailable"}

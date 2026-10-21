@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/resident_knowledge.py
 # Component: REPOSITORY-KNOWLEDGE-PROVIDER
-# Revision: 1.0.1
+# Revision: 1.0.2
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Emit correlated sanitized grounding branch decisions
 # Purpose: Rank bounded task-relevant excerpts from pinned resident sources
 # Execution Model: In-process bounded lexical selection over verified source files
 # Observability: Full-source provenance with explicit VERIFIED/NO_MATCH/INCOMPLETE outcomes
@@ -28,6 +29,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 import re
 from typing import Mapping
@@ -35,10 +37,13 @@ from typing import Mapping
 from .repository_knowledge import RepositoryKnowledgeProvider
 from .knowledge_provider_v1.contract import KnowledgeResult, KnowledgeStatus
 
+LOG = logging.getLogger(__name__)
+
 
 class TaskRelevantRepositoryKnowledgeProvider:
     """Knowledge-provider v1 adapter for the fixed resident source corpus."""
 
+    supports_reasoning_diagnostics = True
     CONTRACT_REF = RepositoryKnowledgeProvider.RESIDENT_CONTRACT
     MAX_CONTEXT_BYTES = 8 * 1024
     # Leave room for KnowledgeResult provenance and the pipeline evidence envelope.
@@ -94,17 +99,67 @@ class TaskRelevantRepositoryKnowledgeProvider:
         if block:
             yield start, len(lines), "\n".join(block)
 
-    def _select(self, assignment: Mapping) -> KnowledgeResult:
+    @staticmethod
+    def _diagnose_selection(assignment, diagnostic_context, *, operation,
+                            branch, contract_ref_present, contract_ref_matches,
+                            query_term_count, rejection_reason):
+        context = diagnostic_context if isinstance(diagnostic_context, Mapping) else {}
+        request_id = context.get("request_id")
+        assignment_id = context.get("assignment_id")
+        payload = {
+            "event": "resident_grounding_diagnostic",
+            "stage": "provider_selection",
+            "request_id": request_id,
+            "assignment_id": assignment_id,
+            "operation": operation,
+            "contract_ref_present": contract_ref_present,
+            "contract_ref_matches": contract_ref_matches,
+            "selected_branch": branch,
+            "query_term_count": query_term_count,
+            "rejection_reason": rejection_reason,
+        }
+        LOG.info(json.dumps(payload, sort_keys=True))
+
+    def _select(self, assignment: Mapping, *, diagnostic_context=None,
+                operation="ground_assignment") -> KnowledgeResult:
         if not isinstance(assignment, Mapping):
+            self._diagnose_selection(
+                assignment, diagnostic_context, operation=operation,
+                branch="invalid_assignment", contract_ref_present=False,
+                contract_ref_matches=False, query_term_count=0,
+                rejection_reason="ASSIGNMENT_NOT_MAPPING")
             return self._result(KnowledgeStatus.UNVERIFIED, complete=False)
         contract_ref = assignment.get("grounding_contract_ref", assignment.get("contract_ref"))
-        if contract_ref != self.CONTRACT_REF:
-            return self.repository.ground_assignment(assignment)
+        contract_ref_present = (
+            "grounding_contract_ref" in assignment or "contract_ref" in assignment)
         terms = self._query_terms(assignment)
+        if contract_ref != self.CONTRACT_REF:
+            result = self.repository.ground_assignment(assignment)
+            self._diagnose_selection(
+                assignment, diagnostic_context, operation=operation,
+                branch="repository_fallback", contract_ref_present=contract_ref_present,
+                contract_ref_matches=False, query_term_count=len(terms),
+                rejection_reason=(None if result.status is KnowledgeStatus.VERIFIED
+                                  and result.retrieval_complete is True
+                                  else "BASE_PROVIDER_" + result.status.value))
+            return result
         if not terms:
+            self._diagnose_selection(
+                assignment, diagnostic_context, operation=operation,
+                branch="task_relevant_selection", contract_ref_present=contract_ref_present,
+                contract_ref_matches=True, query_term_count=0,
+                rejection_reason="QUERY_TERMS_EMPTY")
             return self._result(KnowledgeStatus.UNVERIFIED, complete=False)
         source = self.repository.ground_assignment({"contract_ref": self.CONTRACT_REF})
         if source.status is not KnowledgeStatus.VERIFIED or source.retrieval_complete is not True:
+            reason = ("SOURCE_" + source.status.value
+                      if source.status is not KnowledgeStatus.VERIFIED
+                      else "SOURCE_RETRIEVAL_INCOMPLETE")
+            self._diagnose_selection(
+                assignment, diagnostic_context, operation=operation,
+                branch="task_relevant_selection", contract_ref_present=contract_ref_present,
+                contract_ref_matches=True, query_term_count=len(terms),
+                rejection_reason=reason)
             return source
 
         term_set = set(terms)
@@ -126,9 +181,15 @@ class TaskRelevantRepositoryKnowledgeProvider:
                         "word_count": max(1, len(words)),
                     })
         if not candidates:
-            return self._result(KnowledgeStatus.NO_MATCH, refs=source.source_references,
-                                revision=source.source_revision, digest=source.source_sha256,
-                                complete=True)
+            result = self._result(KnowledgeStatus.NO_MATCH, refs=source.source_references,
+                                  revision=source.source_revision, digest=source.source_sha256,
+                                  complete=True)
+            self._diagnose_selection(
+                assignment, diagnostic_context, operation=operation,
+                branch="task_relevant_selection", contract_ref_present=contract_ref_present,
+                contract_ref_matches=True, query_term_count=len(terms),
+                rejection_reason="NO_TASK_RELEVANT_PASSAGES")
+            return result
 
         document_frequency = {
             term: sum(term in item["matches"] for item in candidates)
@@ -202,30 +263,66 @@ class TaskRelevantRepositoryKnowledgeProvider:
             remaining.remove(item)
 
         if not selected:
-            return self._result(KnowledgeStatus.INCOMPLETE,
-                                refs=source.source_references,
-                                revision=source.source_revision,
-                                digest=source.source_sha256, complete=False)
+            result = self._result(KnowledgeStatus.INCOMPLETE,
+                                  refs=source.source_references,
+                                  revision=source.source_revision,
+                                  digest=source.source_sha256, complete=False)
+            self._diagnose_selection(
+                assignment, diagnostic_context, operation=operation,
+                branch="task_relevant_selection", contract_ref_present=contract_ref_present,
+                contract_ref_matches=True, query_term_count=len(terms),
+                rejection_reason="SELECTION_BUDGET_EXHAUSTED")
+            return result
         value = make_value(selected)
         encoded = json.dumps(value, ensure_ascii=False, sort_keys=True,
                              separators=(",", ":")).encode("utf-8")
         if len(encoded) > selection_budget:
-            return self._result(KnowledgeStatus.INCOMPLETE,
-                                refs=source.source_references,
-                                revision=source.source_revision,
-                                digest=source.source_sha256, complete=False)
-        return self._result(KnowledgeStatus.VERIFIED,
-                            refs=source.source_references,
-                            revision=source.source_revision,
-                            digest=source.source_sha256, complete=True, value=value)
+            result = self._result(KnowledgeStatus.INCOMPLETE,
+                                  refs=source.source_references,
+                                  revision=source.source_revision,
+                                  digest=source.source_sha256, complete=False)
+            self._diagnose_selection(
+                assignment, diagnostic_context, operation=operation,
+                branch="task_relevant_selection", contract_ref_present=contract_ref_present,
+                contract_ref_matches=True, query_term_count=len(terms),
+                rejection_reason="SELECTION_BUDGET_EXHAUSTED")
+            return result
+        result = self._result(KnowledgeStatus.VERIFIED,
+                              refs=source.source_references,
+                              revision=source.source_revision,
+                              digest=source.source_sha256, complete=True, value=value)
+        self._diagnose_selection(
+            assignment, diagnostic_context, operation=operation,
+            branch="task_relevant_selection", contract_ref_present=contract_ref_present,
+            contract_ref_matches=True, query_term_count=len(terms),
+            rejection_reason=None)
+        return result
 
-    def ground_assignment(self, assignment: Mapping) -> KnowledgeResult:
-        return self._select(assignment)
+    def ground_assignment(self, assignment: Mapping, *, diagnostic_context=None) -> KnowledgeResult:
+        return self._select(assignment, diagnostic_context=diagnostic_context,
+                            operation="ground_assignment")
 
-    def reground_assignment(self, assignment: Mapping, trigger: str) -> KnowledgeResult:
+    def reground_assignment(self, assignment: Mapping, trigger: str, *,
+                            diagnostic_context=None) -> KnowledgeResult:
         if not isinstance(trigger, str) or not trigger or len(trigger) > 64:
+            context = diagnostic_context if isinstance(diagnostic_context, Mapping) else {}
+            LOG.info(json.dumps({
+                "event": "resident_grounding_diagnostic",
+                "stage": "provider_selection",
+                "request_id": context.get("request_id"),
+                "assignment_id": context.get("assignment_id"),
+                "operation": "reground_assignment",
+                "contract_ref_present": (isinstance(assignment, Mapping) and
+                    ("grounding_contract_ref" in assignment or "contract_ref" in assignment)),
+                "contract_ref_matches": (isinstance(assignment, Mapping) and
+                    assignment.get("grounding_contract_ref", assignment.get("contract_ref")) == self.CONTRACT_REF),
+                "selected_branch": "invalid_trigger",
+                "query_term_count": len(self._query_terms(assignment)) if isinstance(assignment, Mapping) else 0,
+                "rejection_reason": "TRIGGER_INVALID",
+            }, sort_keys=True))
             return self._result(KnowledgeStatus.UNVERIFIED, complete=False)
-        result = self._select(assignment)
+        result = self._select(assignment, diagnostic_context=diagnostic_context,
+                              operation="reground_assignment")
         if result.status is not KnowledgeStatus.VERIFIED:
             return result
         value = dict(result.value)

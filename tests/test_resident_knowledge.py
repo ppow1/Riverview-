@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_knowledge.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.3
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Verify correlated sanitized selector branch diagnostics and fallback status
 # Purpose: Verify commit-pinned relevant evidence selection and fail-closed bounds
 # Execution Model: Temporary committed fixture repository; no live model or database
 # Observability: Status, refs, source revision/hash, retrieval completeness, context size
@@ -91,6 +92,52 @@ class ResidentKnowledgeTests(unittest.TestCase):
         for document in result.value["documents"]:
             self.assertRegex(document["source_sha256"], r"^[0-9a-f]{64}$")
             self.assertTrue(document["passages"])
+
+    def test_selection_diagnostics_report_contract_branch_without_query_content(self):
+        import json
+
+        provider = TaskRelevantRepositoryKnowledgeProvider(self.root, self.commit)
+        request_id = "request:grounding-diagnostic"
+        assignment_id = "objective:grounding-diagnostic"
+        with self.assertLogs(
+                "riverview_core.worker_adapter.resident_knowledge", level="INFO") as captured:
+            result = provider.ground_assignment({
+                "id": assignment_id,
+                "contract_ref": "private-contract-sentinel",
+                "objective": "private objective content sentinel",
+                "acceptance_criteria": ["independent verification"],
+            }, diagnostic_context={
+                "request_id": request_id,
+                "assignment_id": assignment_id,
+            })
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(result.status, KnowledgeStatus.NO_MATCH)
+        self.assertEqual(diagnostic["request_id"], request_id)
+        self.assertEqual(diagnostic["assignment_id"], assignment_id)
+        self.assertTrue(diagnostic["contract_ref_present"])
+        self.assertFalse(diagnostic["contract_ref_matches"])
+        self.assertEqual(diagnostic["selected_branch"], "repository_fallback")
+        self.assertGreater(diagnostic["query_term_count"], 0)
+        self.assertEqual(diagnostic["rejection_reason"], "BASE_PROVIDER_NO_MATCH")
+        self.assertNotIn("private objective content sentinel", captured.output)
+        self.assertNotIn("private-contract-sentinel", captured.output)
+
+    def test_selection_diagnostics_identify_empty_task_query(self):
+        import json
+
+        provider = TaskRelevantRepositoryKnowledgeProvider(self.root, self.commit)
+        with self.assertLogs(
+                "riverview_core.worker_adapter.resident_knowledge", level="INFO") as captured:
+            result = provider.ground_assignment({
+                "contract_ref": provider.CONTRACT_REF,
+                "objective": "objective and the",
+                "acceptance_criteria": [],
+            })
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(result.status, KnowledgeStatus.UNVERIFIED)
+        self.assertEqual(diagnostic["selected_branch"], "task_relevant_selection")
+        self.assertEqual(diagnostic["query_term_count"], 0)
+        self.assertEqual(diagnostic["rejection_reason"], "QUERY_TERMS_EMPTY")
 
     def test_oversized_evidence_is_incomplete_not_silently_truncated(self):
         provider = TaskRelevantRepositoryKnowledgeProvider(
