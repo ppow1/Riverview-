@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.37
+# Revision: 1.0.39
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -1115,13 +1115,15 @@ class ResidentConversationTests(unittest.TestCase):
 
             def __init__(_self):
                 _self.calls = 0
+                _self.request_ids = []
 
             def supports_capability(_self, capability):
                 return capability == "grace.reasoning.80b"
 
             def complete_chat(_self, messages, *, max_tokens, expected_revision,
-                              required_capability=None):
+                              required_capability=None, request_id=None):
                 _self.calls += 1
+                _self.request_ids.append(request_id)
                 self.assertEqual(required_capability, "grace.reasoning.80b")
                 self.assertEqual(expected_revision, next_revision)
                 return ChatCompletion("Recovered using the ready reasoning route.",
@@ -1168,6 +1170,7 @@ class ResidentConversationTests(unittest.TestCase):
         self.store.release_deferred_claim(request_ids[0], held_claim)
         self.assertEqual(self.service.resume_deferred(), 1)
         self.assertEqual(router.calls, 2)
+        self.assertCountEqual(router.request_ids, [str(value) for value in request_ids])
         self.assertEqual(self.service.resume_deferred(), 0)
 
         for request_id, result in zip(request_ids, created):
