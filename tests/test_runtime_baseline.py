@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.11
+# Revision: 1.0.12
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
@@ -11,6 +11,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-DEMO-PACKAGING | Ensure tracked predecessor archives never enter release packages
 # Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Guard full Camrui packages include the Grace exchange initiation and policy migration components.
 # Changed: 2026-10-19 UTC | RV-W3-INTEGRATED-RELEASE-BLOCKER-RESOLUTION | Require byte-identical full-source archives for the same clean commit.
+# Changed: 2026-10-21 UTC | RV-180-QUALIFICATION-WORKSPACE-001 | Verify pinned qualification runs from a disposable writable workspace.
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: This file
 # History: docs/history/RV-M1.1-002/rev1.0.0/tests/test_runtime_baseline.py
@@ -467,6 +468,15 @@ class InstallerQualificationTests(unittest.TestCase):
         self.assertIn('command -v runuser >/dev/null', script)
         self.assertIn('runuser -u riverview -- env', script)
         self.assertIn('pytest" -p no:cacheprovider -q tests', script)
+        self.assertIn('qualification_workspace=$(mktemp -d "$qualification_root/workspace.XXXXXXXX")', script)
+        self.assertIn('trap cleanup_qualification_workspace 0', script)
+        self.assertIn('tar --exclude=.venv -cf "$qualification_archive" -C "$release" .', script)
+        self.assertIn('tar -xf "$qualification_archive" -C "$qualification_workspace"', script)
+        self.assertIn('chown -R riverview:riverview "$qualification_workspace"', script)
+        self.assertIn('chmod -R u+rwX "$qualification_workspace"', script)
+        self.assertIn('cd "$qualification_workspace"', script)
+        self.assertIn('sha256sum --check --strict PACKAGE_SHA256SUMS >/dev/null', script)
+        self.assertNotIn('chown -R riverview:riverview "$release"', script)
         self.assertNotIn('python -m unittest discover -s tests', script)
         for dependency in ("PyJWT[crypto]==2.10.1", "jsonschema==4.23.0",
                            "pytest==8.3.5", "psycopg[binary]==3.2.10"):

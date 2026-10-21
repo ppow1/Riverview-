@@ -2,13 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: deploy/install_baseline.sh
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Commission versioned code, isolated qualification, and systemd credential delivery
 # Execution Model: Explicit one-time operational installation; repeatable
 # Observability: Checksums, retained root-only rollback records and baseline JSON
-# Dependencies: Root, systemd 250+, Python 3/venv/pip, runuser, sha256sum, packaged release
+# Dependencies: Root, systemd 250+, Python 3/venv/pip, runuser, tar, sha256sum, packaged release
 # Authority: OS commissioning only; no DB writes/password reset/public-schema change
-# Changed: 2026-10-10 UTC | RV-M1.1-007 | Recover partial releases and normalize read access; 2026-10-21 UTC | RV-180-INSTALLER-QUALIFICATION-METADATA-001 | Version and preserve isolated qualification installer correction; 2026-10-21 UTC | RV-180-INSTALLER-QUALIFICATION-METADATA-002 | Preserve compatibility fixture line position
+# Changed: 2026-10-10 UTC | RV-M1.1-007 | Recover partial releases and normalize read access; 2026-10-21 UTC | RV-180-INSTALLER-QUALIFICATION-METADATA-001 | Version and preserve isolated qualification installer correction; 2026-10-21 UTC | RV-180-INSTALLER-QUALIFICATION-METADATA-002 | Preserve compatibility fixture line position; 2026-10-21 UTC | RV-180-QUALIFICATION-WORKSPACE-001 | Run tests in a disposable writable manifest-verified copy
 # Contracts: docs/components/RUNTIME_BASELINE.md
 # Tests: tests/test_runtime_baseline.py; Camrui commissioning NOT VERIFIED
 # History: New file; no predecessor; Git; deployed unit backups below /var/backups
@@ -65,8 +65,31 @@ python3 -m venv "$qualification_root/venv"
 "$qualification_root/venv/bin/python" -m pip install --disable-pip-version-check --upgrade 'pip==24.3.1'
 "$qualification_root/venv/bin/python" -m pip install --disable-pip-version-check --no-deps --only-binary=:all: -r deploy/qualification-requirements.txt
 chmod -R a+rX "$qualification_root"
-runuser -u riverview -- env HOME=/var/lib/riverview TMPDIR=/tmp PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.:src \
-    "$qualification_root/venv/bin/pytest" -p no:cacheprovider -q tests
+qualification_workspace=$(mktemp -d "$qualification_root/workspace.XXXXXXXX")
+qualification_archive=
+cleanup_qualification_workspace() {
+    qualification_status=$?
+    trap - 0
+    rm -rf -- "$qualification_workspace" || qualification_status=1
+    if [ -n "$qualification_archive" ]; then
+        rm -f -- "$qualification_archive" || qualification_status=1
+    fi
+    exit "$qualification_status"
+}
+trap cleanup_qualification_workspace 0
+qualification_archive=$(mktemp "$qualification_root/workspace.XXXXXXXX.tar")
+tar --exclude=.venv -cf "$qualification_archive" -C "$release" .
+tar -xf "$qualification_archive" -C "$qualification_workspace"
+rm -f -- "$qualification_archive"
+chown -R riverview:riverview "$qualification_workspace"
+chmod -R u+rwX "$qualification_workspace"
+(
+    cd "$qualification_workspace"
+    sha256sum --check --strict PACKAGE_SHA256SUMS >/dev/null
+    runuser -u riverview -- env HOME=/var/lib/riverview TMPDIR=/tmp PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.:src \
+        "$qualification_root/venv/bin/pytest" -p no:cacheprovider -q tests
+)
+sha256sum --check --strict PACKAGE_SHA256SUMS >/dev/null
 if [ ! -e /etc/riverview ]; then
     install -d -m 0700 /etc/riverview
 fi

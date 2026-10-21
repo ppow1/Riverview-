@@ -1,6 +1,6 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.11
+**Document Revision:** 1.0.12
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-011
 **Task:** RV-M1.1-001 / GitHub Issue #1
@@ -200,9 +200,11 @@ The approved immutable installer may create/use the Riverview identity, release,
 credential and state paths, and one systemd unit. It installs the pinned runtime
 dependency only in the release runtime venv, then creates a distinct pinned
 qualification venv and runs the documented pytest suite as the unprivileged
-`riverview` user. It does not reset the database password or initialize/alter
-database schemas. If the passfile is absent, hidden terminal capture is used and
-fails closed if echo cannot be disabled.
+`riverview` user from a disposable, writable copy of the manifest-verified
+release. The root-owned active release remains unchanged by qualification. It
+does not reset the database password or initialize/alter database schemas. If
+the passfile is absent, hidden terminal capture is used and fails closed if echo
+cannot be disabled.
 
 After authorized installation, capture two fresh local service observations with the acceptance collector:
 
@@ -309,6 +311,7 @@ while that decision is pending; this component contract does not waive acceptanc
 
 ## Revision history
 
+- 1.0.12 — 2026-10-21: Run unprivileged qualification from a disposable writable copy while preserving the immutable release; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-180-QUALIFICATION-WORKSPACE-001.
 - 1.0.6 — 2026-10-10: Document systemd source-to-libpq private passfile handling; predecessor is recorded under RV-M1.1-010 in `.riverview-backups/manifest.jsonl`.
 - 1.0.9 — 2026-10-10: Remove stale scoped-helper claim and correct collector invocation; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.
 - 1.0.8 — 2026-10-10: Correct acceptance collector invocation with required output path; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.
