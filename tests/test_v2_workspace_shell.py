@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.12
+# Revision: 1.0.13
 # Purpose: Verify fixture preview, authentication, LAN restrictions, rate limiting, and recovery boundaries
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -172,6 +172,8 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('diagnostics/workflows/', snapshot)
         self.assertIn('capture_complete:true', snapshot)
         self.assertIn('standalone-preview', snapshot)
+        self.assertIn('payload.asset_sha256!==digest', snapshot)
+        self.assertIn('Number.isSafeInteger(payload.asset_id)', snapshot)
         self.assertNotIn("/api/v1/", html + js)
         self.assertIn("credentials: \"excluded\"", snapshot)
 

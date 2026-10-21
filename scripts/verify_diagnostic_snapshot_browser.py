@@ -325,7 +325,7 @@ def main() -> int:
                 if args.archive_fixture == "failure":
                     return self.send_body(503, b'{"error":"synthetic_github_failure"}')
                 snapshot_id="rvdiag-20261020T000000Z-0123456789abcdef0123456789abcdef"
-                response={"snapshot_id":snapshot_id,"dashboard_version":version,"capture_id":capture_id,"asset_name":asset_name,"archive_size_bytes":len(package),"archive_sha256":"0"*64 if args.archive_fixture=="mismatch" else digest,
+                response={"snapshot_id":snapshot_id,"dashboard_version":version,"capture_id":capture_id,"asset_name":asset_name,"asset_id":71,"asset_sha256":digest,"archive_size_bytes":len(package),"archive_sha256":"0"*64 if args.archive_fixture=="mismatch" else digest,
                     "release_url":"https://github.com/ppow1/Riverview-Diagnostic-Archive/releases/tag/"+snapshot_id}
                 return self.send_body(200,json.dumps(response).encode())
             if args.actual_dashboard_fixture and self.path.startswith("/api/v1/") and self.headers.get("Cookie", "").startswith("rv_account_session=synthetic-only"):

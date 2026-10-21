@@ -2,7 +2,7 @@
 # Riverview~ Controlled Source
 # File: scripts/verify_v2_full_diagnostic_snapshot_browser.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify full V2 screen/workflow capture, authenticated archive receipt, and identical browser download
 # Execution Model: Isolated HTTP fixture with headless Chrome CDP
 # Observability: ZIPs, hashes, archive receipt, browser state, and JSON evidence report
@@ -145,7 +145,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         digest=hashlib.sha256(data).hexdigest();name=f"riverview-v2-{manifest['captured_at'].replace(':','-')}-{manifest['capture_id']}.zip"
         self.server.uploads.append({"bytes":data,"sha256":digest,"manifest":manifest,"asset_name":name})
         self.server.request_evidence[-1].update({"accepted":True,"asset_name":name,"size_bytes":len(data),"sha256":digest})
-        self.json(200,{"status":"archived","dashboard_version":"v2","capture_id":manifest["capture_id"],"asset_name":name,"archive_size_bytes":len(data),"archive_sha256":digest,"release_url":f"https://github.com/ppow1/Riverview-Diagnostic-Archive/releases/download/fixture/{name}"})
+        self.json(200,{"status":"archived","snapshot_id":"rvdiag-20261021T000000Z-0123456789abcdef0123456789abcdef","dashboard_version":"v2","capture_id":manifest["capture_id"],"asset_name":name,"asset_id":123,"asset_sha256":digest,"archive_size_bytes":len(data),"archive_sha256":digest,"release_url":f"https://github.com/ppow1/Riverview-Diagnostic-Archive/releases/tag/rvdiag-20261021T000000Z-0123456789abcdef0123456789abcdef"})
 
 
 def main():

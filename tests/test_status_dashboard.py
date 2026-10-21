@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.64
+# Revision: 1.0.65
 # Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Assert the same-origin V2 shell route is allowlisted and retains dashboard CSP.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Assert matching receipt digest and persistent archive-plus-download browser result.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Test authenticated Steward archive endpoint and absence of browser GitHub credentials.
@@ -503,7 +503,8 @@ class DashboardHTTPTests(unittest.TestCase):
                     "dashboard_version":"v1", "capture_id":"capture-test-1",
                     "release_url":"https://github.com/owner/private-repo/releases/tag/rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef",
                     "asset_name":"riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip",
-                    "archive_sha256":"a"*64,"archive_size_bytes":8,"retention":"permanent"}
+                    "archive_sha256":"a"*64,"asset_sha256":"a"*64,"asset_id":123,
+                    "archive_size_bytes":8,"retention":"permanent"}
         class Auth:
             def authenticate(self, credential, *, csrf_token, state_changing):
                 from riverview_core.account_auth import AuthDenied
@@ -527,6 +528,8 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(result["status"], "archived")
         self.assertEqual(result["dashboard_version"], "v1")
         self.assertEqual(result["asset_name"], "riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip")
+        self.assertEqual(result["asset_id"], 123)
+        self.assertEqual(result["asset_sha256"], "a" * 64)
         self.assertTrue(result["release_url"].startswith("https://github.com/owner/private-repo/"))
         self.assertNotIn(self.token.encode(), body)
 
@@ -551,6 +554,7 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertIn("Download ZIP", source)
         self.assertIn("Copy GitHub Link", source)
         self.assertIn("payload.archive_sha256!==localDigest", source)
+        self.assertIn("payload.asset_sha256!==localDigest", source)
         self.assertNotIn("github_pat_", source)
         self.assertNotIn("Authorization", source[source.index("async function archiveSnapshot"):source.index("async function download")])
 

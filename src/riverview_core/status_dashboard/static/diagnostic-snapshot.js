@@ -1,5 +1,5 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.1.24
+// Revision: 1.1.25
 // Purpose: Build one bounded, privacy-filtered offline website/workflow diagnostic ZIP.
 // Execution Model: Request-driven browser export initiated by an explicit user action
 // Observability: ZIP manifest records per-category bytes and raster omissions
@@ -200,7 +200,7 @@
       status=response.status;requestId=response.headers.get("X-Request-ID");const payload=await response.json().catch(()=>({}));
       window.RiverviewDiagnostics?.recordRequest({method:"POST",path:"/api/v1/snapshot/archive",status,duration_ms:Math.round(performance.now()-started),request_id:requestId});
       if(!response.ok)throw new Error(payload.error||`http_${status}`);
-      const snapshotId=payload.snapshot_id,localDigest=await sha256(new Uint8Array(await blob.arrayBuffer()));if(!/^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$/.test(snapshotId)||payload.dashboard_version!==identity.dashboard_version||payload.capture_id!==identity.capture_id||payload.asset_name!==identity.asset_name||payload.archive_size_bytes!==blob.size||! /^[0-9a-f]{64}$/.test(payload.archive_sha256)||payload.archive_sha256!==localDigest)throw new Error("snapshot_archive_invalid_receipt");
+      const snapshotId=payload.snapshot_id,localDigest=await sha256(new Uint8Array(await blob.arrayBuffer()));if(!/^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$/.test(snapshotId)||payload.dashboard_version!==identity.dashboard_version||payload.capture_id!==identity.capture_id||payload.asset_name!==identity.asset_name||payload.archive_size_bytes!==blob.size||!Number.isSafeInteger(payload.asset_id)||payload.asset_id<=0||! /^[0-9a-f]{64}$/.test(payload.archive_sha256)||payload.archive_sha256!==localDigest||payload.asset_sha256!==localDigest)throw new Error("snapshot_archive_invalid_receipt");
       const url=new URL(payload.release_url);if(url.protocol!=="https:"||url.hostname!=="github.com"||!url.pathname.endsWith(`/releases/tag/${snapshotId}`))throw new Error("snapshot_archive_invalid_release_url");
       return payload;
     }catch(error){
