@@ -2,10 +2,11 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.17
+# Revision: 1.1.18
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Require dynamic artifact sets on bounded artifact proposals
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Cover retry prompt and verbatim negative criteria
+# Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Assert sanitized proposal failure classes
 # Purpose: Verify local reasoning provider contract and fail-closed response handling
 # Execution Model: Bounded HTTP contract double; no credentials, database or model required
 # Observability: Typed proposals and sanitized unavailable/schema outcomes
@@ -49,7 +50,8 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 
-from riverview_core.resident_reasoning import ExternalEscalationIntent, ReasoningRequest
+from riverview_core.resident_reasoning import (ExternalEscalationIntent,
+    ProposalValidationFailure, ReasoningRequest)
 from riverview_core.local_reasoning_provider import (
     LocalReasoningProvider, LocalReasoningUnavailable)
 
@@ -244,14 +246,16 @@ class LocalReasoningProviderTests(unittest.TestCase):
                 "acceptance_criteria": ["Return advisory evidence"], "depends_on": []}],
             "external_escalation": {"reason": "capability_gap",
                                      "target_provider_id": "chatgpt:other"}}))
-        self.assertIsNone(self.provider.propose(self.request))
+        self.assertEqual(self.provider.propose(self.request).detail_code,
+                         "PROPOSAL_SCHEMA_INVALID")
 
     def test_source_change_plan_requires_explicit_paths_in_model_output(self):
         self.response_body = self._response(text=json.dumps({"summary": "Scoped source change", "steps": [{
             "step_id": "edit", "objective": "Edit scoped files",
             "acceptance_criteria": ["Tests pass"], "depends_on": [],
             "execution_capability": "engineering.codex-cli-source-change.v1"}]}))
-        self.assertIsNone(self.provider.propose(self.request))
+        self.assertEqual(self.provider.propose(self.request).detail_code,
+                         "PROPOSAL_SCHEMA_INVALID")
         system_prompt = self.requests[0]["messages"][0]["content"]
         self.assertIn("MUST include non-empty authorized_paths and test_targets", system_prompt)
 
@@ -318,7 +322,8 @@ class LocalReasoningProviderTests(unittest.TestCase):
     def test_model_revision_mismatch_fails_before_network_call(self):
         request = ReasoningRequest(**{**self.request.__dict__,
                                      "implementation_revision": "b" * 64})
-        self.assertIsNone(self.provider.propose(request))
+        failure = self.provider.propose(request)
+        self.assertEqual(failure.detail_code, "PROPOSAL_PROVENANCE_INVALID")
         self.assertEqual(self.requests, [])
 
     def test_complete_schema_object_is_accepted_at_length_boundary(self):
@@ -327,16 +332,34 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIsNotNone(proposal)
         self.assertEqual(proposal.tokens_used, 9)
 
-    def test_wrong_model_incomplete_response_or_usage_cannot_become_proposal(self):
+    def test_wrong_model_incomplete_response_or_usage_has_sanitized_failure_code(self):
         truncated = self._response(text='{"summary":"partial"', finish="length")
-        for body in (self._response(served="other"),
-                     truncated,
-                     json.dumps({"model": "fixture-model", "choices": [{
-                         "message": {"content": "{}"}, "finish_reason": "stop"}]}).encode(),
-                     self._response(text="not json")):
-            with self.subTest(body=body):
+        cases = (
+            (self._response(served="other"), "PROPOSAL_PROVENANCE_INVALID"),
+            (truncated, "PROPOSAL_JSON_PARSE_FAILED"),
+            (json.dumps({"model": "fixture-model", "choices": [{
+                "message": {"content": "{}"}, "finish_reason": "stop"}]}).encode(),
+             "PROPOSAL_RESPONSE_SCHEMA_INVALID"),
+            (self._response(text="not json"), "PROPOSAL_JSON_PARSE_FAILED"),
+        )
+        for body, expected in cases:
+            with self.subTest(expected=expected):
                 self.response_body = body
-                self.assertIsNone(self.provider.propose(self.request))
+                result = self.provider.propose(self.request)
+                self.assertIsInstance(result, ProposalValidationFailure)
+                self.assertEqual(result.detail_code, expected)
+
+    def test_outer_parse_schema_and_token_budget_failures_have_distinct_codes(self):
+        cases = (
+            (b"not-json", "PROPOSAL_RESPONSE_PARSE_FAILED"),
+            (json.dumps({"choices": []}).encode(), "PROPOSAL_RESPONSE_SCHEMA_INVALID"),
+            (self._response(tokens=1000), "PROPOSAL_TOKEN_BUDGET_EXCEEDED"),
+        )
+        for body, expected in cases:
+            with self.subTest(expected=expected):
+                self.response_body = body
+                result = self.provider.propose(self.request)
+                self.assertEqual(result.detail_code, expected)
 
     def test_endpoint_errors_are_sanitized(self):
         self.response_status = 503
