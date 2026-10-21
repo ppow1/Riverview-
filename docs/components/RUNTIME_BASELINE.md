@@ -197,8 +197,10 @@ sudo -n /bin/sh deploy/install_baseline.sh
 ```
 
 The approved immutable installer may create/use the Riverview identity, release,
-credential and state paths, and one systemd unit; it may install the pinned
-Python dependency. It does not reset the database password or initialize/alter
+credential and state paths, and one systemd unit. It installs the pinned runtime
+dependency only in the release runtime venv, then creates a distinct pinned
+qualification venv and runs the documented pytest suite as the unprivileged
+`riverview` user. It does not reset the database password or initialize/alter
 database schemas. If the passfile is absent, hidden terminal capture is used and
 fails closed if echo cannot be disabled.
 

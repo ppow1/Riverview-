@@ -3,10 +3,10 @@
 # File: deploy/install_baseline.sh
 # Component: RUNTIME-BASELINE
 # Revision: 1.0.1
-# Purpose: Commission versioned code, OS identity and systemd credential delivery
+# Purpose: Commission versioned code, isolated qualification, and systemd credential delivery
 # Execution Model: Explicit one-time operational installation; repeatable
 # Observability: Checksums, retained root-only rollback records and baseline JSON
-# Dependencies: Root, systemd 250+, Python 3/venv/pip, sha256sum, packaged release
+# Dependencies: Root, systemd 250+, Python 3/venv/pip, runuser, sha256sum, packaged release
 # Authority: OS commissioning only; no DB writes/password reset/public-schema change
 # Changed: 2026-10-10 UTC | RV-M1.1-007 | Recover partial releases and normalize read access
 # Contracts: docs/components/RUNTIME_BASELINE.md
@@ -24,6 +24,7 @@ unit=/etc/systemd/system/riverview-baseline.service
 link=/opt/riverview-core
 [ ! -e "$link" ] || [ -L "$link" ] || { echo 'Refuse to replace a non-symlink deployment' >&2; exit 2; }
 command -v flock >/dev/null
+command -v runuser >/dev/null
 exec 9>/run/riverview-baseline-install.lock
 flock -n 9 || { echo 'Another commissioning operation is active' >&2; exit 2; }
 if ! getent passwd riverview >/dev/null; then
@@ -56,7 +57,16 @@ if [ ! -x .venv/bin/python ]; then
 fi
 .venv/bin/python -m pip install 'psycopg[binary]==3.2.10'
 unset RIVERVIEW_TEST_PG_DSN RIVERVIEW_PG_DSN PGPASSWORD PGSERVICE PGSERVICEFILE PGOPTIONS
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
+install -d -o root -g root -m 0755 /opt/riverview/qualification
+[ ! -L /opt/riverview/qualification ] && [ "$(stat -c '%u:%a' /opt/riverview/qualification)" = '0:755' ] || exit 2
+qualification_root=$(mktemp -d "/opt/riverview/qualification/$revision.XXXXXXXX")
+chmod 0755 "$qualification_root"
+python3 -m venv "$qualification_root/venv"
+"$qualification_root/venv/bin/python" -m pip install --disable-pip-version-check --upgrade 'pip==24.3.1'
+"$qualification_root/venv/bin/python" -m pip install --disable-pip-version-check --no-deps --only-binary=:all: -r deploy/qualification-requirements.txt
+chmod -R a+rX "$qualification_root"
+runuser -u riverview -- env HOME=/var/lib/riverview TMPDIR=/tmp PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.:src \
+    "$qualification_root/venv/bin/pytest" -p no:cacheprovider -q tests
 if [ ! -e /etc/riverview ]; then
     install -d -m 0700 /etc/riverview
 fi

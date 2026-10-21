@@ -1,0 +1,19 @@
+# Exact qualification environment for the documented `pytest -p no:cacheprovider -q tests` suite.
+# Transitive dependencies are pinned because the installer uses pip --no-deps.
+attrs==25.3.0
+cffi==1.17.1
+cryptography==44.0.2
+iniconfig==2.1.0
+jsonschema==4.23.0
+jsonschema-specifications==2024.10.1
+packaging==24.2
+pluggy==1.5.0
+psycopg[binary]==3.2.10
+psycopg-binary==3.2.10
+pycparser==2.22
+PyJWT[crypto]==2.10.1
+Pygments==2.19.1
+pytest==8.3.5
+referencing==0.36.2
+rpds-py==0.24.0
+typing-extensions==4.16.0
