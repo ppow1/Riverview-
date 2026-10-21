@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.52
+# Revision: 1.0.53
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Cover exact-scope audited heading removal, authorization, and revision conflicts.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Run derived-criteria persistence under the exact authorized Engineering intake scope.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Verify empty intake derives and atomically persists one proposal-bound criteria list.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Reject artifact paths not named in the authorized request and reject invented formal criteria
@@ -551,6 +552,81 @@ class GraceExecutionTests(unittest.TestCase):
         event = next(item for item in self.pipeline.objective_events(objective_id)
                      if item["event_type"] == "work_order.proposed")
         self.assertEqual(event["payload"]["acceptance_criteria_source"], "grace_derived")
+
+    def test_authorized_criteria_reconciliation_is_exact_atomic_and_audited(self):
+        from psycopg import sql
+        from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
+
+        objective_id = "objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1"
+        principal = self.principals["steward"][0]
+        before = [
+            "Requirements:",
+            "- Create exactly one Engineering assignment for the file.",
+            "- Use the authorized artifact destination recorded in the work order.",
+            "- Independently verify the actual file contents.",
+            "- Close the objective only after successful verification.",
+        ]
+        original_request = "Original complete request remains preserved."
+        self.pipeline.submit_objective(objective_id, original_request, before,
+            credential=self.credentials["steward"], scope_ref=self.scope)
+        grounded = self.pipeline.ground_objective(objective_id)
+        self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'objective.criteria.reconcile',%s,%s,
+                    'rv.policy:grace-execution-test.v1')""").format(sql.Identifier(self.schema)),
+            ("criteria-reconcile-test", principal, objective_id, principal))
+
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
+                expected_revision=grounded["revision"] + 1,
+                credential=self.credentials["steward"], reason="test")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["revision"], 2)
+        with self.assertRaises(ObjectiveNotAuthorized):
+            self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
+                expected_revision=2, credential=secrets.token_urlsafe(36), reason="test")
+        reconciled = self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
+            expected_revision=2, credential=self.credentials["steward"],
+            reason="Steward-approved removal of the misclassified structural heading.")
+        self.assertEqual(reconciled["status"], "GROUNDED")
+        self.assertEqual(reconciled["revision"], 3)
+        self.assertEqual(reconciled["request"], original_request)
+        self.assertEqual(reconciled["acceptance_criteria"], before[1:])
+        self.assertEqual(reconciled["evidence"], grounded["evidence"])
+        self.assertIsNone(reconciled["proposal"])
+        self.assertIsNone(reconciled["assignment_id"])
+        events = [event for event in self.pipeline.objective_events(objective_id)
+                  if event["event_type"] == "objective.criteria_reconciled"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["actor_id"], principal)
+        self.assertEqual(events[0]["payload"]["before_criteria"], before)
+        self.assertEqual(events[0]["payload"]["after_criteria"], before[1:])
+        self.assertEqual(events[0]["payload"]["expected_revision"], 2)
+        self.assertEqual(events[0]["payload"]["new_revision"], 3)
+        self.assertEqual(events[0]["payload"]["authorization_grant_id"],
+                         "criteria-reconcile-test")
+        from psycopg.errors import RaiseException
+        with self.assertRaises(RaiseException):
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""UPDATE grace_objective_events SET payload='{}'::jsonb
+                    WHERE objective_id=%s AND event_type='objective.criteria_reconciled'""",
+                    (objective_id,))
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
+                expected_revision=2, credential=self.credentials["steward"], reason="replay")
+
+    def test_criteria_guard_rejects_unapproved_direct_mutation(self):
+        from psycopg.errors import RaiseException
+
+        objective_id = "objective:criteria-guard:" + uuid4().hex
+        objective = self._create_grounded_reasoning_objective(objective_id)
+        with self.assertRaises(RaiseException):
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""UPDATE grace_objectives SET acceptance_criteria='[\"invented\"]'::jsonb
+                    WHERE objective_id=%s""", (objective_id,))
+        self.assertEqual(self.pipeline.get_objective(objective_id)["acceptance_criteria"],
+                         objective["acceptance_criteria"])
 
     def test_lifecycle_criteria_remain_durable_without_receipt_work_steps(self):
         from riverview_core.resident_reasoning import lifecycle_evidence_event
