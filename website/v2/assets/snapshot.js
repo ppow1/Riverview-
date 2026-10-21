@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/snapshot.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.7
+Revision: 1.0.8
 Purpose: Capture V2 screens, controls, shared workflow diagnostics, and archive the full package
 Execution Model: Explicit browser click; standalone local preview or authenticated same-origin archive
 Observability: Visible completion/error message and package manifest
@@ -149,8 +149,8 @@ History: Git and revision/backup manifest
     const csrf=document.cookie.split(";").map(x=>x.trim()).find(x=>x.startsWith("rv_account_csrf="))?.slice("rv_account_csrf=".length);if(!csrf)throw new Error("steward_account_session_required");
     const response=await fetch("/api/v1/snapshot/archive",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/zip","Accept":"application/json","X-Riverview-CSRF":decodeURIComponent(csrf)},body:blob});
     const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||`archive_http_${response.status}`);
-    const digest=await sha256(new Uint8Array(await blob.arrayBuffer()));if(payload.dashboard_version!==identity.dashboard_version||payload.capture_id!==identity.capture_id||payload.asset_name!==identity.asset_name||payload.archive_size_bytes!==blob.size||payload.archive_sha256!==digest)throw new Error("snapshot_archive_invalid_receipt");
-    const url=new URL(payload.release_url);if(url.protocol!=="https:"||url.hostname!=="github.com")throw new Error("snapshot_archive_invalid_release_url");return payload;
+    const digest=await sha256(new Uint8Array(await blob.arrayBuffer()));if(!/^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$/.test(payload.snapshot_id)||payload.dashboard_version!==identity.dashboard_version||payload.capture_id!==identity.capture_id||payload.asset_name!==identity.asset_name||payload.archive_size_bytes!==blob.size||!Number.isSafeInteger(payload.asset_id)||payload.asset_id<=0||payload.archive_sha256!==digest||payload.asset_sha256!==digest)throw new Error("snapshot_archive_invalid_receipt");
+    const url=new URL(payload.release_url);if(url.protocol!=="https:"||url.hostname!=="github.com"||!url.pathname.endsWith(`/releases/tag/${payload.snapshot_id}`))throw new Error("snapshot_archive_invalid_release_url");return payload;
   };
   const button = document.getElementById("snapshot-action");
   const status = document.getElementById("snapshot-status");

@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/snapshot_archive.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Archive validated redacted dashboard snapshots as private GitHub Release assets.
 # Execution Model: Synchronous request-driven upload from the dashboard backend; no background worker or disk staging.
 # Observability: Safe error codes and release metadata; credentials and response bodies are never logged.
@@ -9,7 +9,8 @@
 # Authority: Steward-triggered snapshot archive only; does not grant repository administration.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Initial private Release asset archival with ZIP, manifest and redaction validation.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Reject repository path traversal and require exact generated release tags.
-# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Validate dashboard version and name assets from capture identity while retaining legacy V1 packages.
+# Changed: 2026-10-21 UTC | C2-GITHUB-SNAPSHOT-ARCHIVE-20261021 | Accept complete V2 diagnostic manifests and reject standalone previews.
+# Changed: 2026-10-21 UTC | C2-GITHUB-SNAPSHOT-ARCHIVE-20261021 | Require GitHub asset identity, size, and remote SHA-256 before success.
 # Contracts: docs/components/STATUS_DASHBOARD.md; docs/components/STATUS_DASHBOARD_COOKBOOK.md
 # Tests: tests/test_snapshot_archive.py
 # History: Git and revision/backup manifest
@@ -118,8 +119,26 @@ class GitHubReleaseArchive:
                         or bundle.testzip() is not None):
                     raise SnapshotArchiveError("snapshot_archive_invalid_package", 400)
                 manifest = json.loads(bundle.read("manifest.json"))
-                if manifest.get("schema_version") != "rv.website.diagnostic-snapshot.v1":
+                schema_version = manifest.get("schema_version")
+                if schema_version not in {
+                        "rv.website.diagnostic-snapshot.v1",
+                        "rv.website.diagnostic-snapshot.v2"}:
                     raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
+                dashboard_version = manifest.get("dashboard_version", "v1")
+                if ((schema_version == "rv.website.diagnostic-snapshot.v1" and dashboard_version != "v1")
+                        or (schema_version == "rv.website.diagnostic-snapshot.v2" and dashboard_version != "v2")):
+                    raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
+                if schema_version == "rv.website.diagnostic-snapshot.v2":
+                    expected = manifest.get("expected")
+                    exported = manifest.get("exported")
+                    if (manifest.get("capture_mode") != "authenticated-dashboard"
+                            or manifest.get("capture_complete") is not True
+                            or not isinstance(expected, dict) or not isinstance(exported, dict)
+                            or type(expected.get("screens")) is not int or expected["screens"] < 5
+                            or exported.get("screens") != expected["screens"]
+                            or type(expected.get("workflows")) is not int or expected["workflows"] < 1
+                            or exported.get("workflows") != expected["workflows"]):
+                        raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
                 privacy = manifest.get("privacy")
                 if not isinstance(privacy, dict) or any(privacy.get(key) != value
                                                         for key, value in _REQUIRED_PRIVACY.items()):
@@ -140,10 +159,30 @@ class GitHubReleaseArchive:
                         raise SnapshotArchiveError("snapshot_archive_manifest_mismatch", 400)
                 if listed_paths != set(names) - {"manifest.json"}:
                     raise SnapshotArchiveError("snapshot_archive_manifest_mismatch", 400)
+                if schema_version == "rv.website.diagnostic-snapshot.v2":
+                    required = {
+                        "website/v2/workspace-state.json",
+                        "website/v2/control-inventory.json",
+                        "diagnostics/dashboard-status.json",
+                        "diagnostics/operational-snapshot.json",
+                        "diagnostics/workflow-index.json",
+                        "diagnostics/graph-index.json",
+                    }
+                    screen_paths = manifest.get("capture", {}).get("v2_screens")
+                    workflow_paths = {name for name in names if name.startswith("diagnostics/workflows/")}
+                    if (not required.issubset(names)
+                            or not isinstance(screen_paths, list)
+                            or len(screen_paths) != expected["screens"]
+                            or len(set(screen_paths)) != len(screen_paths)
+                            or any(not isinstance(path, str) or not path.endswith(".html") or path not in names
+                                   for path in screen_paths)
+                            or any(path[:-5] + ".json" not in names for path in screen_paths)
+                            or len(workflow_paths) != expected["workflows"]
+                            or privacy.get("comms5_messages_and_counters") != "excluded"):
+                        raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
                 capture_id = manifest.get("capture_id")
                 if not isinstance(capture_id, str) or not _CAPTURE_ID.fullmatch(capture_id):
                     raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
-                dashboard_version = manifest.get("dashboard_version", "v1")
                 if not isinstance(dashboard_version, str) or not _DASHBOARD_VERSION.fullmatch(dashboard_version):
                     raise SnapshotArchiveError("snapshot_archive_invalid_manifest", 400)
                 for key, maximum in (("captured_at", 64), ("source_commit", 128), ("deployment_id", 128)):
@@ -187,7 +226,9 @@ class GitHubReleaseArchive:
         manifest = self.inspect_package(data)
         api = "https://api.github.com/repos/" + self.repository
         repository = self._request("GET", api)
-        if repository.get("private") is not True:
+        full_name = repository.get("full_name")
+        if (repository.get("private") is not True or not isinstance(full_name, str)
+                or full_name.casefold() != self.repository.casefold()):
             raise SnapshotArchiveError("snapshot_archive_repository_not_private", 503)
 
         timestamp = self._now().astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -216,11 +257,27 @@ class GitHubReleaseArchive:
             upload = ("https://uploads.github.com/repos/" + self.repository +
                       f"/releases/{release_id}/assets?name={quote(asset_name, safe='')}")
             asset = self._request("POST", upload, data=data, content_type="application/zip")
-            if asset.get("name") != asset_name or asset.get("size") != len(data):
+            asset_id = asset.get("id")
+            if (not isinstance(asset_id, int) or asset_id <= 0
+                    or asset.get("name") != asset_name or asset.get("size") != len(data)
+                    or asset.get("state") != "uploaded"):
                 raise SnapshotArchiveError("snapshot_archive_upload_failed", 502)
+            release_state = self._request("GET", base + f"/releases/{release_id}")
+            assets = release_state.get("assets")
+            remote = ([item for item in assets if isinstance(item, dict) and item.get("id") == asset_id]
+                      if isinstance(assets, list) else [])
+            expected_digest = "sha256:" + sha256(data).hexdigest()
+            if (release_state.get("id") != release_id or release_state.get("tag_name") != tag
+                    or release_state.get("draft") is not True
+                    or len(remote) != 1 or remote[0].get("name") != asset_name
+                    or remote[0].get("size") != len(data) or remote[0].get("state") != "uploaded"
+                    or remote[0].get("content_type") != "application/zip"
+                    or remote[0].get("digest") != expected_digest):
+                raise SnapshotArchiveError("snapshot_archive_asset_verification_failed", 502)
             published = self._request("PATCH", base + f"/releases/{release_id}",
                                       data=b'{"draft":false}')
-            if published.get("draft") is not False or published.get("tag_name") != tag:
+            if (published.get("id") != release_id or published.get("draft") is not False
+                    or published.get("tag_name") != tag):
                 raise SnapshotArchiveError("snapshot_archive_publish_failed", 502)
         except SnapshotArchiveError:
             if release and isinstance(release.get("id"), int):
@@ -230,6 +287,7 @@ class GitHubReleaseArchive:
                 "dashboard_version": manifest["dashboard_version"], "capture_id": manifest["capture_id"],
                 "release_url": f"https://github.com/{self.repository}/releases/tag/{tag}",
                 "asset_name": asset_name, "archive_sha256": metadata["archive_sha256"],
+                "asset_id": asset_id, "asset_sha256": remote[0]["digest"].removeprefix("sha256:"),
                 "archive_size_bytes": len(data), "retention": "permanent"}
 
     def _cleanup_draft(self, base, release_id, tag):
