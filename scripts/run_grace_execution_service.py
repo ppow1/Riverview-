@@ -3,7 +3,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.9
+# Revision: 1.2.10
+# Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Give the provider a bounded 120-second request and the caller a 135-second deadline
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Raise the default structured proposal completion budget to 2048 tokens
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Bind bounded verifier to the persisted objective pipeline
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Wire persisted assignment-defined artifacts to the independent set verifier
@@ -91,13 +92,26 @@ from riverview_core.doorbell.runtime import (DoorbellRuntimeConfigurationError,
 
 
 def resident_reasoning_timeout(environ):
-    """Return the shared bounded proposal-provider and caller deadline."""
+    """Return the bounded caller deadline for resident proposal reasoning."""
     try:
-        timeout = float(environ.get("RIVERVIEW_RESIDENT_REASONING_TIMEOUT", "60"))
+        timeout = float(environ.get("RIVERVIEW_RESIDENT_REASONING_TIMEOUT", "135"))
     except (TypeError, ValueError):
         raise WorkerServiceConfigurationError("resident_reasoning_timeout_invalid") from None
-    if not 1 <= timeout <= 60:
+    if not 1 <= timeout <= 180:
         raise WorkerServiceConfigurationError("resident_reasoning_timeout_invalid")
+    return timeout
+
+
+def resident_reasoning_provider_timeout(environ):
+    """Return the bounded HTTP deadline, shorter than the caller deadline."""
+    try:
+        timeout = float(environ.get("RIVERVIEW_RESIDENT_REASONING_PROVIDER_TIMEOUT", "120"))
+    except (TypeError, ValueError):
+        raise WorkerServiceConfigurationError("resident_reasoning_provider_timeout_invalid") from None
+    if not 1 <= timeout <= 120:
+        raise WorkerServiceConfigurationError("resident_reasoning_provider_timeout_invalid")
+    if timeout >= resident_reasoning_timeout(environ):
+        raise WorkerServiceConfigurationError("resident_reasoning_provider_timeout_invalid")
     return timeout
 
 
@@ -234,7 +248,7 @@ def configured_resident_providers(binding, environ=None, provider_factory=None):
         raise WorkerServiceConfigurationError("resident_reasoning_provider_binding_mismatch")
     if (environ.get("RIVERVIEW_GRACE_ENABLE_MODEL_ROUTER") != "1" or not allow_lan):
         raise WorkerServiceConfigurationError("resident_model_router_opt_in_required")
-    proposal_timeout = resident_reasoning_timeout(environ)
+    proposal_timeout = resident_reasoning_provider_timeout(environ)
     vision_digest = environ.get("RIVERVIEW_GRACE_30B_MODEL_SHA256", "")
     reasoning_digest = environ.get("RIVERVIEW_GRACE_80B_MODEL_SHA256", "")
     # Reuse the exact endpoint/model pairs already allowlisted by LocalReasoningProvider.

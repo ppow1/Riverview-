@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.20
+# Revision: 1.1.21
+# Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Accept bounded provider HTTP deadlines above the prior 60-second cap
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify token-truncated proposal JSON without exposing model output
 # Changed: 2026-10-20 UTC | RV-GRACE-TYPED-PROPOSAL-SCHEMA | Require complete capability-specific structured proposal output
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
@@ -449,6 +450,15 @@ class LocalReasoningProviderTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             LocalReasoningProvider("http://192.168.1.161:8080/v1", "fixture-model",
                                    MODEL_SHA, allow_approved_private_lan=True)
+
+    def test_provider_http_deadline_is_bounded_at_120_seconds(self):
+        provider = LocalReasoningProvider(
+            "http://127.0.0.1:8767/v1", "fixture-model", MODEL_SHA,
+            timeout_seconds=120)
+        self.assertEqual(provider.timeout_seconds, 120)
+        with self.assertRaises(ValueError):
+            LocalReasoningProvider("http://127.0.0.1:8767/v1", "fixture-model",
+                                   MODEL_SHA, timeout_seconds=120.1)
 
     def test_only_explicit_octo1_endpoint_can_use_private_lan(self):
         model = LocalReasoningProvider.APPROVED_PRIVATE_LAN_MODELS[
