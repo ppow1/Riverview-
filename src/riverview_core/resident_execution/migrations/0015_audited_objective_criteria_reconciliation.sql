@@ -99,6 +99,7 @@ BEGIN
         DECLARE audit_event RECORD;
                 grant_schema TEXT;
                 checked_grant TEXT;
+                audit_count BIGINT;
                 expected_criteria JSONB;
                 total_count BIGINT;
                 unique_count BIGINT;
@@ -163,7 +164,8 @@ BEGIN
                     INTO audit_event
                     USING OLD.objective_id, 'objective.criteria_reconciled',
                         'grace-criteria-reconciled:' || OLD.objective_id || ':r2';
-                IF NOT FOUND THEN
+                GET DIAGNOSTICS audit_count = ROW_COUNT;
+                IF audit_count=0 THEN
                     RAISE EXCEPTION 'objective criteria reconciliation audit event is missing';
                 END IF;
                 IF audit_event.actor_id IS DISTINCT FROM OLD.submitter_id THEN
