@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.63
+# Revision: 1.0.64
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Align retry-copy assertion with immutable criteria-source semantics.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Cover blank/explicit intake and criteria-source visibility.
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify telemetry endpoint authentication, projection, and read-only methods.
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Verify knowledge source pin is independent of dashboard source identity.
@@ -393,7 +394,7 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('This saved message is no longer available', app)
         self.assertIn('The work-order form could not be opened', app)
         self.assertNotIn('if(!ev||!Number.isInteger(ev.sequence))return;state.workOrderSourceSequence=ev.sequence', app)
-        self.assertIn("Existing source retries retain the original acceptance criteria", html)
+        self.assertIn("Existing source retries retain their original criteria", html)
         self.assertIn('acceptance_criteria:criteria', app)
 
     def test_grace_conversation_workspace_controls_and_complete_rendering_contract(self):
