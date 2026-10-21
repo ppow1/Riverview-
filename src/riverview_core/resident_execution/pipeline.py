@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.18
+# Revision: 1.1.19
+# Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Order grounded reasoning candidates by their most recent persisted attempt, with never-attempted objectives first.
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Advance independently accepted steps through persisted dependencies and bound rejected-step retries with durable escalation pending.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Fail closed on globally reused event keys and select due review generations before applying the batch limit.
@@ -783,10 +784,19 @@ class GraceExecutionPipeline:
             raise ValueError("objective identity is invalid")
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
-            cur.execute("""SELECT objective_id,revision FROM grace_objectives
-                WHERE status='GROUNDED' AND scope_ref=%s
-                  AND (%s::text IS NULL OR objective_id=%s)
-                ORDER BY created_at,objective_id LIMIT %s""",
+            cur.execute("""SELECT objective.objective_id,objective.revision
+                FROM grace_objectives AS objective
+                LEFT JOIN LATERAL (
+                    SELECT max(event.occurred_at) AS last_attempt_at
+                    FROM grace_objective_events AS event
+                    WHERE event.objective_id=objective.objective_id
+                      AND event.event_type IN
+                          ('execution.reasoning_attempted','execution.reasoning_failed')
+                ) AS reasoning_attempt ON TRUE
+                WHERE objective.status='GROUNDED' AND objective.scope_ref=%s
+                  AND (%s::text IS NULL OR objective.objective_id=%s)
+                ORDER BY reasoning_attempt.last_attempt_at NULLS FIRST,
+                    objective.created_at,objective.objective_id LIMIT %s""",
                 (scope_ref, objective_id, objective_id, limit))
             return cur.fetchall()
 

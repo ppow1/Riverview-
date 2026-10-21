@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.33
+# Revision: 1.0.34
+# Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Persist reasoning turns and skip externally blocked candidates without starving later grounded objectives.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Route bounded and Codex artifacts through integrity-checked Grace review context
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Pass verifier-checked artifact sets to Grace review
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Persist a safe detail code for rejected incomplete proposals
@@ -212,18 +213,22 @@ class GraceExecutionService:
         from ..resident_reasoning import ReasoningStatus
         rows = self.pipeline.grounded_objectives(scope_ref=self.authority_ref, limit=25,
                                                  objective_id=objective_id)
-        candidate = next((row for row in rows if self._reasoning_failure_count(
-            row["objective_id"]) < self.MAX_REASONING_FAILURES), None)
+        candidate = None
+        for row in rows:
+            candidate_id = row["objective_id"]
+            if self._reasoning_failure_count(candidate_id) >= self.MAX_REASONING_FAILURES:
+                continue
+            if (self.external_reasoning_exchange is not None and
+                    (self.external_reasoning_exchange.has_active_for_objective(candidate_id) or
+                     self.external_reasoning_exchange.has_terminal_review_for_objective(candidate_id))):
+                continue
+            candidate = row
+            break
         if candidate is None:
             return False
         objective_id = candidate["objective_id"]
-        if (self.external_reasoning_exchange is not None and
-                self.external_reasoning_exchange.has_active_for_objective(objective_id)):
-            return False
-        if (self.external_reasoning_exchange is not None and
-                self.external_reasoning_exchange.has_terminal_review_for_objective(objective_id)):
-            return False
         try:
+            self._record_reasoning_attempt(objective_id)
             result = self.resident_reasoner.propose(
                 objective_id, trigger="persistent_resident_cycle",
                 token_budget=self.resident_token_budget)
@@ -305,6 +310,19 @@ class GraceExecutionService:
                   AND occurred_at >= clock_timestamp()-make_interval(secs => %s)""",
                 (objective_id, self.REASONING_FAILURE_WINDOW_SECONDS))
             return int(cur.fetchone()["failures"])
+
+    def _record_reasoning_attempt(self, objective_id):
+        request_id = str(uuid4())
+        key = f"grace-reasoning-attempt:{objective_id}:{request_id}"
+        with self.pipeline.ledger.db.transaction():
+            with self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.reasoning_attempted',%s,
+                        'service:grace-execution','{}'::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (objective_id, key))
 
     def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None,
                                   detail_code=None):
