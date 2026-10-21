@@ -2,13 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.34
+# Revision: 1.3.35
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
 # Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Add authenticated exact-objective rereview request route through the existing pipeline.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Filter durable Engineering progress by authenticated conversation origin
 # Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Serve the V2 shell through an allowlisted same-origin HTTPS route.
+# Changed: 2026-10-21 UTC | RV-V2-FULL-DIAGNOSTIC-SNAPSHOT-20261021 | Mark dashboard-served V2 pages so Snapshot mode does not depend on pathname matching.
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -656,9 +657,16 @@ def make_handler():
                 try:
                     if path.is_symlink() or not path.is_file():
                         raise FileNotFoundError
-                    self._send(200, path.read_bytes(), "text/html; charset=utf-8", request_id)
+                    page = path.read_bytes()
+                    marker = b'<meta name="rv-v2-snapshot-mode" content="authenticated-dashboard">'
+                    if b"</head>" not in page or page.count(b"</head>") != 1:
+                        raise ValueError("v2_document_head_invalid")
+                    page = page.replace(b"</head>", marker + b"</head>", 1)
+                    self._send(200, page, "text/html; charset=utf-8", request_id)
                 except OSError:
                     self._error(503, "v2_ui_unavailable", request_id)
+                except ValueError:
+                    self._error(503, "v2_ui_invalid_document", request_id)
                 return
             v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js)", parsed.path)
             if v2_asset:
