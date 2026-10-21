@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.12
+File Revision: 1.0.13
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
-Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Document Work projection auth, refresh and troubleshooting
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Document Work reads, release source mismatch, and deployment hold
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -24,6 +24,10 @@ On the integrated HTTPS `/v2/` page, choose **Work**. The panel first checks `GE
 The browser sends same-origin GETs with `credentials: same-origin` and `cache: no-store`; it never sends an API token or body. It renders API values with text nodes and does not show objective text, acceptance criteria, artifact locations/digests, or raw event payloads. It does not call Comms5, workers, model hosts, or notification acknowledgement. A 401 is an auth boundary, not a reason to bypass Dashboard authorization. The HTTP fixture preview intentionally does not call these APIs.
 
 **Phase 1 rollback:** the Work view can be restored to the prior fixture-only behavior by deploying the protected predecessor V2 static release and restoring only the V2 Nginx alias through the established V2 release procedure. Do not alter V1 `/`, `/api/v1/`, dashboard services, grants, or databases. The deploy record on issue #164 names the exact predecessor and protected backup path.
+
+### Do not switch a release while snapshot source hashes diverge
+
+Read-only inspection on 2026-10-21 confirmed `/v2/` HTTP 200, V1 `/` HTTP 200, and anonymous `/api/v1/status` HTTP 401 with the existing strict CSP/no-store headers. The active `assets/snapshot.js` is SHA-256 `d5d163c15a5dd231be8a4d2b3154995bfa7f4db4535214173438a9cd67c17f02`; it differs from the snapshot asset in the PR #166 checkout and corresponds to the separately reviewed full-diagnostic snapshot source. The live HTML also has an authenticated-dashboard mode meta marker absent from PR #166 source. Do not point Nginx at a full static directory assembled only from PR #166 until those live snapshot assets are reconciled, included, hashed, and tested. This avoids losing the active authenticated archive workflow. Existing V2 Nginx alias and V1 routes remain unchanged. Linux SSH access to Camrui is unavailable in this execution session (`camrui` is a Windows-only alias here; direct LAN SSH returned public-key/password rejection); deployment requires the established Windows operator SSH context.
 
 The first procedures cover the isolated HTTP fixture preview; the integrated HTTPS route and Grace API procedures are separate below. This guide does not restart the V1 Dashboard. The fixture preview uses HTTP and must stay on the trusted Riverview LAN; it is not safe over public Wi-Fi or an untrusted network.
 

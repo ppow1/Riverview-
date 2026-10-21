@@ -305,15 +305,15 @@
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
-      "revision": "1.0.20",
-      "sha256": "54cdd5826edef3b4724ddb065bb2e83525faaa3ff0c17f38b0b78be1037f1478",
-      "size_bytes": 41877
+      "revision": "1.0.21",
+      "sha256": "6cb95019a51a0ed3cffc7677d5132b7e0786071eabae31f68109bb579e50e875",
+      "size_bytes": 42361
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
-      "revision": "1.0.12",
-      "sha256": "6dd44325b3de7e76dd28b9dcb4c52ea7f916cf9e821e585070e5ae3e62d2fb2f",
-      "size_bytes": 31721
+      "revision": "1.0.13",
+      "sha256": "469f075053eb62ed64e101b6717ae44a60152bdaf53691b40e221b6e52157129",
+      "size_bytes": 32803
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
@@ -323,9 +323,9 @@
     },
     "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md": {
       "path": "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
-      "revision": "1.0.0",
-      "sha256": "b839052b6915436da4de9a74f981ec5b2c9231d73fc47112ff5af2e2574d597b",
-      "size_bytes": 10362
+      "revision": "1.0.1",
+      "sha256": "cc2d3299c77ee7c27e078e7ad938589a40dae4437fd8b59bbcc6beba9df4d871",
+      "size_bytes": 11812
     },
     "scripts/verify_v2_workspace_mobile.cjs": {
       "path": "scripts/verify_v2_workspace_mobile.cjs",

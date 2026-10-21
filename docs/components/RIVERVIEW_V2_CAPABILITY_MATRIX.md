@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.0
+File Revision: 1.0.1
 Purpose: Compare current V2 surfaces, historical Estate Office capabilities, and authoritative Riverview backend contracts
 Authority: Read-only capability mapping; no execution or grant implied
-Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Record three-way capability audit and Work view integration
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Record three-way audit, Work integration, and live/source divergence
 History: Git and revision/backup manifest
 -->
 # V2 capability integration matrix — Phase 1
@@ -41,3 +41,9 @@ The existing V2 layout/navigation/center workspace remains the UX baseline. The 
 ## Verification and limits
 
 Source contracts were checked against the cited current backend commit and historical Estate main commit. Offline browser-runtime tests validate auth gating, same-origin GET-only calls, redacted projection, unavailable/unauthorized states, and no polling or writes. They do not establish live authenticated data visibility or production acceptance. Historical GPU inventory contents, current live Estate runtime, and V2 Windows Chrome acceptance are **UNVERIFIED**.
+
+## Live V2 preview source comparison (read-only, 2026-10-21)
+
+Strict-TLS GETs to `https://192.168.1.155/v2/` returned HTTP 200; `/` returned HTTP 200; anonymous `/api/v1/status` returned HTTP 401. The V2 response retained `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and the strict self-origin CSP. The served `assets/workspace.js` SHA-256 `daa1b61a…` matches the V2 predecessor file. The served `assets/snapshot.js` SHA-256 is `d5d163c15a5dd231be8a4d2b3154995bfa7f4db4535214173438a9cd67c17f02`, matching the source on the separate `codex/v2-snapshot-diagnostic-completeness-20261021` branch, and differs from the PR #166 checkout's snapshot source. The live page also has `meta[name="rv-v2-snapshot-mode"][content="authenticated-dashboard"]`; that marker is absent from the PR #166 checkout. The index itself otherwise matched the current V2 predecessor plus this server-inserted marker.
+
+This is a release-source mismatch that predates Phase 1. Deploying the entire PR #166 static tree would replace the active full diagnostic snapshot/archive implementation with an older, smaller snapshot implementation. No release switch was attempted. Before a full-tree V2 deployment, the active snapshot source and marker must be reconciled into the controlled release artifact and regression-tested. This mismatch is recorded separately from the V2 capability implementation and is not resolved by the local unit/browser tests.
