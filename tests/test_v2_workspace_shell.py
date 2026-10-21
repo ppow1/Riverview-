@@ -1,13 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.17
+# Revision: 1.0.18
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
+# Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify authenticated telemetry route and safe Snapshot boundary.
 # Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Verify authenticated read-only objective and assignment Work view
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
@@ -146,21 +147,21 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("failed_count: null", snapshot)
         self.assertIn("completed_count: null", snapshot)
 
-    def test_hardware_ai_monitor_distinguishes_dashboard_status_from_unavailable_gpu_metrics(self):
+    def test_hardware_ai_monitor_uses_authorized_live_projection_and_keeps_snapshot_redacted(self):
         html = (ROOT / "website/v2/index.html").read_text(encoding="utf-8")
         monitor = (ROOT / "website/v2/assets/resource-monitor.js").read_text(encoding="utf-8")
         snapshot = (ROOT / "website/v2/assets/snapshot.js").read_text(encoding="utf-8")
         self.assertIn('data-view="resources"', html)
         self.assertIn("Hardware &amp; AI Resource Monitor", html)
-        self.assertIn("GPU devices", html)
-        self.assertIn("Utilization, memory &amp; thermals", html)
-        self.assertIn("Loaded models &amp; server readiness", html)
-        self.assertIn("Active jobs &amp; queues", html)
-        self.assertIn("Unavailable", html)
+        self.assertIn('id="resource-cards"', html)
+        self.assertIn('id="resource-host-cards"', html)
+        self.assertIn("resource-telemetry.v1", monitor)
+        self.assertIn("No values are inferred", monitor)
         self.assertIn('"/api/v1/auth/session"', monitor)
         self.assertIn('"/api/v1/status"', monitor)
-        self.assertIn('credentials: "same-origin"', monitor)
-        self.assertIn('schema_version !== "rv.dashboard.status.v1"', monitor)
+        self.assertIn('"/api/v1/resources/telemetry"', monitor)
+        self.assertIn('credentials:"same-origin"', monitor)
+        self.assertIn('schema_version!=="rv.dashboard.status.v1"', monitor)
         self.assertNotIn("fetch(", html)
         self.assertNotRegex(monitor, r"192\.168\.1\.(160|162)|:8080|:18080")
         self.assertNotIn("innerHTML", monitor)
