@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.53
+# Revision: 1.0.54
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-TRIGGER-PRIVILEGE-FIX | Verify the audited criteria guard reads only fields granted to the runtime role and takes no forbidden row lock.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Cover exact-scope audited heading removal, authorization, and revision conflicts.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Run derived-criteria persistence under the exact authorized Engineering intake scope.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Verify empty intake derives and atomically persists one proposal-bound criteria list.
@@ -619,6 +620,15 @@ class GraceExecutionTests(unittest.TestCase):
         with self.assertRaises(ObjectiveStateError):
             self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
                 expected_revision=2, credential=self.credentials["steward"], reason="replay")
+
+    def test_reconciliation_guard_reads_only_runtime_selectable_audit_fields(self):
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT pg_get_functiondef(to_regprocedure(%s)) AS definition",
+                (f"{self.schema}.guard_grace_derived_objective_criteria()",))
+            definition = cur.fetchone()["definition"]
+        self.assertIn("SELECT actor_id,payload FROM %I.grace_objective_events", definition)
+        self.assertNotIn("FOR SHARE", definition)
 
     def test_criteria_guard_rejects_unapproved_direct_mutation(self):
         from psycopg.errors import RaiseException
