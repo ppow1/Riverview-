@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.9
+File Revision: 1.1.10
+Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate dashboard identity from the pinned Grace knowledge source.
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
@@ -126,6 +127,13 @@ package checksum. In that case, set `RIVERVIEW_SOURCE_COMMIT` to the dashboard
 code commit and assign a new, unique `RIVERVIEW_DEPLOYMENT_ID`. Do not report a
 docs/graph commit as the dashboard code revision or reuse an existing release
 directory for changed bytes.
+
+The objective-grounding provider uses `RIVERVIEW_KNOWLEDGE_ROOT` and
+`RIVERVIEW_KNOWLEDGE_COMMIT`, independently of dashboard identity. Set both to
+the immutable approved knowledge package and its exact source commit. Do not
+reuse `RIVERVIEW_SOURCE_COMMIT` as the knowledge pin. The provider resolves the
+configured root when the Dashboard process starts, so restart only the Dashboard
+after changing the knowledge package pointer or pin.
 
 The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. The worker summary counts active registry rows with recent, stale, absent, or future-dated assignment-lease heartbeats. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. These fields describe lease activity only; they do not establish whether a worker process is running, idle, disconnected, blocked, or failed. A worker polling while idle may have no assignment lease and therefore an unknown lease heartbeat. Process liveness is unavailable from this projection. The overview labels lease health and lease counts explicitly. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.59
+# Revision: 1.0.60
+# Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Verify knowledge source pin is independent of dashboard source identity.
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Cover persisted-sequence binding and visible recovery when the retry dialog cannot open.
 # Predecessor: .riverview-backups/20261020T153249910848Z/tests/test_status_dashboard.py (SHA-256 fa08f2763f1eb9234a217974196ab49d416edd73b76987fa104ade8d38ebe1ba)
 # Changed: 2026-10-20 UTC | RV-C4-ACTIVE-LINE-INTEGRATION-001 | Verify re-review route authentication, exact objective scope, bounded payload and request-only behavior.
@@ -67,7 +68,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from riverview_core.status_dashboard.projection import DashboardProjection
-from riverview_core.status_dashboard.server import DashboardHTTPServer, _knowledge_root, _read_token
+from riverview_core.status_dashboard.server import (
+    DashboardHTTPServer, _knowledge_commit, _knowledge_root, _read_token)
 from riverview_core.status_dashboard.markdown import render_markdown
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
@@ -293,6 +295,14 @@ class DashboardDeploymentContractTests(unittest.TestCase):
                              Path("/srv/approved"))
             (release / "PACKAGE_SHA256SUMS").unlink()
             self.assertEqual(_knowledge_root(release_root=release), Path("/opt/riverview-core"))
+
+    def test_knowledge_commit_is_separate_from_dashboard_source_commit(self):
+        self.assertEqual(_knowledge_commit(configured="b" * 40,
+            dashboard_source_commit="a" * 40, release_commit="c" * 40), "b" * 40)
+        self.assertEqual(_knowledge_commit(configured="",
+            dashboard_source_commit="a" * 40, release_commit="c" * 40), "a" * 40)
+        self.assertEqual(_knowledge_commit(configured="",
+            dashboard_source_commit="", release_commit="c" * 40), "c" * 40)
 
     def test_activity_has_explicit_older_and_newer_sequence_paging(self):
         app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
