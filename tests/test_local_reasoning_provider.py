@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.19
+# Revision: 1.1.20
+# Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify token-truncated proposal JSON without exposing model output
 # Changed: 2026-10-20 UTC | RV-GRACE-TYPED-PROPOSAL-SCHEMA | Require complete capability-specific structured proposal output
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Require dynamic artifact sets on bounded artifact proposals
@@ -400,7 +401,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
         truncated = self._response(text='{"summary":"partial"', finish="length")
         cases = (
             (self._response(served="other"), "PROPOSAL_PROVENANCE_INVALID"),
-            (truncated, "PROPOSAL_JSON_PARSE_FAILED"),
+            (truncated, "PROPOSAL_TOKEN_BUDGET_EXCEEDED"),
             (json.dumps({"model": "fixture-model", "choices": [{
                 "message": {"content": "{}"}, "finish_reason": "stop"}]}).encode(),
              "PROPOSAL_RESPONSE_SCHEMA_INVALID"),

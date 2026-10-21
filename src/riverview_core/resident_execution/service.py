@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.34
+# Revision: 1.0.35
+# Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Provide enough bounded completion tokens for full typed proposals with dynamic objective criteria
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Persist reasoning turns and skip externally blocked candidates without starving later grounded objectives.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Route bounded and Codex artifacts through integrity-checked Grace review context
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Pass verifier-checked artifact sets to Grace review
@@ -80,7 +81,7 @@ class GraceExecutionService:
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,
                  max_dispatch_failures=3, verifier=None, resident_reasoner=None,
-                 resident_token_budget=768, execution_capability=CAPABILITY,
+                 resident_token_budget=2048, execution_capability=CAPABILITY,
                  conversation_result_publisher=None, proposal_lifecycle=None,
                  external_reasoning_exchange=None, external_reasoning_authorize=None,
                  external_reasoning_principal=None, execution_workers=None, verifiers=None,

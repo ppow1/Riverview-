@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.17
+# Revision: 1.3.18
+# Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify JSON truncation at the completion-token boundary distinctly
 # Changed: 2026-10-20 UTC | RV-GRACE-TYPED-PROPOSAL-SCHEMA | Require capability-specific fields in structured proposal schema
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Make prior rejected plans explicitly preserve every criterion, including prohibitions
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Return fixed sanitized proposal parse, schema, provenance and token-budget codes
@@ -402,6 +403,8 @@ class LocalReasoningProvider:
         try:
             plan = json.loads(text)
         except json.JSONDecodeError:
+            if finish_reason == "length":
+                return ProposalValidationFailure("PROPOSAL_TOKEN_BUDGET_EXCEEDED")
             return ProposalValidationFailure("PROPOSAL_JSON_PARSE_FAILED")
         if served_model != self.model:
             return ProposalValidationFailure("PROPOSAL_PROVENANCE_INVALID")
