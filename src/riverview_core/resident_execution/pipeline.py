@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.21
+# Revision: 1.1.22
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Require artifact destinations to be named in the authorized objective scope
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Require unique criterion ownership and conversation origin for publication lifecycle evidence
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Persist lifecycle criteria separately from Engineering steps and bind them to durable workflow evidence
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Order grounded reasoning candidates by their most recent persisted attempt, with never-attempted objectives first.
@@ -322,6 +323,13 @@ class GraceExecutionPipeline:
                        for path in step.authorized_paths):
                     raise ObjectiveStateError(
                         "source-change path is absent from the Steward-approved objective scope")
+            elif step.execution_capability == "engineering.codex-cli-artifact.v1":
+                if any(not any(re.search(r"(?<![A-Za-z0-9._/-])" + re.escape(item.path) +
+                                         r"(?![A-Za-z0-9_/-]|\.(?=[A-Za-z0-9._/-]))", text)
+                               for text in approved_source_scope)
+                       for item in step.artifact_requirements):
+                    raise ObjectiveStateError(
+                        "artifact path is absent from the Steward-approved objective scope")
         if external_exchange is not None:
             required = {"request_id", "correlation_id", "response_id", "response_sha256", "provider_id",
                         "provider_model", "reasoning_request_id"}

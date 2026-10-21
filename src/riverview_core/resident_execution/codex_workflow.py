@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.16
+# Revision: 1.2.17
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Forward immutable objective request separately into authorized Engineering execution
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject explicit negative JSON outcomes and verify literal artifact acceptance clauses independently
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Resolve Codex assignment provenance through the durable proposal-step link when sibling steps are dispatched concurrently.
 # Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Separate independent artifact integrity/provenance checks from Grace's substantive acceptance review and expose only a digest-verified bounded artifact snapshot.
@@ -159,6 +160,7 @@ class CodexWorkAction:
             repository_revision=repository_revision,
             task_scope=task_scope,
             acceptance_criteria=tuple(step["acceptance_criteria"]),
+            steward_instructions=objective["request"],
             artifact_requirements=tuple(ArtifactRequirement(
                 item["name"], item["path"], item["media_type"],
                 tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
