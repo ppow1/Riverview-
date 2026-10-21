@@ -1,0 +1,20 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-V2-HW-AI-LIVE-TELEMETRY",
+  "created_at": "2026-10-21T17:36:20Z",
+  "classification": "sanitized operational telemetry sample; no host UUIDs, PIDs, credentials, prompts, or endpoint response bodies",
+  "artifacts": {
+    "source-observation.json": {
+      "path": "source-observation.json",
+      "sha256": "581ebe8bd60e868f8933b817f12c943dd9af939145cce84b8f90068d1972b826",
+      "size_bytes": 4116,
+      "description": "Read-only Camrui and OCTOMINER1 source values from the restricted collector/model endpoints; OctoMiner2 explicitly unverified."
+    },
+    "backend-full-tests.log": {
+      "path": "backend-full-tests.log",
+      "sha256": "e64ebdeae1336fa66abbd8e807392d02960e67c1a344974cdb1a58c12fcb7c56",
+      "size_bytes": 155139,
+      "description": "Full backend unittest discovery transcript for the telemetry change; no production credentials or response bodies."
+    }
+  }
+}

@@ -1,4 +1,17 @@
-"""Tests for the restricted OCTOMINER1 GPU collector command."""
+"""RIVERVIEW~ CONTROLLED SOURCE
+File: tests/test_gpu_telemetry_command.py
+Component: OCTOMINER1-RESTRICTED-GPU-TELEMETRY
+Revision: 1.0.0
+Purpose: Verify the forced read-only host collector and identifier redaction
+Execution Model: Isolated subprocess fixtures
+Observability: Assertions for NVIDIA CSV mapping and unsupported values
+Dependencies: scripts/rv_gpu_telemetry_command.py and Python unittest
+Authority: Disposable fixtures only; no production host access
+Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial collector tests
+Contracts: docs/components/STATUS_DASHBOARD.md
+Tests: python -m unittest tests.test_gpu_telemetry_command
+History: Git and .riverview-backups/manifest.jsonl
+"""
 import os
 import unittest
 from unittest.mock import patch

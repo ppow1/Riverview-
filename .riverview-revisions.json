@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.297",
+      "revision": "1.1.299",
       "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
       "size_bytes": 20273
     },
@@ -459,14 +459,14 @@
     "tests/test_resource_telemetry.py": {
       "path": "tests/test_resource_telemetry.py",
       "revision": "1.0.0",
-      "sha256": "1bca227eadac6c4f812cf08e50c5e66945ecb54fa4d7407502af22e67359c00f",
-      "size_bytes": 5068
+      "sha256": "1ed88540e35fa07e779d944e694cbcd2c240aca07189a907a2d41de8f99085b7",
+      "size_bytes": 5789
     },
     "tests/test_gpu_telemetry_command.py": {
       "path": "tests/test_gpu_telemetry_command.py",
-      "revision": "1.0.1",
-      "sha256": "34eb372e4ef2a7bc827f0e27016e73991cd353617c4f1973d53317f6df81a884",
-      "size_bytes": 2104
+      "revision": "1.0.0",
+      "sha256": "7bc6c06083d85b5a66f1b7e2b31ee1991b8f7b9e68f6c1d789d6af68b7f74c8a",
+      "size_bytes": 2744
     },
     "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
       "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
@@ -493,6 +493,6 @@
       "size_bytes": 17303
     }
   },
-  "manifest_revision": "1.1.297",
+  "manifest_revision": "1.1.299",
   "updated_at": "2026-10-20T23:07:09Z"
 }

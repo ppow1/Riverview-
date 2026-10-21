@@ -1,3 +1,17 @@
+"""RIVERVIEW~ CONTROLLED SOURCE
+File: tests/test_resource_telemetry.py
+Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
+Revision: 1.0.0
+Purpose: Verify bounded authenticated hardware and inference projections
+Execution Model: Isolated unittest fixtures
+Observability: Assertions for source status, redaction, readiness and unavailable data
+Dependencies: DashboardResourceTelemetry and Python unittest
+Authority: Disposable fixtures only; no production credentials or writes
+Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial telemetry projection tests
+Contracts: docs/components/STATUS_DASHBOARD.md
+Tests: python -m unittest tests.test_resource_telemetry
+History: Git and .riverview-backups/manifest.jsonl
+"""
 import json
 from pathlib import Path
 import subprocess

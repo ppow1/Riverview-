@@ -8,13 +8,15 @@
       "path": "source-observation.json",
       "sha256": "581ebe8bd60e868f8933b817f12c943dd9af939145cce84b8f90068d1972b826",
       "size_bytes": 4116,
-      "description": "Read-only Camrui and OCTOMINER1 source values from the restricted collector/model endpoints; OctoMiner2 explicitly unverified."
+      "description": "Read-only Camrui and OCTOMINER1 source values from the restricted collector/model endpoints; OctoMiner2 explicitly unverified.",
+      "revision": "1.0.0"
     },
     "backend-full-tests.log": {
       "path": "backend-full-tests.log",
       "sha256": "e64ebdeae1336fa66abbd8e807392d02960e67c1a344974cdb1a58c12fcb7c56",
       "size_bytes": 155139,
-      "description": "Full backend unittest discovery transcript for the telemetry change; no production credentials or response bodies."
+      "description": "Full backend unittest discovery transcript for the telemetry change; no production credentials or response bodies.",
+      "revision": "1.0.0"
     }
   }
 }
