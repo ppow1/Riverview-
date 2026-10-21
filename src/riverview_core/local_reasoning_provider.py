@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.21
-# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Limit objective acceptance criteria to the persisted formal criterion list and keep request instructions distinct
+# Revision: 1.3.22
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-PRIOR-PLAN-CRITERIA-20261021 | Keep stale prior-plan instructions from promoting request constraints into formal criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Separate lifecycle-only criteria from bounded Engineering work and prefer one deliverable step when sufficient
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Permit the bounded 120-second proposal request deadline
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify JSON truncation at the completion-token boundary distinctly
@@ -274,9 +274,10 @@ class LocalReasoningProvider:
             "include commands or credentials.")
         if request.prior_plan is not None:
             system_instruction += (
-                " The supplied prior_plan is an unaccepted earlier attempt, not approval. Compare it against every "
-                "supplied criterion and correct any omission; do not repeat an earlier omission of a negative "
-                "constraint or prohibition.")
+                " The supplied prior_plan is an unaccepted earlier attempt, not approval. Use it only as history; "
+                "compare it against assignment.acceptance_criteria and correct omissions or duplication only in that "
+                "formal list. Do not copy prior-plan criteria absent from assignment.acceptance_criteria. Preserve "
+                "other original request instructions as execution constraints, not formal acceptance criteria.")
         if request.external_reasoning_targets:
             system_instruction += (
                 " You may additionally set external_escalation only when a specific second opinion is needed "
