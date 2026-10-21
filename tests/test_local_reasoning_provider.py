@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.23
-# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Keep request constraints distinct from formal acceptance criteria in proposal instructions
+# Revision: 1.1.24
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-PRIOR-PLAN-CRITERIA-20261021 | Ignore stale prior-plan criteria not present in the persisted formal list
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Prove lifecycle-only acceptance criteria stay out of one deliverable step
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Accept bounded provider HTTP deadlines above the prior 60-second cap
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify token-truncated proposal JSON without exposing model output
@@ -202,9 +202,36 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("use only assignment.acceptance_criteria as formal objective acceptance criteria", prompt)
         self.assertIn("do not promote other request instructions or prohibitions into acceptance criteria", prompt)
         self.assertIn("prior_plan is an unaccepted earlier attempt, not approval", prompt)
+        self.assertIn("compare it against assignment.acceptance_criteria", prompt)
+        self.assertIn("Do not copy prior-plan criteria absent from assignment.acceptance_criteria", prompt)
         self.assertEqual(context["prior_plan"], prior_plan)
         self.assertEqual(context["assignment"]["acceptance_criteria"],
                          ["Produce the Markdown deliverable.", required])
+
+    def test_prior_plan_request_only_constraints_are_not_formal_criteria(self):
+        formal = "Create the requested report."
+        request_only = "Do not create another objective or assignment."
+        prior_plan = {"summary": "Create report", "steps": [{
+            "step_id": "report", "objective": "Create report",
+            "acceptance_criteria": [formal, request_only], "depends_on": []}]}
+        self.request = replace(self.request,
+            assignment={"id": "assignment-1",
+                "objective": formal + " " + request_only,
+                "acceptance_criteria": [formal]},
+            prior_plan=prior_plan)
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Create the report", "steps": [{
+                "step_id": "report", "objective": "Create report",
+                "acceptance_criteria": [formal], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.txt",
+                    "media_type": "text/plain", "acceptance_criteria": [formal]}]}]}))
+
+        proposal = self.provider.propose(self.request)
+
+        self.assertEqual(proposal.steps[0].acceptance_criteria, (formal,))
+        prompt = self.requests[0]["messages"][0]["content"]
+        self.assertIn("Do not copy prior-plan criteria absent from assignment.acceptance_criteria", prompt)
 
     def test_external_advisory_is_separate_and_explicitly_unverified(self):
         advisory = {
