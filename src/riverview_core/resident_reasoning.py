@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.25
-# Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Correlate provider and office-state boundary outcomes without logging model content
+# Revision: 1.0.26
+# Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Keep office-state writes within the database JSONB text bound and expose safe SQLSTATE diagnostics
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Restrict lifecycle ownership to complete canonical criterion forms
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Model typed lifecycle criteria separately from Engineering steps while retaining exact objective criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Require explicit lifecycle language before classifying conversation and grounding criteria as system-owned
@@ -80,12 +80,12 @@ def _exception_diagnostic_fields(exc):
         cause_type = str(exc)
         if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,63}", cause_type):
             fields["registry_cause_type"] = cause_type
-        underlying = exc.__context__
-        if underlying is not None:
-            fields["underlying_exception_type"] = type(underlying).__name__
-            sqlstate = getattr(underlying, "sqlstate", None)
-            if isinstance(sqlstate, str) and re.fullmatch(r"[A-Z0-9]{5}", sqlstate):
-                fields["sqlstate"] = sqlstate
+    underlying = exc.__context__
+    if underlying is not None:
+        fields["underlying_exception_type"] = type(underlying).__name__
+        sqlstate = getattr(underlying, "sqlstate", None)
+        if isinstance(sqlstate, str) and re.fullmatch(r"[A-Z0-9]{5}", sqlstate):
+            fields["sqlstate"] = sqlstate
     return fields
 
 
@@ -436,12 +436,21 @@ class ResidentReasoner:
             plans[assignment_id] = asdict(proposal)
         runtime["plans"] = plans
         state[self.STATE_KEY] = runtime
-        if len(json.dumps(state, sort_keys=True, separators=(",", ":")).encode()) > self.MAX_STATE_BYTES:
+        serialized_state = json.dumps(
+            state, sort_keys=True, separators=(", ", ": ")).encode("utf-8")
+        while len(serialized_state) > self.MAX_STATE_BYTES and len(outcomes) > 1:
+            outcomes.pop(0)
+            runtime["outcomes"] = outcomes
+            state[self.STATE_KEY] = runtime
+            serialized_state = json.dumps(
+                state, sort_keys=True, separators=(", ", ": ")).encode("utf-8")
+        if len(serialized_state) > self.MAX_STATE_BYTES:
             _reasoning_diagnostic(
                 "office_state_persistence_failed", request_id=request_id,
                 assignment_id=assignment_id, correlation_id=correlation_id,
                 operation="set_office_state", persistence_stage=persistence_stage,
                 failure_code="OFFICE_STATE_SIZE_LIMIT",
+                serialized_state_bytes=len(serialized_state),
                 elapsed_ms=round((time.monotonic() - started) * 1000),
                 level=logging.WARNING)
             return None

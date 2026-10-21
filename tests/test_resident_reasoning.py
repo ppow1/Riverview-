@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.20
-# Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Verify request-correlated diagnostics distinguish office-state and provider boundaries
+# Revision: 1.0.21
+# Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Cover DB-size-aware outcome pruning and translated SQLSTATE diagnostics
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject ambiguous deliverable prose as lifecycle-only criteria
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Verify the bounded reasoning caller deadline
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Keep persistent reasoning rehydration tests on the durable event contract.
@@ -618,6 +618,9 @@ class ResidentReasoningDiagnosticsTests(unittest.TestCase):
         class DatabaseFailure(Exception):
             sqlstate = "08006"
 
+        class DatabaseBoundFailure(Exception):
+            sqlstate = "22023"
+
         class Registry:
             def __init__(self, *, fail_read=False, fail_write=False):
                 self.fail_read = fail_read
@@ -643,9 +646,16 @@ class ResidentReasoningDiagnosticsTests(unittest.TestCase):
             def set_office_state(self, _credential, _office_id, state, *, expected_revision):
                 if self.fail_write:
                     try:
-                        raise DatabaseFailure("private database error sentinel")
-                    except DatabaseFailure:
-                        raise RegistryUnavailable("OperationalError") from None
+                        raise DatabaseBoundFailure("private database error sentinel")
+                    except DatabaseBoundFailure:
+                        raise ValueError("private database error sentinel") from None
+                serialized = json.dumps(state, sort_keys=True,
+                                        separators=(", ", ": ")).encode("utf-8")
+                if len(serialized) > 65536:
+                    try:
+                        raise DatabaseBoundFailure("private database error sentinel")
+                    except DatabaseBoundFailure:
+                        raise ValueError("private database error sentinel") from None
                 self.state = state
                 self.revision = expected_revision + 1
                 return self.revision
@@ -731,9 +741,9 @@ class ResidentReasoningDiagnosticsTests(unittest.TestCase):
                             for event in persist_events))
         self.assertTrue(any(event["stage"] == "office_state_persistence_failed"
                             and event["persistence_stage"] == "proposal_state_persistence"
-                            and event["registry_cause_type"] == "OperationalError"
-                            and event["underlying_exception_type"] == "DatabaseFailure"
-                            and event["sqlstate"] == "08006"
+                            and event["exception_type"] == "ValueError"
+                            and event["underlying_exception_type"] == "DatabaseBoundFailure"
+                            and event["sqlstate"] == "22023"
                             for event in persist_events))
         self.assertNotIn("private model response sentinel", read_output + persist_output)
         self.assertNotIn("private provider error sentinel", failed_output)
@@ -741,6 +751,29 @@ class ResidentReasoningDiagnosticsTests(unittest.TestCase):
                          read_output + failed_output + persist_output)
         self.assertNotIn("CREDENTIAL_SENTINEL",
                          read_output + failed_output + persist_output)
+
+        large_registry = Registry()
+        large_registry.state = {"resident_reasoning_v1": {
+            "outcomes": ([{"history": "x" * 2050} for _ in range(31)] +
+                         [{"history": "oldest"}]),
+            "plans": {},
+        }}
+        initial_state_bytes = len(json.dumps(
+            large_registry.state, sort_keys=True, separators=(", ", ": ")).encode("utf-8"))
+        self.assertLess(initial_state_bytes, 65536)
+        large_provider = Provider(response=PlanProposal(
+            "s" * 3500, (PlanStep("step-1", "create deliverable",
+                                  ("deliverable exists",)),), 17))
+        large_result, _, _ = run(large_registry, large_provider)
+        self.assertEqual(large_result.status, ReasoningStatus.PROPOSED)
+        persisted_runtime = large_registry.state["resident_reasoning_v1"]
+        self.assertIn(objective_id, persisted_runtime["plans"])
+        self.assertLess(len(persisted_runtime["outcomes"]), 32)
+        self.assertEqual(persisted_runtime["outcomes"][-1]["request_id"],
+                         large_result.request_id)
+        self.assertLessEqual(len(json.dumps(
+            large_registry.state, sort_keys=True,
+            separators=(", ", ": ")).encode("utf-8")), 65536)
 
 
 if __name__ == "__main__":
