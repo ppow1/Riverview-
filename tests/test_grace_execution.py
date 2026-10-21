@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.50
+# Revision: 1.0.52
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Run derived-criteria persistence under the exact authorized Engineering intake scope.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Verify empty intake derives and atomically persists one proposal-bound criteria list.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Reject artifact paths not named in the authorized request and reject invented formal criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject narrative lifecycle false positives, missing publication origin, and duplicated criterion ownership
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Verify ready lifecycle work runs before slow proposal reasoning and persist lifecycle criteria separately from one deliverable step
@@ -518,6 +520,37 @@ class GraceExecutionTests(unittest.TestCase):
         event_types = [event["event_type"] for event in
                        self.pipeline.objective_events(objective_id)]
         self.assertIn("execution.reasoning_attempted", event_types)
+
+    def test_grace_derived_criteria_become_the_single_effective_objective_list(self):
+        from psycopg import sql
+        from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
+
+        objective_id = "objective:derived-criteria:" + uuid4().hex
+        principal = self.principals["steward"][0]
+        self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'objective.submit','work-order:engineering',%s,
+                    'rv.policy:grace-execution-test.v1')""").format(sql.Identifier(self.schema)),
+            ("steward-derived-objective-submit", principal, principal))
+        criterion = "The report contains the exact requested verification statement."
+        request = "Create a report at reports/derived.txt containing the exact requested verification statement."
+        row = self.pipeline.submit_objective(objective_id, request, [],
+            credential=self.credentials["steward"], scope_ref="work-order:engineering",
+            origin={"conversation_id": str(uuid4()), "source_sequence": 1},
+            criteria_source="grace_derived")
+        self.assertEqual(row["acceptance_criteria"], [])
+        self.assertEqual(row["acceptance_criteria_source"], "grace_derived")
+        self.pipeline.ground_objective(objective_id)
+        proposal = PlanProposal("Create the requested report", (
+            PlanStep("report", "Create the bounded report", (criterion,),
+                artifact_requirements=(ArtifactRequirement("report", "reports/derived.txt",
+                    "text/plain", (criterion,)),)),), 0)
+        stored = self.pipeline.record_proposal(objective_id, proposal)
+        self.assertEqual(stored["acceptance_criteria"], [criterion])
+        self.assertEqual(stored["acceptance_criteria_source"], "grace_derived")
+        event = next(item for item in self.pipeline.objective_events(objective_id)
+                     if item["event_type"] == "work_order.proposed")
+        self.assertEqual(event["payload"]["acceptance_criteria_source"], "grace_derived")
 
     def test_lifecycle_criteria_remain_durable_without_receipt_work_steps(self):
         from riverview_core.resident_reasoning import lifecycle_evidence_event

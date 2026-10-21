@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.299",
+      "revision": "1.1.301",
       "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
       "size_bytes": 20273
     },
@@ -212,9 +212,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.206",
-      "sha256": "0abd243b937262aa4c50f68b02f7bb48a8443e8d601d625d349129d476fba76c",
-      "size_bytes": 690081
+      "revision": "1.0.208",
+      "sha256": "5f66e518a9ae7359e146fe9af11f4bc17dac698411e20c5cdff841d54d3773f5",
+      "size_bytes": 690413
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -224,9 +224,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.65",
-      "sha256": "2c570fbf751c60daf3571f9a9cee65e168728754bafe6a1ee8eb2c8905dcbf29",
-      "size_bytes": 96904
+      "revision": "1.0.67",
+      "sha256": "ce86fa0d25bbecba1f3a62ef9d7a127a06658f13fb5182a6469d1d4627225e77",
+      "size_bytes": 97232
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -493,6 +493,6 @@
       "size_bytes": 17303
     }
   },
-  "manifest_revision": "1.1.299",
+  "manifest_revision": "1.1.301",
   "updated_at": "2026-10-20T23:07:09Z"
 }

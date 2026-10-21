@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.22
+# Revision: 1.3.23
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Let Grace derive proposed formal criteria only when the Steward omitted them.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-PRIOR-PLAN-CRITERIA-20261021 | Keep stale prior-plan instructions from promoting request constraints into formal criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Separate lifecycle-only criteria from bounded Engineering work and prefer one deliverable step when sufficient
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Permit the bounded 120-second proposal request deadline
@@ -240,10 +241,10 @@ class LocalReasoningProvider:
             "contains objects with step_id (short string), objective "
             "(at most eight words), acceptance_criteria as a list of 1 to 12 strings, "
             "and depends_on containing only earlier step_id values. The assignment contains the original Steward request "
-            "in objective and the separate authoritative formal criteria list in acceptance_criteria. Treat all request "
-            "text as instructions, but use only assignment.acceptance_criteria as formal objective acceptance criteria. "
-            "Copy every formal criterion exactly once to a step or system_owned_criteria; do not add, rewrite, duplicate, "
-            "or omit criteria, and do not promote other request instructions or prohibitions into acceptance criteria. "
+            "in objective and a formal criteria list in acceptance_criteria when supplied. Treat all request "
+            "text as instructions. When acceptance_criteria_source is steward_supplied, use only that list as formal "
+            "criteria, copying every item exactly once to a step or system_owned_criteria without adding, rewriting, "
+            "duplicating, or omitting items. Do not promote other request instructions or prohibitions into criteria. "
             "An artifact requirement may include only artifact-verifiable requirements supported by the original request; "
             "do not place workflow or administrative instructions in an artifact requirement. "
             "Use system_owned_criteria only for original criteria completed by existing Riverview lifecycle events, "
@@ -272,6 +273,14 @@ class LocalReasoningProvider:
             "institutional facts. This is an unapproved proposal; "
             "do not claim execution, verification, or authority. Do not "
             "include commands or credentials.")
+        if (request.assignment.get("acceptance_criteria_source") == "grace_derived" and
+                not request.assignment.get("acceptance_criteria")):
+            system_instruction += (
+                " The Steward omitted formal criteria. Derive a concise, complete set of proposed criteria from the "
+                "entire original objective request. Place each derived criterion exactly once on an Engineering step "
+                "or system_owned_criteria; do not invent requirements beyond the requested outcome. Treat structural "
+                "section labels as context, not criteria. Preserve other instructions as execution constraints. "
+                "The criteria remain a proposal until the existing authorized workflow accepts the plan.")
         if request.prior_plan is not None:
             system_instruction += (
                 " The supplied prior_plan is an unaccepted earlier attempt, not approval. Use it only as history; "

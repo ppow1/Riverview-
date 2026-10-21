@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.24
+# Revision: 1.1.26
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Match the revised prompt's formal-criteria boundary.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Verify derived and Steward-supplied criteria prompt paths.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-PRIOR-PLAN-CRITERIA-20261021 | Ignore stale prior-plan criteria not present in the persisted formal list
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Prove lifecycle-only acceptance criteria stay out of one deliverable step
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Accept bounded provider HTTP deadlines above the prior 60-second cap
@@ -147,6 +149,17 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("Alfred", sent["messages"][0]["content"])
         self.assertIn("grants no permission", sent["messages"][0]["content"])
 
+    def test_missing_formal_criteria_are_derived_from_the_full_objective_request(self):
+        self.request = replace(self.request, assignment={
+            "id": "assignment-1", "objective": "Create a bounded verified report",
+            "acceptance_criteria": [], "acceptance_criteria_source": "grace_derived"})
+        proposal = self.provider.propose(self.request)
+        self.assertIsNotNone(proposal)
+        prompt = self.requests[0]["messages"][0]["content"]
+        self.assertIn("Derive a concise, complete set of proposed criteria", prompt)
+        self.assertIn("entire original objective request", prompt)
+        self.assertIn("criteria remain a proposal", prompt)
+
     def test_single_deliverable_separates_system_lifecycle_criteria(self):
         from riverview_core.resident_reasoning import PlanProposal
         deliverable = "The report contains exact phrase `verified delivery`."
@@ -199,8 +212,8 @@ class LocalReasoningProviderTests(unittest.TestCase):
         sent = self.requests[0]
         prompt = sent["messages"][0]["content"]
         context = json.loads(sent["messages"][1]["content"])
-        self.assertIn("use only assignment.acceptance_criteria as formal objective acceptance criteria", prompt)
-        self.assertIn("do not promote other request instructions or prohibitions into acceptance criteria", prompt)
+        self.assertIn("When acceptance_criteria_source is steward_supplied", prompt)
+        self.assertIn("Do not promote other request instructions or prohibitions into criteria", prompt)
         self.assertIn("prior_plan is an unaccepted earlier attempt, not approval", prompt)
         self.assertIn("compare it against assignment.acceptance_criteria", prompt)
         self.assertIn("Do not copy prior-plan criteria absent from assignment.acceptance_criteria", prompt)
@@ -387,7 +400,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
                          criteria)
         sent = self.requests[0]
         prompt = sent["messages"][0]["content"]
-        self.assertIn("use only assignment.acceptance_criteria as formal objective acceptance criteria", prompt)
+        self.assertIn("When acceptance_criteria_source is steward_supplied", prompt)
         self.assertIn("For artifact steps, include artifact_requirements", prompt)
         step_schema = sent["response_format"]["json_schema"]["schema"]
         variants = step_schema["properties"]["steps"]["items"]["oneOf"]

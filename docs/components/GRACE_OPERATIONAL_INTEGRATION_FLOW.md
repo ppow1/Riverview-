@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.65
+**Document Revision:** 1.0.66
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Show lifecycle criteria separately, prioritize ready work, and gate conversation-origin completion on Grace review.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -84,10 +84,10 @@ flowchart LR
 ```mermaid
 flowchart LR
   subgraph g_rv_grace_operational_integration["RESIDENT-ORCHESTRATION / grace-engineering-objective.v1"]
-    g_rv_grace_operational_integration_objective_intake_55567c14(["IMPLEMENTED — exact objective.submit persists one objective per authenticated conversation message origin; retries revalidate the grant and retain original criteria"])
-    g_rv_grace_operational_integration_objective_intake_retry_fdc5836e["SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, and rerun grounding for the existing durable objective"]
+    g_rv_grace_operational_integration_objective_intake_55567c14(["IMPLEMENTED — exact objective.submit persists one objective per authenticated conversation message origin; explicit criteria remain authoritative, while blank criteria are derived by Grace from the full request and become effective only with an accepted proposal; retries retain the original source/list"])
+    g_rv_grace_operational_integration_objective_intake_retry_fdc5836e["SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria source/list, and rerun grounding for the existing durable objective"]
     g_rv_grace_operational_integration_authority_check_71ce44bf["IMPLEMENTED — objective.submit and assignment.create use exact active grants; no proposal grants authority"]
-    g_rv_grace_operational_integration_reason_decompose_d48619ca["PERSISTENT GROUNDED REASONING — use the exact active office-bound provider; retain every original criterion exactly, map only lifecycle-owned criteria to durable events, and create one Engineering step per sufficient deliverable; preserve genuine dependencies and proposal has no authority"]
+    g_rv_grace_operational_integration_reason_decompose_d48619ca["PERSISTENT GROUNDED REASONING — use the exact active office-bound provider; exactly cover Steward-supplied criteria or derive proposed criteria dynamically from the complete request when omitted; map only lifecycle-owned criteria to durable events, and create one Engineering step per sufficient deliverable; preserve genuine dependencies and proposal has no authority"]
     g_rv_grace_operational_integration_durable_plan_26bc431c["IMPLEMENTED — objective, complete evidence provenance, and unapproved plan persist in PostgreSQL"]
     g_rv_grace_operational_integration_assignment_fanout_81ca8043["IMPLEMENTED MULTI-STEP — persist one assignment per ordered proposal step; dispatch only when all dependency steps have independent verification"]
     g_rv_grace_operational_integration_worker_dispatch_20506b72["DETERMINISTIC ADAPTER TESTED — lease-dispatched worker writes one bounded artifact; live executor remains outstanding"]
