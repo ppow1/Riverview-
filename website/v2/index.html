@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: website/v2/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.11
+File Revision: 1.0.14
 Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
 Execution Model: Interactive browser presentation; request-driven Dashboard API calls
 Observability: Live conversation state from rv.resident.conversation.v1; Comms5 stays unverified
@@ -10,6 +10,9 @@ Dependencies: Same-origin static assets under website/v2/assets
 Inputs/Outputs: Local fixture records plus authenticated Grace conversation API; durable messages remain Dashboard-owned
 Authority: Account session plus server-checked resident.conversation.read/send grants; LAN preview
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Render live hardware and model projections in the existing monitor.
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Add interactive OCTO1 live component console and activity timeline.
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Add a bounded durable Grace request trace to OCTO1 activity.
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Use original manufacturer chassis artwork with physical front fan hotspots and dynamic telemetry selectors.
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Connect existing Work view to authenticated read-only objective and assignment status
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
@@ -74,13 +77,51 @@ History: Git and revision/backup manifest
           <div id="view-content"></div>
           </div>
           <section class="resource-monitor" id="resource-monitor-workspace" aria-labelledby="resource-monitor-heading" data-state="not-checked" hidden>
-            <div class="resource-heading"><div><p class="eyebrow">HARDWARE · INFERENCE · WORK FLEET</p><h2 id="resource-monitor-heading">Hardware &amp; AI Resource Monitor</h2><p class="muted">A metric is shown only when its authorized source supplies a value and observation time. Unavailable is not zero.</p></div><span class="resource-state" id="resource-source-state" data-state="not-checked">NOT CHECKED</span></div>
+            <div class="resource-heading"><div><p class="eyebrow">OCTO1 · HARDWARE · INFERENCE</p><h2 id="resource-monitor-heading">OCTO1 Hardware &amp; AI</h2><p class="muted">A metric is shown only when its authorized source supplies a value and observation time. Unavailable is not zero.</p></div><span class="resource-state" id="resource-source-state" data-state="not-checked">NOT CHECKED</span></div>
             <div class="resource-toolbar"><p id="resource-refresh-status" role="status" aria-live="polite">Telemetry is read through the authenticated Dashboard projection. Unavailable sources remain explicitly unavailable.</p><button id="resource-refresh" type="button" aria-describedby="resource-refresh-status">Refresh</button></div>
+            <section class="octo-console" id="octo1-console" aria-labelledby="octo1-title" data-host-state="not-checked">
+              <header class="octo-console-heading"><div><p class="eyebrow">LIVE MACHINE · READ ONLY</p><h3 id="octo1-title">OCTO1 <span>OctoMiner X12 Ultra</span></h3><p id="octo1-observed" class="resource-observed">Waiting for authenticated host telemetry.</p></div><span id="octo1-machine-state" class="resource-tag" data-state="not_initialized">NOT CHECKED</span></header>
+              <div class="octo-console-layout">
+                <section class="octo-machine-view" aria-labelledby="octo1-surface-title">
+                  <div class="octo-machine-view-heading"><div><p class="eyebrow">MANUFACTURER CHASSIS · READ ONLY</p><h4 id="octo1-surface-title">OctoMiner X12 Ultra</h4></div><span class="octo-view-note">GPU device IDs are not mapped to physical bays.</span></div>
+                  <section class="octo-chassis" aria-label="Interactive manufacturer chassis reference">
+                    <div class="octo-chassis-toolbar" role="group" aria-label="Chassis reference view">
+                      <button type="button" data-octo-artwork-view="front" aria-pressed="true">Front panel</button>
+                      <button type="button" data-octo-artwork-view="open" aria-pressed="false">Open-chassis reference</button>
+                      <span id="octo-chassis-view-note">Manufacturer front view · five physical intake fans</span>
+                    </div>
+                    <div class="octo-chassis-stage" id="octo1-chassis-stage" data-artwork-view="front">
+                      <img id="octo1-chassis-artwork" src="/v2/assets/octominer/x12ultra-front-open-chassis-reference.png" alt="Original OctoMiner X12 Ultra manufacturer artwork showing the front face with five evenly spaced fans and the right-side display and controls. The open chassis view is available by selecting Open-chassis reference." loading="lazy" decoding="async">
+                      <div id="octo1-front-hotspots" class="octo-front-hotspots" aria-label="Selectable physical front components">
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-1" style="--hotspot-x:11.4%;--hotspot-y:49%" aria-label="Select front fan 1">01</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-2" style="--hotspot-x:27%;--hotspot-y:49%" aria-label="Select front fan 2">02</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-3" style="--hotspot-x:43%;--hotspot-y:49%" aria-label="Select front fan 3">03</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-4" style="--hotspot-x:59%;--hotspot-y:49%" aria-label="Select front fan 4">04</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-5" style="--hotspot-x:75.5%;--hotspot-y:49%" aria-label="Select front fan 5">05</button>
+                        <button type="button" class="octo-hotspot octo-hotspot-panel" data-octo-component="front-panel" style="--hotspot-x:90%;--hotspot-y:51%" aria-label="Select right-side front display and control panel">Display</button>
+                      </div>
+                    </div>
+                    <p id="octo1-chassis-caption" class="octo-chassis-caption">Fan positions and the right-side front panel follow the manufacturer front image. Per-fan controller channels and internal GPU bay positions are not identified by OCTO1 telemetry.</p>
+                  </section>
+                  <div class="octo-live-summary" id="octo1-live-summary" aria-live="polite"><span>GPU inventory <b id="octo1-gpu-count">Unavailable</b></span><span>Inference services <b id="octo1-model-count">Unavailable</b></span><span>Last source observation <b id="octo1-age">Not reported</b></span></div>
+                  <h5 class="octo-group-label">GPU devices <small>select a device for measurements and active service mapping</small></h5>
+                  <div id="octo1-gpu-selectors" class="octo-device-grid" role="group" aria-label="OCTO1 GPU devices"><p class="octo-empty">Authenticated GPU inventory has not been received.</p></div>
+                  <h5 class="octo-group-label">Grace models <small>GPU assignment is derived from the live GPU process projection</small></h5>
+                  <div id="octo1-model-selectors" class="octo-model-grid" role="group" aria-label="OCTO1 Grace inference models"><p class="octo-empty">Inference service state has not been received.</p></div>
+                  <h5 class="octo-group-label">Machine systems <small>select a physical or controller subsystem for verified details</small></h5>
+                  <div id="octo1-system-selectors" class="octo-system-grid" role="group" aria-label="OCTO1 machine systems"><button type="button" data-octo-component="controller" aria-pressed="false"><span>Fan controller</span><small>OCTO1 installation unverified</small></button><button type="button" data-octo-component="thermal" aria-pressed="false"><span>Environmental sensors</span><small>Unavailable</small></button><button type="button" data-octo-component="psu" aria-pressed="false"><span>Power supplies</span><small>Controller feed unavailable</small></button><button type="button" data-octo-component="watchdog" aria-pressed="false"><span>Watchdog</span><small>Controller feed unavailable</small></button></div>
+                  <details class="octo-controller-reference"><summary>Manufacturer controller reference · installation and live readings unverified</summary><div class="octo-controller-reference-grid"><figure><img src="/v2/assets/octominer/smart-watchdog-fan-controller-reference.png" alt="Original manufacturer reference image of a smart watchdog and fan-controller board; not verified as installed in OCTO1" loading="lazy" decoding="async"><figcaption>Manufacturer board illustration. The physical OCTO1 controller identity and placement have not been confirmed.</figcaption></figure><figure><img src="/v2/assets/octominer/controller-feature-reference.png" alt="Original manufacturer controller feature and sensor documentation; it does not establish OCTO1 live telemetry" loading="lazy" decoding="async"><figcaption>Manufacturer capability reference only. It is not a live sensor reading or proof that a feature is connected.</figcaption></figure></div></details>
+                </section>
+                <aside id="octo1-component-detail" class="octo-component-detail" aria-live="polite" aria-labelledby="octo1-detail-title"><p class="eyebrow">SELECTED COMPONENT</p><h4 id="octo1-detail-title">OCTO1 overview</h4><p id="octo1-detail-state">Refresh to load current authorized readings.</p><dl id="octo1-detail-metrics"></dl><p id="octo1-detail-source" class="resource-footnote">All readings are read-only and retain their source timestamp.</p></aside>
+              </div>
+              <section class="octo-activity" aria-labelledby="octo1-activity-title"><div class="octo-machine-view-heading"><div><p class="eyebrow">FIVE-SECOND SOURCE SAMPLES</p><h4 id="octo1-activity-title">Recent hardware activity</h4></div><span id="octo1-poll-state" class="resource-footnote">Auto-refresh runs only while Hardware &amp; AI is open and this tab is visible.</span></div><div id="octo1-activity-list" class="octo-activity-list" aria-live="polite"><p class="octo-empty">No telemetry samples captured in this browser session.</p></div><p class="octo-attribution-note"><strong>Separate observations:</strong> GPU use and active-slot counts are not evidence that a specific Grace request reached or generated on a model. Correlated durable conversation evidence appears below when an authorized Grace conversation is connected.</p></section>
+              <section class="octo-request-trace" aria-labelledby="octo1-request-trace-title"><header class="octo-machine-view-heading"><div><p class="eyebrow">AUTHORIZED · DURABLE CONVERSATION EVENTS</p><h4 id="octo1-request-trace-title">Grace request trace</h4></div><span id="octo1-request-trace-state" class="resource-tag" data-state="not_initialized">NOT AVAILABLE</span></header><div id="octo1-request-trace-list" class="octo-request-trace-list" aria-live="polite"><p class="octo-empty">Open Grace chat to load the current authorized conversation trace.</p></div><p class="octo-attribution-note">This view shows the current signed-in Steward’s selected conversation, request ID, router attempt metadata, and persisted response timestamp. Prompt and response text are excluded. The current llama.cpp API does not provide a correlated server-receipt or prompt/generation timeline; no GPU sample is attributed to a request.</p></section>
+            </section>
             <div class="resource-filters">
               <label>Filter resources<select id="resource-filter"><option value="all">All sources</option><option value="hardware">Hardware metrics</option><option value="inference">Inference services</option><option value="dashboard">Dashboard work fleet</option></select></label>
               <label>Find a metric<input id="resource-search" type="search" maxlength="80" placeholder="Host, metric, or source"></label>
             </div>
-            <div class="resource-grid" id="resource-cards" aria-live="polite"><p id="resource-telemetry-state">Live host telemetry has not been requested.</p></div>
+            <details class="resource-advanced"><summary>Advanced source and fleet diagnostics</summary><div class="resource-grid" id="resource-cards" aria-live="polite"><p id="resource-telemetry-state">Live host telemetry has not been requested.</p></div>
             <section class="resource-hosts" aria-labelledby="resource-hosts-heading">
               <div class="resource-card-top"><div><p class="eyebrow">VERIFIED SOURCE IDENTITIES</p><h3 id="resource-hosts-heading">Host status</h3></div><span class="resource-tag unavailable">HARDWARE FEED UNAVAILABLE</span></div>
               <div class="resource-grid" id="resource-host-cards" aria-live="polite"><p>Host status has not been requested.</p></div>
@@ -92,6 +133,7 @@ History: Git and revision/backup manifest
               <div class="resource-summary-grid"><div><span>Workers</span><strong id="resource-worker-summary">Unavailable</strong><small>Latest assignment-lease heartbeat health</small></div><div><span>Institutional assignments</span><strong id="resource-assignment-summary">Unavailable</strong><small>Persisted assignment states; not model jobs</small></div><div><span>CME monitor</span><strong id="resource-cme-summary">Unavailable</strong><small>Existing Dashboard projection only</small></div><div><span>Grace execution</span><strong id="resource-grace-summary">Unavailable</strong><small>Existing Dashboard projection only</small></div></div>
               <details id="resource-diagnostics"><summary>Source diagnostics</summary><p>Dashboard source: <span id="resource-diagnostic-source">not checked</span></p><p>Projection freshness: <span id="resource-diagnostic-freshness">not checked</span></p><p>Last checked: <span id="resource-diagnostic-checked">not checked</span></p><p>Failure class: <span id="resource-diagnostic-error">none</span></p><small>No credentials, response bodies, assignment IDs, or private model payloads are shown in diagnostics.</small></details>
             </section>
+            </details>
             <p class="resource-footnote">Measured/live values require a timestamped authorized source. Stale and unavailable values remain distinct. This view does not power, restart, schedule, or invoke any model or host.</p>
           </section>
           <section class="grace-workspace" id="grace-workspace" aria-labelledby="grace-workspace-heading" hidden>

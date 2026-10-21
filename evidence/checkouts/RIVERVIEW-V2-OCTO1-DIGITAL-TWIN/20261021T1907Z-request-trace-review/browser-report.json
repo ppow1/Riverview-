@@ -1,0 +1,44 @@
+{
+  "browser": "Chrome/155.0.8059.84",
+  "source": "isolated local HTTPS browser fixture; synthetic telemetry is explicitly labeled in screenshot",
+  "checks": {
+    "url": "/v2/",
+    "resourceVisible": true,
+    "overviewIntroHidden": true,
+    "authenticatedFetches": [
+      "/api/v1/auth/session",
+      "/api/v1/resident/conversation-session",
+      "/api/v1/resident/conversations",
+      "/api/v1/resident/conversations/fixture-conversation",
+      "/api/v1/auth/session",
+      "/api/v1/resident/conversations/fixture-conversation",
+      "/api/v1/status",
+      "/api/v1/resources/telemetry"
+    ],
+    "machineTitle": "OCTO1\nOctoMiner X12 Ultra",
+    "gpuCount": 6,
+    "modelCount": 2,
+    "serviceMap": "Grace reasoning 80B\nPROCESSING · ACTIVE SLOT\nGPU 0, 3, 4, 5\nGrace vision 30B\nREADY · IDLE\nGPU 1",
+    "referenceNotice": "Manufacturer chassis references required\nThe Steward’s front-panel, open-chassis, controller-board, and dashboard reference images are not in this checkout. This view does not invent chassis geometry or component positions.",
+    "timeline": "2026-10-21T19:07:34.788Z · UTC\n6 GPU readings\n\nGPU 0: 17% · 48°C · GPU fan Unavailable | GPU 1: 0% · 37°C · GPU fan 50% | GPU 2: 0% · 35°C · GPU fan 50% | GPU 3: 21% · 35°C · GPU fan Unavailable | GPU 4: 21% · 35°C · GPU fan Unavailable | GPU 5: 33% · 35°C · GPU fan Unavailable\n\ngrace-reasoning-80b: PROCESSING · ACTIVE SLOT · slots 1 | grace-vision-30b: READY · IDLE · slots 0",
+    "attributionNotice": "Separate observations: GPU use and active-slot counts are not evidence that a specific Grace request reached or generated on a model. Correlated durable conversation evidence appears below when an authorized Grace conversation is connected.",
+    "tracePanel": "fixture-request-trace-001\nCOMPLETED\nRequest created\n2026-10-21T19:07:34.788Z · UTC\nAttempt 1 · 80B reasoning\nlocal.inference.v1 · succeeded\nClient call window\n2026-10-21T19:07:34.788Z · UTC → 2026-10-21T19:07:34.788Z · UTC · 19,000 ms\nResponse persisted\n2026-10-21T19:07:34.788Z · UTC\nRouted stage\n80B reasoning\nReturned token counts\n91 prompt · 23 completion\nFinish reason\nstop",
+    "traceState": "AVAILABLE",
+    "noDirectHostUrls": true,
+    "noControls": true,
+    "selectedModel": "Grace reasoning 80B",
+    "selectedModelAllocation": "Loaded model\nQwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf\nService readiness\nready\nGPU allocation\nGPU 0, 3, 4, 5 · current service process mapping\nActive slots\n1 / 1\nQueued requests\nUnavailable · not exposed by current server\nPrompt vs generation phase\nUnavailable · current /slots projection reports occupancy only\nObservation\n2026-10-21T19:07:34.788Z · UTC"
+  },
+  "narrow_layout": {
+    "width": 375,
+    "viewport": 390,
+    "consoleWidth": 341,
+    "buttons": 6,
+    "modelDetailVisible": true
+  },
+  "screenshots": [
+    "/home/admin1/projects/Riverview-Octo1-Digital-Twin/evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T1907Z-request-trace-review/octo1-console-desktop-fixture.png",
+    "/home/admin1/projects/Riverview-Octo1-Digital-Twin/evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T1907Z-request-trace-review/octo1-rtx4090-detail-fixture.png"
+  ],
+  "browser_errors": []
+}

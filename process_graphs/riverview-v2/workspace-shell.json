@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.16",
+  "graph_revision": "1.0.19",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -21,7 +21,11 @@
     "website/v2/assets/work-monitor.js",
     "website/v2/assets/workspace.css",
     "website/v2/assets/workspace.js",
-    "website/v2/index.html"
+    "website/v2/index.html",
+    "scripts/verify_v2_octo1_browser.cjs",
+    "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
+    "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
+    "website/v2/assets/octominer/controller-feature-reference.png"
   ],
   "documentation_references": [
     "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
@@ -38,7 +42,8 @@
     "scripts/verify_v2_workspace_snapshot_chrome.py",
     "scripts/verify_v2_grace_chat_chrome.py",
     "scripts/verify_v2_resource_monitor.cjs",
-    "scripts/verify_v2_work_monitor.cjs"
+    "scripts/verify_v2_work_monitor.cjs",
+    "scripts/verify_v2_octo1_browser.cjs"
   ],
   "nodes": [
     {
@@ -1138,6 +1143,236 @@
         "scripts/verify_v2_resource_monitor.cjs",
         "tests/test_v2_workspace_shell.py"
       ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Join allowlisted GPU service labels to live model endpoint projections; never infer physical slot positions",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-select-details",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Selecting a GPU, model, or chassis category reveals source-backed detail and explicit unavailable fields",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Resources selected and document visible? Start a five-second telemetry refresh only in this state",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples; retain at most twelve in browser memory",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-poll-pause",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Stop the polling timer when Resources closes or the browser tab is hidden",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-controller-unavailable",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Keep OCTO1 chassis fan, sensor, PSU, and watchdog readings unavailable until an OCTO1 source is verified",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-request-attribution-unavailable",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "Keep model-server receipt, generation phase, and GPU-to-request attribution unavailable until server-side correlation is exposed",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Read the current authorized Grace conversation and show request ID, provider call window, outcome, and durable response time without message content",
+      "source_references": [
+        "website/v2/assets/grace-chat.js",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render original X12 Ultra manufacturer front/open-chassis reference as read-only geometry",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.css",
+        "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-front-hotspots",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Select manufacturer-view fan visual positions or front panel; channel values stay unavailable",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Switch to open-chassis reference without asserting live GPU bay positions",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-dynamic-model-highlights",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Highlight GPUs from current process-to-device telemetry when an 80B or 30B model is selected",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-device-bay-unavailable",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Keep physical GPU bay and controller mappings unavailable unless OCTO1 source evidence verifies them",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
     }
   ],
   "edges": [
@@ -1723,6 +1958,96 @@
       "to": "rv:riverview-v2:workspace-shell:resource-snapshot-redaction",
       "type": "runtime_transition",
       "label": "Snapshot records only safe availability metadata"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "type": "runtime_transition",
+      "label": "Build the interactive OCTO1 view from current GPU and model source projections"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-select-details",
+      "type": "runtime_transition",
+      "label": "Steward selects a logical device/model/system; no chassis position is assigned"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-controller-unavailable",
+      "type": "runtime_transition",
+      "label": "Controller-only fields remain unavailable because no OCTO1 projection exists"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "type": "runtime_transition",
+      "label": "When current Grace conversation authorization is active, read durable lifecycle metadata without message content"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "to": "rv:riverview-v2:workspace-shell:octo1-request-attribution-unavailable",
+      "type": "runtime_transition",
+      "label": "Show persisted app-side attempts; leave model-server receipt, generation timing, and GPU correlation unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "type": "runtime_transition",
+      "label": "While the Resources view is open, evaluate view and document visibility"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "type": "runtime_transition",
+      "label": "Resources selected and tab visible; request a fresh authenticated projection at five-second cadence"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "to": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "type": "runtime_transition",
+      "label": "Render new measured values, states, timestamps, and timeline sample"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-pause",
+      "type": "diagnostic_branch",
+      "label": "View is closed or document hidden; do not schedule another sample"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-pause",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "type": "recovery_route",
+      "label": "Resources reopens or tab becomes visible; request a fresh observation"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "type": "runtime_transition",
+      "label": "Render the original X12 Ultra manufacturer geometry with read-only component selectors"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "to": "rv:riverview-v2:workspace-shell:octo1-front-hotspots",
+      "type": "runtime_transition",
+      "label": "Select front-view fan visual indexes or the right-side panel"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "to": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "type": "runtime_transition",
+      "label": "Switch to the manufacturer open-chassis reference"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "to": "rv:riverview-v2:workspace-shell:octo1-device-bay-unavailable",
+      "type": "runtime_transition",
+      "label": "Explain that live device IDs have no verified physical riser mapping"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-select-details",
+      "to": "rv:riverview-v2:workspace-shell:octo1-dynamic-model-highlights",
+      "type": "runtime_transition",
+      "label": "Highlight only current telemetry-derived GPU/model associations"
     }
   ]
 }

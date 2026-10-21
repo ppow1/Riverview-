@@ -1,0 +1,148 @@
+{
+  "captured_at": "2026-10-21T17:35:24.871Z",
+  "gpu_host": "OCTOMINER1",
+  "gpu_source": "restricted collector executed read-only over verified SSH",
+  "gpu_observation": {
+    "devices": [
+      {
+        "active_services": [
+          "grace-reasoning-80b"
+        ],
+        "fan_percent": null,
+        "index": 0,
+        "memory_total_bytes": 17179869184,
+        "memory_used_bytes": 13931380736,
+        "name": "Tesla P100-PCIE-16GB",
+        "power_watts": 65.05,
+        "temperature_celsius": 48,
+        "utilization_percent": 17
+      },
+      {
+        "active_services": [
+          "grace-vision-30b"
+        ],
+        "fan_percent": 50,
+        "index": 1,
+        "memory_total_bytes": 25757220864,
+        "memory_used_bytes": 17447256064,
+        "name": "NVIDIA GeForce RTX 4090",
+        "power_watts": 36.18,
+        "temperature_celsius": 37,
+        "utilization_percent": 0
+      },
+      {
+        "active_services": [],
+        "fan_percent": 50,
+        "index": 2,
+        "memory_total_bytes": 8589934592,
+        "memory_used_bytes": 12582912,
+        "name": "NVIDIA GeForce RTX 3060 Ti",
+        "power_watts": 29.9,
+        "temperature_celsius": 35,
+        "utilization_percent": 0
+      },
+      {
+        "active_services": [
+          "grace-reasoning-80b"
+        ],
+        "fan_percent": null,
+        "index": 3,
+        "memory_total_bytes": 17179869184,
+        "memory_used_bytes": 12442402816,
+        "name": "Tesla P100-PCIE-16GB",
+        "power_watts": 59.41,
+        "temperature_celsius": 46,
+        "utilization_percent": 21
+      },
+      {
+        "active_services": [
+          "grace-reasoning-80b"
+        ],
+        "fan_percent": null,
+        "index": 4,
+        "memory_total_bytes": 17179869184,
+        "memory_used_bytes": 12442402816,
+        "name": "Tesla P100-PCIE-16GB",
+        "power_watts": 61.89,
+        "temperature_celsius": 44,
+        "utilization_percent": 21
+      },
+      {
+        "active_services": [
+          "grace-reasoning-80b"
+        ],
+        "fan_percent": null,
+        "index": 5,
+        "memory_total_bytes": 17179869184,
+        "memory_used_bytes": 12320768000,
+        "name": "Tesla P100-PCIE-16GB",
+        "power_watts": 87.82,
+        "temperature_celsius": 55,
+        "utilization_percent": 33
+      }
+    ],
+    "observed_at": "2026-10-21T17:35:24.737Z",
+    "schema_version": "rv.gpu-host-telemetry.v1"
+  },
+  "inference_sources": [
+    {
+      "host_id": "camrui",
+      "service_id": "grace-autonomic-0.6b",
+      "endpoint_id": "18796",
+      "observed_at": "2026-10-21T17:35:24.777Z",
+      "health_http": 200,
+      "health_status": "ok",
+      "models_http": 200,
+      "loaded_models": [
+        "qwen3-0.6b-q8_0-local"
+      ],
+      "slots_http": 200,
+      "active_slots": 0,
+      "slot_total": 1,
+      "queue_depth": null,
+      "queue_state": "unavailable",
+      "metrics_http": 501
+    },
+    {
+      "host_id": "octominer1",
+      "service_id": "grace-reasoning-80b",
+      "endpoint_id": "8080",
+      "observed_at": "2026-10-21T17:35:24.857Z",
+      "health_http": 200,
+      "health_status": "ok",
+      "models_http": 200,
+      "loaded_models": [
+        "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf"
+      ],
+      "slots_http": 200,
+      "active_slots": 1,
+      "slot_total": 1,
+      "queue_depth": null,
+      "queue_state": "unavailable",
+      "metrics_http": 501
+    },
+    {
+      "host_id": "octominer1",
+      "service_id": "grace-vision-30b",
+      "endpoint_id": "18080",
+      "observed_at": "2026-10-21T17:35:24.864Z",
+      "health_http": 200,
+      "health_status": "ok",
+      "models_http": 200,
+      "loaded_models": [
+        "Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf"
+      ],
+      "slots_http": 200,
+      "active_slots": 0,
+      "slot_total": 8,
+      "queue_depth": null,
+      "queue_state": "unavailable",
+      "metrics_http": 501
+    }
+  ],
+  "other_known_host": {
+    "host_id": "octominer2",
+    "state": "unverified_unavailable",
+    "note": "Not configured as a provider; current host identity/telemetry not verified."
+  }
+}
