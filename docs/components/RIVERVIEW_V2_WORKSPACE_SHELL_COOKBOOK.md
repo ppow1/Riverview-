@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.19
+File Revision: 1.0.20
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated live GPU/model reads and source gaps.
@@ -10,6 +10,7 @@ Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Record Work release, p
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Document five-second OCTO1 polling, dynamic mapping, and missing physical/tracing sources
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Clarify isolated desktop screenshot and historical controller references
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Document authenticated conversation traces and exact model-server evidence gap
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Record artwork provenance, interaction checks, mobile fix, and physical mapping limits
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -216,7 +217,29 @@ node scripts/verify_v2_octo1_browser.cjs --evidence-dir <checkout-evidence-dir>
 
 The Chrome test launches an ephemeral loopback HTTPS fixture, injects clearly synthetic telemetry, captures a desktop screenshot with a visible fixture watermark, and checks a narrow viewport for horizontal overflow. It does not contact Camrui, OCTO1, production APIs, or any Steward account. The screenshot is visual evidence for the data-driven console only; it cannot qualify the missing manufacturer chassis drawing or prove live telemetry. To inspect live measurements, use the authorized V2 browser session and compare observation timestamps and GPU/model values with the originating Dashboard source evidence. Do not call OctoFan control commands during this read-only task.
 
-**Physical-reference dependency:** the Steward identifies `octominer-digital-twin-reference-artwork.zip` as containing the four original references, but that ZIP and the listed source PNGs are not present in this Linux execution workspace or its mounted downloads directories. The checkout has no Windows Downloads mount. Keep physical geometry and component positions unrendered until those exact assets are transferred here. Use the manufacturer images as-is; the earlier dashboard image is a style reference only. Do not draw replacement artwork or treat OCTO2 controller layouts as OCTO1 evidence.
+#### Manufacturer chassis reference and interactive acceptance
+
+The supplied manufacturer references are included byte-for-byte under `website/v2/assets/octominer/`. `image(20261020-202004).png` is the original front/open-chassis sheet; `image(20261020-202057).png` and `image(20261020-202124).png` are controller/feature references. The original dashboard concept remains a visual reference only and is not a chassis drawing. Asset source/copy hashes and sizes are recorded in `.riverview-revisions.json`.
+
+In the authenticated Hardware & AI view:
+
+1. Confirm **Front panel** shows the manufacturer five-fan geometry and right-side front panel. The selectable fan numbers are visual positions only.
+2. Choose **Open-chassis reference** and verify that the original manufacturer sheet loads. The caption must say live GPU IDs are not matched to physical riser bays; do not expect bay overlays.
+3. Select the 80B model and verify only GPUs in the live `active_services` mapping are highlighted. Select the 30B model / mapped RTX 4090 to verify the corresponding dynamic mapping.
+4. Select a front fan and confirm that RPM, PWM, target, and controller channel remain unavailable unless a verified OCTO1 feed is later connected.
+5. Check controller, thermal sensors, PSU, and watchdog details. The controller art is reference material only and must not imply OCTO1 installation or readings.
+6. Verify a 390 CSS-pixel browser viewport has no horizontal overflow.
+
+Focused checks:
+
+```sh
+node --check scripts/verify_v2_resource_monitor.cjs
+node scripts/verify_v2_resource_monitor.cjs
+node --check scripts/verify_v2_octo1_browser.cjs
+node scripts/verify_v2_octo1_browser.cjs --evidence-dir <checkout-evidence-dir>
+```
+
+The Chrome runner creates a disposable local HTTPS page, injects synthetic Dashboard-shaped telemetry, and overlays a visible synthetic-data banner on every screenshot. It captures front view, fan selection, open view, 80B mapping, and RTX 4090 details, then checks narrow-layout overflow and browser errors. This verifies presentation and selector behavior only; it does not contact Camrui/OCTO1 or prove live values. No controller channel or device-to-bay mapping is claimed.
 
 The reviewed historical references were `RIVERVIEW_OCTO_CONTROL_FEATURES_AND_API_2026-09-14.md`, `OCTO2_FAN_WATCHDOG_REBOOT_FORENSICS_2026-09-22.md`, and `OCTOMINER_REMOTE_POWER_AND_WOL.md` in `ppow1/Riverview`. Their OctoFan fan/PSU/sensor/watchdog API records are tied to OCTO2's host and controller and do not establish OCTO1 channel or physical-component mappings.
 

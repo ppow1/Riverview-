@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.18",
+  "graph_revision": "1.0.19",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -22,7 +22,10 @@
     "website/v2/assets/workspace.css",
     "website/v2/assets/workspace.js",
     "website/v2/index.html",
-    "scripts/verify_v2_octo1_browser.cjs"
+    "scripts/verify_v2_octo1_browser.cjs",
+    "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
+    "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
+    "website/v2/assets/octominer/controller-feature-reference.png"
   ],
   "documentation_references": [
     "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
@@ -1277,6 +1280,99 @@
         "scripts/verify_v2_resource_monitor.cjs",
         "scripts/verify_v2_octo1_browser.cjs"
       ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render original X12 Ultra manufacturer front/open-chassis reference as read-only geometry",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.css",
+        "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-front-hotspots",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Select manufacturer-view fan visual positions or front panel; channel values stay unavailable",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Switch to open-chassis reference without asserting live GPU bay positions",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-dynamic-model-highlights",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Highlight GPUs from current process-to-device telemetry when an 80B or 30B model is selected",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-device-bay-unavailable",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Keep physical GPU bay and controller mappings unavailable unless OCTO1 source evidence verifies them",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
     }
   ],
   "edges": [
@@ -1922,6 +2018,36 @@
       "to": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
       "type": "recovery_route",
       "label": "Resources reopens or tab becomes visible; request a fresh observation"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "type": "runtime_transition",
+      "label": "Render the original X12 Ultra manufacturer geometry with read-only component selectors"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "to": "rv:riverview-v2:workspace-shell:octo1-front-hotspots",
+      "type": "runtime_transition",
+      "label": "Select front-view fan visual indexes or the right-side panel"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "to": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "type": "runtime_transition",
+      "label": "Switch to the manufacturer open-chassis reference"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "to": "rv:riverview-v2:workspace-shell:octo1-device-bay-unavailable",
+      "type": "runtime_transition",
+      "label": "Explain that live device IDs have no verified physical riser mapping"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-select-details",
+      "to": "rv:riverview-v2:workspace-shell:octo1-dynamic-model-highlights",
+      "type": "runtime_transition",
+      "label": "Highlight only current telemetry-derived GPU/model associations"
     }
   ]
 }

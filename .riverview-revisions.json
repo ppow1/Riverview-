@@ -1,7 +1,7 @@
 {
   "files": {
     ".riverview-revisions.json": {
-      "revision": "1.1.109"
+      "revision": "1.1.112"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -29,15 +29,15 @@
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
-      "revision": "1.0.26",
-      "sha256": "fec9e4d1d5a26e4d63f64f6afcef09549742012e5e39fe0545befcf19f9f52cb",
-      "size_bytes": 45436
+      "revision": "1.0.27",
+      "sha256": "f69594ca37af70ebd9c0e79dc83b6cf7ceb9f7391201471b06f78dae706fd938",
+      "size_bytes": 46465
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
-      "revision": "1.0.19",
-      "sha256": "60097a2390eceace55253233795018665088728b19ec411a1a00cc638c18f131",
-      "size_bytes": 38377
+      "revision": "1.0.20",
+      "sha256": "a2bca4dfe3b92bea06b2ff7e3489eeea31d71bb61f24c9f6db78dfeab92bc4aa",
+      "size_bytes": 40111
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
@@ -269,9 +269,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.58",
-      "sha256": "c37b5e085deb14e353b7a61ce8a19a8e7d54c338d9fbadb81a9d9aa7c4c05ca4",
-      "size_bytes": 332479
+      "revision": "1.0.59",
+      "sha256": "2507fd02e29bd9088a3c097d5d4e4d97f3439445da8f7ec148d53b75bb7d45cc",
+      "size_bytes": 338539
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
@@ -311,9 +311,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.18",
-      "sha256": "d9acfbe73d773e8ce3aa355bbcab345c00e9c9b3290f954fde83aad4d0e4ce86",
-      "size_bytes": 72939
+      "revision": "1.0.19",
+      "sha256": "caa6885314654a58cfdbd9e81513d10f83c35a61adab68c58d1a9ab476374e82",
+      "size_bytes": 78171
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -341,15 +341,15 @@
     },
     "scripts/verify_v2_octo1_browser.cjs": {
       "path": "scripts/verify_v2_octo1_browser.cjs",
-      "revision": "1.0.7",
-      "sha256": "36f67c34a0a60d8779d30a9c2e038544a0d8100ee31ef75a72a04b07da162344",
-      "size_bytes": 16693
+      "revision": "1.0.9",
+      "sha256": "11e4bc24efa135fb47a20985abfede520a5df77e3c05ccd7b6fc58e89d32f2d4",
+      "size_bytes": 19656
     },
     "scripts/verify_v2_resource_monitor.cjs": {
       "path": "scripts/verify_v2_resource_monitor.cjs",
-      "revision": "1.2.2",
-      "sha256": "3c18821c3e45a144405192a1ecfd04085dc23616558f4ffb4a47fe6f02d3ce3c",
-      "size_bytes": 11409
+      "revision": "1.2.3",
+      "sha256": "521473a708cdf9735223d12ee42513a9cfe4465117f087b320dbd8cfba97b20b",
+      "size_bytes": 13659
     },
     "scripts/verify_v2_work_monitor.cjs": {
       "path": "scripts/verify_v2_work_monitor.cjs",
@@ -389,21 +389,21 @@
     },
     "tests/test_v2_workspace_shell.py": {
       "path": "tests/test_v2_workspace_shell.py",
-      "revision": "1.0.20",
-      "sha256": "f9d409b1eb019b581cfca84295b64d759c1fd7c029308a6e5a2278d7ffe67d60",
-      "size_bytes": 28807
+      "revision": "1.0.21",
+      "sha256": "40a31b016bcfc3d67b4d32f0267be3a269a5983e90909d7e24e6e566c7bad53f",
+      "size_bytes": 29795
     },
     "website/v2/assets/resource-monitor.css": {
       "path": "website/v2/assets/resource-monitor.css",
-      "revision": "1.1.1",
-      "sha256": "93bdee30feca59bb7a78c96346fbe8c6ebf89c4aa6b4c66e802ff6e9cd253c5c",
-      "size_bytes": 13766
+      "revision": "1.1.3",
+      "sha256": "5a9d8f909e5949cb40672113ac4c244a1fc6e9e8ccf354ba2d273f623b5a5640",
+      "size_bytes": 17620
     },
     "website/v2/assets/resource-monitor.js": {
       "path": "website/v2/assets/resource-monitor.js",
-      "revision": "1.2.1",
-      "sha256": "a1bb5de2c89d8e8eeba340e2034796fe990f5fced2cd88d9dbad7b78318fc653",
-      "size_bytes": 32776
+      "revision": "1.2.2",
+      "sha256": "543e592fd09906134f5ab97daae5df32c919a185c46209a1611680e32f245294",
+      "size_bytes": 36991
     },
     "website/v2/assets/snapshot.js": {
       "path": "website/v2/assets/snapshot.js",
@@ -431,16 +431,97 @@
     },
     "website/v2/index.html": {
       "path": "website/v2/index.html",
-      "revision": "1.0.13",
-      "sha256": "7b9c6660a7dfe83355b0612a27c89c27a43f5f6de8a797ce430c5e1491c4a760",
-      "size_bytes": 28564
+      "revision": "1.0.14",
+      "sha256": "fe859413f8d73b70bff877ee0af0255fa99de5f867fe7fa99ee7eaf2db35ba53",
+      "size_bytes": 32072
     },
     "website/v2/assets/grace-chat.js": {
       "path": "website/v2/assets/grace-chat.js",
       "revision": "1.0.5",
       "sha256": "732b062fea714bf70d2f1a0d325650140735fe5710777c6b9fbe2fd36d456a0e",
       "size_bytes": 17235
+    },
+    "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png": {
+      "path": "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
+      "revision": "1.0.0",
+      "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
+      "size_bytes": 2008940,
+      "original_filename": "image(20261020-202004).png",
+      "original_sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
+      "copy_verified_byte_identical": true
+    },
+    "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png": {
+      "path": "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
+      "revision": "1.0.0",
+      "sha256": "d8e243a5fae87fd7d969033dc6b00476d3b5c5892852ac42b552441dac535299",
+      "size_bytes": 1612974,
+      "original_filename": "image(20261020-202057).png",
+      "original_sha256": "d8e243a5fae87fd7d969033dc6b00476d3b5c5892852ac42b552441dac535299",
+      "copy_verified_byte_identical": true
+    },
+    "website/v2/assets/octominer/controller-feature-reference.png": {
+      "path": "website/v2/assets/octominer/controller-feature-reference.png",
+      "revision": "1.0.0",
+      "sha256": "1bb72f98c40228ef9ccaa35133e16adeac6e5c639da3ab82f54b35a2882177dc",
+      "size_bytes": 739048,
+      "original_filename": "image(20261020-202124).png",
+      "original_sha256": "1bb72f98c40228ef9ccaa35133e16adeac6e5c639da3ab82f54b35a2882177dc",
+      "copy_verified_byte_identical": true
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/artifacts.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/artifacts.json",
+      "revision": "1.0.1",
+      "sha256": "f79ed285fd34cf5c1dde164f3d8f36e69ae7f78bd91f0d7e4fd08a59d6a189db",
+      "size_bytes": 1906
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/browser-report.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "66f7502420287e71b3c761b4c36cf0dc6e78da22abfb7c11be233018b6dc3e4a",
+      "size_bytes": 6236
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-80b-allocation-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-80b-allocation-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1dc9bc43a60ed3bbea4aeb1b8ea4f777d97e7a6126782e6a9ad72398958d0d1f",
+      "size_bytes": 413813
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-chassis-front-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-chassis-front-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "27d934fea952f7dc003633942cc855b7550f1e42555fb12419a817a2ff863e15",
+      "size_bytes": 409512
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-chassis-open-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-chassis-open-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "053638c11f63a0b74c1da941b207b4e654a4d2cc797d1264190844cd6501789c",
+      "size_bytes": 471783
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-front-fan-detail-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-front-fan-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1195b82c4f67d928b83113987fadd85489f0fceb149a493c4a4d3f3522ecedfd",
+      "size_bytes": 410922
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-rtx4090-detail-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-rtx4090-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "41bd42f60edf36509974bb149900db80672d41836d3128240c34e862354cb5c6",
+      "size_bytes": 413798
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/review-evidence.md": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/review-evidence.md",
+      "revision": "1.0.1",
+      "sha256": "c0253db59426e560e47354b7d9661048a82d8fd47ffb1a3070876710d98de660",
+      "size_bytes": 1842
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/test-results.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/test-results.json",
+      "revision": "1.0.0",
+      "sha256": "b21b76a225feac76435f7726aaf741aa2fdc32e8d3a238aff453a2392edfa696",
+      "size_bytes": 3208
     }
   },
-  "manifest_revision": "1.1.109"
+  "manifest_revision": "1.1.112"
 }

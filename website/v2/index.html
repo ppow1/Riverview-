@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: website/v2/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.13
+File Revision: 1.0.14
 Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
 Execution Model: Interactive browser presentation; request-driven Dashboard API calls
 Observability: Live conversation state from rv.resident.conversation.v1; Comms5 stays unverified
@@ -12,6 +12,7 @@ Authority: Account session plus server-checked resident.conversation.read/send g
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Render live hardware and model projections in the existing monitor.
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Add interactive OCTO1 live component console and activity timeline.
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Add a bounded durable Grace request trace to OCTO1 activity.
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Use original manufacturer chassis artwork with physical front fan hotspots and dynamic telemetry selectors.
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Connect existing Work view to authenticated read-only objective and assignment status
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
@@ -82,15 +83,34 @@ History: Git and revision/backup manifest
               <header class="octo-console-heading"><div><p class="eyebrow">LIVE MACHINE · READ ONLY</p><h3 id="octo1-title">OCTO1 <span>OctoMiner X12 Ultra</span></h3><p id="octo1-observed" class="resource-observed">Waiting for authenticated host telemetry.</p></div><span id="octo1-machine-state" class="resource-tag" data-state="not_initialized">NOT CHECKED</span></header>
               <div class="octo-console-layout">
                 <section class="octo-machine-view" aria-labelledby="octo1-surface-title">
-                  <div class="octo-machine-view-heading"><div><p class="eyebrow">MACHINE SURFACE</p><h4 id="octo1-surface-title">Hardware and model topology</h4></div><span class="octo-view-note">GPU indexes are device identifiers, not physical slot positions.</span></div>
-                  <div id="octo1-reference-dependency" class="octo-reference-dependency" role="note"><strong>Manufacturer chassis references required</strong><span>The Steward’s front-panel, open-chassis, controller-board, and dashboard reference images are not in this checkout. This view does not invent chassis geometry or component positions.</span></div>
+                  <div class="octo-machine-view-heading"><div><p class="eyebrow">MANUFACTURER CHASSIS · READ ONLY</p><h4 id="octo1-surface-title">OctoMiner X12 Ultra</h4></div><span class="octo-view-note">GPU device IDs are not mapped to physical bays.</span></div>
+                  <section class="octo-chassis" aria-label="Interactive manufacturer chassis reference">
+                    <div class="octo-chassis-toolbar" role="group" aria-label="Chassis reference view">
+                      <button type="button" data-octo-artwork-view="front" aria-pressed="true">Front panel</button>
+                      <button type="button" data-octo-artwork-view="open" aria-pressed="false">Open-chassis reference</button>
+                      <span id="octo-chassis-view-note">Manufacturer front view · five physical intake fans</span>
+                    </div>
+                    <div class="octo-chassis-stage" id="octo1-chassis-stage" data-artwork-view="front">
+                      <img id="octo1-chassis-artwork" src="/v2/assets/octominer/x12ultra-front-open-chassis-reference.png" alt="Original OctoMiner X12 Ultra manufacturer artwork showing the front face with five evenly spaced fans and the right-side display and controls. The open chassis view is available by selecting Open-chassis reference." loading="lazy" decoding="async">
+                      <div id="octo1-front-hotspots" class="octo-front-hotspots" aria-label="Selectable physical front components">
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-1" style="--hotspot-x:11.4%;--hotspot-y:49%" aria-label="Select front fan 1">01</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-2" style="--hotspot-x:27%;--hotspot-y:49%" aria-label="Select front fan 2">02</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-3" style="--hotspot-x:43%;--hotspot-y:49%" aria-label="Select front fan 3">03</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-4" style="--hotspot-x:59%;--hotspot-y:49%" aria-label="Select front fan 4">04</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-5" style="--hotspot-x:75.5%;--hotspot-y:49%" aria-label="Select front fan 5">05</button>
+                        <button type="button" class="octo-hotspot octo-hotspot-panel" data-octo-component="front-panel" style="--hotspot-x:90%;--hotspot-y:51%" aria-label="Select right-side front display and control panel">Display</button>
+                      </div>
+                    </div>
+                    <p id="octo1-chassis-caption" class="octo-chassis-caption">Fan positions and the right-side front panel follow the manufacturer front image. Per-fan controller channels and internal GPU bay positions are not identified by OCTO1 telemetry.</p>
+                  </section>
                   <div class="octo-live-summary" id="octo1-live-summary" aria-live="polite"><span>GPU inventory <b id="octo1-gpu-count">Unavailable</b></span><span>Inference services <b id="octo1-model-count">Unavailable</b></span><span>Last source observation <b id="octo1-age">Not reported</b></span></div>
                   <h5 class="octo-group-label">GPU devices <small>select a device for measurements and active service mapping</small></h5>
                   <div id="octo1-gpu-selectors" class="octo-device-grid" role="group" aria-label="OCTO1 GPU devices"><p class="octo-empty">Authenticated GPU inventory has not been received.</p></div>
                   <h5 class="octo-group-label">Grace models <small>GPU assignment is derived from the live GPU process projection</small></h5>
                   <div id="octo1-model-selectors" class="octo-model-grid" role="group" aria-label="OCTO1 Grace inference models"><p class="octo-empty">Inference service state has not been received.</p></div>
-                  <h5 class="octo-group-label">Chassis systems <small>actual controller feeds only</small></h5>
-                  <div id="octo1-system-selectors" class="octo-system-grid" role="group" aria-label="OCTO1 chassis systems"><button type="button" data-octo-component="chassis-fans" aria-pressed="false"><span>Chassis fans</span><small>RPM / PWM unavailable</small></button><button type="button" data-octo-component="thermal" aria-pressed="false"><span>Thermal sensors</span><small>Unavailable</small></button><button type="button" data-octo-component="psu" aria-pressed="false"><span>Power supplies</span><small>Controller feed unavailable</small></button><button type="button" data-octo-component="watchdog" aria-pressed="false"><span>Watchdog</span><small>Controller feed unavailable</small></button></div>
+                  <h5 class="octo-group-label">Machine systems <small>select a physical or controller subsystem for verified details</small></h5>
+                  <div id="octo1-system-selectors" class="octo-system-grid" role="group" aria-label="OCTO1 machine systems"><button type="button" data-octo-component="controller" aria-pressed="false"><span>Fan controller</span><small>OCTO1 installation unverified</small></button><button type="button" data-octo-component="thermal" aria-pressed="false"><span>Environmental sensors</span><small>Unavailable</small></button><button type="button" data-octo-component="psu" aria-pressed="false"><span>Power supplies</span><small>Controller feed unavailable</small></button><button type="button" data-octo-component="watchdog" aria-pressed="false"><span>Watchdog</span><small>Controller feed unavailable</small></button></div>
+                  <details class="octo-controller-reference"><summary>Manufacturer controller reference · installation and live readings unverified</summary><div class="octo-controller-reference-grid"><figure><img src="/v2/assets/octominer/smart-watchdog-fan-controller-reference.png" alt="Original manufacturer reference image of a smart watchdog and fan-controller board; not verified as installed in OCTO1" loading="lazy" decoding="async"><figcaption>Manufacturer board illustration. The physical OCTO1 controller identity and placement have not been confirmed.</figcaption></figure><figure><img src="/v2/assets/octominer/controller-feature-reference.png" alt="Original manufacturer controller feature and sensor documentation; it does not establish OCTO1 live telemetry" loading="lazy" decoding="async"><figcaption>Manufacturer capability reference only. It is not a live sensor reading or proof that a feature is connected.</figcaption></figure></div></details>
                 </section>
                 <aside id="octo1-component-detail" class="octo-component-detail" aria-live="polite" aria-labelledby="octo1-detail-title"><p class="eyebrow">SELECTED COMPONENT</p><h4 id="octo1-detail-title">OCTO1 overview</h4><p id="octo1-detail-state">Refresh to load current authorized readings.</p><dl id="octo1-detail-metrics"></dl><p id="octo1-detail-source" class="resource-footnote">All readings are read-only and retain their source timestamp.</p></aside>
               </div>

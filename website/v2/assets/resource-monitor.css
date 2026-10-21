@@ -2,14 +2,16 @@
 Riverview~ Controlled Source
 File: website/v2/assets/resource-monitor.css
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.1.1
-Purpose: Style the OCTO1 telemetry console and content-free Grace request trace
+Revision: 1.1.3
+Purpose: Style the OCTO1 manufacturer chassis view, telemetry console, and content-free Grace request trace
 Execution Model: Static browser presentation
 Observability: Status colors are paired with visible text labels
 Dependencies: Existing V2 workspace theme variables
 Inputs/Outputs: Styles only; no telemetry or runtime effects
 Authority: Presentation only
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Add compact responsive trace cards for durable provider attempts
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Add manufacturer front/open views, selectable front components, and controller reference details
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Prevent narrow chassis view overflow around its aspect-ratio minimum and front-panel hotspot
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_resource_monitor.cjs
 History: Git and revision/backup manifest
@@ -57,6 +59,30 @@ History: Git and revision/backup manifest
 .resource-gpu{margin:12px 0;padding-top:9px;border-top:1px solid var(--line)}
 .resource-gpu h4{margin:0;color:var(--ink);font-size:11px;font-weight:650}
 .resource-gpu dl{margin-top:7px}
+.octo-chassis{display:grid;gap:9px;margin:12px 0 16px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface2,#f7f8f8)}
+.octo-chassis-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.octo-chassis-toolbar button{border:1px solid var(--line);border-radius:18px;padding:7px 11px;background:var(--surface,#fff);color:var(--ink);font-size:9px;font-weight:650;cursor:pointer}
+.octo-chassis-toolbar button[aria-pressed="true"]{border-color:#4a8f80;background:#e5f2ee;color:#205f53}
+.octo-chassis-toolbar button:focus-visible,.octo-hotspot:focus-visible{outline:3px solid #247bff;outline-offset:2px}
+.octo-chassis-toolbar span{margin-left:auto;color:var(--muted);font-size:9px}
+.octo-chassis-stage{position:relative;overflow:hidden;aspect-ratio:4.15/1;min-height:118px;border:1px solid #d9dfdd;border-radius:8px;background:#f8f8f6}
+.octo-chassis-stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 0;user-select:none;-webkit-user-drag:none}
+.octo-chassis-stage[data-artwork-view="open"]{aspect-ratio:1.24/1;min-height:260px;max-height:540px;background:#fff}
+.octo-chassis-stage[data-artwork-view="open"] img{object-fit:cover;object-position:50% 100%}
+.octo-front-hotspots{position:absolute;inset:0}
+.octo-chassis-stage[data-artwork-view="open"] .octo-front-hotspots{display:none}
+.octo-hotspot{position:absolute;left:var(--hotspot-x);top:var(--hotspot-y);display:grid;place-items:center;width:clamp(38px,8.8vw,72px);aspect-ratio:1;border:2px solid rgba(74,183,155,.9);border-radius:50%;transform:translate(-50%,-50%);background:rgba(18,47,49,.52);color:#fff;font:700 10px/1 system-ui,sans-serif;letter-spacing:.06em;cursor:pointer;box-shadow:0 0 0 3px rgba(245,255,251,.46),0 2px 10px rgba(0,0,0,.28);transition:transform .14s ease,background .14s ease,box-shadow .14s ease}
+.octo-hotspot:hover,.octo-hotspot[aria-pressed="true"]{transform:translate(-50%,-50%) scale(1.1);background:rgba(26,120,97,.86);box-shadow:0 0 0 4px rgba(245,255,251,.7),0 2px 14px rgba(0,0,0,.3)}
+.octo-hotspot-panel{width:auto;min-width:62px;aspect-ratio:auto;border-radius:15px;padding:7px 9px;font-size:8px}
+.octo-chassis-caption{margin:0;color:var(--muted);font-size:9px;line-height:1.45}
+.octo-device-button[data-model-highlight="true"],.octo-model-button[data-model-highlight="true"]{border-color:#408a78;background:rgba(72,151,128,.12);box-shadow:inset 0 0 0 1px rgba(72,151,128,.35)}
+.octo-controller-reference{border-top:1px solid var(--line);padding-top:10px;color:var(--muted);font-size:9px}
+.octo-controller-reference summary{cursor:pointer;color:var(--ink);font-weight:650}
+.octo-controller-reference-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.octo-controller-reference figure{margin:0;padding:7px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.octo-controller-reference img{display:block;width:100%;height:auto;max-height:360px;object-fit:contain}
+.octo-controller-reference figcaption{margin-top:6px;font-size:8px;line-height:1.45}
+@media(max-width:620px){.octo-chassis-stage{aspect-ratio:3.15/1;min-height:84px}.octo-chassis-stage[data-artwork-view="open"]{aspect-ratio:1/1;min-height:260px}.octo-hotspot-panel{left:auto;right:2%;transform:translateY(-50%)}.octo-hotspot-panel:hover,.octo-hotspot-panel[aria-pressed="true"]{transform:translateY(-50%) scale(1.04)}.octo-chassis-toolbar span{flex-basis:100%;margin-left:0}.octo-controller-reference-grid{grid-template-columns:1fr}}
 .resource-tag[data-state="ready"],.resource-tag[data-state="healthy"]{border-color:#79a18a;color:#286648}
 .resource-tag[data-state="unavailable"],.resource-tag[data-state="degraded"]{border-color:#b88780;color:#894b44}
 .octo-console{display:grid;gap:18px;padding:18px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,var(--surface,#fff),var(--surface2,#f5f7f6));box-shadow:0 14px 38px rgba(24,43,47,.06)}

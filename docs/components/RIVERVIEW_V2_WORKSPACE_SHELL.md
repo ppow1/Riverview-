@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.26
+File Revision: 1.0.27
 Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Connect authenticated Hardware view to host telemetry.
 Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Integrate Work over the deployed Hardware and Snapshot composite
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Add interactive OCTO1 topology and a source-bounded live activity view
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Read a content-free trace from the authorized durable Grace conversation API
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Render supplied X12 Ultra manufacturer references with interactive, source-bounded selections
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
@@ -247,4 +248,6 @@ The conversation record provides real request creation and correlation inside Ri
 
 Chassis fan RPM/PWM/control mode/targets, environmental sensors, PSU telemetry, and the watchdog are shown as unavailable because the current OCTO1 Dashboard projection does not expose their controller feed. The historical OctoFan API records describe OCTO2 and are not used as proof of an OCTO1 endpoint or channel mapping. No fan, watchdog, temperature threshold, firmware, or power control exists in this UI.
 
-The four requested Steward reference images (front panel, open chassis, controller board, and prior dashboard concept) were not available in this checkout or the local engineering asset folders. The concept reference is not treated as chassis geometry. This increment deliberately does not draw or place a chassis or components. The visual twin remains **PARTIAL / BLOCKED ON REFERENCE ASSETS**; the data-backed interactive topology is ready for visual review. A manufacturer product page also contains differing dimension orders, so no dimension is presented as an OCTO1 measurement. Attach or place the four authorized references in the repository before the geometry layer is implemented.
+The four supplied references are now available. The original manufacturer X12 Ultra front/open-chassis artwork is included unchanged at `website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png`; the original watchdog/fan-controller and feature references are included unchanged as `smart-watchdog-fan-controller-reference.png` and `controller-feature-reference.png`. Their recorded SHA-256 values and sizes are in `.riverview-revisions.json`. The earlier Hardware Operations Dashboard concept is used only as visual direction and is not copied into the live asset set or used as physical geometry.
+
+The chassis stage supports front-panel and open-chassis views with selectable five-fan visual positions and front display/control area. Selecting the 80B/30B model or corresponding GPU highlights only the dynamic host process-to-GPU telemetry mapping. No host GPU device is placed on an internal physical bay because no device-to-riser map has been verified. Fan selection labels left-to-right visual position, not controller channel. Controller installation, fan RPM/PWM, sensors, PSU, and watchdog data remain explicitly unavailable; reference illustrations do not establish OCTO1 hardware identity. This is a static read-only V2 visualization. The existing five-second GPU timeline and authorized content-free Grace request trace are preserved as separate evidence channels; server-side request/GPU attribution remains unavailable. Visual browser captures use a clearly marked synthetic fixture and are not live OCTO1 readings or deployment acceptance.

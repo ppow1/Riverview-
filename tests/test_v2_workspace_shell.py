@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.20
+# Revision: 1.0.21
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -11,6 +11,7 @@
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify authenticated telemetry route and safe Snapshot boundary.
 # Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Verify OCTO1 console, live selectors, source gaps, and bounded refresh
 # Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Verify a content-free current-conversation trace contract
+# Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Verify original chassis assets, fan hotspots, and truthful device-to-bay boundaries
 # Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Verify authenticated read-only objective and assignment Work view
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
@@ -161,8 +162,20 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('id="octo1-gpu-selectors"', html)
         self.assertIn('id="octo1-model-selectors"', html)
         self.assertIn('id="octo1-activity-list"', html)
-        self.assertIn("Steward’s front-panel, open-chassis, controller-board", html)
-        self.assertIn("GPU indexes are device identifiers, not physical slot positions", html)
+        self.assertIn("/v2/assets/octominer/x12ultra-front-open-chassis-reference.png", html)
+        self.assertIn("/v2/assets/octominer/smart-watchdog-fan-controller-reference.png", html)
+        self.assertIn("/v2/assets/octominer/controller-feature-reference.png", html)
+        self.assertIn('data-octo-artwork-view="front"', html)
+        self.assertIn('data-octo-artwork-view="open"', html)
+        self.assertEqual(html.count('class="octo-hotspot"'), 5)
+        self.assertIn('data-octo-component="fan-5"', html)
+        self.assertIn('data-octo-component="front-panel"', html)
+        self.assertIn("GPU device IDs are not mapped to physical bays", html)
+        self.assertIn('data-artwork-view="front"', html)
+        self.assertIn('dataset.modelHighlight=selectedModel&&active.includes(selectedModel)', monitor)
+        self.assertIn('dataset.modelHighlight=selectedGpuServices.has(id)', monitor)
+        self.assertIn("not mapped to a bay", monitor)
+        self.assertIn("visual index only", monitor)
         self.assertIn("resource-telemetry.v1", monitor)
         self.assertIn("No values are inferred", monitor)
         self.assertIn('"/api/v1/auth/session"', monitor)
@@ -184,7 +197,7 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('rv.v2.grace-request-trace.v1', trace_chat)
         self.assertIn('requestTraceSnapshot', trace_chat)
         self.assertIn('response_persisted_at', trace_chat)
-        self.assertIn('"chassis-fans":"Chassis fans"', monitor)
+        self.assertIn('controller:"Manufacturer fan controller"', monitor)
         self.assertIn('"Prompt vs generation phase"', monitor)
         self.assertNotIn("fan PWM", monitor)
         self.assertIn("hardware_ai_resource_monitor", snapshot)

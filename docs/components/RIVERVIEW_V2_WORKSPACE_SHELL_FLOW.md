@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.19
+File Revision: 1.0.20
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
@@ -92,6 +92,11 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_octo1_controller_unavailable_b3f8cf21["Keep OCTO1 chassis fan, sensor, PSU, and watchdog readings unavailable until an OCTO1 source is verified"]
     g_rv_riverview_v2_workspace_shell_octo1_request_attribution_unavailable_bb827151["Keep model-server receipt, generation phase, and GPU-to-request attribution unavailable until server-side correlation is exposed"]
     g_rv_riverview_v2_workspace_shell_octo1_grace_request_trace_67118e93["Read the current authorized Grace conversation and show request ID, provider call window, outcome, and durable response time without message content"]
+    g_rv_riverview_v2_workspace_shell_octo1_manufacturer_chassis_a1ce2173["Render original X12 Ultra manufacturer front/open-chassis reference as read-only geometry"]
+    g_rv_riverview_v2_workspace_shell_octo1_front_hotspots_b8c50c0d["Select manufacturer-view fan visual positions or front panel; channel values stay unavailable"]
+    g_rv_riverview_v2_workspace_shell_octo1_open_reference_5940f728{"Switch to open-chassis reference without asserting live GPU bay positions"}
+    g_rv_riverview_v2_workspace_shell_octo1_dynamic_model_highlights_5f182bde["Highlight GPUs from current process-to-device telemetry when an 80B or 30B model is selected"]
+    g_rv_riverview_v2_workspace_shell_octo1_device_bay_unavailable_a8548e60{"Keep physical GPU bay and controller mappings unavailable unless OCTO1 source evidence verifies them"}
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -202,6 +207,11 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81 -->|Render new measured values, states, timestamps, and timeline sample| g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4
   g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3 -->|diagnostic_branch: View is closed or document hidden; do not schedule another sample| g_rv_riverview_v2_workspace_shell_octo1_poll_pause_0cfdc8df
   g_rv_riverview_v2_workspace_shell_octo1_poll_pause_0cfdc8df -->|recovery_route: Resources reopens or tab becomes visible; request a fresh observation| g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3
+  g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae -->|Render the original X12 Ultra manufacturer geometry with read-only component selectors| g_rv_riverview_v2_workspace_shell_octo1_manufacturer_chassis_a1ce2173
+  g_rv_riverview_v2_workspace_shell_octo1_manufacturer_chassis_a1ce2173 -->|Select front-view fan visual indexes or the right-side panel| g_rv_riverview_v2_workspace_shell_octo1_front_hotspots_b8c50c0d
+  g_rv_riverview_v2_workspace_shell_octo1_manufacturer_chassis_a1ce2173 -->|Switch to the manufacturer open-chassis reference| g_rv_riverview_v2_workspace_shell_octo1_open_reference_5940f728
+  g_rv_riverview_v2_workspace_shell_octo1_open_reference_5940f728 -->|Explain that live device IDs have no verified physical riser mapping| g_rv_riverview_v2_workspace_shell_octo1_device_bay_unavailable_a8548e60
+  g_rv_riverview_v2_workspace_shell_octo1_select_details_ba729f3e -->|Highlight only current telemetry-derived GPU/model associations| g_rv_riverview_v2_workspace_shell_octo1_dynamic_model_highlights_5f182bde
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

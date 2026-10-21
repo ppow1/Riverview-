@@ -1,0 +1,54 @@
+{
+  "manifest_revision": "1.0.1",
+  "task_id": "RV-V2-OCTO1-PHYSICAL-TWIN-001",
+  "artifacts": {
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "66f7502420287e71b3c761b4c36cf0dc6e78da22abfb7c11be233018b6dc3e4a",
+      "size_bytes": 6236
+    },
+    "octo1-80b-allocation-fixture.png": {
+      "path": "octo1-80b-allocation-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1dc9bc43a60ed3bbea4aeb1b8ea4f777d97e7a6126782e6a9ad72398958d0d1f",
+      "size_bytes": 413813
+    },
+    "octo1-chassis-front-fixture.png": {
+      "path": "octo1-chassis-front-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "27d934fea952f7dc003633942cc855b7550f1e42555fb12419a817a2ff863e15",
+      "size_bytes": 409512
+    },
+    "octo1-chassis-open-fixture.png": {
+      "path": "octo1-chassis-open-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "053638c11f63a0b74c1da941b207b4e654a4d2cc797d1264190844cd6501789c",
+      "size_bytes": 471783
+    },
+    "octo1-front-fan-detail-fixture.png": {
+      "path": "octo1-front-fan-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1195b82c4f67d928b83113987fadd85489f0fceb149a493c4a4d3f3522ecedfd",
+      "size_bytes": 410922
+    },
+    "octo1-rtx4090-detail-fixture.png": {
+      "path": "octo1-rtx4090-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "41bd42f60edf36509974bb149900db80672d41836d3128240c34e862354cb5c6",
+      "size_bytes": 413798
+    },
+    "review-evidence.md": {
+      "path": "review-evidence.md",
+      "revision": "1.0.1",
+      "sha256": "c0253db59426e560e47354b7d9661048a82d8fd47ffb1a3070876710d98de660",
+      "size_bytes": 1842
+    },
+    "test-results.json": {
+      "path": "test-results.json",
+      "revision": "1.0.0",
+      "sha256": "b21b76a225feac76435f7726aaf741aa2fdc32e8d3a238aff453a2392edfa696",
+      "size_bytes": 3208
+    }
+  }
+}
