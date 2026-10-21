@@ -1,8 +1,9 @@
 <!--
+Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the same-origin V2 route and shared authenticated snapshot/archive boundary.
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.15
+File Revision: 1.1.16
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Specify bounded raster omission while preserving snapshot records and vector representations.
@@ -320,3 +321,12 @@ requires Steward-visible installed unattended operation, independent external
 observer, full console/chat/command and later M3 features as applicable, blocker
 clearance, operational fault/recovery and explicit Steward acceptance. This
 document does not claim those future obligations complete.
+
+
+## V2 same-origin snapshot integration
+
+The dashboard package serves the V2 shell at `/v2/` and its allowlisted assets at `/v2/assets/`. This path uses the dashboard HTTPS origin so the browser can reuse the existing Steward account session and CSRF cookie. The V2 interface calls only the existing `/api/v1/status`, `/api/v1/snapshot`, and `/api/v1/snapshot/archive` routes; archive authorization, Steward role checks, CSRF validation, redaction declaration validation, and the private GitHub Release credential remain server-side. The browser never receives the GitHub credential.
+
+A V2 package uses `rv.website.diagnostic-snapshot.v1`, records `dashboard_version: v2`, capture ID, capture time, source commit and deployment ID, and names the asset `riverview-v2-<timestamp>-<capture-id>.zip`. Its V2 workspace state is separate from common authenticated dashboard diagnostics. One generated Blob is submitted to the archive endpoint and handed to the browser download. An archive error leaves the local download available; an archive receipt is shown only after the endpoint response matches the capture identity, size and digest.
+
+The independently authenticated LAN preview on port 8877 remains fixture-only and local-download-only. It does not call the dashboard API or archive endpoint. To use V2 archival, open `/v2/` from the authenticated HTTPS dashboard origin.

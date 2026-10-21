@@ -2,12 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.33
+# Revision: 1.3.34
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
 # Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Add authenticated exact-objective rereview request route through the existing pipeline.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Filter durable Engineering progress by authenticated conversation origin
+# Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Serve the V2 shell through an allowlisted same-origin HTTPS route.
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -641,6 +642,35 @@ def make_handler():
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
                 self._error(405, "read_only_method", request_id)
+                return
+            if parsed.path == "/v2":
+                self.send_response(308)
+                self._headers(request_id)
+                self.send_header("Location", "/v2/")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if parsed.path == "/v2/":
+                release_root = _release_root()
+                path = release_root / "website" / "v2" / "index.html"
+                try:
+                    if path.is_symlink() or not path.is_file():
+                        raise FileNotFoundError
+                    self._send(200, path.read_bytes(), "text/html; charset=utf-8", request_id)
+                except OSError:
+                    self._error(503, "v2_ui_unavailable", request_id)
+                return
+            v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js)", parsed.path)
+            if v2_asset:
+                release_root = _release_root()
+                path = release_root / "website" / "v2" / "assets" / v2_asset.group(1)
+                kind = "image/svg+xml" if path.suffix == ".svg" else "text/css" if path.suffix == ".css" else "text/javascript"
+                try:
+                    if path.is_symlink() or not path.is_file():
+                        raise FileNotFoundError
+                    self._send(200, path.read_bytes(), kind + ("; charset=utf-8" if kind != "image/svg+xml" else ""), request_id)
+                except OSError:
+                    self._error(404, "v2_asset_unavailable", request_id)
                 return
             if parsed.path == "/":
                 path = self.server._static_dir / "index.html"

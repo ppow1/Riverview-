@@ -1,0 +1,745 @@
+{
+  "graph_id": "rv:riverview-v2:workspace-shell",
+  "graph_revision": "1.0.7",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "workflow_id": "local-static-preview",
+  "diagram_order": 80,
+  "source_references": [
+    "website/v2/index.html",
+    "website/v2/assets/fixtures.js",
+    "website/v2/assets/workspace.js",
+    "scripts/serve_v2_workspace_preview.py",
+    "scripts/setup_v2_workspace_preview_auth.py",
+    "website/v2/assets/workspace.css",
+    "website/v2/assets/snapshot.js"
+  ],
+  "documentation_references": [
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md"
+  ],
+  "verification_evidence": [
+    "tests/test_v2_workspace_shell.py",
+    "scripts/verify_v2_workspace_browser.py",
+    "scripts/verify_v2_workspace_mobile.cjs",
+    "scripts/verify_v2_workspace_snapshot_chrome.py"
+  ],
+  "nodes": [
+    {
+      "id": "rv:riverview-v2:workspace-shell:open-preview",
+      "node_revision": "1.0.1",
+      "type": "entry",
+      "label": "Start loopback or authenticated LAN preview",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:serve-static",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Apply Host, client subnet, and password session checks before serving assets",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render clearly labeled local preview fixtures",
+      "source_references": [
+        "website/v2/assets/fixtures.js",
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:choose-view",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Choose shell view or resident",
+      "source_references": [
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:retain-context",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Retain selected resident in browser memory across views",
+      "source_references": [
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject mutating preview methods and out-of-root paths",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:restart-preview",
+      "node_revision": "1.0.1",
+      "type": "recovery",
+      "label": "Restart preview, revoke sessions, and reset in-memory UI state",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:stop-preview",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Stop preview process without affecting V1",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:configure-password",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Steward chooses password locally; write salted hash only",
+      "source_references": [
+        "scripts/setup_v2_workspace_preview_auth.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:missing-hash",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Refuse LAN startup without protected password hash",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:check-client",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Validate explicit Host and trusted LAN source subnet",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:reject-client",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject wrong Host or client outside trusted subnet",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:check-session",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Check eight-hour signed session cookie",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:password-form",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Serve uncached password form with trusted-LAN warning",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:verify-password",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Validate exact Origin or consume a one-use CSRF token, then verify salted password hash",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject foreign Origin or missing, expired, replayed, or wrong-client CSRF token",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:rate-limited",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "After five failures, return 429 and 15-minute Retry-After",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:issue-session",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Issue HttpOnly SameSite cookie signed by in-memory key",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Choose theme or independent sidebar state",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:apply-theme",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Apply Light, Dark, or System theme; persist display preference only",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html",
+        "website/v2/assets/workspace.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:cycle-sidebars",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Cycle left and right sidebars independently through expanded, compact, and hidden",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html",
+        "website/v2/assets/workspace.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:restore-sidebars",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Restore a hidden sidebar using its accessible floating control",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html",
+        "website/v2/assets/workspace.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:integration-unavailable",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Keep live chat unavailable until an authorized V2 integration exists",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "node_revision": "1.0.1",
+      "type": "entry",
+      "label": "Click Snapshot in the active V2 view",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Collect allowlisted V2 view, fixture context and browser state",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Hash structured members and build bounded ZIP manifest",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Download local ZIP; no network upload",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Inspect ZIP members and hashes against active V2 state",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "node_revision": "1.0.1",
+      "type": "failure",
+      "label": "Show local capture or package-bound failure without upload",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-preview",
+      "to": "rv:riverview-v2:workspace-shell:serve-static",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:serve-static",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "to": "rv:riverview-v2:workspace-shell:choose-view",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:retain-context",
+      "type": "runtime_transition",
+      "label": "Select resident; context remains across views"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "type": "diagnostic_branch",
+      "label": "Unsafe method or path is attempted"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "to": "rv:riverview-v2:workspace-shell:restart-preview",
+      "type": "recovery_route",
+      "label": "Resume by restarting local preview if needed"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:retain-context",
+      "to": "rv:riverview-v2:workspace-shell:choose-view",
+      "type": "runtime_transition",
+      "label": "Navigate while selected resident remains in memory"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:stop-preview",
+      "type": "runtime_transition",
+      "label": "Stop foreground preview"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:configure-password",
+      "to": "rv:riverview-v2:workspace-shell:open-preview",
+      "type": "prerequisite",
+      "label": "Required before non-loopback startup"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-preview",
+      "to": "rv:riverview-v2:workspace-shell:missing-hash",
+      "type": "diagnostic_branch",
+      "label": "LAN mode requested without a protected password hash"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:missing-hash",
+      "to": "rv:riverview-v2:workspace-shell:stop-preview",
+      "type": "recovery_route",
+      "label": "Create hash locally; restart after verification"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-preview",
+      "to": "rv:riverview-v2:workspace-shell:serve-static",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:serve-static",
+      "to": "rv:riverview-v2:workspace-shell:check-client",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:check-client",
+      "to": "rv:riverview-v2:workspace-shell:reject-client",
+      "type": "diagnostic_branch",
+      "label": "Host or source subnet is outside policy"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:reject-client",
+      "to": "rv:riverview-v2:workspace-shell:stop-preview",
+      "type": "recovery_route",
+      "label": "Correct URL/network or stop the preview"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:check-client",
+      "to": "rv:riverview-v2:workspace-shell:check-session",
+      "type": "runtime_transition",
+      "label": "Host and source address accepted"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:check-session",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition",
+      "label": "Valid signed cookie"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:check-session",
+      "to": "rv:riverview-v2:workspace-shell:password-form",
+      "type": "diagnostic_branch",
+      "label": "No valid session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:password-form",
+      "to": "rv:riverview-v2:workspace-shell:verify-password",
+      "type": "runtime_transition",
+      "label": "Steward submits password"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:verify-password",
+      "to": "rv:riverview-v2:workspace-shell:issue-session",
+      "type": "runtime_transition",
+      "label": "Hash matches and Origin/CSRF checks pass"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:verify-password",
+      "to": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "type": "diagnostic_branch",
+      "label": "Origin mismatches or one-use CSRF token is invalid"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "to": "rv:riverview-v2:workspace-shell:password-form",
+      "type": "recovery_route",
+      "label": "Reload login page for a fresh token; retain strict Host check"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:issue-session",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:verify-password",
+      "to": "rv:riverview-v2:workspace-shell:rate-limited",
+      "type": "diagnostic_branch",
+      "label": "Bad password; fifth failure in 15 minutes"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:rate-limited",
+      "to": "rv:riverview-v2:workspace-shell:password-form",
+      "type": "recovery_route",
+      "label": "Wait Retry-After before trying again"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "to": "rv:riverview-v2:workspace-shell:restart-preview",
+      "type": "recovery_route",
+      "label": "Restart invalidates signed cookies and in-memory lockout"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition",
+      "label": "Change appearance or sidebar layout"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "to": "rv:riverview-v2:workspace-shell:apply-theme",
+      "type": "runtime_transition",
+      "label": "Light, Dark, or System selection"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:apply-theme",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition",
+      "label": "Preference survives reload; system follows OS preference"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "to": "rv:riverview-v2:workspace-shell:cycle-sidebars",
+      "type": "runtime_transition",
+      "label": "Cycle either sidebar without changing the other"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:cycle-sidebars",
+      "to": "rv:riverview-v2:workspace-shell:restore-sidebars",
+      "type": "runtime_transition",
+      "label": "Hidden state exposes a keyboard-accessible restore button"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:restore-sidebars",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "to": "rv:riverview-v2:workspace-shell:integration-unavailable",
+      "type": "runtime_transition",
+      "label": "Live chat remains disconnected in this preview"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "type": "runtime_transition",
+      "label": "User requests a V2-specific local ZIP"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "type": "runtime_transition",
+      "label": "Allowlisted state is captured in memory"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "type": "diagnostic_branch",
+      "label": "State capture or hashing fails"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "type": "runtime_transition",
+      "label": "Members fit the 2 MiB hard bound"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "type": "diagnostic_branch",
+      "label": "Package exceeds the hard bound"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "type": "verification",
+      "label": "Chrome ZIP contents match selected view and hashes"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "recovery_route",
+      "label": "Retry locally; no upload or service recovery is needed"
+    }
+  ]
+}

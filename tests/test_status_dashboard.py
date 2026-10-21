@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.62
+# Revision: 1.0.63
+# Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Assert the same-origin V2 shell route is allowlisted and retains dashboard CSP.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Assert matching receipt digest and persistent archive-plus-download browser result.
 # Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Test authenticated Steward archive endpoint and absence of browser GitHub credentials.
 # Changed: 2026-10-20 UTC | RV-C4-ACTIVE-LINE-INTEGRATION-001 | Verify re-review route authentication, exact objective scope, bounded payload and request-only behavior.
@@ -474,6 +475,15 @@ class DashboardHTTPTests(unittest.TestCase):
         result = (response.status, response.getheaders(), body)
         conn.close()
         return result
+
+    def test_same_origin_v2_static_route_serves_only_allowlisted_release_assets(self):
+        status, headers, body = self.request("GET", "/v2/")
+        self.assertEqual(status, 200)
+        self.assertIn(b'id="snapshot-action"', body)
+        self.assertIn("connect-src 'self'", dict(headers)["Content-Security-Policy"])
+        self.assertEqual(self.request("GET", "/v2/assets/snapshot.js")[0], 200)
+        self.assertEqual(self.request("GET", "/v2/assets/../../src/riverview_core/status_dashboard/server.py")[0], 404)
+        self.assertEqual(self.request("GET", "/v2/assets/server.py")[0], 404)
 
     def test_snapshot_archive_requires_csrf_validated_steward_cookie_and_returns_only_release_metadata(self):
         class Archive:
