@@ -567,8 +567,13 @@ class GraceExecutionTests(unittest.TestCase):
             "- Close the objective only after successful verification.",
         ]
         original_request = "Original complete request remains preserved."
+        self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'objective.submit','work-order:engineering',%s,
+                    'rv.policy:grace-execution-test.v1')""").format(sql.Identifier(self.schema)),
+            ("criteria-reconcile-submit-test", principal, principal))
         self.pipeline.submit_objective(objective_id, original_request, before,
-            credential=self.credentials["steward"], scope_ref=self.scope)
+            credential=self.credentials["steward"], scope_ref="work-order:engineering")
         grounded = self.pipeline.ground_objective(objective_id)
         self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
             (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)

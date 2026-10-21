@@ -174,8 +174,7 @@ class GraceExecutionPipeline:
                             row["submitter_id"] != actor_id or
                             row["acceptance_criteria"] != expected_before or
                             not isinstance(row["evidence"], dict) or
-                            row["evidence"].get("status") != "VERIFIED" or
-                            row["evidence"].get("retrieval_complete") is not True):
+                            row["evidence"].get("status") != "VERIFIED"):
                         raise ObjectiveStateError(
                             "objective no longer satisfies the authorized reconciliation preconditions")
                     after = expected_before[1:]

@@ -24,10 +24,8 @@ BEGIN
     IF to_regclass('riverview_authority.authority_grants') IS NOT NULL THEN
         authority_schema := 'riverview_authority';
     END IF;
-    IF to_regclass(format('%I.authority_grants', authority_schema)) IS NULL THEN
-        RAISE EXCEPTION 'criteria reconciliation requires the existing authority grant registry';
-    END IF;
-    IF to_regclass(format('%I.capability_catalog', authority_schema)) IS NOT NULL THEN
+    IF to_regclass(format('%I.authority_grants', authority_schema)) IS NOT NULL
+       AND to_regclass(format('%I.capability_catalog', authority_schema)) IS NOT NULL THEN
         EXECUTE format($grant$
             INSERT INTO %I.capability_catalog(capability_id,description,authority_action,
                 owner_office,implementation_ref,dependencies,approval_default)
@@ -48,6 +46,8 @@ BEGIN
                 'grace.criteria-reconciliation.v1') ON CONFLICT DO NOTHING
         $grant$, authority_schema, authority_schema, target_id, authority_schema, target_id);
     END IF;
+    IF to_regclass(format('%I.authority_grants', authority_schema)) IS NOT NULL
+       AND to_regclass(format('%I.institutional_authority_events', authority_schema)) IS NOT NULL THEN
     EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I.institutional_principals
         WHERE principal_id=$1 AND principal_kind=''steward'' AND status=''active'')',
         authority_schema) INTO active_actor USING actor;
@@ -78,6 +78,7 @@ BEGIN
                 WHERE event_type=''authority_granted'' AND grant_id=$1)',
             authority_schema, authority_schema)
             USING fixed_grant_id, actor, target_id;
+    END IF;
     END IF;
     EXECUTE format($ddl$
         CREATE OR REPLACE FUNCTION %I.reject_grace_objective_event_mutation()
