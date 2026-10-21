@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.18
+# Revision: 1.3.19
+# Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Permit the bounded 120-second proposal request deadline
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify JSON truncation at the completion-token boundary distinctly
 # Changed: 2026-10-20 UTC | RV-GRACE-TYPED-PROPOSAL-SCHEMA | Require capability-specific fields in structured proposal schema
 # Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Make prior rejected plans explicitly preserve every criterion, including prohibitions
@@ -150,7 +151,7 @@ class LocalReasoningProvider:
         if (not isinstance(model, str) or not model or len(model) > 160
                 or not isinstance(model_sha256, str) or len(model_sha256) != 64
                 or any(ch not in "0123456789abcdef" for ch in model_sha256)
-                or not 0 < timeout_seconds <= 60
+                or not 0 < timeout_seconds <= 120
                 or type(max_concurrency) is not int or not 1 <= max_concurrency <= 8
                 or not isinstance(chat_prefix, str)
                 or len(chat_prefix.encode("utf-8")) > 64

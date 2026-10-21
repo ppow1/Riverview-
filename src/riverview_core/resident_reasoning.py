@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.21
+# Revision: 1.0.22
+# Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Allow the bounded caller deadline to exceed the provider HTTP timeout
 # Purpose: Regound institutional resident requests and route bounded plan proposals
 # Execution Model: Request-driven in-process runtime with replaceable reasoning providers
 # Observability: Office-scoped durable state stores grounding and provider outcomes
@@ -320,7 +321,7 @@ class ResidentReasoner:
             raise ValueError("external reasoning target registry is invalid")
         self.external_reasoning_targets = external_reasoning_targets
         self.fallback_routes = {key: tuple(value) for key, value in (fallback_routes or {}).items()}
-        if (len(self.providers) > 8 or not 0 < timeout_seconds <= 60
+        if (len(self.providers) > 8 or not 0 < timeout_seconds <= 180
                 or any(not isinstance(key, str) or not key or len(route) > 2
                        or len(route) != len(set(route)) or key in route
                        for key, route in self.fallback_routes.items())):

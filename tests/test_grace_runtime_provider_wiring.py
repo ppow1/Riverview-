@@ -1,12 +1,13 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.9
+# Revision: 1.0.10
+# Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Verify separate ordered provider and caller deadlines
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
 # Observability: Assert provider identities and router model digest
 # Authority: This test does not provision grants or change bindings
-# Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Verify the 80B proposal client uses the shared bounded timeout
+# Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-TIMEOUT-001 | Verify the 80B proposal client uses the bounded request timeout
 # Changed: 2026-10-16 UTC | RV-GRACE-RECOVERY-HOOK-001 | Verify persistent-service startup invokes the current bounded Codex recovery hook
 # Changed: 2026-10-16 UTC | RV-GRACE-OWNER-CODEX-HOME-001 | Reproduce service HOME versus configured CODEX_HOME and fail closed on path escape
 # Changed: 2026-10-16 UTC | RV-GRACE-SCOPE-LEASE-RECONCILE-001 | Require authenticated-scope context for startup recovery
@@ -225,13 +226,23 @@ class GraceRuntimeProviderWiringTests(unittest.TestCase):
         self.assertEqual(tuple(providers), (router.provider_id,))
         self.assertEqual(providers[router.provider_id].model_sha256, router.model_sha256)
         self.assertEqual(model, router.providers["reasoning"].model)
-        self.assertEqual(providers[router.provider_id].providers["reasoning"].kwargs["timeout_seconds"], 60)
+        self.assertEqual(providers[router.provider_id].providers["reasoning"].kwargs["timeout_seconds"], 120)
 
-    def test_reasoning_timeout_is_shared_and_bounded(self):
-        from scripts.run_grace_execution_service import resident_reasoning_timeout
-        self.assertEqual(resident_reasoning_timeout({"RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "45"}), 45)
+    def test_reasoning_and_provider_timeouts_are_separate_and_ordered(self):
+        from scripts.run_grace_execution_service import (
+            resident_reasoning_provider_timeout, resident_reasoning_timeout)
+        self.assertEqual(resident_reasoning_timeout({"RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "135"}), 135)
+        self.assertEqual(resident_reasoning_provider_timeout({
+            "RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "135",
+            "RIVERVIEW_RESIDENT_REASONING_PROVIDER_TIMEOUT": "120"}), 120)
         with self.assertRaises(WorkerServiceConfigurationError):
-            resident_reasoning_timeout({"RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "60.1"})
+            resident_reasoning_provider_timeout({
+                "RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "120",
+                "RIVERVIEW_RESIDENT_REASONING_PROVIDER_TIMEOUT": "120"})
+        with self.assertRaises(WorkerServiceConfigurationError):
+            resident_reasoning_timeout({"RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "180.1"})
+        with self.assertRaises(WorkerServiceConfigurationError):
+            resident_reasoning_provider_timeout({"RIVERVIEW_RESIDENT_REASONING_PROVIDER_TIMEOUT": "120.1"})
         with self.assertRaises(WorkerServiceConfigurationError):
             resident_reasoning_timeout({"RIVERVIEW_RESIDENT_REASONING_TIMEOUT": "invalid"})
 

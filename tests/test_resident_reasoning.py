@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.17
+# Revision: 1.0.18
+# Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Verify the bounded reasoning caller deadline
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Keep persistent reasoning rehydration tests on the durable event contract.
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Verify sanitized failure codes persist without response content
 # Purpose: Verify resident regrounding, bounded provider routing and durable resume
@@ -161,11 +162,11 @@ class ResidentReasoningTests(unittest.TestCase):
                                 providers=providers, fallback_routes=fallbacks,
                                 timeout_seconds=timeout)
 
-    def test_provider_deadline_accepts_sixty_seconds_and_remains_bounded(self):
-        runtime = self._runtime({"provider.a": _Provider("provider.a")}, timeout=60)
-        self.assertEqual(runtime.timeout_seconds, 60)
+    def test_caller_deadline_accepts_bounded_provider_margin(self):
+        runtime = self._runtime({"provider.a": _Provider("provider.a")}, timeout=135)
+        self.assertEqual(runtime.timeout_seconds, 135)
         with self.assertRaises(ValueError):
-            self._runtime({"provider.a": _Provider("provider.a")}, timeout=60.1)
+            self._runtime({"provider.a": _Provider("provider.a")}, timeout=180.1)
 
     def test_proposal_uses_runtime_office_function_when_authority_tables_are_restricted(self):
         import psycopg
