@@ -1,8 +1,8 @@
 # Riverview~ Codex Engineering Campaign and Process Map
 
-**Document Revision:** 1.0.1  
+**Document Revision:** 1.0.2  
 **Status:** Engineering execution specification (not a claim of deployed automation)  
-**Date:** 2026-10-09  
+**Date:** 2026-10-21  
 **Component:** ENG-CODEX-CAMPAIGN  
 **Owner:** Steward  
 **Scope:** All numbered steps of `docs/ROADMAP.md`, M1.1 through M5.4.
@@ -18,6 +18,26 @@ Codex is the engineering implementer for the **entire** Riverview roadmap, not m
 3. **BUILD + TEST** — Preserve exact predecessors, implement smallest coherent change, run tests, diagnose and repair failures, repeat until passing or genuinely blocked. Never require a chat turn for routine engineering iterations. **Output:** implementation, test logs, and changed-file inventory.
 4. **VERIFY DoD** — Evaluate every applicable gate in `docs/standards/COMPONENT_DEFINITION_OF_DONE.md`: code, functionality, documentation, recovery cookbook, versioned flowchart, live Steward operational view, operational autonomy, execution model and external observability. Mark N/A only where justified; partial is not PASS. For roadmap infrastructure steps, separate step-level acceptance from full component DoD and explicitly list later dependent gates. **Output:** evidence matrix with PASS/FAIL/PARTIAL/NOT VERIFIED and references.
 5. **RECORD + HANDOFF** — Record exact outcome, commit/PR and deployment IDs, host, timestamp, commands, test counts, limitations, blocked items, restoration instructions and next roadmap cursor. Do not advance past an unaccepted gate or claim approval on behalf of the Steward. **Output:** concise acceptance packet and next action.
+
+## Mandatory Codex session completion indicator
+
+After the normal RECORD + HANDOFF report for **every assignment**, display a prominent, final completion banner in the terminal response. This applies to investigation, website development, documentation, testing, and operational tasks as well as roadmap implementation. It is a visibility aid, not a new approval gate or a substitute for existing Definition of Done evidence.
+
+Use the known Codex window identifier (for example C1, C2, C3, C4, W1, W2, W3, or W4); if unknown, use `CODEX` rather than inventing one. Use this format, adapting task and result:
+
+```text
+████████████████████████████████
+████  C1 — DONE  ██████████████
+████████████████████████████████
+RESULT: SUCCESS | BLOCKED | FAILED
+TASK: Brief assignment description
+████████████████████████████████
+```
+
+- `DONE` means the Codex assignment has ended, **not** that its requested outcome succeeded. `SUCCESS` requires all applicable assignment acceptance criteria and Definition of Done gates; `BLOCKED` identifies a genuine boundary preventing further authorized work; `FAILED` identifies an unsuccessful attempt. Never mark an unfinished objective SUCCESS because a subtask, test, PR, or deployment completed.
+- Display the banner only after the final report; do not display it while work continues. Keep the final report and blocker evidence intact.
+- When the terminal supports it, render the banner in a high-visibility red foreground; do not rely on ANSI escapes in plain chat output. The block-character banner is the required fallback if color or font enlargement is unavailable.
+- This is a session-reporting convention. It does not itself install a terminal hook or guarantee that a Codex session has loaded the latest guidance. At the beginning of a fresh assignment, read this campaign through `AI_HINTS.md` and use the convention in the final response.
 
 ## Flowchart (canonical process)
 
@@ -101,6 +121,8 @@ Do not build disconnected per-component dashboards or a parallel status database
 Continue **M1.1**, using existing test evidence. Implement the smallest secure and reproducible runtime identity / credential delivery commissioning and validation method, document the service identity and storage ownership, provide a consolidated SSH-based test runner if needed, and produce a DoD evidence packet. Do not reset existing database credentials or change the `public` schema. Report what was actually executed versus prepared. Then present M1.1 for Steward acceptance; only after acceptance proceed to M1.2.
 
 ## Revision history
+
+- **1.0.2 — 2026-10-21:** Require a visible, status-qualified completion banner after every Codex assignment handoff; no changes to DoD or execution authority. Predecessor: `docs/history/CODEX_ENGINEERING_CAMPAIGN_rev1.0.1.md` (original blob `6f044244096a125d0d0dd9a1b411af33cef923af`).
 
 - **1.0.1 — 2026-10-09:** Make API hooks, internal state visibility, component flowcharts, Steward web status, diagnostic mapping and full DoD evidence mandatory for every component. Predecessor: `docs/history/CODEX_ENGINEERING_CAMPAIGN_rev1.0.0.md`.
 - **1.0.0 — 2026-10-09:** Initial full-roadmap Codex campaign, simple canonical flow, observable troubleshooting table, and M1.1 handoff.
