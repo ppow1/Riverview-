@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: website/v2/assets/workspace.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.3
-Purpose: Render workspace navigation, resident selection, and the Grace conversation view
+Revision: 1.0.4
+Purpose: Render workspace navigation, resident selection, and V2 workspaces
 Execution Model: Interactive browser event handlers; page lifecycle is browser-owned
 Observability: Selected view and resident state in DOM; Snapshot reports the active view
 Dependencies: Browser DOM APIs and window.RIVERVIEW_V2_FIXTURES
 Inputs/Outputs: User navigation/selection; renders fixture or authenticated-chat workspace
 Authority: Presentation only; Grace messages use the separate Dashboard-granted client
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Route selected Grace into the center workspace and keep fixture navigation
+Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Route Communications Activity and retain Grace/fixture view behavior
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -17,7 +17,7 @@ History: Git and revision/backup manifest
 (() => {
   "use strict";
   const fixtures = window.RIVERVIEW_V2_FIXTURES;
-  const labels = { overview: "Workspace overview", residents: "Residents", work: "Work", resources: "Resources", knowledge: "Knowledge", grace: "Grace conversation" };
+  const labels = { overview: "Workspace overview", residents: "Residents", work: "Work", resources: "Resources", knowledge: "Knowledge", communications: "Communications activity", grace: "Grace conversation" };
   const nav = document.getElementById("primary-nav");
   const area = document.getElementById("view-content");
   const title = document.getElementById("page-title");
@@ -92,10 +92,12 @@ History: Git and revision/backup manifest
     content.dataset.currentView = view;
     title.textContent = labels[view] || labels.residents;
     const isGrace = view === "grace";
+    const isCommunications = view === "communications";
     document.getElementById("overview-content").hidden = isGrace;
     document.getElementById("grace-workspace").hidden = !isGrace;
+    document.getElementById("communications-workspace").hidden = !isCommunications;
     heading.textContent = view === "overview" ? "Resident directory" : labels[view] || labels.residents;
-    if (view !== "grace") {
+    if (view !== "grace" && !isCommunications) {
       area.replaceChildren();
       if (view === "overview" || view === "residents") {
         const list = el("div", "list-stack");
@@ -124,6 +126,7 @@ History: Git and revision/backup manifest
         area.append(list);
       }
     }
+    if (isCommunications) window.RiverviewV2Communications?.render();
     document.querySelectorAll(".nav-item").forEach((button) => {
       const active = button.dataset.view === view || (view === "grace" && button.dataset.view === "residents");
       button.classList.toggle("active", active);

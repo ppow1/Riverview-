@@ -2,10 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.9
-Purpose: Diagnose and recover the isolated preview and center-workspace same-origin HTTPS V2 Grace chat
+File Revision: 1.0.10
+Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Add center-workspace selection and browser recovery checks
+Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Add activity monitor source checks and truthful unavailable behavior
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -64,6 +64,22 @@ Do not use `curl -k` to conceal certificate failures. Without credentials, `GET 
 The exact site-config predecessor is root-only at `/var/lib/riverview/engineering-backups/RV-WEB-V2-GRACE-CHAT-002/riverview-lan.predecessor`; its SHA-256 and `cmp` result are recorded in acceptance evidence. The source include is `deploy/nginx/riverview-v2.location.conf`; installed copy is `/etc/nginx/snippets/riverview-v2.conf`. Release files are under `/var/www/riverview-v2-preview/releases/RV-WEB-V2-GRACE-CHAT-002/`.
 
 Rollback restores `/etc/nginx/sites-available/riverview-lan` from the protected predecessor, verifies `cmp` and SHA-256, runs `sudo nginx -t`, then `sudo systemctl reload nginx`. This is a graceful Nginx reload; do not restart the V1 Dashboard. The now-inactive include/static release may remain on disk. Verify V1 `/` is still `200`, its service is `active`, and `/v2/` no longer resolves to this integration. If V1 root health fails after reload, rollback immediately.
+
+## Communications Activity monitor
+
+1. Open **Communications** in the left navigation. The source state must say **UNVERIFIED** while the authorized read-only event projection is absent. Directional and lifecycle counts show `Unavailable`; they must never be replaced by zero without an authoritative response.
+2. Search, time-window, status, and direction filters are available for a verified event set. With no source, the table remains empty and explicitly says that unavailable data is not evidence of zero traffic. No sample rows are inserted.
+3. **Check source** currently checks only local V2 configuration. It deliberately sends no request and reports that no authorized read-only source is configured. The check timestamp is a local UI check, not a source-health or delivery timestamp.
+4. The details panel must not reveal message bodies or unrestricted event payloads. Snapshot may include only `status`, source-configured flag, null counts, and local check time; it excludes content, credentials, cookies, and correlation identifiers.
+5. Do not call `/api/v1/events` from the browser: that dashboard projection requires privileged server authorization and is not a Comms5 message ledger. Do not call Comms5 mutation or provider exchange tools to populate this read-only view.
+
+### Future source readiness
+
+Before making the monitor live, implement and review the versioned same-origin read-only projection described in the component contract. Verify its account-session and exact read-grant checks, server-side scope/redaction, nullable counts, stale-source behavior, and that delivery/completion is backed by matching authoritative events. The browser must use only the same-origin account session, never a service bearer. Until then, successful static-page delivery is not activity-feed readiness.
+
+### V2 Communications Activity LAN preview deployment
+
+The V2 alias remains under the existing TLS/LAN server and now targets the isolated static release `/var/www/riverview-v2-preview/releases/RV-WEB-V2-COMMS-ACTIVITY-001/`. It does not change `/`, `/api/v1/`, Caddy, Dashboard, Comms5, or any service. Before copying, verify the source commit and package file hashes, ensure the target release directory does not exist, and preserve the active V2 include at `/var/lib/riverview/engineering-backups/RV-WEB-V2-COMMS-ACTIVITY-001/<timestamp>/riverview-v2.conf.predecessor` with SHA-256. Copy only `website/v2/` files into the new release, set directory/file ownership to `admin1:www-data` with directories `0750` and files `0640`, install the reviewed V2 include to `/etc/nginx/snippets/riverview-v2.conf`, and run `sudo nginx -t` before reload. If valid, reload Nginx gracefully; do not restart the Dashboard. Verify V2 and V1 both return `200`, expected CSP/no-store headers remain, and the served HTML and every referenced asset match package SHA-256 values. Roll back only the snippet from its protected predecessor, run `sudo nginx -t`, reload Nginx, and verify V1 root remains healthy. Retain the failed release for diagnosis; do not overwrite it or roll back unrelated services.
 
 ## Start, stop, and resume
 
@@ -125,6 +141,8 @@ The login page warns that HTTP does not encrypt the password or cookie in transi
 | Snapshot hash check fails in browser | Inspect status only; do not copy browser storage or credentials into diagnostics | Snapshot either completes with the local ZIP size or reports it could not be created; no server write occurred | Retry once. If it persists, save sanitized browser console error metadata and use the Chrome acceptance runner. No service restart is relevant. |
 | Grace chat cannot send from V2 | Open `https://192.168.1.155/v2/`; inspect the visible state and `GET /api/v1/auth/session` result | The HTTPS V2 route uses the existing Dashboard account cookie, CSRF token, conversation session and exact grants. The HTTP fixture preview remains disconnected. | Sign in through the V2 same-origin form with the authorized Steward account. If the API denies exact grants, stop and use normal permission review. Never copy bearer values or cookies. |
 | Comms5 counts or messages appear unavailable | Inspect the Comms5 card and the Snapshot `communication_diagnostics` object | Expected: `status=unverified`, outbound/inbound counts `null`, inspectable messages `false`; unknown is not zero. The Comms5 v5 capability list has no general message ledger operation for V2. | Do not infer counters from the Dashboard event list or unrelated Comms5 operations. Resume only when an independently recorded, authorized Comms5 event projection is available. |
+| Communications page says source unavailable | Open Communications and inspect source status, counts, and refresh status | Expected until the read-only API is implemented: UNVERIFIED, counts unavailable, empty ledger, and “no request was sent” after local check | This is a known integration dependency, not zero activity. Do not add browser credentials or call privileged APIs; implement/review the documented read-only feed contract first. |
+| Communications page says source unavailable | Open Communications and inspect source status, counts, and refresh status | Expected until the read-only API is implemented: UNVERIFIED, counts unavailable, empty ledger, and “no request was sent” after local check | This is a known integration dependency, not zero activity. Do not add browser credentials or call privileged APIs; implement/review the documented read-only feed contract first. |
 | Grace chat appears in the right sidebar or disappears on navigation | Open Residents, select Grace, then inspect `#workspace-main` and `#right-sidebar` in DevTools | `#grace-chat-root` is inside `#workspace-main`; the right sidebar contains supporting context only | Select Residents then Grace again. If the center panel is missing, verify the served `workspace.js` and `index.html` belong to the same V2 release; do not change API, Nginx or V1 to repair a static UI issue. |
 | Mobile Grace workspace overflows horizontally | At 390 CSS px inspect `document.documentElement.scrollWidth` and `innerWidth` | Scroll width is no greater than viewport width; history scrolls internally | Reload the current V2 assets, reset sidebar widths and rerun the Chrome viewport check. Do not modify the global LAN route for a CSS defect. |
 | Mobile menu does not close automatically | Tap the menu button again | Navigation rail returns off-canvas | This preview has no router or automatic navigation state. |

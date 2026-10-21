@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: website/v2/assets/snapshot.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.6
-Purpose: Create a bounded, redacted ZIP of the active V2 view and truthful Grace connection state
+Revision: 1.0.7
+Purpose: Create a bounded, redacted ZIP of active V2 view and truthful integration state
 Execution Model: Explicit browser click; in-memory collection and local download
 Observability: Visible completion/error message and package manifest
 Dependencies: Browser DOM, Web Crypto, Blob, TextEncoder, URL
 Inputs/Outputs: Current V2 view and fixture context; local ZIP download
 Authority: Read-only presentation snapshot; no credentials, chat bodies, or persistent writes
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Capture the selected Grace workspace view without transcript or credentials
+Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Include safe Communications Activity source state in V2 snapshot
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_snapshot_chrome.py
 History: Git and revision/backup manifest
@@ -112,6 +112,7 @@ History: Git and revision/backup manifest
     const shell = document.querySelector(".app-shell");
     const view = document.querySelector("#workspace-main")?.dataset.currentView || "unknown";
     const chat = window.RiverviewGraceChat?.snapshotDiagnostics() || { status: "unavailable", durable_history_loaded: false, persisted_event_count: null };
+    const communications = window.RiverviewV2Communications?.snapshotDiagnostics() || { status: "unverified", source_configured: false, outbound_count: null, inbound_count: null, pending_count: null, failed_count: null, completed_count: null, last_local_check_at: null };
     const viewText = view === "grace"
       ? `Grace authenticated conversation view selected. Connection: ${chat.status}. Durable history loaded: ${Boolean(chat.durable_history_loaded)}.`
       : (document.querySelector("#view-content")?.innerText || "").slice(0, CONTENT_LIMIT);
@@ -132,7 +133,7 @@ History: Git and revision/backup manifest
       data_connection: { mode: view === "grace" ? "authenticated Grace conversation" : "fixture workspace", live_backend_connected: chat.status === "connected", details: view === "grace" ? "Grace conversation status reflects the existing same-origin Dashboard API; message content is excluded." : "Workspace overview and non-Grace views use fixtures. Grace has a separate authenticated Dashboard connection state." },
       communication_diagnostics: {
         grace_chat: chat,
-        comms5: { status: "unverified", outbound_count: null, inbound_count: null, inspectable_messages: false, correlation_ids: "unavailable", reason: "No authorized Comms5 event feed is connected to V2." }
+        comms5: { ...communications, inspectable_messages: false, correlation_ids: "unavailable", reason: "No authorized Comms5 event feed is connected to V2." }
       },
       rendered_view_text: viewText,
       browser_errors: errors.slice(-20),

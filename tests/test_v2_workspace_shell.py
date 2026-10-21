@@ -1,14 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.14
-# Purpose: Verify fixture preview, LAN restrictions, and secure same-origin authenticated Grace integration
+# Revision: 1.0.15
+# Purpose: Verify V2 preview, authenticated Grace integration, and truthful Communications Activity state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
 # Dependencies: Python 3.10+ standard library; local V2 preview source
 # Inputs/Outputs: Starts/stops isolated loopback test servers and temporary hash files
 # Authority: Local fixture preview only; no production data or credentials
-# Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Verify the center Grace workspace and fixture separation
+# Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Verify communications monitor contract and unavailable-source behavior
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -92,7 +92,7 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn(b"Fixture workspace", body)
         self.assertIn("connect-src 'none'", headers["Content-Security-Policy"])
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
-        for asset in ("fixtures.js", "workspace.js", "workspace.css", "grace-chat.js"):
+        for asset in ("fixtures.js", "workspace.js", "workspace.css", "communications.js", "communications.css", "grace-chat.js"):
             self.assertEqual(self.request("GET", f"/assets/{asset}")[0], 200)
 
     def test_grace_conversation_is_mounted_in_center_workspace(self):
@@ -119,6 +119,32 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('status === "connected"', snapshot)
         self.assertIn('grace-conversation', snapshot)
         self.assertNotIn("conversation-toggle", source)
+
+    def test_communications_activity_is_explicitly_unverified_without_authorized_feed(self):
+        html = (ROOT / "website/v2/index.html").read_text(encoding="utf-8")
+        monitor = (ROOT / "website/v2/assets/communications.js").read_text(encoding="utf-8")
+        snapshot = (ROOT / "website/v2/assets/snapshot.js").read_text(encoding="utf-8")
+        self.assertIn('data-view="communications"', html)
+        self.assertIn('id="communications-workspace"', html)
+        self.assertIn('data-state="unverified">UNVERIFIED', html)
+        self.assertIn('data-count="outbound">Unavailable', html)
+        self.assertIn('data-count="inbound">Unavailable', html)
+        self.assertIn("This is not evidence of zero traffic", html + monitor)
+        self.assertIn('id="communications-search"', html)
+        self.assertIn('id="communications-window"', html)
+        self.assertIn('id="communications-status"', html)
+        self.assertIn('id="communications-direction"', html)
+        self.assertIn('id="communications-ledger-body"', html)
+        self.assertIn('id="communications-detail"', html)
+        self.assertIn("sourceConfigured: false", monitor)
+        self.assertIn("outbound: null, inbound: null", monitor)
+        self.assertIn("No network request was sent", monitor)
+        self.assertNotIn("fetch(", monitor)
+        self.assertNotIn("innerHTML", monitor)
+        self.assertIn("RiverviewV2Communications?.snapshotDiagnostics()", snapshot)
+        self.assertIn("pending_count: null", snapshot)
+        self.assertIn("failed_count: null", snapshot)
+        self.assertIn("completed_count: null", snapshot)
 
     def test_rejects_mutations_and_traversal(self):
         for method in ("POST", "PUT", "PATCH", "DELETE"):
@@ -186,6 +212,7 @@ class WorkspacePreviewTests(unittest.TestCase):
         route = (ROOT / "deploy/nginx/riverview-v2.location.conf").read_text()
         self.assertIn("location = /v2", route)
         self.assertIn("location ^~ /v2/", route)
+        self.assertIn("alias /var/www/riverview-v2-preview/releases/RV-WEB-V2-COMMS-ACTIVITY-001/", route)
         self.assertIn("autoindex off", route)
         self.assertIn("connect-src 'self'", route)
         self.assertIn("frame-ancestors 'none'", route)

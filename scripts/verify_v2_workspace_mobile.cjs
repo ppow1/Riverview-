@@ -2,14 +2,14 @@
 Riverview~ Controlled Source
 File: scripts/verify_v2_workspace_mobile.cjs
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.7
-Purpose: Verify Grace center-workspace navigation and desktop/mobile Chrome layout
+Revision: 1.0.8
+Purpose: Verify V2 workspace navigation, Communications Activity honesty, and desktop/mobile Chrome layout
 Execution Model: Request-driven acceptance utility; starts and stops its own Chrome process
 Observability: JSON stdout containing viewport fit and browser errors; no credentials or remote requests
 Dependencies: Node.js, Google Chrome, system-installed ws module, local V2 preview
 Inputs/Outputs: --url; writes no files; drives only the specified local preview
 Authority: Browser test only; no production API, persistent storage, or state mutation
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Verify Grace chat placement, navigation, Snapshot state, and responsive Chrome layout
+Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Verify Communications state, null counters, and no unauthenticated feed request
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -97,6 +97,14 @@ async function main() {
       const checks={};
       checks.initialView=document.querySelector('#workspace-main').dataset.currentView;
       checks.overviewTitle=document.querySelector('#page-title').textContent;
+      document.querySelector('[data-view="communications"]').click();
+      checks.communications={view:document.querySelector('#workspace-main').dataset.currentView,state:document.querySelector('#communications-source-state').textContent.trim(),outbound:document.querySelector('[data-count="outbound"]').textContent.trim(),inbound:document.querySelector('[data-count="inbound"]').textContent.trim(),empty:document.querySelector('#communications-ledger-body').children.length===0,sourceMessage:document.querySelector('#communications-ledger-empty').textContent};
+      document.querySelector('#communications-search').value='test';document.querySelector('#communications-search').dispatchEvent(new Event('input'));
+      document.querySelector('#communications-refresh').click();
+      checks.communications.refreshMessage=document.querySelector('#communications-refresh-status').textContent;
+      checks.communications.sourceDetail=document.querySelector('#communications-source-detail').textContent;
+      checks.communications.noFeedRequest=!performance.getEntriesByType('resource').some(entry=>entry.name.includes('/api/v1/comms')||entry.name.includes('/api/v1/events'));
+      document.querySelector('[data-view="overview"]').click();
       document.querySelector('[data-view="residents"]').click();
       document.querySelector('[data-resident-id="grace-preview"]').click();
       const chat=document.querySelector('#grace-chat-root');
@@ -126,7 +134,7 @@ async function main() {
     const report = { chrome: debuggerVersion.Browser, url: baseUrl, viewport: result.viewport, checks: result.checks, integration: result.integration, sidebar_states: result.states, browser_errors: errors };
     process.stdout.write(`${JSON.stringify(report)}\n`);
     const minimumChatWidth = width <= 760 ? 300 : 600;
-    if (result.checks.initialView !== "overview" || result.checks.overviewTitle !== "Workspace overview" || result.checks.graceView.view !== "grace" || result.checks.graceView.title !== "Grace conversation" || !result.checks.graceView.visible || !result.checks.graceView.insideCenter || result.checks.graceView.insideContext || !result.checks.graceView.history || !result.checks.graceView.composer || result.checks.selectedResident !== "Grace" || !result.checks.overviewRestored || !result.checks.fixtureDoesNotOpenLiveChat || !result.checks.fixtureStatus.includes("Example workspace") || result.integration.label !== "Snapshot" || result.integration.chatHistoryLabel !== "Persisted messages with Grace" || result.integration.chatStatus !== "Open the LAN HTTPS Dashboard at /v2/ to use authenticated Grace chat" || result.viewport.width !== width || result.viewport.height !== height || result.viewport.overflow || result.viewport.chatWidth < minimumChatWidth || (width <= 760 ? result.viewport.menuDisplay === "none" : result.viewport.menuDisplay !== "none") || !result.viewport.stateControlsVisible || result.states.left !== "compact" || result.states.right !== "compact" || errors.length) throw new Error("grace_workspace_browser_check_failed");
+    if (result.checks.initialView !== "overview" || result.checks.overviewTitle !== "Workspace overview" || result.checks.communications.view !== "communications" || result.checks.communications.state !== "UNVERIFIED" || result.checks.communications.outbound !== "Unavailable" || result.checks.communications.inbound !== "Unavailable" || !result.checks.communications.empty || !result.checks.communications.sourceMessage.includes("not evidence of zero traffic") || !result.checks.communications.refreshMessage.includes("No network request was sent") || !result.checks.communications.sourceDetail.includes("No activity request was sent") || !result.checks.communications.noFeedRequest || result.checks.graceView.view !== "grace" || result.checks.graceView.title !== "Grace conversation" || !result.checks.graceView.visible || !result.checks.graceView.insideCenter || result.checks.graceView.insideContext || !result.checks.graceView.history || !result.checks.graceView.composer || result.checks.selectedResident !== "Grace" || !result.checks.overviewRestored || !result.checks.fixtureDoesNotOpenLiveChat || !result.checks.fixtureStatus.includes("Example workspace") || result.integration.label !== "Snapshot" || result.integration.chatHistoryLabel !== "Persisted messages with Grace" || result.integration.chatStatus !== "Open the LAN HTTPS Dashboard at /v2/ to use authenticated Grace chat" || result.viewport.width !== width || result.viewport.height !== height || result.viewport.overflow || result.viewport.chatWidth < minimumChatWidth || (width <= 760 ? result.viewport.menuDisplay === "none" : result.viewport.menuDisplay !== "none") || !result.viewport.stateControlsVisible || result.states.left !== "compact" || result.states.right !== "compact" || errors.length) throw new Error("grace_workspace_browser_check_failed");
   } finally {
     ws.close();
   }

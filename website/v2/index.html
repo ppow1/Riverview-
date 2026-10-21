@@ -2,14 +2,14 @@
 Riverview~ Controlled Document
 File: website/v2/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.7
-Purpose: Render the V2 workspace with a dedicated center workspace for authenticated Grace conversation
+File Revision: 1.0.8
+Purpose: Render the V2 workspace, authenticated Grace conversation, and Communications Activity monitor
 Execution Model: Interactive browser presentation; request-driven Dashboard API calls
 Observability: Live conversation state from rv.resident.conversation.v1; Comms5 stays unverified
 Dependencies: Same-origin static assets under website/v2/assets
 Inputs/Outputs: Local fixture records plus authenticated Grace conversation API; durable messages remain Dashboard-owned
 Authority: Account session plus server-checked resident.conversation.read/send grants; LAN preview
-Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Move authenticated Grace conversation into the center workspace
+Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Add V2 communications activity surface with explicit unavailable-source state
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -23,8 +23,10 @@ History: Git and revision/backup manifest
   <title>Riverview V2 Workspace Preview</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/workspace.css">
+  <link rel="stylesheet" href="assets/communications.css">
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/workspace.js"></script>
+  <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
   <script defer src="assets/grace-chat.js"></script>
 </head>
@@ -39,6 +41,7 @@ History: Git and revision/backup manifest
         <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show fixture work items"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
         <button class="nav-item" data-view="resources" aria-label="Resources" data-tooltip="Show workspace resources"><span aria-hidden="true">◇</span><span class="nav-label">Resources</span></button>
         <button class="nav-item" data-view="knowledge" aria-label="Knowledge" data-tooltip="Browse preview knowledge"><span aria-hidden="true">⌕</span><span class="nav-label">Knowledge</span></button>
+        <button class="nav-item" data-view="communications" aria-label="Communications activity" data-tooltip="Inspect verified Riverview communications activity"><span aria-hidden="true">⇄</span><span class="nav-label">Communications</span></button>
       </nav>
       <div class="rail-bottom"><span class="avatar steward">S</span><span>Steward<small>Preview session</small></span></div>
     </aside>
@@ -61,6 +64,30 @@ History: Git and revision/backup manifest
           <section class="grace-workspace" id="grace-workspace" aria-labelledby="grace-workspace-heading" hidden>
             <div class="grace-workspace-heading"><div><p class="eyebrow">AUTHENTICATED CONVERSATION</p><h2 id="grace-workspace-heading">Talk with Grace</h2><p class="muted">Durable conversation history from the existing Dashboard service.</p></div><span class="live-conversation-badge"><i aria-hidden="true"></i> Grace</span></div>
             <section class="conversation-card grace-chat" id="grace-chat-root" aria-labelledby="grace-chat-heading" data-state="checking"><div class="conversation-title"><span class="conversation-icon" aria-hidden="true">✳</span><span><b id="grace-chat-heading">Secure Dashboard conversation</b><small id="grace-chat-state" role="status" aria-live="polite">Checking secure Dashboard session…</small></span></div><p id="grace-chat-error" class="grace-chat-error" role="alert" hidden></p><form id="grace-login-form" class="grace-login-form"><label for="grace-email">Dashboard email</label><input id="grace-email" name="email" type="email" autocomplete="username" maxlength="254" required><label for="grace-password">Dashboard password</label><input id="grace-password" name="password" type="password" autocomplete="current-password" maxlength="1024" required><button type="submit">Sign in securely</button><small>Your password is sent only to the existing same-origin Dashboard login API over HTTPS.</small></form><div id="grace-chat-connected" hidden><div class="grace-chat-toolbar"><span id="grace-account-label"></span><button id="grace-refresh" type="button" data-tooltip="Reload durable Grace history">Refresh history</button><button id="grace-new" type="button" data-tooltip="Start a new persisted conversation with the next message">New conversation</button></div><div id="grace-chat-history" class="grace-chat-history" role="log" aria-label="Persisted messages with Grace" aria-live="polite" aria-relevant="additions text" tabindex="0">No conversation loaded.</div><form id="grace-chat-form" class="grace-chat-composer"><label class="visually-hidden" for="grace-message">Message Grace</label><textarea id="grace-message" maxlength="8192" rows="2" required placeholder="Write a message to Grace…"></textarea><button id="grace-send" type="submit">Send</button></form></div></section>
+          </section>
+          <section class="communications-workspace" id="communications-workspace" aria-labelledby="communications-heading" hidden>
+            <div class="communications-heading"><div><p class="eyebrow">RIVERVIEW ↔ COMMS5 ↔ CHATGPT</p><h2 id="communications-heading">Communications activity</h2><p class="muted">Authoritative message delivery is shown only when a governed, redacted activity source is connected.</p></div><span class="activity-state" id="communications-source-state" data-state="unverified">UNVERIFIED</span></div>
+            <div class="activity-source-alert" id="communications-source-alert" role="status" aria-live="polite"><b>Activity source unavailable</b><p>No authorized read-only Comms5 activity feed is connected to V2. Unknown counts remain unavailable, not zero; no delivery or receipt is inferred.</p><small id="communications-source-detail">Source: not configured · No activity request has been sent.</small></div>
+            <div class="activity-summary" aria-label="Communication counts for selected window">
+              <article><span>Sent</span><strong data-count="outbound">Unavailable</strong><small>Authoritative Comms5 events</small></article>
+              <article><span>Received</span><strong data-count="inbound">Unavailable</strong><small>Correlated inbound events</small></article>
+              <article><span>Pending</span><strong data-count="pending">Unavailable</strong><small>Current lifecycle state</small></article>
+              <article><span>Failed</span><strong data-count="failed">Unavailable</strong><small>Explicit terminal failures</small></article>
+              <article><span>Completed</span><strong data-count="completed">Unavailable</strong><small>Verified completion events</small></article>
+            </div>
+            <section class="activity-ledger" aria-labelledby="activity-ledger-heading">
+              <div class="activity-ledger-heading"><div><h3 id="activity-ledger-heading">Activity ledger</h3><p class="muted">Only redacted lifecycle metadata; message bodies and credentials are never shown.</p></div><button id="communications-refresh" type="button" aria-describedby="communications-refresh-status">Check source</button></div>
+              <p id="communications-refresh-status" class="refresh-status" role="status" aria-live="polite">No activity request has been sent because no authorized source is configured.</p>
+              <div class="activity-filters">
+                <label>Search ledger<input id="communications-search" type="search" maxlength="120" placeholder="Event, destination, correlation ID"></label>
+                <label>Time window<select id="communications-window"><option value="24h">Last 24 hours</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="all">All available</option></select></label>
+                <label>Status<select id="communications-status"><option value="all">All statuses</option><option value="pending">Pending</option><option value="failed">Failed</option><option value="completed">Completed</option></select></label>
+                <label>Direction<select id="communications-direction"><option value="all">All directions</option><option value="outbound">Sent</option><option value="inbound">Received</option></select></label>
+              </div>
+              <div class="activity-table-wrap"><table><caption class="visually-hidden">Timestamped communications lifecycle events</caption><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Direction</th><th scope="col">Destination</th><th scope="col">Status</th><th scope="col">Correlation</th></tr></thead><tbody id="communications-ledger-body"></tbody></table></div>
+              <p id="communications-ledger-empty" class="activity-empty">No ledger records are available because the authoritative source is not connected. This is not evidence of zero traffic.</p>
+              <details class="activity-detail" id="communications-detail"><summary>Selected event details</summary><p>Select a ledger event to inspect its redacted details. Payload content is not exposed.</p></details>
+            </section>
           </section>
         </section>
 

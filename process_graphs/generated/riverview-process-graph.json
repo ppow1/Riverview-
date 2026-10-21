@@ -3765,7 +3765,7 @@
     },
     {
       "graph_id": "rv:riverview-v2:workspace-shell",
-      "graph_revision": "1.0.12",
+      "graph_revision": "1.0.13",
       "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
       "workflow_id": "local-static-preview",
       "diagram_order": 80,
@@ -3778,7 +3778,9 @@
         "website/v2/assets/workspace.css",
         "website/v2/assets/snapshot.js",
         "website/v2/assets/grace-chat.js",
-        "deploy/nginx/riverview-v2.location.conf"
+        "deploy/nginx/riverview-v2.location.conf",
+        "website/v2/assets/communications.js",
+        "website/v2/assets/communications.css"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
@@ -4535,6 +4537,74 @@
             "tests/test_v2_workspace_shell.py",
             "scripts/verify_v2_workspace_mobile.cjs"
           ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:communications-view",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Render Communications Activity controls and safe summary in V2",
+          "source_references": [
+            "website/v2/index.html",
+            "website/v2/assets/workspace.js",
+            "website/v2/assets/communications.js",
+            "website/v2/assets/communications.css"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_v2_workspace_shell.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:communications-source-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Check whether an authorized redacted read-only Comms5 activity source is configured",
+          "source_references": [
+            "website/v2/assets/communications.js"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_v2_workspace_shell.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:communications-unverified",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Keep source UNVERIFIED, counts unavailable, and ledger empty without implying zero traffic",
+          "source_references": [
+            "website/v2/assets/communications.js",
+            "website/v2/assets/snapshot.js"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_v2_workspace_shell.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:communications-local-refresh",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Refresh local source configuration state without sending an unauthenticated request",
+          "source_references": [
+            "website/v2/assets/communications.js"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_v2_workspace_shell.py"
+          ]
         }
       ],
       "edges": [
@@ -4940,6 +5010,42 @@
           "to": "rv:riverview-v2:workspace-shell:render-fixtures",
           "type": "runtime_transition",
           "label": "Overview or fixture view selected"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:choose-view",
+          "to": "rv:riverview-v2:workspace-shell:communications-view",
+          "type": "runtime_transition",
+          "label": "Select Communications Activity"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:communications-view",
+          "to": "rv:riverview-v2:workspace-shell:communications-source-check",
+          "type": "runtime_transition",
+          "label": "Render current source configuration"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:communications-source-check",
+          "to": "rv:riverview-v2:workspace-shell:communications-unverified",
+          "type": "diagnostic_branch",
+          "label": "No authorized read-only activity feed is configured"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:communications-unverified",
+          "to": "rv:riverview-v2:workspace-shell:communications-local-refresh",
+          "type": "runtime_transition",
+          "label": "User requests a local configuration check; no network request is sent"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:communications-local-refresh",
+          "to": "rv:riverview-v2:workspace-shell:communications-unverified",
+          "type": "recovery_route",
+          "label": "Remain UNVERIFIED and retain unknown counts as unavailable"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:communications-unverified",
+          "to": "rv:riverview-v2:workspace-shell:snapshot-capture",
+          "type": "runtime_transition",
+          "label": "Snapshot records safe status and null counters only"
         }
       ]
     },
@@ -7249,6 +7355,10 @@
     "rv:riverview-v2:workspace-shell:choose-presentation",
     "rv:riverview-v2:workspace-shell:choose-view",
     "rv:riverview-v2:workspace-shell:comms5-unverified",
+    "rv:riverview-v2:workspace-shell:communications-local-refresh",
+    "rv:riverview-v2:workspace-shell:communications-source-check",
+    "rv:riverview-v2:workspace-shell:communications-unverified",
+    "rv:riverview-v2:workspace-shell:communications-view",
     "rv:riverview-v2:workspace-shell:configure-password",
     "rv:riverview-v2:workspace-shell:cycle-sidebars",
     "rv:riverview-v2:workspace-shell:dashboard-login",

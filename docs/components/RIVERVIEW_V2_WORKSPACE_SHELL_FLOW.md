@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.11
+File Revision: 1.0.12
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-CHAT-002 | Regenerate the graph for the same-origin Dashboard chat integration
@@ -60,6 +60,10 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_grace_recovery_a7678f56["Refresh durable history and resume read-only status checks; never automatically repeat uncertain send"]
     g_rv_riverview_v2_workspace_shell_route_resident_selection_89cc4007{"Choose selected resident: Grace or a synthetic preview record"}
     g_rv_riverview_v2_workspace_shell_render_grace_center_9f9b903c["Render authenticated Grace conversation in the center workspace; keep right panel contextual"]
+    g_rv_riverview_v2_workspace_shell_communications_view_51b400cb["Render Communications Activity controls and safe summary in V2"]
+    g_rv_riverview_v2_workspace_shell_communications_source_check_c3cffc2d{"Check whether an authorized redacted read-only Comms5 activity source is configured"}
+    g_rv_riverview_v2_workspace_shell_communications_unverified_50cc0073["Keep source UNVERIFIED, counts unavailable, and ledger empty without implying zero traffic"]
+    g_rv_riverview_v2_workspace_shell_communications_local_refresh_0f9e83ae["Refresh local source configuration state without sending an unauthenticated request"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -130,6 +134,12 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_route_resident_selection_89cc4007 -->|Synthetic resident selected; retain fixture-only directory| g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
   g_rv_riverview_v2_workspace_shell_render_grace_center_9f9b903c -->|Existing authenticated conversation client checks Dashboard session| g_rv_riverview_v2_workspace_shell_dashboard_session_62b93d74
   g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Overview or fixture view selected| g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
+  g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Select Communications Activity| g_rv_riverview_v2_workspace_shell_communications_view_51b400cb
+  g_rv_riverview_v2_workspace_shell_communications_view_51b400cb -->|Render current source configuration| g_rv_riverview_v2_workspace_shell_communications_source_check_c3cffc2d
+  g_rv_riverview_v2_workspace_shell_communications_source_check_c3cffc2d -->|diagnostic_branch: No authorized read-only activity feed is configured| g_rv_riverview_v2_workspace_shell_communications_unverified_50cc0073
+  g_rv_riverview_v2_workspace_shell_communications_unverified_50cc0073 -->|User requests a local configuration check; no network request is sent| g_rv_riverview_v2_workspace_shell_communications_local_refresh_0f9e83ae
+  g_rv_riverview_v2_workspace_shell_communications_local_refresh_0f9e83ae -->|recovery_route: Remain UNVERIFIED and retain unknown counts as unavailable| g_rv_riverview_v2_workspace_shell_communications_unverified_50cc0073
+  g_rv_riverview_v2_workspace_shell_communications_unverified_50cc0073 -->|Snapshot records safe status and null counters only| g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
