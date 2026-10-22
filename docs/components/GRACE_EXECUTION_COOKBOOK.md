@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.28
+File Revision: 1.1.29
+Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001-DOC-CORRECTION | Make persisted accepted verification, not conversational output, the objective completion authority.
 Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Document durable terminal completion recovery and distinguish post-completion conversation feedback.
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Diagnose scheduler ordering, split lifecycle criteria, and distinguish verifier rejection from Grace acceptance
 Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Diagnose dynamic bounded artifact contracts and verifier outcomes
@@ -338,11 +339,13 @@ metadata. These checks establish integrity, required structure, and explicitly
 testable literals only; Grace's reasoning decision remains responsible for
 substantive acceptance.
 
-An independently accepted final assignment on a conversation-origin objective
-first remains `WORK_ORDER_CREATED` while Grace reviews the artifact and
-verification evidence. Check the same-cycle `conversation.result_published` or
-`conversation.result_review_published` event for `review_decision`. Only
-`OBJECTIVE_COMPLETE` allows the normal completion reconciler to append
-`objective.completed`. Other decisions leave the objective open; preserve the
-receipt and follow the established evidence, continuation, or Steward-action
-path. Do not modify objective state manually or replay the original smoke test.
+Objective completion is governed by persisted state: the objective reaches
+`COMPLETED` only when every required step is verified and has persisted
+independent verification with decision `ACCEPTED`. The normal reconciliation
+path records one durable `objective.completed` event idempotently and recovers
+after interrupted processing. Grace's conversational `OBJECTIVE_COMPLETE`
+response, other conversation messages, and published conversation feedback do
+not determine or override objective completion. Preserve receipts and continue
+only through the established evidence, continuation, or Steward-action path
+when required. Do not modify objective state manually or replay the original
+smoke test.
