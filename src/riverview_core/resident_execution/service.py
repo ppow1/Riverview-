@@ -230,6 +230,7 @@ class GraceExecutionService:
         if candidate is None:
             return False
         objective_id = candidate["objective_id"]
+        self._current_objective_id = objective_id
         try:
             self._record_reasoning_attempt(objective_id)
             result = self.resident_reasoner.propose(
@@ -503,6 +504,7 @@ class GraceExecutionService:
         for row in self._proposed(limit=1 if objective_id else 25,
                                   objective_id=objective_id):
             objective_id = row["objective_id"]
+            self._current_objective_id = objective_id
             step = self.pipeline.dispatchable_step(objective_id)
             if not step:
                 continue
@@ -941,18 +943,30 @@ class GraceExecutionService:
     def run_once(self):
         """Advance ready durable work before a possibly slow reasoning request."""
         try:
+            self._current_objective_id = None
+            self._current_request_id = None
+            self._current_stage = "proposal_dispatch"
             # Existing authorized work is latency-sensitive. A provider call can
             # take tens of seconds; do not put it ahead of work already admitted
             # under Steward scope or its verification/result-return path.
             dispatched = self.dispatch_proposed()
+            self._current_stage = "worker_execution"
             worker_result = self._run_workers()
+            self._current_stage = "independent_verification"
             verified = self.verify_one()
+            self._current_stage = "completion_reconciliation"
             completed = self.reconcile_completions()
+            self._current_stage = "conversation_receipt"
             returned = self.publish_conversation_results()
+            self._current_stage = "proposal_lifecycle"
             proposal_updates = self.reconcile_proposal_lifecycle()
+            self._current_stage = "rejected_work_order_review"
             rejected_reviewed = self.publish_rejected_work_order_reviews()
+            self._current_stage = "external_reasoning"
             external_reasoned = self.consume_external_reasoning()
+            self._current_stage = "resident_reasoning"
             reasoned = self.reason_one_grounded_objective()
+            self._current_stage = "doorbell"
             doorbell = self._run_doorbell_worker()
             worker_failures = (worker_result.get("status") == "FAILED" or
                 (isinstance(worker_result.get("capabilities"), dict) and any(
@@ -1071,7 +1085,10 @@ class GraceExecutionService:
                     sleep(poll_seconds)
             except Exception as exc:
                 LOG.error(json.dumps({"event": "grace_execution_cycle_failed",
-                    "failure_type": type(exc).__name__}, sort_keys=True))
+                    "failure_type": type(exc).__name__,
+                    "objective_id": getattr(self, "_current_objective_id", None),
+                    "request_id": getattr(self, "_current_request_id", None),
+                    "failure_stage": getattr(self, "_current_stage", "cycle")}, sort_keys=True))
                 sleep(poll_seconds)
         self._heartbeat("stopping")
 

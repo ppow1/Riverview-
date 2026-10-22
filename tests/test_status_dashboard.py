@@ -824,6 +824,10 @@ class DashboardHTTPTests(unittest.TestCase):
             def __exit__(self, *_): return False
             def execute(self, *_): return None
             def fetchall(self):
+                if self.pipeline.fail_event_history:
+                    error = RuntimeError("sensitive database detail")
+                    error.sqlstate = "42501"
+                    raise error
                 return ([{"objective_id": self.pipeline.objective["objective_id"]}]
                         if self.pipeline.objective else [])
 
@@ -842,6 +846,7 @@ class DashboardHTTPTests(unittest.TestCase):
                 self.ground_count = 0
                 self.authorization_count = 0
                 self.authorization_revoked = False
+                self.fail_event_history = False
                 self.ledger = PipelineLedger(self)
             def authorize_objective_submission(self, _principal_id, _scope_ref):
                 self.authorization_count += 1
@@ -937,6 +942,24 @@ class DashboardHTTPTests(unittest.TestCase):
         origin_conflict_status, origin_conflict = post_work_order(None)
         self.assertEqual(origin_conflict_status, 409)
         self.assertEqual(origin_conflict["error"], "work_order_origin_conflict")
+
+        # The deterministic objective identity must be available to diagnostics
+        # even if the event-history lookup fails before it can find a receipt.
+        from uuid import NAMESPACE_URL, uuid5
+        pipeline.fail_event_history = True
+        with self.assertLogs("riverview.dashboard.intake", level="ERROR") as captured:
+            failed_status, failed = post_work_order(None)
+        self.assertEqual(failed_status, 503)
+        self.assertEqual(failed["error"], "work_order_intake_unavailable")
+        diagnostic = json.loads(captured.output[-1].split(":", 2)[-1].strip())
+        expected_id = "objective:grace-conversation:" + str(uuid5(
+            NAMESPACE_URL,
+            f"riverview:grace-conversation-objective:{conversation_id}:6"))
+        self.assertEqual(diagnostic["objective_id"], expected_id)
+        self.assertEqual(diagnostic["failure_stage"], "event_history")
+        self.assertEqual(diagnostic["exception_type"], "RuntimeError")
+        self.assertEqual(diagnostic["sqlstate"], "42501")
+        self.assertNotIn("sensitive database detail", captured.output[-1])
 
     def test_conversation_stream_requires_authentication_and_existing_service(self):
         path="/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/responses/00000000-0000-4000-8000-000000000002/stream?after=0"
