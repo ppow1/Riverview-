@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.26
+# Revision: 1.2.27
+# Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Add sanitized parse metadata and one-shot expiring private capture for a target review response
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Carry assignment-defined artifact sets through review and continuation
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Validate and present all verifier-checked assignment artifacts to Grace
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Reconcile bounded review generations with active production behavior and exact-scope authorization.
@@ -56,8 +57,11 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
+import os
 import re
+import stat
 import threading
+import time
 from time import monotonic
 from contextlib import contextmanager
 from functools import wraps
@@ -78,6 +82,8 @@ _MESSAGE_LIMIT = 8 * 1024
 _MAX_VERIFIED_RESULT_REVIEW_GENERATIONS = 4
 _MAX_REVIEW_EVIDENCE_BYTES = 4096
 _HISTORY_CONTEXT_MESSAGES = 16
+_REVIEW_CAPTURE_RUNTIME_DIR = "/run/riverview-grace-execution-owner-session"
+_REVIEW_CAPTURE_MAX_SECONDS = 900
 _LOG = logging.getLogger(__name__)
 _DIAGNOSTIC_FIELDS = ("selected_provider", "selected_model", "reasoning_stage",
     "started_at", "ended_at", "elapsed_ms", "outcome", "error_code",
@@ -166,6 +172,58 @@ def _safe_verified_result_review_shape(review):
             "execution_capability", "authorized_paths", "test_targets",
             "repository_reference", "repository_revision"}))
             if isinstance(step, dict) else None)}
+
+
+def _capture_verified_result_review_response(objective_id, request_id, raw_body, *,
+        environ=None, runtime_dir=None, now=None):
+    """Capture one explicitly targeted failed response in the private runtime directory."""
+    environ = os.environ if environ is None else environ
+    configured_objective = environ.get("RIVERVIEW_GRACE_REVIEW_CAPTURE_OBJECTIVE_ID")
+    try:
+        expires_at = int(environ.get("RIVERVIEW_GRACE_REVIEW_CAPTURE_EXPIRES_AT", "0"))
+    except (TypeError, ValueError):
+        return False
+    current_time = int(time.time() if now is None else now)
+    if (configured_objective != objective_id or expires_at <= current_time or
+            expires_at - current_time > _REVIEW_CAPTURE_MAX_SECONDS or
+            not isinstance(raw_body, str) or len(raw_body.encode("utf-8")) > _MESSAGE_LIMIT):
+        return False
+    directory = os.fspath(runtime_dir or _REVIEW_CAPTURE_RUNTIME_DIR)
+    try:
+        os.makedirs(directory, mode=0o700, exist_ok=True)
+        directory_stat = os.stat(directory, follow_symlinks=False)
+        effective_uid = getattr(os, "geteuid", lambda: directory_stat.st_uid)()
+        if (not stat.S_ISDIR(directory_stat.st_mode) or directory_stat.st_uid != effective_uid
+                or stat.S_IMODE(directory_stat.st_mode) & 0o077):
+            return False
+        stem = "verified-review-" + str(request_id)
+        marker = os.path.join(directory, stem + ".captured")
+        capture = os.path.join(directory, stem + ".response")
+        marker_fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        os.close(marker_fd)
+        try:
+            capture_fd = os.open(capture, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(capture_fd, "wb") as stream:
+                stream.write(raw_body.encode("utf-8"))
+                stream.flush()
+                os.fsync(stream.fileno())
+        except Exception:
+            os.unlink(marker)
+            return False
+
+        def expire_capture():
+            for path in (capture, marker):
+                try:
+                    os.unlink(path)
+                except FileNotFoundError:
+                    pass
+
+        expiry_timer = threading.Timer(max(0, expires_at - time.time()), expire_capture)
+        expiry_timer.daemon = True
+        expiry_timer.start()
+        return True
+    except (OSError, ValueError):
+        return False
 
 
 def _deferred_retry_delay(attempt_count):
@@ -1815,12 +1873,24 @@ class ResidentConversationService:
             if review["decision"] == "ADDITIONAL_EVIDENCE_REQUIRED" and not review["additional_evidence"]:
                 validation_stage = "evidence_payload_consistency"
                 raise ValueError
-        except (json.JSONDecodeError, TypeError, ValueError):
-            _LOG.warning("%s", json.dumps({
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            diagnostic = {
                 "event": "grace_verified_result_review_rejected",
                 "objective_id": context["objective_id"],
+                "request_id": str(request_id),
                 "failure_stage": validation_stage,
-                "response_shape": _safe_verified_result_review_shape(review)}, sort_keys=True))
+                "response_shape": _safe_verified_result_review_shape(review)}
+            if isinstance(exc, json.JSONDecodeError):
+                diagnostic.update({
+                    "json_error_message": exc.msg,
+                    "json_error_position": exc.pos,
+                    "response_byte_length": len(raw_body.encode("utf-8")),
+                    "finish_reason": getattr(model_completion, "finish_reason", None),
+                    "completion_tokens": getattr(model_completion, "completion_tokens", None),
+                    "response_begins_with_json_object": raw_body.lstrip().startswith("{"),
+                    "restricted_capture_written": _capture_verified_result_review_response(
+                        context["objective_id"], request_id, raw_body)})
+            _LOG.warning("%s", json.dumps(diagnostic, sort_keys=True))
             raise ConversationUnavailable("verified result review decision was invalid") from None
         continuation_status = "not_requested"
         if review["decision"] == "ENGINEERING_STEP_PROPOSED":
