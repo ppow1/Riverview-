@@ -1,3 +1,4 @@
+-- File Revision: 1.0.0
 -- Add only the event identity column needed by the objective event-history read.
 DO $$
 BEGIN
