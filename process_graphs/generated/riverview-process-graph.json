@@ -3765,7 +3765,7 @@
     },
     {
       "graph_id": "rv:riverview-v2:workspace-shell",
-      "graph_revision": "1.0.19",
+      "graph_revision": "1.0.20",
       "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
       "workflow_id": "local-static-preview",
       "diagram_order": 80,
@@ -4704,7 +4704,7 @@
           "label": "Collect allowlisted GPU and model-server readings through Dashboard backend sources"
         },
         {
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "source_references": [
             "website/v2/index.html",
             "website/v2/assets/resource-monitor.js",
@@ -4720,10 +4720,10 @@
           ],
           "id": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
           "type": "process",
-          "label": "Keep each stale, unsupported, unverified, or unavailable source explicit; never infer zero"
+          "label": "Keep unsupported, stale, unverified, or unavailable sources explicit; preserve last successful GPU values with a stale marker after refresh failure"
         },
         {
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "source_references": [
             "website/v2/index.html",
             "website/v2/assets/resource-monitor.js",
@@ -4739,7 +4739,7 @@
           ],
           "id": "rv:riverview-v2:workspace-shell:resource-filter-refresh",
           "type": "process",
-          "label": "Allow bounded manual refresh, local filters, and per-source details without background polling"
+          "label": "Keep five-second visible-view polling active; update keyed cards in place and reject overlapping refresh requests"
         },
         {
           "node_revision": "1.0.0",
@@ -4893,9 +4893,9 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:resource-render-live",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Render measured GPU/model fields as text with per-source timestamps and honest unavailable states",
+          "label": "Render measured GPU/model fields into stable keyed cards; retain the previous values while refreshing and mark them stale after failure or expiry",
           "source_references": [
             "website/v2/assets/resource-monitor.js",
             "website/v2/index.html"
@@ -4945,9 +4945,9 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "decision",
-          "label": "Resources selected and document visible? Start a five-second telemetry refresh only in this state",
+          "label": "Resources selected and document visible? Start a single-flight five-second telemetry refresh only in this state",
           "source_references": [
             "website/v2/assets/resource-monitor.js"
           ],
@@ -4962,9 +4962,9 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "measurement",
-          "label": "Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples; retain at most twelve in browser memory",
+          "label": "Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples without replacing mounted cards; retain at most twelve samples in browser memory",
           "source_references": [
             "website/v2/assets/resource-monitor.js"
           ],

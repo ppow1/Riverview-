@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.27
+File Revision: 1.0.28
 Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Connect authenticated Hardware view to host telemetry.
@@ -10,6 +10,7 @@ Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Integrate Work over th
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Add interactive OCTO1 topology and a source-bounded live activity view
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Read a content-free trace from the authorized durable Grace conversation API
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Render supplied X12 Ultra manufacturer references with interactive, source-bounded selections
+Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Keep measured GPU cards mounted during five-second refresh; mark retained samples stale on source failure
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
@@ -234,7 +235,7 @@ The Resources view now reads live measurements through the same-origin authentic
 
 The Dashboard projection is `rv.dashboard.resource-telemetry.v1`. It gathers GPU inventory/metrics from OCTOMINER1 through a dedicated strict-host-key SSH credential whose remote key is forced to the read-only collector. The collector returns device name/index, utilization, VRAM, temperature, power, GPU fan percentage when supported, and allowlisted service labels; host UUIDs and PIDs are discarded. The OCTO1 console joins these current `active_services` labels to the model service projections and displays the resulting GPU group. The join is based on the live host process-to-GPU mapping; it does not infer a physical PCIe slot position. Fixed model API endpoints provide health, loaded model identity, and active slot counts. A loaded model and service readiness are shown separately from slot occupancy. A positive `/slots` processing count is shown as processing, zero as ready/idle, and unavailable fields remain unavailable. This telemetry projection itself does not expose a request ID, server-side prompt/generation phase, or queue depth. Camrui GPU inventory is unavailable; its 0.6B endpoint and model identity can be reported. OctoMiner2 is shown as documented but identity-unverified/unavailable; it is intentionally offline and is not treated as a failure of OCTO1.
 
-The browser renders only response text using DOM text nodes. Source timestamps accompany readings. Each failed source remains unavailable independently; no last-known value is reused. Snapshot includes source state and timestamps only; it excludes GPU metric values and loaded model identifiers. The Hardware view does not control, restart, or invoke models. The backend source and secure credential/drop-in contract are documented in the Dashboard component and cookbook.
+The browser renders only response text using DOM text nodes. Source timestamps accompany readings. GPU telemetry cards use stable host/device identities and update metric text in place. A pending refresh keeps the last successful values visible and labels the card refreshing; a failed or expired source labels those retained values stale, never current. The first load shows explicit unavailable text until a reading exists. Polling remains at five seconds while Resources is open and the tab is visible, and overlapping requests are rejected by the existing in-flight guard. Snapshot includes source state and timestamps only; it excludes GPU metric values and loaded model identifiers. The Hardware view does not control, restart, or invoke models. The backend source and secure credential/drop-in contract are documented in the Dashboard component and cookbook.
 
 **Current live source verification (2026-10-21):** Camrui `127.0.0.1:18796` reported `/health` HTTP 200, model `qwen3-0.6b-q8_0-local`, and one idle slot. OCTOMINER1 `192.168.1.160` reported its four P100s serving `Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf`, RTX 4090 serving `Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf`, and RTX 3060 Ti unassigned. `/metrics` returned HTTP 501 on both OCTOMINER1 model servers; queue depth is therefore not available. OCTOMINER2 address `.162` did not respond on the configured inference ports and its SSH identity has not been verified. These are source checks, not a claim of deployed V2 acceptance until the controlled release is activated and checked in the authenticated browser.
 

@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/resource-monitor.js
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.2.2
+Revision: 1.3.0
 Purpose: Present an interactive manufacturer chassis reference with OCTO1 telemetry and a sanitized Grace request trace
 Execution Model: Same-origin authenticated GETs; five-second polling only while the Resources view is open and visible
 Observability: Source timestamps, freshness, a 12-sample browser timeline, and request-correlated conversation events
@@ -11,6 +11,7 @@ Inputs/Outputs: GPU readings and content-free events from the current authentica
 Authority: Read-only account-authenticated GETs; no host controls, model calls, or inferred GPU-to-bay/controller-channel mapping
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Display correlated durable Grace attempt metadata without asserting server-side GPU attribution
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Add physical front-panel hotspots, manufacturer view toggle, and dynamic model/GPU highlighting
+Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Retain last successful telemetry and update keyed GPU cards in place during refresh
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_resource_monitor.cjs; scripts/verify_v2_octo1_browser.cjs
 History: Git and .riverview-backups/manifest.jsonl
@@ -60,13 +61,30 @@ History: Git and .riverview-backups/manifest.jsonl
   const assignedDevices = (serviceId) => gpuInventory().filter(gpu=>Array.isArray(gpu.active_services)&&gpu.active_services.includes(serviceId)).map(gpu=>gpu.index).filter(Number.isInteger).sort((a,b)=>a-b);
   const machineObserved = () => isoTime(octoHost()?.gpu_inventory?.observed_at||octoHost()?.observed_at);
   const observationAge = (observed) => { const n=observed?Date.now()-Date.parse(observed):NaN; return Number.isFinite(n)&&n>=0?`${Math.floor(n/1000)}s ago`:"Not reported"; };
+  const ensureSelector = (root,id,className) => {
+    let button=Array.from(root.children).find(child=>child.dataset.octoComponent===id);
+    if(button)return button;
+    button=node("button",className);button.type="button";button.dataset.octoComponent=id;
+    for(const part of ["title","meta","detail"]){const child=node(part==="detail"?"small":"span",part==="title"?"octo-device-title":part==="meta"?"octo-device-meta":"");child.dataset.selectorPart=part;button.append(child);}
+    root.querySelectorAll(":scope > p.octo-empty").forEach(item=>item.remove());root.append(button);return button;
+  };
   const renderSelectionButtons = () => {
     const gpuRoot=$("octo1-gpu-selectors"),modelRoot=$("octo1-model-selectors"),gpuList=gpuInventory(),services=octoServices();
     const selectedModel=state.selected.kind==="model"?state.selected.id:null;
     const selectedGpu=state.selected.kind==="gpu"?Number(state.selected.id.slice(4)):null;
     const selectedGpuServices=new Set(gpuList.find(gpu=>gpu.index===selectedGpu)?.active_services||[]);
-    if(gpuRoot){gpuRoot.replaceChildren();if(!gpuList.length)gpuRoot.append(node("p","octo-empty","Authenticated OCTO1 GPU readings are unavailable; no devices are inferred."));gpuList.slice(0,32).forEach(gpu=>{const id=`gpu-${gpu.index}`,active=Array.isArray(gpu.active_services)?gpu.active_services:[],button=node("button","octo-device-button");button.type="button";button.dataset.octoComponent=id;button.setAttribute("aria-pressed",state.selected.kind==="gpu"&&state.selected.id===id?"true":"false");button.dataset.modelHighlight=selectedModel&&active.includes(selectedModel)?"true":"false";button.append(node("span","octo-device-title",`${gpu.name||"GPU"} · device ${amount(gpu.index)}`),node("span","octo-device-meta",`${amount(gpu.utilization_percent,"%")} · ${bytes(gpu.memory_used_bytes)} VRAM`),node("small","",active.length?active.map(serviceLabel).join(" · "):"No authorized inference process mapped"));gpuRoot.append(button);});}
-    if(modelRoot){modelRoot.replaceChildren();if(!services.length)modelRoot.append(node("p","octo-empty","OCTO1 model service readings are unavailable."));services.slice(0,12).forEach(service=>{const id=service.service_id,phase=servicePhase(service),button=node("button","octo-model-button");button.type="button";button.dataset.octoComponent=`model-${id}`;button.setAttribute("aria-pressed",state.selected.kind==="model"&&state.selected.id===id?"true":"false");button.dataset.modelHighlight=selectedGpuServices.has(id)?"true":"false";button.dataset.state=phase;button.append(node("span","octo-device-title",service.display_name||id),node("span","octo-device-meta",phaseLabel(phase)),node("small","",assignedDevices(id).length?`GPU ${assignedDevices(id).join(", ")}`:"GPU assignment unavailable"));modelRoot.append(button);});}
+    if(gpuRoot){
+      const seen=new Set();
+      gpuList.slice(0,32).forEach(gpu=>{const id="gpu-"+gpu.index,active=Array.isArray(gpu.active_services)?gpu.active_services:[],button=ensureSelector(gpuRoot,id,"octo-device-button");seen.add(id);button.setAttribute("aria-pressed",state.selected.kind==="gpu"&&state.selected.id===id?"true":"false");button.dataset.modelHighlight=selectedModel&&active.includes(selectedModel)?"true":"false";button.dataset.state=state.telemetryError?"stale":state.inFlight?"checking":"current";button.querySelector('[data-selector-part="title"]').textContent=(gpu.name||"GPU")+" · device "+amount(gpu.index);button.querySelector('[data-selector-part="meta"]').textContent=amount(gpu.utilization_percent,"%")+" · "+bytes(gpu.memory_used_bytes)+" VRAM";button.querySelector('[data-selector-part="detail"]').textContent=active.length?active.map(serviceLabel).join(" · "):"No authorized inference process mapped";});
+      const buttons=Array.from(gpuRoot.children).filter(child=>child.matches("[data-octo-component]"));buttons.forEach(button=>{if(!seen.has(button.dataset.octoComponent))button.dataset.state="stale";});
+      if(!gpuList.length&&!buttons.length&&!gpuRoot.querySelector(":scope > p"))gpuRoot.append(node("p","octo-empty","Authenticated OCTO1 GPU readings are unavailable; no devices are inferred."));
+    }
+    if(modelRoot){
+      const seen=new Set();
+      services.slice(0,12).forEach(service=>{const id="model-"+service.service_id,phase=servicePhase(service),button=ensureSelector(modelRoot,id,"octo-model-button");seen.add(id);button.setAttribute("aria-pressed",state.selected.kind==="model"&&state.selected.id===service.service_id?"true":"false");button.dataset.modelHighlight=selectedGpuServices.has(service.service_id)?"true":"false";button.dataset.state=state.telemetryError?"stale":state.inFlight?"checking":phase;button.querySelector('[data-selector-part="title"]').textContent=service.display_name||service.service_id;button.querySelector('[data-selector-part="meta"]').textContent=phaseLabel(phase);const devices=assignedDevices(service.service_id);button.querySelector('[data-selector-part="detail"]').textContent=devices.length?"GPU "+devices.join(", "):"GPU assignment unavailable";});
+      const buttons=Array.from(modelRoot.children).filter(child=>child.matches("[data-octo-component]"));buttons.forEach(button=>{if(!seen.has(button.dataset.octoComponent))button.dataset.state="stale";});
+      if(!services.length&&!buttons.length&&!modelRoot.querySelector(":scope > p"))modelRoot.append(node("p","octo-empty","OCTO1 model service readings are unavailable."));
+    }
     const systems=$("octo1-system-selectors");systems?.querySelectorAll("[data-octo-component]").forEach(button=>{const active=state.selected.kind==="system"&&state.selected.id===button.dataset.octoComponent;button.setAttribute("aria-pressed",active?"true":"false");});
     $("octo1-front-hotspots")?.querySelectorAll("[data-octo-component]").forEach(button=>{const active=state.selected.kind==="system"&&state.selected.id===button.dataset.octoComponent;button.setAttribute("aria-pressed",active?"true":"false");});
   };
@@ -137,11 +155,57 @@ History: Git and .riverview-backups/manifest.jsonl
       image.alt="Original OctoMiner X12 Ultra manufacturer artwork showing the front face with five evenly spaced fans and the right-side display and controls. The open chassis view is available by selecting Open-chassis reference.";
     }
   };
+  const directChild = (root, attribute, value) => Array.from(root.children).find(child=>child.dataset[attribute]===String(value))||null;
+  const metricValue = (list,key,label) => {
+    let row=directChild(list,"resourceMetric",key);
+    if(!row){row=node("div");row.dataset.resourceMetric=key;row.append(node("dt","",label),node("dd"));list.append(row);}
+    return row.querySelector("dd");
+  };
+  const setMetric = (list,key,label,value) => {metricValue(list,key,label).textContent=String(value);};
+  const ensureHardwareCard = (root,host) => {
+    let card=directChild(root,"resourceHostCard",host.host_id);if(card)return card;
+    card=node("article","resource-card");card.dataset.resourceCard="";card.dataset.resourceKind="hardware";card.dataset.resourceHostCard=host.host_id;card.dataset.search=`${hostLabel(host.host_id)} gpu hardware`;
+    const top=node("div","resource-card-top"),heading=node("div"),identity=node("p","eyebrow"),name=node("h3","",hostLabel(host.host_id)),badge=node("span","resource-tag");identity.dataset.hostIdentity="";badge.dataset.hostBadge="";heading.append(identity,name);top.append(heading,badge);card.append(top);
+    const metrics=node("dl");metrics.dataset.hostMetrics="";card.append(metrics);const gpuRoot=node("div");gpuRoot.dataset.hostGpus="";card.append(gpuRoot);root.append(card);return card;
+  };
+  const ensureGpuCard = (root,gpu) => {
+    let section=directChild(root,"resourceGpuIndex",gpu.index);if(section)return section;
+    section=node("section","resource-gpu");section.dataset.resourceGpuIndex=String(gpu.index);const title=node("h4"),metrics=node("dl");title.dataset.gpuTitle="";metrics.dataset.gpuMetrics="";section.append(title,metrics);root.append(section);return section;
+  };
+  const ensureInferenceCard = (root,host,service) => {
+    const key=`${host.host_id}:${service.service_id||service.display_name||"inference"}`;let card=directChild(root,"resourceInferenceCard",key);if(card)return card;
+    card=node("article","resource-card");card.dataset.resourceCard="";card.dataset.resourceKind="inference";card.dataset.resourceInferenceCard=key;card.dataset.search=`${hostLabel(host.host_id)} ${service.display_name||"inference"} model`;
+    const top=node("div","resource-card-top"),heading=node("div"),eyebrow=node("p","eyebrow",hostLabel(host.host_id)),title=node("h3"),badge=node("span","resource-tag");title.dataset.inferenceTitle="";badge.dataset.inferenceBadge="";heading.append(eyebrow,title);top.append(heading,badge);card.append(top);const metrics=node("dl");metrics.dataset.inferenceMetrics="";card.append(metrics);root.append(card);return card;
+  };
   const renderTelemetry = () => {
-    const cards=$("resource-cards"),hosts=$("resource-host-cards");if(!cards||!hosts)return;cards.replaceChildren();hosts.replaceChildren();const data=state.telemetry;
-    if(!data||!Array.isArray(data.hosts)){cards.append(node("p","",`Inference telemetry unavailable (${state.telemetryError||"not_observed"}).`));hosts.append(node("p","","Host readings unavailable; no values are inferred."));return;}
-    data.hosts.slice(0,8).forEach(host=>{const name=hostLabel(host.host_id),inv=host.gpu_inventory&&Array.isArray(host.gpu_inventory.devices)?host.gpu_inventory:{devices:[]};const card=node("article","resource-card"),top=node("div","resource-card-top"),title=node("div");card.dataset.resourceCard="";card.dataset.resourceKind="hardware";card.dataset.search=`${name} gpu hardware`;title.append(node("p","eyebrow",host.identity_state==="verified"?"VERIFIED HOST TELEMETRY":"DOCUMENTED · IDENTITY UNVERIFIED"),node("h3","",name));const stateName=safeState(host.state||"unavailable"),badge=node("span","resource-tag",stateName.toUpperCase());badge.dataset.state=stateName;top.append(title,badge);card.append(top);const dl=node("dl");addRow(dl,"GPU inventory",inv.state==="healthy"?`${inv.devices.length} device(s)`:"Unavailable");addRow(dl,"Inventory source",inv.source||"Unavailable");const observed=isoTime(inv.observed_at||host.observed_at);addRow(dl,"Observed",observed?visibleTime(observed):"Not reported");card.append(dl);inv.devices.slice(0,32).forEach(gpu=>{const section=node("section","resource-gpu");section.append(node("h4","",`${gpu.name||"GPU"} · device ${amount(gpu.index)}`));const metrics=node("dl");addRow(metrics,"Utilization",amount(gpu.utilization_percent,"%"));addRow(metrics,"VRAM used / total",`${bytes(gpu.memory_used_bytes)} / ${bytes(gpu.memory_total_bytes)}`);addRow(metrics,"Temperature",amount(gpu.temperature_celsius," °C"));addRow(metrics,"Power",amount(gpu.power_watts," W"));addRow(metrics,"GPU fan",amount(gpu.fan_percent,"%"));addRow(metrics,"Active services",Array.isArray(gpu.active_services)&&gpu.active_services.length?gpu.active_services.join(", "):"None identified");section.append(metrics);card.append(section);});const stale=!observed||Date.now()-Date.parse(observed)>(Number(data.freshness_window_seconds)||30)*1000;if(stale&&observed){badge.textContent="STALE SOURCE";badge.dataset.state="stale";}hosts.append(card);});
-    data.hosts.forEach(host=>(Array.isArray(host.inference_servers)?host.inference_servers:[]).slice(0,12).forEach(service=>{const card=node("article","resource-card"),top=node("div","resource-card-top"),heading=node("div");card.dataset.resourceCard="";card.dataset.resourceKind="inference";card.dataset.search=`${hostLabel(host.host_id)} ${service.display_name||"inference"} model`;heading.append(node("p","eyebrow",hostLabel(host.host_id)),node("h3","",service.display_name||service.service_id||"Inference service"));const s=safeState(service.state||"unavailable"),badge=node("span","resource-tag",s.toUpperCase());badge.dataset.state=s;top.append(heading,badge);card.append(top);const dl=node("dl");addRow(dl,"Loaded model",Array.isArray(service.loaded_models)&&service.loaded_models.length?service.loaded_models.join(", "):"Unavailable");addRow(dl,"Readiness source",service.readiness_source||"Unavailable");addRow(dl,"Active slots",service.active_slots?.state==="measured"?`${amount(service.active_slots.value)} / ${amount(service.active_slots.total)}`:"Unavailable");addRow(dl,"Queued requests",service.queued_requests?.state==="measured"?amount(service.queued_requests.value):"Unavailable · server exposes no queue depth");addRow(dl,"Observed",service.observed_at?visibleTime(service.observed_at):"Not reported");card.append(dl);cards.append(card);}));
+    const cards=$("resource-cards"),hosts=$("resource-host-cards");if(!cards||!hosts)return;const data=state.telemetry;
+    if(!data||!Array.isArray(data.hosts)){
+      let cardMessage=cards.querySelector(":scope > p");if(!cardMessage){cardMessage=node("p","");cards.append(cardMessage);}cardMessage.textContent=`Inference telemetry unavailable (${state.telemetryError||"not_observed"}).`;
+      let hostMessage=hosts.querySelector(":scope > p");if(!hostMessage){hostMessage=node("p","");hosts.append(hostMessage);}hostMessage.textContent=state.telemetryError?"Host readings unavailable · "+safeError(state.telemetryError):"Host readings unavailable; no values are inferred.";return;
+    }
+    cards.querySelectorAll(":scope > p").forEach(item=>item.remove());hosts.querySelectorAll(":scope > p").forEach(item=>item.remove());
+    const seenHosts=new Set(),seenServices=new Set();
+    data.hosts.slice(0,8).forEach(host=>{
+      const inv=host.gpu_inventory&&Array.isArray(host.gpu_inventory.devices)?host.gpu_inventory:{state:"unavailable",source:"Unavailable",devices:[]};const card=ensureHardwareCard(hosts,host);seenHosts.add(host.host_id);
+      card.querySelector("[data-host-identity]").textContent=host.identity_state==="verified"?"VERIFIED HOST TELEMETRY":"DOCUMENTED · IDENTITY UNVERIFIED";
+      const badge=card.querySelector("[data-host-badge]"),observed=isoTime(inv.observed_at||host.observed_at),age=observed?Date.now()-Date.parse(observed):Infinity,expired=!Number.isFinite(age)||age>(Number(data.freshness_window_seconds)||30)*1000,sourceUnavailable=inv.state!=="healthy";let badgeText="LIVE SOURCE",badgeState="healthy";
+      if(state.telemetryError){badgeText="STALE";badgeState="stale";badge.title="Refresh failed: "+safeError(state.telemetryError);}
+      else if(state.inFlight){badgeText=expired||sourceUnavailable?"STALE · REFRESHING":"REFRESHING";badgeState=expired||sourceUnavailable?"stale":"checking";}
+      else if(sourceUnavailable||expired){badgeText=sourceUnavailable?`SOURCE ${safeState(inv.state).replaceAll("_"," ").toUpperCase()}`:"STALE SOURCE";badgeState=sourceUnavailable?safeState(inv.state):"stale";}
+      else badge.title="";
+      badge.textContent=badgeText;badge.dataset.state=badgeState;card.dataset.state=badgeState;
+      const hostMetrics=card.querySelector("[data-host-metrics]");setMetric(hostMetrics,"inventory","GPU inventory",inv.state==="healthy"?`${inv.devices.length} device(s)`:"Unavailable");setMetric(hostMetrics,"source","Inventory source",inv.source||"Unavailable");setMetric(hostMetrics,"observed","Observed",observed?visibleTime(observed):"Not reported");
+      const gpuRoot=card.querySelector("[data-host-gpus]"),seenGpus=new Set();
+      inv.devices.slice(0,32).forEach(gpu=>{const section=ensureGpuCard(gpuRoot,gpu);seenGpus.add(String(gpu.index));section.dataset.state=badgeState==="healthy"?"current":badgeState==="checking"?"checking":"stale";section.querySelector("[data-gpu-title]").textContent=`${gpu.name||"GPU"} · device ${amount(gpu.index)}`;const metrics=section.querySelector("[data-gpu-metrics]");
+        setMetric(metrics,"utilization","Utilization",amount(gpu.utilization_percent,"%"));setMetric(metrics,"vram","VRAM used / total",`${bytes(gpu.memory_used_bytes)} / ${bytes(gpu.memory_total_bytes)}`);setMetric(metrics,"temperature","Temperature",amount(gpu.temperature_celsius," °C"));setMetric(metrics,"power","Power",amount(gpu.power_watts," W"));setMetric(metrics,"fan","GPU fan",amount(gpu.fan_percent,"%"));setMetric(metrics,"services","Active services",Array.isArray(gpu.active_services)&&gpu.active_services.length?gpu.active_services.join(", "):"None identified");
+      });
+      gpuRoot.querySelectorAll("[data-resource-gpu-index]").forEach(section=>{if(!seenGpus.has(section.dataset.resourceGpuIndex))section.dataset.state="stale";});
+      (Array.isArray(host.inference_servers)?host.inference_servers:[]).slice(0,12).forEach(service=>{const key=`${host.host_id}:${service.service_id||service.display_name||"inference"}`,serviceCard=ensureInferenceCard(cards,host,service);seenServices.add(key);serviceCard.querySelector("[data-inference-title]").textContent=service.display_name||service.service_id||"Inference service";const serviceBadge=serviceCard.querySelector("[data-inference-badge]"),serviceState=safeState(service.state||"unavailable");serviceBadge.textContent=state.telemetryError?"STALE":serviceState.toUpperCase();serviceBadge.dataset.state=state.telemetryError||service.state!=="ready"?"stale":serviceState;serviceCard.dataset.state=serviceBadge.dataset.state;
+        const metrics=serviceCard.querySelector("[data-inference-metrics]");setMetric(metrics,"model","Loaded model",Array.isArray(service.loaded_models)&&service.loaded_models.length?service.loaded_models.join(", "):"Unavailable");setMetric(metrics,"readiness","Readiness source",service.readiness_source||"Unavailable");setMetric(metrics,"slots","Active slots",service.active_slots?.state==="measured"?`${amount(service.active_slots.value)} / ${amount(service.active_slots.total)}`:"Unavailable");setMetric(metrics,"queue","Queued requests",service.queued_requests?.state==="measured"?amount(service.queued_requests.value):"Unavailable · server exposes no queue depth");setMetric(metrics,"observed","Observed",service.observed_at?visibleTime(service.observed_at):"Not reported");
+      });
+    });
+    hosts.querySelectorAll(":scope > [data-resource-host-card]").forEach(card=>{if(!seenHosts.has(card.dataset.resourceHostCard)){const badge=card.querySelector("[data-host-badge]");badge.textContent="STALE · HOST NOT RETURNED";badge.dataset.state="stale";card.dataset.state="stale";}});
+    cards.querySelectorAll(":scope > [data-resource-inference-card]").forEach(card=>{if(!seenServices.has(card.dataset.resourceInferenceCard)){const badge=card.querySelector("[data-inference-badge]");badge.textContent="STALE · SERVICE NOT RETURNED";badge.dataset.state="stale";card.dataset.state="stale";}});
     if(!hosts.childElementCount)hosts.append(node("p","","No verified host measurements are available."));if(!cards.childElementCount)cards.append(node("p","","No inference endpoints are verified."));
   };
   const applyFilters=()=>{const filter=$("resource-filter")?.value||"all",search=($("resource-search")?.value||"").trim().toLowerCase();document.querySelectorAll("[data-resource-card]").forEach(card=>{const kind=filter==="all"||card.dataset.resourceKind===filter,match=!search||`${card.dataset.search||""} ${card.textContent||""}`.toLowerCase().includes(search);card.hidden=!(kind&&match);});};
@@ -153,17 +217,17 @@ History: Git and .riverview-backups/manifest.jsonl
   };
   const refreshData=async()=>{
     if(state.inFlight)return;if(location.protocol!=="https:"||!location.pathname.startsWith("/v2/")){state.status="unavailable";state.error="lan_https_preview_required";state.inFlight=false;render();return;}
-    state.inFlight=true;state.attempted=true;state.checkedAt=new Date().toISOString();state.status="checking";state.dashboardStatus=null;state.telemetry=null;state.requestTrace=null;state.error=null;state.telemetryError=null;state.observedAt=null;state.freshness="unknown";render();
+    state.inFlight=true;state.attempted=true;state.checkedAt=new Date().toISOString();state.status="checking";state.error=null;state.telemetryError=null;render();
     try{
-      const session=await fetchJson("/api/v1/auth/session");if(session.status!=="authenticated"){state.status="authentication-required";state.inFlight=false;render();return;}
+      const session=await fetchJson("/api/v1/auth/session");if(session.status!=="authenticated"){state.status="authentication-required";state.telemetryError="authentication_required";state.inFlight=false;render();return;}
       const traceReader=window.RiverviewGraceChat?.requestTraceSnapshot;
       const tracePromise=typeof traceReader==="function"?traceReader():Promise.resolve({schema_version:"rv.v2.grace-request-trace.v1",state:"not_connected",observed_at:null,requests:[]});
       const [statusResult,telemetryResult,traceResult]=await Promise.allSettled([fetchJson("/api/v1/status"),fetchJson("/api/v1/resources/telemetry"),tracePromise]);
       if(statusResult.status==="rejected")throw statusResult.reason;
-      if(telemetryResult.status==="fulfilled"&&telemetryResult.value?.schema_version==="rv.dashboard.resource-telemetry.v1")state.telemetry=telemetryResult.value;else state.telemetryError=telemetryResult.status==="rejected"?(telemetryResult.reason?.status?`http_${telemetryResult.reason.status}`:safeError(telemetryResult.reason?.message)):"invalid_telemetry_projection";
+      if(telemetryResult.status==="fulfilled"&&telemetryResult.value?.schema_version==="rv.dashboard.resource-telemetry.v1"){state.telemetry=telemetryResult.value;state.telemetryError=null;}else state.telemetryError=telemetryResult.status==="rejected"?(telemetryResult.reason?.status?`http_${telemetryResult.reason.status}`:safeError(telemetryResult.reason?.message)):"invalid_telemetry_projection";
       state.requestTrace=traceResult.status==="fulfilled"&&traceResult.value?.schema_version==="rv.v2.grace-request-trace.v1"?traceResult.value:{schema_version:"rv.v2.grace-request-trace.v1",state:"unavailable",observed_at:null,requests:[]};
       const payload=statusResult.value;if(!payload||payload.schema_version!=="rv.dashboard.status.v1"||!allowedStates.has(payload.projection_status))throw new Error("invalid_dashboard_status_schema");state.dashboardStatus=payload;state.observedAt=isoTime(payload.observed_at);state.freshness=["current","stale","unknown","unavailable"].includes(payload.freshness)?payload.freshness:"unknown";state.status=payload.projection_status==="unavailable"?"unavailable":"partial";if(payload.projection_status==="unavailable")state.error="dashboard_projection_unavailable";if(state.telemetry)snapshotSample();
-    }catch(error){state.dashboardStatus=null;state.observedAt=null;state.freshness="unavailable";state.status=error?.status===401?"authentication-required":error?.status===403?"denied":"unavailable";state.error=error?.status?`http_${error.status}`:safeError(error?.message);state.telemetry=null;state.telemetryError=state.error;}
+    }catch(error){state.freshness=state.telemetry?"stale":"unavailable";state.status=error?.status===401?"authentication-required":error?.status===403?"denied":"unavailable";state.error=error?.status?`http_${error.status}`:safeError(error?.message);state.telemetryError=state.error;}
     state.inFlight=false;render();
   };
   const stopPolling=()=>{if(state.pollHandle!==null){window.clearInterval(state.pollHandle);state.pollHandle=null;}};

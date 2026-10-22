@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.21
+# Revision: 1.0.22
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -13,6 +13,7 @@
 # Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Verify a content-free current-conversation trace contract
 # Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Verify original chassis assets, fan hotspots, and truthful device-to-bay boundaries
 # Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Verify authenticated read-only objective and assignment Work view
+# Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Require mounted GPU cards and retained telemetry during polling
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
 # History: Git and revision/backup manifest
@@ -173,7 +174,7 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn("GPU device IDs are not mapped to physical bays", html)
         self.assertIn('data-artwork-view="front"', html)
         self.assertIn('dataset.modelHighlight=selectedModel&&active.includes(selectedModel)', monitor)
-        self.assertIn('dataset.modelHighlight=selectedGpuServices.has(id)', monitor)
+        self.assertIn('button.dataset.modelHighlight=selectedGpuServices.has(service.service_id)?"true":"false"', monitor)
         self.assertIn("not mapped to a bay", monitor)
         self.assertIn("visual index only", monitor)
         self.assertIn("resource-telemetry.v1", monitor)
@@ -187,6 +188,12 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertNotRegex(monitor, r"192\.168\.1\.(160|162)|:8080|:18080")
         self.assertNotIn("innerHTML", monitor)
         self.assertIn("const POLL_MS = 5000", monitor)
+        self.assertNotIn("cards.replaceChildren()", monitor)
+        self.assertNotIn("hosts.replaceChildren()", monitor)
+        self.assertNotIn("state.telemetry=null", monitor)
+        self.assertIn("ensureHardwareCard", monitor)
+        self.assertIn("STALE ·", monitor)
+        self.assertIn("if(state.inFlight)return", monitor)
         self.assertIn('detail?.view==="resources"', monitor)
         self.assertIn('document.visibilityState==="hidden"', monitor)
         self.assertIn('request_attribution:"gpu_request_mapping_unavailable_from_model_server"', monitor)

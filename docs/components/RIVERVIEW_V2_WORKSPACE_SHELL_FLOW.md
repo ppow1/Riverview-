@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.20
+File Revision: 1.0.21
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
@@ -72,8 +72,8 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3["Read rv.dashboard.status.v1 and rv.dashboard.resource-telemetry.v1 through authenticated same-origin GETs"]
     g_rv_riverview_v2_workspace_shell_resource_operational_projection_57d5cc51["Render timestamped Dashboard worker leases and assignments separately from GPU and model telemetry"]
     g_rv_riverview_v2_workspace_shell_resource_unavailable_metrics_cb5fbbef{"Collect allowlisted GPU and model-server readings through Dashboard backend sources"}
-    g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928["Keep each stale, unsupported, unverified, or unavailable source explicit; never infer zero"]
-    g_rv_riverview_v2_workspace_shell_resource_filter_refresh_3d743915["Allow bounded manual refresh, local filters, and per-source details without background polling"]
+    g_rv_riverview_v2_workspace_shell_resource_unavailable_state_5ec2a928["Keep unsupported, stale, unverified, or unavailable sources explicit; preserve last successful GPU values with a stale marker after refresh failure"]
+    g_rv_riverview_v2_workspace_shell_resource_filter_refresh_3d743915["Keep five-second visible-view polling active; update keyed cards in place and reject overlapping refresh requests"]
     g_rv_riverview_v2_workspace_shell_resource_snapshot_redaction_41c4cee2["Capture only source availability metadata in Snapshot; omit hardware values and work counts"]
     g_rv_riverview_v2_workspace_shell_resource_telemetry_contract_c56ce823["Preserve queue depth and unverified-host measurements as unavailable until authoritative sources exist"]
     g_rv_riverview_v2_workspace_shell_work_read_view_2f68c969["Open Work and request persisted objective and assignment summaries"]
@@ -83,11 +83,11 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_work_unavailable_bff8a4d2[["Show sign-in, partial, empty, or unavailable states without polling or writes"]]
     g_rv_riverview_v2_workspace_shell_resource_host_telemetry_ssh_32f5aaf1["Read OCTOMINER1 NVIDIA data through the dedicated host-restricted telemetry command"]
     g_rv_riverview_v2_workspace_shell_resource_model_apis_2e3457cd["Read fixed model health, loaded identity, and active slots; leave unsupported queue depth unavailable"]
-    g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4["Render measured GPU/model fields as text with per-source timestamps and honest unavailable states"]
+    g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4["Render measured GPU/model fields into stable keyed cards; retain the previous values while refreshing and mark them stale after failure or expiry"]
     g_rv_riverview_v2_workspace_shell_octo1_topology_join_5ea386ae["Join allowlisted GPU service labels to live model endpoint projections; never infer physical slot positions"]
     g_rv_riverview_v2_workspace_shell_octo1_select_details_ba729f3e["Selecting a GPU, model, or chassis category reveals source-backed detail and explicit unavailable fields"]
-    g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3{"Resources selected and document visible? Start a five-second telemetry refresh only in this state"}
-    g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81["Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples; retain at most twelve in browser memory"]
+    g_rv_riverview_v2_workspace_shell_octo1_poll_visibility_630421e3{"Resources selected and document visible? Start a single-flight five-second telemetry refresh only in this state"}
+    g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81["Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples without replacing mounted cards; retain at most twelve samples in browser memory"]
     g_rv_riverview_v2_workspace_shell_octo1_poll_pause_0cfdc8df["Stop the polling timer when Resources closes or the browser tab is hidden"]
     g_rv_riverview_v2_workspace_shell_octo1_controller_unavailable_b3f8cf21["Keep OCTO1 chassis fan, sensor, PSU, and watchdog readings unavailable until an OCTO1 source is verified"]
     g_rv_riverview_v2_workspace_shell_octo1_request_attribution_unavailable_bb827151["Keep model-server receipt, generation phase, and GPU-to-request attribution unavailable until server-side correlation is exposed"]
