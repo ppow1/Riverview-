@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.38
+# Revision: 1.0.39
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Keep the durable conversation provider double compatible with optional structured chat output.
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
@@ -29,6 +29,7 @@
 # Tests: python3 -m unittest tests.test_resident_conversation
 # History: Git and .riverview-backups/manifest.jsonl
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
+# Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Verify bounded metadata projection strips streamed text and retains generation timing.
 # Changed: 2026-10-16 UTC | RV-GRACE-REVIEW-OBJECTIVE-PROGRESS | Supply persisted objective completion state to actual 80B result review
 # Changed: 2026-10-16 UTC | RV-GRACE-PROVIDER-PROVENANCE | Assert verified-result response stores the bound provider when model metadata omits it
 # Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Ensure resumed and fallback generations compact discarded partial text behind a monotonic reset marker.
@@ -106,6 +107,46 @@ class _FailingStreamingChatProvider(_ChatProvider):
         from riverview_core.local_reasoning_provider import LocalReasoningUnavailable
         raise LocalReasoningUnavailable("endpoint_unavailable")
 
+
+class StreamActivityProjectionTests(unittest.TestCase):
+    def test_projection_is_bounded_content_free_and_generation_scoped(self):
+        from contextlib import nullcontext
+        from datetime import datetime, timezone
+        from threading import RLock
+        from uuid import uuid4
+        from riverview_core.resident_execution.conversation import ConversationStore, ConversationNotFound
+
+        conversation_id, request_id = uuid4(), uuid4()
+        observed = datetime.now(timezone.utc)
+        row = {"request_id":request_id,"status":"generating","generation":2,
+            "event_sequence":5,"provider_ref":"local.inference.v1","model_id":"grace-80b",
+            "reasoning_stage":"reasoning","created_at":observed,"updated_at":observed,
+            "events":[{"sequence":1,"generation":1,"event_type":"generating","occurred_at":observed.isoformat()},
+                {"sequence":2,"generation":1,"event_type":"delta","occurred_at":observed.isoformat(),"text_characters":90,"text":"old private text"},
+                {"sequence":3,"generation":2,"event_type":"reset","occurred_at":observed.isoformat()},
+                {"sequence":4,"generation":2,"event_type":"delta","occurred_at":observed.isoformat(),"text_characters":12,"text":"private reply"},
+                {"sequence":5,"generation":2,"event_type":"delta","occurred_at":observed.isoformat(),"text_characters":7,"text":"secret"}]}
+        class Cursor:
+            def __init__(self): self.result=None
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def execute(self,sql,params=()):
+                if "FROM resident_conversations" in sql: self.result={"owned":True}
+                elif "FROM resident_conversation_streams" in sql: self.result=[row]
+                elif "clock_timestamp()" in sql: self.result={"observed_at":observed}
+                else: self.result=None
+            def fetchone(self): return self.result
+            def fetchall(self): return self.result
+        store=ConversationStore.__new__(ConversationStore);store.schema="rv";store._connection_lock=RLock()
+        store._connection_operation=lambda:nullcontext();store.db=type("Db",(),{"cursor":lambda self:Cursor()})()
+        result=store.stream_activity_snapshot(conversation_id,"grace","resident:steward",limit=12)
+        self.assertEqual(result["schema_version"],"rv.resident.stream-activity.v1")
+        self.assertEqual(result["streams"][0]["generation_started_at"],observed.isoformat())
+        self.assertEqual([item["characters"] for item in result["streams"][0]["deltas"]],[12,7])
+        self.assertEqual([item["sequence"] for item in result["streams"][0]["deltas"]],[4,5])
+        self.assertEqual(result["streams"][0]["generated_characters"],19)
+        self.assertNotIn("private reply",json.dumps(result,default=str));self.assertNotIn("secret",json.dumps(result,default=str));self.assertNotIn("old private text",json.dumps(result,default=str))
+        with self.assertRaises(ValueError): store.stream_activity_snapshot(conversation_id,"grace","resident:steward",limit=13)
 
 class DeferredStreamResumeTests(unittest.TestCase):
     def test_tool_router_marks_deferred_stream_generating_before_terminal_commit(self):

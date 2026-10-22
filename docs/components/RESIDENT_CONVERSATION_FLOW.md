@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION_FLOW.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.0.23
+File Revision: 1.0.24
 Purpose: Generated focused flow for persistent Grace browser conversation
 Authority: Canonical graph JSON; diagram generated and not hand-edited
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Register generated chat workflow view
@@ -67,6 +67,10 @@ flowchart LR
     g_rv_resident_conversation_browser_chat_deferred_retry_budget_cd9dc00c["Persist retry attempt and next-attempt time; use 5/10/20/40 second delays and block after five automatic resume attempts while retaining the original request"]
     g_rv_resident_conversation_browser_chat_deferred_retry_blocked_785d668a[["Keep the correlated user request and response_deferred event durable; expose blocked status and stop automatic retries after exhaustion or authority denial"]]
     g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950{"Does this 80B request require a current Comms5 lookup? Include only the selected tool schema; omit all tool schemas for ordinary reasoning."}
+    g_rv_resident_conversation_browser_chat_stream_delta_metadata_4170237d["Persist each actual provider text delta with database timestamp and Unicode character count alongside the existing private SSE text."]
+    g_rv_resident_conversation_browser_chat_stream_activity_authorized_read_b2ca15ad["Project bounded stream timing/count metadata only after exact conversation-read authorization and owner validation; omit response text."]
+    g_rv_resident_conversation_browser_chat_stream_output_cadence_355238dd["Derive received streamed characters per second only from at least two timestamped deltas; do not call it token throughput or infer it from GPU/slot state."]
+    g_rv_resident_conversation_browser_chat_native_token_counter_unavailable_66667ddc[["Current inference servers expose no live output-token counter; retain native live tokens/s as unavailable."]]
   end
   g_rv_grace_operational_integration_objective_intake_55567c14["Registered target<br/>rv:grace:operational-integration"]
   g_rv_resident_conversation_browser_chat_browser_submit_e4a0bb86 --> g_rv_resident_conversation_browser_chat_dashboard_auth_1ec7b499
@@ -144,5 +148,9 @@ flowchart LR
   g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|No current lookup is required; omit the internal tool catalog| g_rv_resident_conversation_browser_chat_inference_8bca7614
   g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|Current lookup is required; include only the selected schema| g_rv_resident_conversation_browser_chat_inference_8bca7614
   g_rv_resident_conversation_browser_chat_required_tool_context_23ba6950 -->|diagnostic_branch: Protected context plus one selected schema cannot fit the exact provider byte limit; reject before inference| g_rv_resident_conversation_browser_chat_provider_failure_64f2fd79
+  g_rv_resident_conversation_browser_chat_stream_events_3110d0b1 --> g_rv_resident_conversation_browser_chat_stream_delta_metadata_4170237d
+  g_rv_resident_conversation_browser_chat_stream_delta_metadata_4170237d --> g_rv_resident_conversation_browser_chat_stream_activity_authorized_read_b2ca15ad
+  g_rv_resident_conversation_browser_chat_stream_activity_authorized_read_b2ca15ad --> g_rv_resident_conversation_browser_chat_stream_output_cadence_355238dd
+  g_rv_resident_conversation_browser_chat_stream_output_cadence_355238dd -->|diagnostic_branch| g_rv_resident_conversation_browser_chat_native_token_counter_unavailable_66667ddc
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

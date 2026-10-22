@@ -8268,7 +8268,7 @@
     },
     {
       "graph_id": "rv:resident-conversation:browser-chat",
-      "graph_revision": "1.0.22",
+      "graph_revision": "1.0.23",
       "component_id": "RESIDENT-CONVERSATION",
       "workflow_id": "resident.conversation.v1",
       "diagram_order": 14,
@@ -9179,6 +9179,69 @@
             "tests/test_resident_model_router.py",
             "tests/test_grace_internal_tools.py"
           ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-delta-metadata",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Persist each actual provider text delta with database timestamp and Unicode character count alongside the existing private SSE text.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py"
+          ],
+          "documentation_references": [
+            "docs/components/RESIDENT_CONVERSATION.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-activity-authorized-read",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Project bounded stream timing/count metadata only after exact conversation-read authorization and owner validation; omit response text.",
+          "source_references": [
+            "src/riverview_core/resident_execution/conversation.py",
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resident_conversation.py",
+            "tests/test_status_dashboard.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:stream-output-cadence",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Derive received streamed characters per second only from at least two timestamped deltas; do not call it token throughput or infer it from GPU/slot state.",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py"
+          ]
+        },
+        {
+          "id": "rv:resident-conversation:browser-chat:native-token-counter-unavailable",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Current inference servers expose no live output-token counter; retain native live tokens/s as unavailable.",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py"
+          ]
         }
       ],
       "edges": [
@@ -9608,6 +9671,26 @@
           "to": "rv:resident-conversation:browser-chat:provider-failure",
           "type": "diagnostic_branch",
           "label": "Protected context plus one selected schema cannot fit the exact provider byte limit; reject before inference"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-events",
+          "to": "rv:resident-conversation:browser-chat:stream-delta-metadata",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-delta-metadata",
+          "to": "rv:resident-conversation:browser-chat:stream-activity-authorized-read",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-activity-authorized-read",
+          "to": "rv:resident-conversation:browser-chat:stream-output-cadence",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:resident-conversation:browser-chat:stream-output-cadence",
+          "to": "rv:resident-conversation:browser-chat:native-token-counter-unavailable",
+          "type": "diagnostic_branch"
         }
       ]
     },
@@ -15297,6 +15380,7 @@
     "rv:resident-conversation:browser-chat:inference",
     "rv:resident-conversation:browser-chat:message-actions",
     "rv:resident-conversation:browser-chat:model-readiness-diagnostic",
+    "rv:resident-conversation:browser-chat:native-token-counter-unavailable",
     "rv:resident-conversation:browser-chat:office-binding",
     "rv:resident-conversation:browser-chat:operations-snapshot",
     "rv:resident-conversation:browser-chat:persist-response",
@@ -15316,12 +15400,15 @@
     "rv:resident-conversation:browser-chat:session-cookie",
     "rv:resident-conversation:browser-chat:session-present",
     "rv:resident-conversation:browser-chat:stage-context-policy",
+    "rv:resident-conversation:browser-chat:stream-activity-authorized-read",
     "rv:resident-conversation:browser-chat:stream-authorized-sse",
     "rv:resident-conversation:browser-chat:stream-capability-check",
+    "rv:resident-conversation:browser-chat:stream-delta-metadata",
     "rv:resident-conversation:browser-chat:stream-events",
     "rv:resident-conversation:browser-chat:stream-failure",
     "rv:resident-conversation:browser-chat:stream-history-verify",
     "rv:resident-conversation:browser-chat:stream-nonstream-fallback",
+    "rv:resident-conversation:browser-chat:stream-output-cadence",
     "rv:resident-conversation:browser-chat:stream-reconnect",
     "rv:resident-conversation:browser-chat:stream-render",
     "rv:resident-conversation:browser-chat:stream-submit",
