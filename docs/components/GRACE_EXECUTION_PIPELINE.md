@@ -2,7 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.29
+File Revision: 1.1.31
+Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Document optional Steward criteria, Grace derivation, and proposal-bound effective criteria.
+Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Document distinction between original Steward instructions and formal criteria, including artifact path authorization
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Prioritize ready lifecycle work, distinguish system-owned criteria, and require Grace acceptance before conversation-origin objective completion
 Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Specify bounded JSON artifacts as assignment-defined with no universal output name
 Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Specify durable per-assignment multi-artifact contracts, media validation and recovery
@@ -83,6 +85,8 @@ later correlation.
 2. ground_objective(objective_id) asks TaskRelevantRepositoryKnowledgeProvider for the resident contract at one pinned Git commit. The provider verifies the full allowlisted source set and selects ranked, complete paragraphs within a 7 KiB selection budget, leaving room for the provenance envelope under the 8 KiB serialized evidence limit. It records the selection policy and query-term coverage; it does not claim every lexical match was passed to the model. Paragraphs are never clipped. Missing sources or a selection with no complete passage that fits waits/fails closed.
    A same-origin retry may call grounding again while the durable objective is `WAITING_FOR_EVIDENCE`. Verified evidence atomically advances either `RECEIVED` or `WAITING_FOR_EVIDENCE` to `GROUNDED`; the state predicate prevents a second concurrent retry from overwriting an already grounded or later-stage objective. Incomplete evidence remains pending with a new revision and event.
 3. record_proposal(objective_id, PlanProposal) accepts only the existing typed plan. Each original acceptance criterion must appear exactly once either on an Engineering step or in `system_owned_criteria`. System-owned criteria are limited to lifecycle outcomes that map to existing durable event types; the proposal event records the criterion-to-event mapping. These criteria do not create assignments or receipt artifacts. The remaining criteria stay on artifact/source deliverables. One deliverable uses one step when it is sufficient; genuinely dependent deliverables remain multi-step. The proposal remains unapproved and this method is a persistence boundary, not a reasoning engine.
+
+The original Steward request and formal acceptance criteria are distinct inputs. The Dashboard criteria field is optional: when populated, the Steward-supplied list is authoritative and proposal validation requires exact coverage without additions or omissions. When blank, the complete original request is preserved and Grace derives proposed formal criteria using the normal reasoning contract; the criteria are not effective or authoritative until the typed proposal passes exact coverage validation and is persisted. The accepted derived list then becomes the objective's single effective criteria list, bound to the proposal and immutable thereafter. The Dashboard identifies whether effective criteria were Steward-supplied or Grace-derived and shows that derivation is pending before a proposal exists. Request instructions remain durable context and are passed to Engineering as execution constraints, not promoted into formal criteria merely because they appear in the request. Artifact destination paths are not `authorized_paths`; each artifact path must instead be explicitly named in the Steward-approved request or supplied criteria and is then fixed by the persisted artifact contract.
 4. authorize_and_dispatch(...) requires exact assignment.create, the same scope as intake, and complete verified evidence. It uses AuthorizedAssignmentIntake; assignment + creation event + objective/work-order link are one PostgreSQL transaction. The event processor remains responsible for queued-to-ready.
    Acceptance criteria originate in authenticated objective intake, are checked against Grace's typed proposal, and are persisted with both the proposal and `grace_objective_steps` before dispatch. The `work_order.dispatched` event links the assignment to that durable step.
 5. ContinuousWorker obtains a lease and rechecks the registered capability and exact authority. The bounded-artifact capability writes the exact JSON artifact set persisted on the assigned proposal step. Names and safe relative paths come only from that contract; it has no universal output filename, extension, or fallback. It accepts one to eight assignment-authorized JSON artifacts within an 8 KiB aggregate bound, with per-artifact size limits enforced. The Codex artifact capability separately supports its persisted media-type contract (including JSON, text, Markdown, CSV, and XML where validated). The separate source-change adapter can produce a patch for explicitly allowlisted files in a pinned disposable clone; it returns patch evidence only and never applies changes to the configured checkout or production.
@@ -132,15 +136,17 @@ It does not directly read protected AuthorityRegistry tables.
 
 The authenticated chat UI exposes an explicit Steward action for a selected,
 persisted user-authored conversation message. `POST
-/api/v1/resident/conversations/{conversation_id}/work-orders` accepts only the
-source sequence and Steward-entered acceptance criteria. The server rechecks the
+/api/v1/resident/conversations/{conversation_id}/work-orders` accepts the
+source sequence and optional Steward-entered acceptance criteria. A nonempty
+list is authoritative; an omitted or empty list marks the complete original
+message for normal Grace derivation. The server rechecks the
 account session, Steward website role, exact conversation read grant, source
 message principal/ownership, and `objective.submit` on the fixed
 `work-order:engineering` scope before persisting an objective with conversation
 origin. A same-source retry revalidates that exact grant, reuses the durable
-objective, and retains the original acceptance criteria; retry input cannot
-rewrite them. A blank criteria field is accepted only when the same source
-already has an objective. Ordinary chat is never promoted automatically. This
+objective, and retains the original criteria source and list; retry input cannot
+rewrite either. For derived criteria, the list becomes durable only with an
+accepted proposal and remains tied to that proposal. Ordinary chat is never promoted automatically. This
 is objective intake; it is not a Grace proposal, assignment dispatch, worker
 authorization, or proof of execution.
 

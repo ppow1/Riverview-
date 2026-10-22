@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.32
+# Revision: 1.3.34
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Permit normal Grace derivation when work-order criteria are omitted.
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate knowledge source commit from dashboard code identity.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Accept typed artifact contracts in authenticated proposal submission
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -1134,8 +1135,6 @@ def make_handler():
                                 else existing)
                             reused_existing = True
                         else:
-                            if not criteria:
-                                raise ValueError("new objectives require acceptance criteria")
                             # Deterministic origin identity closes the concurrent
                             # double-submit race without a new migration or grant.
                             suffix = uuid5(NAMESPACE_URL,
@@ -1145,7 +1144,8 @@ def make_handler():
                                 accepted = pipeline.submit_objective(
                                     objective_id, source["body"], criteria,
                                     scope_ref="work-order:engineering",
-                                    principal=InstitutionalPrincipal(principal_id), origin=origin)
+                                    principal=InstitutionalPrincipal(principal_id), origin=origin,
+                                    criteria_source=("steward_supplied" if criteria else "grace_derived"))
                             except ObjectiveStateError:
                                 # A simultaneous request may have committed the
                                 # same deterministic ID while this request waited.
@@ -2024,6 +2024,10 @@ def _conversation_objective_response(objective, *, reused_existing=False):
     """Build a bounded intake receipt that never returns request or evidence content."""
     result = {"objective_id": objective["objective_id"], "status": objective["status"]}
     result["reused_existing_objective"] = bool(reused_existing)
+    result["acceptance_criteria_source"] = objective.get(
+        "acceptance_criteria_source", "steward_supplied" if objective.get("acceptance_criteria")
+        else "grace_derived")
+    result["acceptance_criteria"] = list(objective.get("acceptance_criteria", ()))
     if objective.get("source_revision"):
         result["source_revision"] = objective["source_revision"]
     if objective["status"] == "WAITING_FOR_EVIDENCE":

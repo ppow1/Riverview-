@@ -2,7 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.49
+# Revision: 1.0.57
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022-R1 | Align the database regression fixture with available repository grounding terms.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Verify artifact checks remain separate from exact formal-criteria coverage.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-TRIGGER-PRIVILEGE-FIX | Verify the audited criteria guard reads only fields granted to the runtime role and takes no forbidden row lock.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Cover exact-scope audited heading removal, authorization, and revision conflicts.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Run derived-criteria persistence under the exact authorized Engineering intake scope.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Verify empty intake derives and atomically persists one proposal-bound criteria list.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Reject artifact paths not named in the authorized request and reject invented formal criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject narrative lifecycle false positives, missing publication origin, and duplicated criterion ownership
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Verify ready lifecycle work runs before slow proposal reasoning and persist lifecycle criteria separately from one deliverable step
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Require a 2048-token default proposal completion budget
@@ -440,6 +447,71 @@ class GraceExecutionTests(unittest.TestCase):
             credential=self.credentials["steward"], scope_ref=self.scope)
         return self.pipeline.ground_objective(row["objective_id"])
 
+    def test_single_work_order_lifecycle_criterion_requires_one_step_and_one_dispatch(self):
+        from riverview_core.resident_reasoning import ArtifactRequirement
+
+        objective_id = "objective:single-work-order-contract"
+        lifecycle = "- Create exactly one Engineering assignment for the report."
+        deliverables = ["The first report is produced.", "The second report is produced."]
+        self.pipeline.submit_objective(objective_id,
+            "Create reports/first.txt and reports/second.txt.",
+            [*deliverables, lifecycle], credential=self.credentials["steward"],
+            scope_ref=self.scope)
+        self.pipeline.ground_objective(objective_id)
+        multiple_steps = PlanProposal("Produce both requested reports", (
+            PlanStep("first", "Create the first report", (deliverables[0],),
+                artifact_requirements=(ArtifactRequirement(
+                    "first", "reports/first.txt", "text/plain", (deliverables[0],)),)),
+            PlanStep("second", "Create the second report", (deliverables[1],),
+                depends_on=("first",), artifact_requirements=(ArtifactRequirement(
+                    "second", "reports/second.txt", "text/plain", (deliverables[1],)),)),
+        ), 0, system_owned_criteria=(lifecycle,))
+        with self.assertRaisesRegex(ObjectiveStateError, "bind every original criterion"):
+            self.pipeline.record_proposal(objective_id, multiple_steps)
+
+        single_objective_id = "objective:single-work-order-contract-valid"
+        file_criterion = "reports/result.txt contains the requested text."
+        self.pipeline.submit_objective(single_objective_id,
+            "Create reports/result.txt with the requested text.",
+            [file_criterion, lifecycle], credential=self.credentials["steward"],
+            scope_ref=self.scope)
+        self.pipeline.ground_objective(single_objective_id)
+        single_step = PlanStep("report", "Create reports/result.txt", (file_criterion,),
+            artifact_requirements=(ArtifactRequirement(
+                "result", "reports/result.txt", "text/plain", (file_criterion,)),))
+        single_proposal = PlanProposal("Produce the requested report", (single_step,), 0,
+            system_owned_criteria=(lifecycle,))
+        self.pipeline.record_proposal(single_objective_id, single_proposal)
+        self.pipeline.authorize_and_dispatch(single_objective_id,
+            "assignment:single-work-order-contract", credential=self.credentials["steward"],
+            authority_ref=self.scope, idempotency_key="single-work-order-dispatch")
+        with self.ledger.db.cursor() as cursor:
+            self.ledger._set_search_path(cursor)
+            evidence = self.pipeline._system_criterion_evidence(cursor,
+                single_objective_id,
+                {"system_owned_criteria": [lifecycle]}, "cycle-1")
+        self.assertEqual(evidence[0]["event_keys"], [
+            f"grace-work-order-dispatched:{single_objective_id}:report"])
+
+        class Cursor:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def execute(self, query, params):
+                self.query = query
+                self.params = params
+
+            def fetchall(self):
+                return self.rows
+
+        self.assertEqual(evidence[0]["evidence_event_type"],
+                         "work_order.exactly_one_dispatched")
+        with self.assertRaisesRegex(ObjectiveStateError, "exactly one dispatched"):
+            self.pipeline._system_criterion_evidence(Cursor([
+                {"idempotency_key": "dispatch:one", "assignment_id": "assignment:one"},
+                {"idempotency_key": "dispatch:two", "assignment_id": "assignment:two"},
+            ]), objective_id, {"system_owned_criteria": [lifecycle]}, "cycle-1")
+
     def _reasoning_service(self, reasoner):
         from riverview_core.resident_execution.service import GraceExecutionService
 
@@ -518,6 +590,126 @@ class GraceExecutionTests(unittest.TestCase):
                        self.pipeline.objective_events(objective_id)]
         self.assertIn("execution.reasoning_attempted", event_types)
 
+    def test_grace_derived_criteria_become_the_single_effective_objective_list(self):
+        from psycopg import sql
+        from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
+
+        objective_id = "objective:derived-criteria:" + uuid4().hex
+        principal = self.principals["steward"][0]
+        self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'objective.submit','work-order:engineering',%s,
+                    'rv.policy:grace-execution-test.v1')""").format(sql.Identifier(self.schema)),
+            ("steward-derived-objective-submit", principal, principal))
+        criterion = "The report contains the exact requested verification statement."
+        request = "Create a report at reports/derived.txt containing the exact requested verification statement."
+        row = self.pipeline.submit_objective(objective_id, request, [],
+            credential=self.credentials["steward"], scope_ref="work-order:engineering",
+            origin={"conversation_id": str(uuid4()), "source_sequence": 1},
+            criteria_source="grace_derived")
+        self.assertEqual(row["acceptance_criteria"], [])
+        self.assertEqual(row["acceptance_criteria_source"], "grace_derived")
+        self.pipeline.ground_objective(objective_id)
+        proposal = PlanProposal("Create the requested report", (
+            PlanStep("report", "Create the bounded report", (criterion,),
+                artifact_requirements=(ArtifactRequirement("report", "reports/derived.txt",
+                    "text/plain", (criterion,)),)),), 0)
+        stored = self.pipeline.record_proposal(objective_id, proposal)
+        self.assertEqual(stored["acceptance_criteria"], [criterion])
+        self.assertEqual(stored["acceptance_criteria_source"], "grace_derived")
+        event = next(item for item in self.pipeline.objective_events(objective_id)
+                     if item["event_type"] == "work_order.proposed")
+        self.assertEqual(event["payload"]["acceptance_criteria_source"], "grace_derived")
+
+    def test_authorized_criteria_reconciliation_is_exact_atomic_and_audited(self):
+        from psycopg import sql
+        from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
+
+        objective_id = "objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1"
+        principal = self.principals["steward"][0]
+        before = [
+            "Requirements:",
+            "- Create exactly one Engineering assignment for the file.",
+            "- Use the authorized artifact destination recorded in the work order.",
+            "- Independently verify the actual file contents.",
+            "- Close the objective only after successful verification.",
+        ]
+        original_request = "Original complete request remains preserved."
+        self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'objective.submit','work-order:engineering',%s,
+                    'rv.policy:grace-execution-test.v1')""").format(sql.Identifier(self.schema)),
+            ("criteria-reconcile-submit-test", principal, principal))
+        self.pipeline.submit_objective(objective_id, original_request, before,
+            credential=self.credentials["steward"], scope_ref="work-order:engineering")
+        grounded = self.pipeline.ground_objective(objective_id)
+        self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'objective.criteria.reconcile',%s,%s,
+                    'rv.policy:grace-execution-test.v1')""").format(sql.Identifier(self.schema)),
+            ("criteria-reconcile-test", principal, objective_id, principal))
+
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
+                expected_revision=grounded["revision"] + 1,
+                credential=self.credentials["steward"], reason="test")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["revision"], 2)
+        with self.assertRaises(ObjectiveNotAuthorized):
+            self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
+                expected_revision=2, credential=secrets.token_urlsafe(36), reason="test")
+        reconciled = self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
+            expected_revision=2, credential=self.credentials["steward"],
+            reason="Steward-approved removal of the misclassified structural heading.")
+        self.assertEqual(reconciled["status"], "GROUNDED")
+        self.assertEqual(reconciled["revision"], 3)
+        self.assertEqual(reconciled["request"], original_request)
+        self.assertEqual(reconciled["acceptance_criteria"], before[1:])
+        self.assertEqual(reconciled["evidence"], grounded["evidence"])
+        self.assertIsNone(reconciled["proposal"])
+        self.assertIsNone(reconciled["assignment_id"])
+        events = [event for event in self.pipeline.objective_events(objective_id)
+                  if event["event_type"] == "objective.criteria_reconciled"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["actor_id"], principal)
+        self.assertEqual(events[0]["payload"]["before_criteria"], before)
+        self.assertEqual(events[0]["payload"]["after_criteria"], before[1:])
+        self.assertEqual(events[0]["payload"]["expected_revision"], 2)
+        self.assertEqual(events[0]["payload"]["new_revision"], 3)
+        self.assertEqual(events[0]["payload"]["authorization_grant_id"],
+                         "criteria-reconcile-test")
+        from psycopg.errors import RaiseException
+        with self.assertRaises(RaiseException):
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""UPDATE grace_objective_events SET payload='{}'::jsonb
+                    WHERE objective_id=%s AND event_type='objective.criteria_reconciled'""",
+                    (objective_id,))
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.reconcile_misclassified_requirements_heading(objective_id,
+                expected_revision=2, credential=self.credentials["steward"], reason="replay")
+
+    def test_reconciliation_guard_reads_only_runtime_selectable_audit_fields(self):
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT pg_get_functiondef(to_regprocedure(%s)) AS definition",
+                (f"{self.schema}.guard_grace_derived_objective_criteria()",))
+            definition = cur.fetchone()["definition"]
+        self.assertIn("SELECT actor_id,payload FROM %I.grace_objective_events", definition)
+        self.assertNotIn("FOR SHARE", definition)
+
+    def test_criteria_guard_rejects_unapproved_direct_mutation(self):
+        from psycopg.errors import RaiseException
+
+        objective_id = "objective:criteria-guard:" + uuid4().hex
+        objective = self._create_grounded_reasoning_objective(objective_id)
+        with self.assertRaises(RaiseException):
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""UPDATE grace_objectives SET acceptance_criteria='[\"invented\"]'::jsonb
+                    WHERE objective_id=%s""", (objective_id,))
+        self.assertEqual(self.pipeline.get_objective(objective_id)["acceptance_criteria"],
+                         objective["acceptance_criteria"])
+
     def test_lifecycle_criteria_remain_durable_without_receipt_work_steps(self):
         from riverview_core.resident_reasoning import lifecycle_evidence_event
 
@@ -533,7 +725,7 @@ class GraceExecutionTests(unittest.TestCase):
             "The objective is completed.",
         )
         self.pipeline.submit_objective(objective_id,
-            "Create one bounded report and complete the existing institutional workflow.",
+            "Create one bounded report at reports/report.md and complete the existing institutional workflow.",
             [deliverable, *lifecycle], credential=self.credentials["steward"],
             scope_ref=self.scope, origin={"conversation_id": str(uuid4()), "source_sequence": 1})
         self.pipeline.ground_objective(objective_id)
@@ -551,6 +743,21 @@ class GraceExecutionTests(unittest.TestCase):
                 "Duplicate the deliverable", (
                     PlanStep("first", "Create report", (deliverable,)),
                     PlanStep("second", "Repeat report", (deliverable,))), 0,
+                system_owned_criteria=lifecycle))
+        with self.assertRaisesRegex(ObjectiveStateError, "every original criterion"):
+            self.pipeline.record_proposal(objective_id, PlanProposal(
+                "Promote request instructions to criteria", (
+                    PlanStep("report", "Create report", (deliverable,
+                        "Do not create a replacement objective."), artifact_requirements=(
+                            ArtifactRequirement("report", "reports/report.md", "text/markdown",
+                                                (deliverable,)),)),), 0,
+                system_owned_criteria=lifecycle))
+        with self.assertRaisesRegex(ObjectiveStateError, "artifact path is absent"):
+            self.pipeline.record_proposal(objective_id, PlanProposal(
+                "Use an unauthorized artifact path", (
+                    PlanStep("report", "Create report", (deliverable,), artifact_requirements=(
+                        ArtifactRequirement("report", "private/report.md", "text/markdown",
+                                            (deliverable,)),)),), 0,
                 system_owned_criteria=lifecycle))
         stored = self.pipeline.record_proposal(objective_id, proposal)
         self.assertEqual(len(stored["proposal"]["steps"]), 1)
@@ -585,13 +792,35 @@ class GraceExecutionTests(unittest.TestCase):
                     ("The bounded report exists.",)),), 0,
                 system_owned_criteria=("Grace returns the result to the Steward conversation.",)))
 
+    def test_artifact_specific_step_checks_do_not_expand_formal_criteria(self):
+        from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
+
+        objective_id = "objective:artifact-step-checks:" + uuid4().hex
+        formal = "The report documents the worker retry contract."
+        artifact_check = "The report includes the stated acceptance phrase."
+        self.pipeline.submit_objective(objective_id,
+            "Document the worker retry contract at reports/acceptance.txt and include the stated acceptance phrase.",
+            [formal], credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(objective_id)
+        proposal = PlanProposal("Create the requested report", (
+            PlanStep("report", "Create reports/acceptance.txt",
+                (formal, artifact_check), artifact_requirements=(ArtifactRequirement(
+                    "report", "reports/acceptance.txt", "text/plain",
+                    (artifact_check,)),)),), 0)
+        stored = self.pipeline.record_proposal(objective_id, proposal)
+        self.assertEqual(stored["acceptance_criteria"], [formal])
+        self.assertEqual(stored["proposal"]["steps"][0]["acceptance_criteria"],
+                         [formal, artifact_check])
+        self.assertEqual(stored["proposal"]["steps"][0]["artifact_requirements"][0][
+            "acceptance_criteria"], [artifact_check])
+
     def test_authorized_objective_executes_and_is_independently_verified(self):
         with self.assertRaises(ObjectiveNotAuthorized):
             self.pipeline.submit_objective(
                 "objective:denied", "document retry contract", ["record source"],
                 credential=secrets.token_urlsafe(36), scope_ref=self.scope)
         row = self.pipeline.submit_objective(
-            "objective:grace-e2e", "document worker retry contract",
+            "objective:grace-e2e", "document worker retry contract at results/retry.json and evidence/summary.data",
             ["artifact contains the task and verified repository provenance"],
             credential=self.credentials["steward"], scope_ref=self.scope)
         self.assertEqual(row["status"], "RECEIVED")
@@ -743,7 +972,8 @@ class GraceExecutionTests(unittest.TestCase):
 
         objective_id = "objective:late-codex:" + uuid4().hex
         criterion = "artifact contains the exact late output"
-        self.pipeline.submit_objective(objective_id, "produce one bounded report", [criterion],
+        self.pipeline.submit_objective(objective_id,
+            "produce one bounded report at reports/late-report.md", [criterion],
             credential=self.credentials["steward"], scope_ref=self.scope,
             origin={"conversation_id": str(uuid4()), "source_sequence": 6})
         self.pipeline.ground_objective(objective_id)
@@ -859,7 +1089,7 @@ class GraceExecutionTests(unittest.TestCase):
         from riverview_core.resident_execution.service import GraceExecutionService
         objective_id = "objective:project-status-report"
         self.pipeline.submit_objective(objective_id,
-            "Assess whether a simple project-status report should be standard for new Riverview Engineering assignments; identify useful fields, stalled-work value, and risks.",
+            "Assess whether a simple project-status report should be standard for new Riverview Engineering assignments; identify useful fields, stalled-work value, and risks. Produce reports/project-status.json and reports/assignment-analysis.json.",
             ["The assigned report answers the assessment using only the original request and verified records",
              "The report discloses when historical assignment analysis was not performed"],
             credential=self.credentials["steward"], scope_ref=self.scope,
@@ -1076,7 +1306,8 @@ class GraceExecutionTests(unittest.TestCase):
         criteria = ["criterion " + str(index) + " must be preserved exactly"
                     for index in range(1, 5)]
         origin = {"conversation_id": conversation_id or str(uuid4()), "source_sequence": 6}
-        self.pipeline.submit_objective(objective_id, "Create a bounded acceptance artifact", criteria,
+        self.pipeline.submit_objective(objective_id,
+            "Create a bounded acceptance artifact at reports/acceptance.txt", criteria,
             credential=self.credentials["steward"], scope_ref=self.scope, origin=origin)
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id,
@@ -1496,7 +1727,8 @@ class GraceExecutionTests(unittest.TestCase):
 
         artifact_objective = "objective:dual-artifact:" + uuid4().hex
         criterion = "The bounded result is accepted."
-        self.pipeline.submit_objective(artifact_objective, "Create a bounded artifact result.",
+        self.pipeline.submit_objective(artifact_objective,
+            "Create a bounded artifact result at results/dual-proof.json.",
             [criterion], credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(artifact_objective)
         self.pipeline.record_proposal(artifact_objective, PlanProposal("Artifact test", (
@@ -1930,7 +2162,8 @@ class GraceExecutionTests(unittest.TestCase):
 
         # Intake, grounding, proposal, and authorization use the same production path.
         objective_id = "objective:worker-failure"
-        self.pipeline.submit_objective(objective_id, "document worker provenance verification",
+        self.pipeline.submit_objective(objective_id,
+            "document worker provenance verification at evidence/provenance.json",
                                        ["record verified repository provenance"],
                                        credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(objective_id)
@@ -1962,7 +2195,8 @@ class GraceExecutionTests(unittest.TestCase):
 
     def test_exactly_authorized_pre_execution_cancellation_is_durable(self):
         objective_id = "objective:cancel"
-        self.pipeline.submit_objective(objective_id, "document worker provenance verification",
+        self.pipeline.submit_objective(objective_id,
+            "document worker provenance verification at evidence/cancel.json",
                                        ["record verified repository provenance"],
                                        credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(objective_id)
@@ -2054,7 +2288,7 @@ class GraceExecutionTests(unittest.TestCase):
 
         objective_id = "objective:persistent-service"
         body = json.dumps({"objective_id": objective_id,
-            "request": "Record verified repository provenance in the bounded work product",
+            "request": "Record verified repository provenance in the bounded work product at reports/proof.json",
             "acceptance_criteria": ["artifact records verified repository provenance"],
             "scope_ref": self.scope}, separators=(",", ":")).encode()
         try:
@@ -2216,7 +2450,7 @@ class GraceExecutionTests(unittest.TestCase):
         for suffix in ("verify-isolation-a", "verify-isolation-b"):
             objective_id = "objective:" + suffix
             self.pipeline.submit_objective(objective_id,
-                "record independently checked repository provenance",
+                "record independently checked repository provenance at reports/work-proof.json",
                 ["artifact includes the requested work and provenance"],
                 credential=self.credentials["steward"], scope_ref=self.scope)
             self.pipeline.ground_objective(objective_id)
@@ -2289,7 +2523,7 @@ class GraceExecutionTests(unittest.TestCase):
         objective_ids = ("objective:continuous-a", "objective:continuous-b")
         for objective_id in objective_ids:
             self.pipeline.submit_objective(objective_id,
-                "record a repeatable verified repository work product",
+            "record a repeatable verified repository work product at results/continuous.json",
                 ["artifact records the requested task and source provenance"],
                 credential=self.credentials["steward"], scope_ref=self.scope)
             self.pipeline.ground_objective(objective_id)
@@ -2369,7 +2603,7 @@ class GraceExecutionTests(unittest.TestCase):
         execution_id = "objective:fair-cycle-execution"
         criteria = ["artifact contains the requested task and verified repository provenance"]
         self.pipeline.submit_objective(
-            execution_id, "record a bounded engineering result", criteria,
+            execution_id, "record a bounded engineering result at results/fair-cycle.json", criteria,
             credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(execution_id)
         self.pipeline.record_proposal(execution_id, PlanProposal(
@@ -2419,7 +2653,7 @@ class GraceExecutionTests(unittest.TestCase):
         from riverview_core.resident_execution.service import GraceExecutionService
         objective_id = "objective:process-restart-resume"
         self.pipeline.submit_objective(objective_id,
-            "create a provenance-bound bounded work product",
+            "create a provenance-bound bounded work product at evidence/restart.json",
             ["artifact includes its source revision and request"],
             credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(objective_id)

@@ -2,7 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.19
+# Revision: 1.0.23
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Cover explicit exactly-one dispatch lifecycle mapping and structural bullets.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Verify correlated separate grounding results and sanitized exceptions
+# Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Cover DB-size-aware outcome pruning and translated SQLSTATE diagnostics
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject ambiguous deliverable prose as lifecycle-only criteria
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Verify the bounded reasoning caller deadline
 # Changed: 2026-10-17 UTC | RV-GRACE-PERSISTENT-AUTONOMY-001 | Keep persistent reasoning rehydration tests on the durable event contract.
@@ -602,6 +605,179 @@ class ResidentReasoningTests(unittest.TestCase):
         self.assertEqual(provider.requests, [])
 
 
+class ResidentReasoningDiagnosticsTests(unittest.TestCase):
+    def test_diagnostics_distinguish_state_read_provider_response_and_persistence(self):
+        import json
+        from riverview_core.institutional_authority import RegistryUnavailable
+        from riverview_core.resident_reasoning import (
+            PlanProposal, PlanStep, ProposalValidationFailure, ReasoningStatus,
+            ResidentReasoner,
+        )
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+
+        objective_id = "objective:diagnostics-test"
+
+        class DatabaseFailure(Exception):
+            sqlstate = "08006"
+
+        class DatabaseBoundFailure(Exception):
+            sqlstate = "22023"
+
+        class Registry:
+            def __init__(self, *, fail_read=False, fail_write=False):
+                self.fail_read = fail_read
+                self.fail_write = fail_write
+                self.state = {}
+                self.revision = 0
+
+            def authorize_office_state(self, _credential, _office_id):
+                if self.fail_read:
+                    try:
+                        raise DatabaseFailure("private database error sentinel")
+                    except DatabaseFailure:
+                        raise RegistryUnavailable("OperationalError") from None
+                return {
+                    "state": dict(self.state),
+                    "state_revision": self.revision,
+                    "occupant_id": "occupant:test",
+                    "provider_ref": "provider.test",
+                    "binding_revision": 1,
+                    "implementation_revision": "implementation:test",
+                }
+
+            def set_office_state(self, _credential, _office_id, state, *, expected_revision):
+                if self.fail_write:
+                    try:
+                        raise DatabaseBoundFailure("private database error sentinel")
+                    except DatabaseBoundFailure:
+                        raise ValueError("private database error sentinel") from None
+                serialized = json.dumps(state, sort_keys=True,
+                                        separators=(", ", ": ")).encode("utf-8")
+                if len(serialized) > 65536:
+                    try:
+                        raise DatabaseBoundFailure("private database error sentinel")
+                    except DatabaseBoundFailure:
+                        raise ValueError("private database error sentinel") from None
+                self.state = state
+                self.revision = expected_revision + 1
+                return self.revision
+
+        class Assignments:
+            def read(self, assignment_id):
+                return {"id": assignment_id, "revision": "1",
+                        "acceptance_criteria": ["create the requested deliverable"]}
+
+        class Knowledge:
+            @staticmethod
+            def _verified():
+                return KnowledgeResult(
+                    KnowledgeStatus.VERIFIED, {"evidence": "verified"},
+                    ("repo://docs/evidence.md",), "revision:test", "a" * 64, True)
+
+            def ground_assignment(self, _assignment):
+                return self._verified()
+
+            def reground_assignment(self, _assignment, _trigger):
+                return self._verified()
+
+        class Provider:
+            provider_id = "provider.test"
+
+            def __init__(self, response=None, error=None):
+                self.response = response
+                self.error = error
+                self.requests = []
+
+            def propose(self, request):
+                self.requests.append(request)
+                if self.error is not None:
+                    raise self.error
+                return self.response
+
+        def run(registry, provider):
+            reasoner = ResidentReasoner(
+                registry=registry, office_id="office:test", resident_credential="CREDENTIAL_SENTINEL",
+                assignments=Assignments(), knowledge=Knowledge(), providers={"provider.test": provider},
+                timeout_seconds=1)
+            with self.assertLogs("riverview_core.resident_reasoning", level="INFO") as captured:
+                result = reasoner.propose(objective_id, trigger="diagnostics_test", token_budget=100)
+            return result, [json.loads(record.getMessage()) for record in captured.records], captured.output
+
+        read_provider = Provider(response=PlanProposal(
+            "private model response sentinel", (PlanStep("step-1", "create deliverable",
+                                                         ("deliverable exists",)),), 17))
+        read_result, read_events, read_output = run(Registry(fail_read=True), read_provider)
+        self.assertEqual(read_result.detail_code, "OFFICE_STATE_STORE_UNAVAILABLE")
+        self.assertEqual(read_provider.requests, [])
+        self.assertTrue(any(event["stage"] == "office_state_read_failed"
+                            and event["phase"] == "pre_provider"
+                            and event["registry_cause_type"] == "OperationalError"
+                            and event["underlying_exception_type"] == "DatabaseFailure"
+                            and event["sqlstate"] == "08006"
+                            for event in read_events))
+
+        failed_provider = Provider(error=RuntimeError("private provider error sentinel"))
+        failed_result, failed_events, failed_output = run(Registry(), failed_provider)
+        self.assertEqual(failed_result.detail_code, "PROVIDER_TIMEOUT_OR_FAILURE")
+        self.assertTrue(any(event["stage"] == "provider_invocation_failed"
+                            and event["exception_type"] == "RuntimeError"
+                            for event in failed_events))
+
+        invalid_provider = Provider(response=ProposalValidationFailure(
+            "PROPOSAL_SCHEMA_INVALID"))
+        invalid_result, invalid_events, _ = run(Registry(), invalid_provider)
+        self.assertEqual(invalid_result.status, ReasoningStatus.INVALID_PROPOSAL)
+        self.assertTrue(any(event["stage"] == "provider_response_received"
+                            for event in invalid_events))
+        self.assertTrue(any(event["stage"] == "proposal_validation_failed"
+                            and event["detail_code"] == "PROPOSAL_SCHEMA_INVALID"
+                            for event in invalid_events))
+
+        response_provider = Provider(response=PlanProposal(
+            "private model response sentinel", (PlanStep("step-1", "create deliverable",
+                                                         ("deliverable exists",)),), 17))
+        persist_result, persist_events, persist_output = run(
+            Registry(fail_write=True), response_provider)
+        self.assertEqual(persist_result.detail_code, "OFFICE_STATE_STORE_UNAVAILABLE")
+        self.assertTrue(any(event["stage"] == "provider_response_received"
+                            for event in persist_events))
+        self.assertTrue(any(event["stage"] == "office_state_persistence_failed"
+                            and event["persistence_stage"] == "proposal_state_persistence"
+                            and event["exception_type"] == "ValueError"
+                            and event["underlying_exception_type"] == "DatabaseBoundFailure"
+                            and event["sqlstate"] == "22023"
+                            for event in persist_events))
+        self.assertNotIn("private model response sentinel", read_output + persist_output)
+        self.assertNotIn("private provider error sentinel", failed_output)
+        self.assertNotIn("private database error sentinel",
+                         read_output + failed_output + persist_output)
+        self.assertNotIn("CREDENTIAL_SENTINEL",
+                         read_output + failed_output + persist_output)
+
+        large_registry = Registry()
+        large_registry.state = {"resident_reasoning_v1": {
+            "outcomes": ([{"history": "x" * 2050} for _ in range(31)] +
+                         [{"history": "oldest"}]),
+            "plans": {},
+        }}
+        initial_state_bytes = len(json.dumps(
+            large_registry.state, sort_keys=True, separators=(", ", ": ")).encode("utf-8"))
+        self.assertLess(initial_state_bytes, 65536)
+        large_provider = Provider(response=PlanProposal(
+            "s" * 3500, (PlanStep("step-1", "create deliverable",
+                                  ("deliverable exists",)),), 17))
+        large_result, _, _ = run(large_registry, large_provider)
+        self.assertEqual(large_result.status, ReasoningStatus.PROPOSED)
+        persisted_runtime = large_registry.state["resident_reasoning_v1"]
+        self.assertIn(objective_id, persisted_runtime["plans"])
+        self.assertLess(len(persisted_runtime["outcomes"]), 32)
+        self.assertEqual(persisted_runtime["outcomes"][-1]["request_id"],
+                         large_result.request_id)
+        self.assertLessEqual(len(json.dumps(
+            large_registry.state, sort_keys=True,
+            separators=(", ", ": ")).encode("utf-8")), 65536)
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -614,7 +790,96 @@ class LifecycleEvidenceClassificationTests(unittest.TestCase):
             "conversation.result_published")
         self.assertEqual(lifecycle_evidence_event(
             "The objective is grounded before execution."), "objective.grounded")
+        self.assertEqual(lifecycle_evidence_event(
+            "- Create exactly one Engineering assignment for the file."),
+            "work_order.exactly_one_dispatched")
+        self.assertIsNone(lifecycle_evidence_event(
+            "Create exactly two Engineering assignments for the file."))
         self.assertIsNone(lifecycle_evidence_event(
             "The conversation summary includes every cited source."))
         self.assertIsNone(lifecycle_evidence_event(
             "Write a grounded report of the source implementation."))
+
+
+class GroundingCallDiagnosticsTests(unittest.TestCase):
+    def test_logs_separate_correlated_grounding_results_without_private_content(self):
+        import json
+        from riverview_core.resident_reasoning import ResidentReasoner
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+
+        class Registry:
+            def __init__(self):
+                self.state = {}
+                self.revision = 0
+
+            def authorize_office_state(self, _credential, _office_id):
+                return {
+                    "state": dict(self.state),
+                    "state_revision": self.revision,
+                    "occupant_id": "occupant:grounding-test",
+                    "provider_ref": "provider.must-not-run",
+                    "binding_revision": 1,
+                    "implementation_revision": "implementation:test",
+                }
+
+            def set_office_state(self, _credential, _office_id, state, *, expected_revision):
+                self.state = state
+                self.revision = expected_revision + 1
+                return self.revision
+
+        class Assignments:
+            def read(self, assignment_id):
+                return {
+                    "id": assignment_id,
+                    "revision": "3",
+                    "objective": "private assignment text sentinel",
+                    "acceptance_criteria": ["private criterion sentinel"],
+                }
+
+        class Knowledge:
+            supports_reasoning_diagnostics = True
+
+            def __init__(self):
+                self.contexts = []
+
+            def ground_assignment(self, _assignment, *, diagnostic_context=None):
+                self.contexts.append(diagnostic_context)
+                return KnowledgeResult(
+                    KnowledgeStatus.UNVERIFIED, source_revision="source:test",
+                    retrieval_complete=False)
+
+            def reground_assignment(self, _assignment, _trigger, *, diagnostic_context=None):
+                self.contexts.append(diagnostic_context)
+                raise RuntimeError("private exception detail sentinel")
+
+        knowledge = Knowledge()
+        reasoner = ResidentReasoner(
+            registry=Registry(), office_id="office:test", resident_credential="CREDENTIAL_SENTINEL",
+            assignments=Assignments(), knowledge=knowledge, providers={}, timeout_seconds=1)
+        with self.assertLogs("riverview_core.resident_reasoning", level="INFO") as captured:
+            result = reasoner.propose(
+                "objective:grounding-diagnostic", trigger="diagnostic_test", token_budget=20)
+
+        diagnostics = [json.loads(record.getMessage()) for record in captured.records
+                       if json.loads(record.getMessage()).get("stage") == "knowledge_call_result"]
+        self.assertEqual(result.detail_code, "GROUNDING_NOT_VERIFIED")
+        self.assertEqual(len(diagnostics), 2)
+        self.assertEqual([event["operation"] for event in diagnostics],
+                         ["ground_assignment", "reground_assignment"])
+        self.assertEqual(diagnostics[0]["status"], "UNVERIFIED")
+        self.assertEqual(diagnostics[0]["source_revision"], "source:test")
+        self.assertFalse(diagnostics[0]["source_hash_present"])
+        self.assertFalse(diagnostics[0]["retrieval_complete"])
+        self.assertEqual(diagnostics[0]["reference_count"], 0)
+        self.assertEqual(diagnostics[1]["status"], "UNAVAILABLE")
+        self.assertEqual(diagnostics[1]["exception_type"], "RuntimeError")
+        self.assertEqual(diagnostics[1]["failure_reason"], "KNOWLEDGE_CALL_EXCEPTION")
+        self.assertEqual({event["request_id"] for event in diagnostics}, {result.request_id})
+        self.assertEqual({event["assignment_id"] for event in diagnostics},
+                         {"objective:grounding-diagnostic"})
+        self.assertEqual({context["request_id"] for context in knowledge.contexts},
+                         {result.request_id})
+        self.assertNotIn("private assignment text sentinel", captured.output)
+        self.assertNotIn("private criterion sentinel", captured.output)
+        self.assertNotIn("private exception detail sentinel", captured.output)
+        self.assertNotIn("CREDENTIAL_SENTINEL", captured.output)

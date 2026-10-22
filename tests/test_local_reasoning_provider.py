@@ -2,7 +2,14 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.22
+# Revision: 1.1.33
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional JSON-schema chat mode is sent only when requested and bounded.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Verify artifact checks stay in the artifact contract without becoming extra formal criteria.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify lifecycle criterion binding restores only a stripped structural bullet.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Verify actionable value-free diagnostics for proposal rejection stages.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Match the revised prompt's formal-criteria boundary.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Verify derived and Steward-supplied criteria prompt paths.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-PRIOR-PLAN-CRITERIA-20261021 | Ignore stale prior-plan criteria not present in the persisted formal list
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Prove lifecycle-only acceptance criteria stay out of one deliverable step
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Accept bounded provider HTTP deadlines above the prior 60-second cap
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify token-truncated proposal JSON without exposing model output
@@ -49,13 +56,14 @@
 from io import BytesIO
 from dataclasses import replace
 import json
+import logging
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 
 from riverview_core.resident_reasoning import (ExternalEscalationIntent,
-    ProposalValidationFailure, ReasoningRequest)
+    PlanProposal, ProposalValidationFailure, ReasoningRequest)
 from riverview_core.local_reasoning_provider import (
     LocalReasoningProvider, LocalReasoningUnavailable)
 
@@ -115,6 +123,88 @@ class LocalReasoningProviderTests(unittest.TestCase):
                             "fixture failure", {}, self.error_stream)
         return _Response(self.response_body)
 
+    def test_lifecycle_criterion_restores_only_structural_bullet_from_source(self):
+        criterion = "- Create exactly one Engineering assignment for the report."
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [criterion],
+        })
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Create the requested report.",
+            "system_owned_criteria": [criterion[2:]],
+            "steps": [{"step_id": "report", "objective": "Create the report",
+                "acceptance_criteria": ["Create report.txt"], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.txt",
+                    "media_type": "text/plain", "acceptance_criteria": ["Create report.txt"]}]}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertIsInstance(proposal, PlanProposal)
+        self.assertEqual(proposal.system_owned_criteria, (criterion,))
+
+    def test_unmapped_exact_original_criterion_is_bound_to_single_step(self):
+        lifecycle = "- Create exactly one Engineering assignment for the report."
+        path_constraint = "- Use the authorized artifact destination recorded in the work order."
+        deliverable = "- Create report.txt."
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [lifecycle, path_constraint, deliverable],
+        })
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Create the report at its authorized destination.",
+            "system_owned_criteria": [lifecycle[2:], path_constraint[2:]],
+            "steps": [{"step_id": "report", "objective": "Create report.txt",
+                "acceptance_criteria": [deliverable[2:]], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.txt",
+                    "media_type": "text/plain", "acceptance_criteria": [deliverable[2:]]}]}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertIsInstance(proposal, PlanProposal)
+        self.assertEqual(proposal.system_owned_criteria, (lifecycle,))
+        self.assertEqual(proposal.steps[0].acceptance_criteria,
+                         (deliverable[2:], path_constraint))
+
+    def test_unmapped_invented_lifecycle_criterion_remains_rejected(self):
+        lifecycle = "- Create exactly one Engineering assignment for the report."
+        invented = "Use an invented lifecycle event."
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [lifecycle, "- Create report.txt."],
+        })
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Create the report.",
+            "system_owned_criteria": [lifecycle[2:], invented],
+            "steps": [{"step_id": "report", "objective": "Create report.txt",
+                "acceptance_criteria": ["Create report.txt."], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.txt",
+                    "media_type": "text/plain", "acceptance_criteria": ["Create report.txt."]}]}]}))
+        result = self.provider.propose(self.request)
+        self.assertIsInstance(result, ProposalValidationFailure)
+        self.assertEqual(result.detail_code, "PROPOSAL_SCHEMA_INVALID")
+
+    def test_artifact_specific_criteria_are_not_extra_formal_step_criteria(self):
+        formal = "Create the requested file."
+        exact_content = "File contents equal the requested text."
+        final_newline = "File ends with one newline."
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [formal],
+        })
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Create the requested file.",
+            "system_owned_criteria": [],
+            "steps": [{"step_id": "write", "objective": "Write the file",
+                "acceptance_criteria": [formal, exact_content, final_newline],
+                "depends_on": [], "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "result", "path": "result.txt",
+                    "media_type": "text/plain", "acceptance_criteria": [
+                        exact_content, final_newline]}]}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertIsInstance(proposal, PlanProposal)
+        self.assertEqual(proposal.steps[0].acceptance_criteria, (formal,))
+        self.assertEqual(proposal.steps[0].artifact_requirements[0].acceptance_criteria,
+                         (exact_content, final_newline))
+
     @staticmethod
     def _response(*, served="fixture-model", finish="stop", tokens=9, text=None):
         if text is None:
@@ -146,6 +236,17 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("Alfred", sent["messages"][0]["content"])
         self.assertIn("grants no permission", sent["messages"][0]["content"])
 
+    def test_missing_formal_criteria_are_derived_from_the_full_objective_request(self):
+        self.request = replace(self.request, assignment={
+            "id": "assignment-1", "objective": "Create a bounded verified report",
+            "acceptance_criteria": [], "acceptance_criteria_source": "grace_derived"})
+        proposal = self.provider.propose(self.request)
+        self.assertIsNotNone(proposal)
+        prompt = self.requests[0]["messages"][0]["content"]
+        self.assertIn("Derive a concise, complete set of proposed criteria", prompt)
+        self.assertIn("entire original objective request", prompt)
+        self.assertIn("criteria remain a proposal", prompt)
+
     def test_single_deliverable_separates_system_lifecycle_criteria(self):
         from riverview_core.resident_reasoning import PlanProposal
         deliverable = "The report contains exact phrase `verified delivery`."
@@ -174,7 +275,6 @@ class LocalReasoningProviderTests(unittest.TestCase):
         schema = self.requests[0]["response_format"]["json_schema"]["schema"]
         self.assertIn("system_owned_criteria", schema["required"])
         self.assertIn("system_owned_criteria", self.requests[0]["messages"][0]["content"])
-
         self.response_body = self._response(text=json.dumps({
             "summary": "Invalid lifecycle", "system_owned_criteria": [{"not": "text"}],
             "steps": [{"step_id": "report", "objective": "Create the report",
@@ -183,6 +283,81 @@ class LocalReasoningProviderTests(unittest.TestCase):
                 "artifact_requirements": [{"name": "report", "path": "reports/report.md",
                     "media_type": "text/markdown", "acceptance_criteria": [deliverable]}]}]}))
         self.assertEqual(self.provider.propose(self.request).detail_code, "PROPOSAL_SCHEMA_INVALID")
+
+    def test_schema_failures_emit_correlated_value_free_stage_diagnostics(self):
+        valid_step = {"step_id": "s1", "objective": "Create report",
+            "acceptance_criteria": ["Complete report"], "depends_on": [],
+            "execution_capability": "engineering.codex-cli-artifact.v1",
+            "artifact_requirements": [{"name": "report", "path": "report.txt",
+                "media_type": "text/plain", "acceptance_criteria": ["Complete report"]}]}
+        cases = [
+            ("proposal_structure", "$.steps", "array", "string", {
+                "summary": "Plan", "steps": "TOP_SECRET"}),
+            ("step_validation", "$.steps[0].acceptance_criteria", "array", "string", {
+                "summary": "Plan", "steps": [{**valid_step, "acceptance_criteria": "TOP_SECRET"}]}),
+            ("artifact_requirements", "$.steps[0].artifact_requirements[0].name", "str", "integer", {
+                "summary": "Plan", "steps": [{**valid_step, "artifact_requirements": [{
+                    **valid_step["artifact_requirements"][0], "name": 9}]}]}),
+            ("external_escalation", "$.external_escalation", "valid escalation object", "object", {
+                "summary": "Plan", "steps": [valid_step], "external_escalation": {
+                    "reason": "unsupported-private-value", "target_provider_id": "external"}}),
+            ("lifecycle_criteria", "$.system_owned_criteria[0]",
+             "string mapping to a lifecycle evidence event or exact original criterion", "string", {
+                "summary": "Plan", "steps": [valid_step],
+                "system_owned_criteria": ["TOP_SECRET"]}),
+            ("typed_proposal_construction", "$", "valid PlanProposal", "object", {
+                "summary": "Plan", "steps": [valid_step, {**valid_step,
+                    "artifact_requirements": [{**valid_step["artifact_requirements"][0],
+                        "path": "another-report.txt"}]}]}),
+        ]
+        for stage, path, expected, actual, plan in cases:
+            with self.subTest(stage=stage):
+                self.request = replace(self.request,
+                    external_reasoning_targets=("external",),
+                    correlation_id="attempt-correlation-1")
+                self.response_body = self._response(text=json.dumps(plan))
+                with self.assertLogs("riverview_core.local_reasoning_provider",
+                                     level=logging.WARNING) as captured:
+                    result = self.provider.propose(self.request)
+                self.assertEqual(result.detail_code, "PROPOSAL_SCHEMA_INVALID")
+                diagnostic = json.loads(captured.records[0].getMessage())
+                self.assertEqual(diagnostic["event"], "resident_proposal_validation_diagnostic")
+                self.assertEqual(diagnostic["request_id"], self.request.request_id)
+                self.assertEqual(diagnostic["correlation_id"], "attempt-correlation-1")
+                self.assertEqual(diagnostic["validation_stage"], stage)
+                self.assertEqual(diagnostic["field_path"], path)
+                self.assertEqual(diagnostic["expected_type"], expected)
+                self.assertEqual(diagnostic["actual_type"], actual)
+                self.assertNotIn("TOP_SECRET", captured.output[0])
+                self.assertNotIn("unsupported-private-value", captured.output[0])
+
+    def test_proposal_json_parse_diagnostic_omits_model_text(self):
+        self.response_body = self._response(text="PRIVATE_RAW_MODEL_CONTENT")
+        with self.assertLogs("riverview_core.local_reasoning_provider",
+                             level=logging.WARNING) as captured:
+            result = self.provider.propose(self.request)
+        self.assertEqual(result.detail_code, "PROPOSAL_JSON_PARSE_FAILED")
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(diagnostic["validation_stage"], "proposal_json_parse")
+        self.assertEqual(diagnostic["field_path"], "$")
+        self.assertEqual(diagnostic["exception_type"], "JSONDecodeError")
+        self.assertNotIn("PRIVATE_RAW_MODEL_CONTENT", captured.output[0])
+
+    def test_model_response_structure_diagnostic_is_correlated_and_value_free(self):
+        self.response_body = json.dumps({"model": "fixture-model", "choices": [],
+            "usage": {"completion_tokens": 2}}).encode()
+        with self.assertLogs("riverview_core.local_reasoning_provider",
+                             level=logging.WARNING) as captured:
+            result = self.provider.propose(self.request)
+        self.assertEqual(result.detail_code, "PROPOSAL_RESPONSE_SCHEMA_INVALID")
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(diagnostic["request_id"], self.request.request_id)
+        self.assertIsNone(diagnostic["correlation_id"])
+        self.assertEqual(diagnostic["validation_stage"], "model_response_structure")
+        self.assertEqual(diagnostic["field_path"], "$.choices")
+        self.assertEqual(diagnostic["expected_type"], "non-empty array")
+        self.assertEqual(diagnostic["actual_type"], "array")
+        self.assertIsNone(diagnostic["exception_type"])
 
     def test_retry_prompt_repairs_prior_plan_omitting_negative_criterion(self):
         required = "Do not modify source files, repository contents, services, production configuration, or credentials."
@@ -198,12 +373,39 @@ class LocalReasoningProviderTests(unittest.TestCase):
         sent = self.requests[0]
         prompt = sent["messages"][0]["content"]
         context = json.loads(sent["messages"][1]["content"])
-        self.assertIn("negative constraints or prohibitions", prompt)
-        self.assertIn("beginning with 'Do not'", prompt)
+        self.assertIn("When acceptance_criteria_source is steward_supplied", prompt)
+        self.assertIn("Do not promote other request instructions or prohibitions into criteria", prompt)
         self.assertIn("prior_plan is an unaccepted earlier attempt, not approval", prompt)
+        self.assertIn("compare it against assignment.acceptance_criteria", prompt)
+        self.assertIn("Do not copy prior-plan criteria absent from assignment.acceptance_criteria", prompt)
         self.assertEqual(context["prior_plan"], prior_plan)
         self.assertEqual(context["assignment"]["acceptance_criteria"],
                          ["Produce the Markdown deliverable.", required])
+
+    def test_prior_plan_request_only_constraints_are_not_formal_criteria(self):
+        formal = "Create the requested report."
+        request_only = "Do not create another objective or assignment."
+        prior_plan = {"summary": "Create report", "steps": [{
+            "step_id": "report", "objective": "Create report",
+            "acceptance_criteria": [formal, request_only], "depends_on": []}]}
+        self.request = replace(self.request,
+            assignment={"id": "assignment-1",
+                "objective": formal + " " + request_only,
+                "acceptance_criteria": [formal]},
+            prior_plan=prior_plan)
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Create the report", "steps": [{
+                "step_id": "report", "objective": "Create report",
+                "acceptance_criteria": [formal], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.txt",
+                    "media_type": "text/plain", "acceptance_criteria": [formal]}]}]}))
+
+        proposal = self.provider.propose(self.request)
+
+        self.assertEqual(proposal.steps[0].acceptance_criteria, (formal,))
+        prompt = self.requests[0]["messages"][0]["content"]
+        self.assertIn("Do not copy prior-plan criteria absent from assignment.acceptance_criteria", prompt)
 
     def test_external_advisory_is_separate_and_explicitly_unverified(self):
         advisory = {
@@ -359,6 +561,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
                          criteria)
         sent = self.requests[0]
         prompt = sent["messages"][0]["content"]
+        self.assertIn("When acceptance_criteria_source is steward_supplied", prompt)
         self.assertIn("For artifact steps, include artifact_requirements", prompt)
         step_schema = sent["response_format"]["json_schema"]["schema"]
         variants = step_schema["properties"]["steps"]["items"]["oneOf"]
@@ -596,6 +799,27 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertEqual(self.requests[0]["max_tokens"], 64)
         self.assertEqual(self.request_calls[0][1], 120)
         self.assertFalse(self.requests[0]["stream"])
+
+    def test_chat_sends_optional_bounded_json_schema_format(self):
+        self.response_body = json.dumps({"model":"fixture-model","choices":[{
+            "message":{"content":"{}"}, "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":1}}).encode()
+        schema = {"type": "object", "properties": {"decision": {"type": "string"}},
+            "required": ["decision"], "additionalProperties": False}
+        self.provider.complete_chat([{"role":"user","content":"review"}],
+            max_tokens=64, expected_revision=MODEL_SHA, response_schema=schema)
+        self.assertEqual(self.requests[0]["response_format"], {
+            "type": "json_schema", "json_schema": {
+                "name": "verified_result_review", "schema": schema}})
+
+    def test_chat_rejects_oversized_or_non_object_response_schema(self):
+        messages = [{"role":"user","content":"review"}]
+        for schema in ([], {"x": "y" * 16385}):
+            with self.subTest(schema_type=type(schema).__name__), self.assertRaises(
+                    LocalReasoningUnavailable) as caught:
+                self.provider.complete_chat(messages, max_tokens=64,
+                    expected_revision=MODEL_SHA, response_schema=schema)
+            self.assertEqual(caught.exception.code, "request_contract_invalid")
 
     def test_chat_rejects_binding_mismatch_wrong_model_and_incomplete_output(self):
         messages = [{"role":"user","content":"hello"}]

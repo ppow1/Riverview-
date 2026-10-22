@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.65",
+      "graph_revision": "1.0.67",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2827,6 +2827,7 @@
         "src/riverview_core/resident_execution/conversation.py",
         "src/riverview_core/resident_execution/external_reasoning.py",
         "src/riverview_core/resident_execution/migrations/0009_durable_objective_steps.sql",
+        "src/riverview_core/resident_execution/migrations/0014_grace_derived_objective_criteria.sql",
         "src/riverview_core/resident_execution/model_router.py",
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/resident_execution/service.py",
@@ -2874,7 +2875,7 @@
           "id": "rv:grace:operational-integration:objective-intake",
           "node_revision": "1.0.3",
           "type": "entry",
-          "label": "IMPLEMENTED — exact objective.submit persists one objective per authenticated conversation message origin; retries revalidate the grant and retain original criteria",
+          "label": "IMPLEMENTED — exact objective.submit persists one objective per authenticated conversation message origin; explicit criteria remain authoritative, while blank criteria are derived by Grace from the full request and become effective only with an accepted proposal; retries retain the original source/list",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/resident_execution/pipeline.py"
@@ -2891,7 +2892,7 @@
           "id": "rv:grace:operational-integration:objective-intake-retry",
           "node_revision": "1.0.1",
           "type": "recovery",
-          "label": "SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria, and rerun grounding for the existing durable objective",
+          "label": "SAME-SOURCE RETRY — revalidate objective.submit, retain immutable criteria source/list, and rerun grounding for the existing durable objective",
           "source_references": [
             "src/riverview_core/status_dashboard/server.py",
             "src/riverview_core/resident_execution/pipeline.py"
@@ -2922,7 +2923,7 @@
           "id": "rv:grace:operational-integration:reason-decompose",
           "node_revision": "1.0.4",
           "type": "process",
-          "label": "PERSISTENT GROUNDED REASONING — use the exact active office-bound provider; retain every original criterion exactly, map only lifecycle-owned criteria to durable events, and create one Engineering step per sufficient deliverable; preserve genuine dependencies and proposal has no authority",
+          "label": "PERSISTENT GROUNDED REASONING — use the exact active office-bound provider; exactly cover Steward-supplied criteria or derive proposed criteria dynamically from the complete request when omitted; map only lifecycle-owned criteria to durable events, and create one Engineering step per sufficient deliverable; preserve genuine dependencies and proposal has no authority",
           "source_references": [
             "src/riverview_core/resident_reasoning.py",
             "src/riverview_core/resident_execution/pipeline.py",

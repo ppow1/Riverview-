@@ -2,7 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.20
+# Revision: 1.3.30
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Support optional bounded JSON-Schema chat output for strict verified-result review.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Keep artifact-specific criteria in their artifact contract, not formal step binding.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Restore only stripped structural list markers from original lifecycle criteria and remove temporary capture.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CRITERION-CAPTURE-20261022 | Add one-shot protected capture for one rejected target lifecycle criterion.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Emit correlated schema rejection paths and safe type diagnostics.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Let Grace derive proposed formal criteria only when the Steward omitted them.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-PRIOR-PLAN-CRITERIA-20261021 | Keep stale prior-plan instructions from promoting request constraints into formal criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Separate lifecycle-only criteria from bounded Engineering work and prefer one deliverable step when sufficient
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Permit the bounded 120-second proposal request deadline
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Classify JSON truncation at the completion-token boundary distinctly
@@ -11,7 +18,7 @@
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Return fixed sanitized proposal parse, schema, provenance and token-budget codes
 # Purpose: Adapt bounded resident proposals and conversation turns to local inference
 # Execution Model: Bounded loopback OpenAI-compatible request
-# Observability: Sanitized provider failures; no prompts or raw model output logged
+# Observability: Sanitized provider failures; no prompt or model response retention.
 # Dependencies: Python standard library; local inference v1 endpoint; resident reasoning contract
 # Changed: 2026-10-11 UTC | RV-M4.2-PROVIDER-JSON-SCHEMA | Specify exact output keys and reject unverified response metadata
 # Changed: 2026-10-11 UTC | RV-M4.2-STRUCTURED-OUTPUT-BOUNDARY | Request the exact typed proposal through the verified llama.cpp JSON-schema API
@@ -49,9 +56,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import ipaddress
 import json
+import logging
+import os
+import re
 import threading
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
@@ -61,6 +71,53 @@ from .resident_reasoning import (ArtifactRequirement, ExternalEscalationIntent, 
                                  lifecycle_evidence_event, ProposalValidationFailure,
                                  ReasoningRequest)
 from .resident_execution.grace_role_context import build_grace_role_context
+
+LOG = logging.getLogger(__name__)
+
+
+def _criterion_without_list_marker(value):
+    if not isinstance(value, str):
+        return value
+    return re.sub(r"^(?:[-*+]\s+|\d{1,2}[.)]\s+)", "", value.lstrip())
+
+
+def _json_type(value):
+    if value is _MISSING:
+        return "missing"
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return "non_json"
+
+
+_MISSING = object()
+
+
+def _validation_failure(request, code, stage, field_path, expected_type,
+                        actual_value=_MISSING, exception=None):
+    LOG.warning("%s", json.dumps({
+        "event": "resident_proposal_validation_diagnostic",
+        "request_id": request.request_id,
+        "correlation_id": request.correlation_id,
+        "detail_code": code,
+        "validation_stage": stage,
+        "field_path": field_path,
+        "expected_type": expected_type,
+        "actual_type": _json_type(actual_value),
+        "exception_type": type(exception).__name__ if exception is not None else None,
+    }, sort_keys=True))
+    return ProposalValidationFailure(code)
 
 
 class LocalReasoningUnavailable(RuntimeError):
@@ -238,9 +295,13 @@ class LocalReasoningProvider:
             "Use 1 to 20 concise ordered steps only when needed. summary is at most seven words. steps "
             "contains objects with step_id (short string), objective "
             "(at most eight words), acceptance_criteria as a list of 1 to 12 strings, "
-            "and depends_on containing only earlier step_id values. Repeat every supplied acceptance criterion exactly, "
-            "without dropping or rewriting any, including negative constraints or prohibitions (for example, criteria "
-            "beginning with 'Do not'). Put every such constraint verbatim on at least one applicable step. "
+            "and depends_on containing only earlier step_id values. The assignment contains the original Steward request "
+            "in objective and a formal criteria list in acceptance_criteria when supplied. Treat all request "
+            "text as instructions. When acceptance_criteria_source is steward_supplied, use only that list as formal "
+            "criteria, copying every item exactly once to a step or system_owned_criteria without adding, rewriting, "
+            "duplicating, or omitting items. Do not promote other request instructions or prohibitions into criteria. "
+            "An artifact requirement may include only artifact-verifiable requirements supported by the original request; "
+            "do not place workflow or administrative instructions in an artifact requirement. "
             "Use system_owned_criteria only for original criteria completed by existing Riverview lifecycle events, "
             "not by editing the deliverable; copy those criteria exactly. Map each one only to an event that actually "
             "proves it. Do not create Engineering steps or receipt artifacts to prove objective intake, proposal "
@@ -267,11 +328,20 @@ class LocalReasoningProvider:
             "institutional facts. This is an unapproved proposal; "
             "do not claim execution, verification, or authority. Do not "
             "include commands or credentials.")
+        if (request.assignment.get("acceptance_criteria_source") == "grace_derived" and
+                not request.assignment.get("acceptance_criteria")):
+            system_instruction += (
+                " The Steward omitted formal criteria. Derive a concise, complete set of proposed criteria from the "
+                "entire original objective request. Place each derived criterion exactly once on an Engineering step "
+                "or system_owned_criteria; do not invent requirements beyond the requested outcome. Treat structural "
+                "section labels as context, not criteria. Preserve other instructions as execution constraints. "
+                "The criteria remain a proposal until the existing authorized workflow accepts the plan.")
         if request.prior_plan is not None:
             system_instruction += (
-                " The supplied prior_plan is an unaccepted earlier attempt, not approval. Compare it against every "
-                "supplied criterion and correct any omission; do not repeat an earlier omission of a negative "
-                "constraint or prohibition.")
+                " The supplied prior_plan is an unaccepted earlier attempt, not approval. Use it only as history; "
+                "compare it against assignment.acceptance_criteria and correct omissions or duplication only in that "
+                "formal list. Do not copy prior-plan criteria absent from assignment.acceptance_criteria. Preserve "
+                "other original request instructions as execution constraints, not formal acceptance criteria.")
         if request.external_reasoning_targets:
             system_instruction += (
                 " You may additionally set external_escalation only when a specific second opinion is needed "
@@ -399,55 +469,142 @@ class LocalReasoningProvider:
             return ProposalValidationFailure("PROPOSAL_RESPONSE_TOO_LARGE")
         try:
             document = json.loads(raw)
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            return ProposalValidationFailure("PROPOSAL_RESPONSE_PARSE_FAILED")
-        try:
-            choice = document["choices"][0]
-            text = choice["message"]["content"]
-            served_model = document["model"]
-            finish_reason = choice["finish_reason"]
-            completion_tokens = document["usage"]["completion_tokens"]
-        except (KeyError, IndexError, TypeError):
-            return ProposalValidationFailure("PROPOSAL_RESPONSE_SCHEMA_INVALID")
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            return _validation_failure(request, "PROPOSAL_RESPONSE_PARSE_FAILED",
+                "model_response_json_parse", "$", "JSON object", exception=exc)
+        if not isinstance(document, dict):
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$", "object", document)
+        choices = document.get("choices", _MISSING)
+        if not isinstance(choices, list) or not choices:
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.choices", "non-empty array", choices)
+        choice = choices[0]
+        if not isinstance(choice, dict):
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.choices[0]", "object", choice)
+        message = choice.get("message", _MISSING)
+        if not isinstance(message, dict):
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.choices[0].message", "object", message)
+        text = message.get("content", _MISSING)
+        served_model = document.get("model", _MISSING)
+        finish_reason = choice.get("finish_reason", _MISSING)
+        usage = document.get("usage", _MISSING)
+        if not isinstance(usage, dict):
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.usage", "object", usage)
+        completion_tokens = usage.get("completion_tokens", _MISSING)
         if not isinstance(text, str):
-            return ProposalValidationFailure("PROPOSAL_RESPONSE_SCHEMA_INVALID")
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.choices[0].message.content", "string", text)
+        if served_model is _MISSING:
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.model", "string", served_model)
+        if finish_reason is _MISSING:
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.choices[0].finish_reason", "string", finish_reason)
+        if completion_tokens is _MISSING:
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.usage.completion_tokens", "integer", completion_tokens)
         try:
             plan = json.loads(text)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
             if finish_reason == "length":
                 return ProposalValidationFailure("PROPOSAL_TOKEN_BUDGET_EXCEEDED")
-            return ProposalValidationFailure("PROPOSAL_JSON_PARSE_FAILED")
+            return _validation_failure(request, "PROPOSAL_JSON_PARSE_FAILED",
+                "proposal_json_parse", "$", "JSON object", exception=exc)
         if served_model != self.model:
             return ProposalValidationFailure("PROPOSAL_PROVENANCE_INVALID")
         if type(completion_tokens) is not int or completion_tokens < 0:
-            return ProposalValidationFailure("PROPOSAL_RESPONSE_SCHEMA_INVALID")
+            return _validation_failure(request, "PROPOSAL_RESPONSE_SCHEMA_INVALID",
+                "model_response_structure", "$.usage.completion_tokens", "non-negative integer",
+                completion_tokens)
         if completion_tokens > request.token_budget:
             return ProposalValidationFailure("PROPOSAL_TOKEN_BUDGET_EXCEEDED")
-        if (finish_reason not in ("stop", "length") or not isinstance(plan, dict) or
-                not {"summary", "steps"} <= set(plan) or
-                not set(plan) <= {"summary", "steps", "system_owned_criteria", "external_escalation"} or
-                not isinstance(plan["steps"], list) or
-                not isinstance(plan.get("system_owned_criteria", []), list)):
-            return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
+        if finish_reason not in ("stop", "length"):
+            return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                "model_response_structure", "choices[0].finish_reason", "stop or length string", finish_reason)
+        if not isinstance(plan, dict):
+            return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                "proposal_structure", "$", "object", plan)
+        missing = {"summary", "steps"} - set(plan)
+        if missing:
+            path = "$." + sorted(missing)[0]
+            return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                "proposal_structure", path, "required field", _MISSING)
+        unexpected = set(plan) - {"summary", "steps", "system_owned_criteria", "external_escalation"}
+        if unexpected:
+            return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                "proposal_structure", "$.<additional-property>", "no additional field", next(iter(unexpected)))
+        if not isinstance(plan["steps"], list):
+            return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                "proposal_structure", "$.steps", "array", plan["steps"])
+        if not isinstance(plan.get("system_owned_criteria", []), list):
+            return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                "lifecycle_criteria", "$.system_owned_criteria", "array",
+                plan.get("system_owned_criteria"))
         try:
             steps = []
-            for item in plan["steps"]:
+            for index, item in enumerate(plan["steps"]):
+                step_path = f"$.steps[{index}]"
                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
                 allowed = required | {"execution_capability", "authorized_paths", "test_targets",
                                      "repository_reference", "repository_revision", "artifact_requirements"}
-                if not isinstance(item, dict) or not required <= set(item) or not set(item) <= allowed:
-                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
-                if (not isinstance(item["acceptance_criteria"], list)
-                        or not isinstance(item["depends_on"], list)
-                        or not isinstance(item.get("artifact_requirements", []), list)):
-                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
+                if not isinstance(item, dict):
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "step_validation", step_path, "object", item)
+                missing = required - set(item)
+                if missing:
+                    field = sorted(missing)[0]
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "step_validation", f"{step_path}.{field}", "required field", _MISSING)
+                unexpected = set(item) - allowed
+                if unexpected:
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "step_validation", f"{step_path}.<additional-property>", "no additional field",
+                        next(iter(unexpected)))
+                for field in ("acceptance_criteria", "depends_on", "artifact_requirements"):
+                    if field in item and not isinstance(item[field], list):
+                        return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                            "step_validation", f"{step_path}.{field}", "array", item[field])
                 capability = item.get("execution_capability", "engineering.codex-cli-artifact.v1")
                 if capability == "engineering.codex-cli-artifact.v1" and not item.get("artifact_requirements"):
-                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
-                artifact_requirements = tuple(ArtifactRequirement(
-                    requirement["name"], requirement["path"], requirement["media_type"],
-                    tuple(requirement["acceptance_criteria"]), requirement.get("max_bytes", 32768))
-                    for requirement in item.get("artifact_requirements", []))
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "artifact_requirements", f"{step_path}.artifact_requirements", "non-empty array",
+                        item.get("artifact_requirements", []))
+                artifact_requirements = []
+                for artifact_index, requirement in enumerate(item.get("artifact_requirements", [])):
+                    artifact_path = f"{step_path}.artifact_requirements[{artifact_index}]"
+                    if not isinstance(requirement, dict):
+                        return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                            "artifact_requirements", artifact_path, "object", requirement)
+                    artifact_required = {"name", "path", "media_type", "acceptance_criteria"}
+                    missing = artifact_required - set(requirement)
+                    if missing:
+                        field = sorted(missing)[0]
+                        return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                            "artifact_requirements", f"{artifact_path}.{field}", "required field", _MISSING)
+                    artifact_allowed = artifact_required | {"max_bytes"}
+                    unexpected = set(requirement) - artifact_allowed
+                    if unexpected:
+                        return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                            "artifact_requirements", f"{artifact_path}.<additional-property>",
+                            "no additional field", next(iter(unexpected)))
+                    for field, expected in (("name", str), ("path", str), ("media_type", str),
+                                            ("acceptance_criteria", list), ("max_bytes", int)):
+                        if field in requirement and (type(requirement[field]) is not expected):
+                            return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                                "artifact_requirements", f"{artifact_path}.{field}",
+                                expected.__name__, requirement[field])
+                    try:
+                        artifact_requirements.append(ArtifactRequirement(
+                            requirement["name"], requirement["path"], requirement["media_type"],
+                            tuple(requirement["acceptance_criteria"]), requirement.get("max_bytes", 32768)))
+                    except (KeyError, TypeError, ValueError) as exc:
+                        return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                            "artifact_requirements", artifact_path, "valid artifact requirement object",
+                            requirement, exc)
                 steps.append(PlanStep(
                     step_id=item["step_id"], objective=item["objective"],
                     acceptance_criteria=tuple(item["acceptance_criteria"]),
@@ -457,37 +614,108 @@ class LocalReasoningProvider:
                     test_targets=tuple(item.get("test_targets", ())),
                     repository_reference=item.get("repository_reference"),
                     repository_revision=item.get("repository_revision"),
-                    artifact_requirements=artifact_requirements))
+                    artifact_requirements=tuple(artifact_requirements)))
             escalation = None
             if "external_escalation" in plan:
                 raw_escalation = plan["external_escalation"]
                 if (not request.external_reasoning_targets or not isinstance(raw_escalation, dict)
                         or set(raw_escalation) != {"reason", "target_provider_id"}):
-                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
-                escalation = ExternalEscalationIntent(
-                    raw_escalation["reason"], raw_escalation["target_provider_id"])
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "external_escalation", "$.external_escalation",
+                        "object with reason and target_provider_id", raw_escalation)
+                try:
+                    escalation = ExternalEscalationIntent(
+                        raw_escalation["reason"], raw_escalation["target_provider_id"])
+                except (KeyError, TypeError, ValueError) as exc:
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "external_escalation", "$.external_escalation", "valid escalation object",
+                        raw_escalation, exc)
                 if escalation.target_provider_id not in request.external_reasoning_targets:
-                    return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "external_escalation", "$.external_escalation.target_provider_id",
+                        "configured target provider ID", escalation.target_provider_id)
             lifecycle_criteria = tuple(plan.get("system_owned_criteria", []))
-            if any(lifecycle_evidence_event(item) is None for item in lifecycle_criteria):
-                return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
-            return PlanProposal(plan["summary"], tuple(steps), completion_tokens,
-                provider_id=self.provider_id, served_model=served_model,
-                model_revision=self.model_sha256, reasoning_stage="reasoning",
-                system_owned_criteria=lifecycle_criteria,
-                external_escalation=escalation)
-        except (KeyError, TypeError, ValueError):
-            return ProposalValidationFailure("PROPOSAL_SCHEMA_INVALID")
+            original_criteria = request.assignment.get("acceptance_criteria", ())
+            formal_criteria = (set(original_criteria)
+                               if isinstance(original_criteria, (list, tuple)) else set())
+            formal_criterion_keys = {_criterion_without_list_marker(item)
+                for item in formal_criteria if isinstance(item, str)}
+            normalized_steps = []
+            for step in steps:
+                artifact_criteria = {criterion for requirement in step.artifact_requirements
+                                     for criterion in requirement.acceptance_criteria}
+                retained_criteria = tuple(criterion for criterion in step.acceptance_criteria
+                    if (not formal_criterion_keys
+                        or _criterion_without_list_marker(criterion) in formal_criterion_keys
+                        or criterion not in artifact_criteria))
+                if not retained_criteria:
+                    retained_criteria = step.acceptance_criteria
+                normalized_steps.append(replace(step, acceptance_criteria=retained_criteria))
+            steps = normalized_steps
+            if isinstance(original_criteria, (list, tuple)):
+                canonicalized = []
+                for criterion in lifecycle_criteria:
+                    matches = [original for original in original_criteria
+                        if isinstance(original, str)
+                        and original != criterion
+                        and original.lstrip().startswith(("- ", "* ", "+ "))
+                        and original.lstrip()[2:] == criterion
+                        and lifecycle_evidence_event(original) ==
+                            lifecycle_evidence_event(criterion)]
+                    canonicalized.append(matches[0] if len(matches) == 1 else criterion)
+                lifecycle_criteria = tuple(canonicalized)
+            mapped_lifecycle_criteria = []
+            step_criteria = {criterion for step in steps
+                             for criterion in step.acceptance_criteria}
+            for index, item in enumerate(lifecycle_criteria):
+                if not isinstance(item, str):
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "lifecycle_criteria", f"$.system_owned_criteria[{index}]",
+                        "string mapping to a lifecycle evidence event", item)
+                if lifecycle_evidence_event(item) is not None:
+                    mapped_lifecycle_criteria.append(item)
+                    continue
+                exact_original = (isinstance(original_criteria, (list, tuple))
+                                  and original_criteria.count(item) == 1)
+                if not exact_original:
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "lifecycle_criteria", f"$.system_owned_criteria[{index}]",
+                        "string mapping to a lifecycle evidence event or exact original criterion",
+                        item)
+                if item not in step_criteria:
+                    if len(steps) != 1:
+                        return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                            "lifecycle_criteria", f"$.system_owned_criteria[{index}]",
+                            "exact original non-lifecycle criterion bound to an unambiguous step",
+                            item)
+                    steps[0] = replace(steps[0],
+                        acceptance_criteria=(*steps[0].acceptance_criteria, item))
+                    step_criteria.add(item)
+            lifecycle_criteria = tuple(mapped_lifecycle_criteria)
+            try:
+                return PlanProposal(plan["summary"], tuple(steps), completion_tokens,
+                    provider_id=self.provider_id, served_model=served_model,
+                    model_revision=self.model_sha256, reasoning_stage="reasoning",
+                    system_owned_criteria=lifecycle_criteria,
+                    external_escalation=escalation)
+            except (KeyError, TypeError, ValueError) as exc:
+                return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                    "typed_proposal_construction", "$", "valid PlanProposal", plan, exc)
+        except (KeyError, TypeError, ValueError) as exc:
+            return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                "typed_proposal_construction", "$", "valid PlanProposal", plan, exc)
 
     def complete_chat(self, messages, *, max_tokens: int,
-                      expected_revision: str, timeout_seconds: float = 120) -> ChatCompletion:
+                      expected_revision: str, timeout_seconds: float = 120,
+                      response_schema=None) -> ChatCompletion:
         if not self._capacity.acquire(blocking=False):
             raise LocalReasoningUnavailable("endpoint_busy")
         with self._capacity_lock:
             self._in_flight += 1
         try:
             return self._complete_chat(messages, max_tokens=max_tokens,
-                expected_revision=expected_revision, timeout_seconds=timeout_seconds)
+                expected_revision=expected_revision, timeout_seconds=timeout_seconds,
+                response_schema=response_schema)
         finally:
             with self._capacity_lock:
                 self._in_flight -= 1
@@ -640,7 +868,8 @@ class LocalReasoningProvider:
                               reasoning_stage="primary")
 
     def _complete_chat(self, messages, *, max_tokens: int,
-                       expected_revision: str, timeout_seconds: float) -> ChatCompletion:
+                       expected_revision: str, timeout_seconds: float,
+                       response_schema=None) -> ChatCompletion:
         """Generate ordinary conversation text; this method has no tool or work-order API."""
         if (expected_revision != self.model_sha256 or type(max_tokens) is not int
                 or not 1 <= max_tokens <= 512 or not isinstance(messages, list)
@@ -664,9 +893,16 @@ class LocalReasoningProvider:
                                        separators=(",", ":")).encode("utf-8")
             if len(content_bytes) > self.MAX_PROMPT_BYTES:
                 raise LocalReasoningUnavailable("prompt_too_large")
-            body = json.dumps({"model": self.model, "messages": request_messages,
-                "temperature": 0.2, "max_tokens": max_tokens, "stream": False},
-                ensure_ascii=False).encode("utf-8")
+            request_body = {"model": self.model, "messages": request_messages,
+                "temperature": 0.2, "max_tokens": max_tokens, "stream": False}
+            if response_schema is not None:
+                if (not isinstance(response_schema, dict) or len(json.dumps(
+                        response_schema, ensure_ascii=False).encode("utf-8")) > 16384):
+                    raise LocalReasoningUnavailable("request_contract_invalid")
+                request_body["response_format"] = {"type": "json_schema",
+                    "json_schema": {"name": "verified_result_review",
+                                    "schema": response_schema}}
+            body = json.dumps(request_body, ensure_ascii=False).encode("utf-8")
         except (TypeError, ValueError):
             raise LocalReasoningUnavailable("request_contract_invalid") from None
         request = Request(self.endpoint, data=body,

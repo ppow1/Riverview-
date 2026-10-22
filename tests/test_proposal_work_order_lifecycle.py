@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_proposal_work_order_lifecycle.py
 # Component: INSTITUTIONAL-PROPOSALS
-# Revision: 1.1.6
+# Revision: 1.1.7
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Name approved artifact destinations in proposal promotion fixtures
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Include required artifact contracts in bounded proposal lifecycle fixtures
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Use a task-scoped path in typed formation contract fixture
@@ -138,8 +139,8 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
     @property
     def content(self):
         return {"title": "Bounded test proposal", "summary": "A scoped report task.",
-            "objective": "Prepare a source-grounded report.",
-            "scope": "Create and independently verify one bounded Engineering artifact.",
+            "objective": "Prepare a source-grounded report at reports/lifecycle.json or reports/http-result.json.",
+            "scope": "Create and independently verify one bounded Engineering artifact at an explicitly named path.",
             "proposed_approach": "Ground the objective, then use the existing Engineering pipeline.",
             "constraints": ["No production changes."],
             "acceptance_criteria": ["The existing objective pipeline receives this approved revision."],

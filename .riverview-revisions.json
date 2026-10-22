@@ -2,12 +2,18 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.25",
-      "sha256": "ce487c1e23dac13fcfafeed52ea47d0685ed20bd9b6593f52bf67f04b9f3af8f",
-      "size_bytes": 1327951
+      "revision": "1.0.28",
+      "sha256": "542011bd86b6957522fea8ce7d5589e48b8ea1b6797efc5dc68fe47dff504bec",
+      "size_bytes": 1354475
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.301"
+      "revision": "1.1.304"
+    },
+    "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
+      "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
+      "revision": "1.0.0",
+      "sha256": "b666e07b0d3023112a689900c338301571188b837d966a6d25e2f3ae237e5c23",
+      "size_bytes": 385
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -75,11 +81,29 @@
       "sha256": "40b3ca529b422fe54fa308a5de6cd78be79a4f5d7792dec2092de330ce5cba86",
       "size_bytes": 20168
     },
+    "docs/components/STATUS_DASHBOARD.md": {
+      "path": "docs/components/STATUS_DASHBOARD.md",
+      "revision": "1.1.12",
+      "sha256": "c5e52e6459a92cdf8449f2b0f7b2cc4a62b7c01330bf7ea748324754642262c2",
+      "size_bytes": 28760
+    },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
       "revision": "1.2.1",
       "sha256": "07339b9da2a4be2a76903ec5b1667f86630478aa84c259fc4e13e5de35bc200b",
       "size_bytes": 24573
+    },
+    "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
+      "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+      "revision": "1.1.30",
+      "sha256": "e5c2e3c327448bc09025841c5779dd82c9d6390209086be700d3a16036fa36ee",
+      "size_bytes": 60744
+    },
+    "docs/components/STATUS_DASHBOARD_FLOW.md": {
+      "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
+      "revision": "1.0.15",
+      "sha256": "13c9cd99ad6e70e07c59e6435649ae5298c777b35dfae76e31d072ca4320f419",
+      "size_bytes": 17999
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
@@ -209,9 +233,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.207",
-      "sha256": "9cce3c091632dce3dc4fd2e57a0d11f988f3c0adeabe0da72560f56ea40ce4d2",
-      "size_bytes": 691556
+      "revision": "1.0.210",
+      "sha256": "c988566bc9a7217848f06d84009da2b4faeecbff221e83c72b02958020325c00",
+      "size_bytes": 691888
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -221,9 +245,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.65",
-      "sha256": "2c570fbf751c60daf3571f9a9cee65e168728754bafe6a1ee8eb2c8905dcbf29",
-      "size_bytes": 96904
+      "revision": "1.0.67",
+      "sha256": "ce86fa0d25bbecba1f3a62ef9d7a127a06658f13fb5182a6469d1d4627225e77",
+      "size_bytes": 97232
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -327,6 +351,12 @@
       "sha256": "924985f625e836d8c0936b6713b3d5c74a570efebe8d2f2c3ad40ec49fe3ed92",
       "size_bytes": 39650
     },
+    "scripts/rv_gpu_telemetry_command.py": {
+      "path": "scripts/rv_gpu_telemetry_command.py",
+      "revision": "1.0.1",
+      "sha256": "5a45fba957d55940c75629868c2c7522b637960f3f6de40f9985745a0bc142d6",
+      "size_bytes": 6285
+    },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
       "revision": "1.0.1",
@@ -362,6 +392,12 @@
       "revision": "1.0.10",
       "sha256": "2f77bd7e2c0f16d907593e03a8006542eb0b3594a3aeaf3e35e7eeec38ad3ece",
       "size_bytes": 45998
+    },
+    "src/riverview_core/status_dashboard/resource_telemetry.py": {
+      "path": "src/riverview_core/status_dashboard/resource_telemetry.py",
+      "revision": "1.1.0",
+      "sha256": "db0eec39505114c0a05deb39136419ab49423cd203814a1d693d424ff828cd3f",
+      "size_bytes": 18355
     },
     "src/riverview_core/status_dashboard/server.py": {
       "path": "src/riverview_core/status_dashboard/server.py",
@@ -405,6 +441,12 @@
       "sha256": "166becf4d56aa22e1a2719f6c328f03a6fad4a43b85ab695878a586bdaf8d311",
       "size_bytes": 2880
     },
+    "tests/test_gpu_telemetry_command.py": {
+      "path": "tests/test_gpu_telemetry_command.py",
+      "revision": "1.0.0",
+      "sha256": "7bc6c06083d85b5a66f1b7e2b31ee1991b8f7b9e68f6c1d789d6af68b7f74c8a",
+      "size_bytes": 2744
+    },
     "tests/test_grace_conversation_result.py": {
       "path": "tests/test_grace_conversation_result.py",
       "revision": "1.0.13",
@@ -423,29 +465,17 @@
       "sha256": "3cfc6313b906c11931c2bd6e4ab14d13d625b4beaf8fffa5bfc2b5d20a68abeb",
       "size_bytes": 142923
     },
+    "tests/test_resource_telemetry.py": {
+      "path": "tests/test_resource_telemetry.py",
+      "revision": "1.1.1",
+      "sha256": "6177d4d309ba9b96ad5934f067ec2066abcf0521f46a9a578cf437ce261cfd6c",
+      "size_bytes": 8187
+    },
     "tests/test_runtime_baseline.py": {
       "path": "tests/test_runtime_baseline.py",
       "revision": "1.0.11",
       "sha256": "0afd276b81635cce7d2557336969f57b1f80f61ea886325b4dd1345d405e26b7",
       "size_bytes": 34997
-    },
-    "tests/test_w2_p0_integrated_review_acceptance.py": {
-      "path": "tests/test_w2_p0_integrated_review_acceptance.py",
-      "revision": "1.0.8",
-      "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
-      "size_bytes": 26074
-    },
-    "src/riverview_core/status_dashboard/resource_telemetry.py": {
-      "path": "src/riverview_core/status_dashboard/resource_telemetry.py",
-      "revision": "1.1.0",
-      "sha256": "db0eec39505114c0a05deb39136419ab49423cd203814a1d693d424ff828cd3f",
-      "size_bytes": 18355
-    },
-    "scripts/rv_gpu_telemetry_command.py": {
-      "path": "scripts/rv_gpu_telemetry_command.py",
-      "revision": "1.0.1",
-      "sha256": "5a45fba957d55940c75629868c2c7522b637960f3f6de40f9985745a0bc142d6",
-      "size_bytes": 6285
     },
     "tests/test_status_dashboard.py": {
       "path": "tests/test_status_dashboard.py",
@@ -453,43 +483,13 @@
       "sha256": "e8b6154004462e947600964020363dba611ca02688e089a480bfa8b02fa356a8",
       "size_bytes": 95593
     },
-    "tests/test_resource_telemetry.py": {
-      "path": "tests/test_resource_telemetry.py",
-      "revision": "1.1.1",
-      "sha256": "6177d4d309ba9b96ad5934f067ec2066abcf0521f46a9a578cf437ce261cfd6c",
-      "size_bytes": 8187
-    },
-    "tests/test_gpu_telemetry_command.py": {
-      "path": "tests/test_gpu_telemetry_command.py",
-      "revision": "1.0.0",
-      "sha256": "7bc6c06083d85b5a66f1b7e2b31ee1991b8f7b9e68f6c1d789d6af68b7f74c8a",
-      "size_bytes": 2744
-    },
-    "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
-      "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
-      "revision": "1.0.0",
-      "sha256": "b666e07b0d3023112a689900c338301571188b837d966a6d25e2f3ae237e5c23",
-      "size_bytes": 385
-    },
-    "docs/components/STATUS_DASHBOARD.md": {
-      "path": "docs/components/STATUS_DASHBOARD.md",
-      "revision": "1.1.12",
-      "sha256": "c5e52e6459a92cdf8449f2b0f7b2cc4a62b7c01330bf7ea748324754642262c2",
-      "size_bytes": 28760
-    },
-    "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
-      "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-      "revision": "1.1.30",
-      "sha256": "e5c2e3c327448bc09025841c5779dd82c9d6390209086be700d3a16036fa36ee",
-      "size_bytes": 60744
-    },
-    "docs/components/STATUS_DASHBOARD_FLOW.md": {
-      "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
-      "revision": "1.0.15",
-      "sha256": "13c9cd99ad6e70e07c59e6435649ae5298c777b35dfae76e31d072ca4320f419",
-      "size_bytes": 17999
+    "tests/test_w2_p0_integrated_review_acceptance.py": {
+      "path": "tests/test_w2_p0_integrated_review_acceptance.py",
+      "revision": "1.0.8",
+      "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
+      "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.300",
-  "updated_at": "2026-10-20T23:07:09Z"
+  "manifest_revision": "1.1.305",
+  "updated_at": "2026-10-22T02:55:05Z"
 }

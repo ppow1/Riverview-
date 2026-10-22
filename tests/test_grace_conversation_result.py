@@ -1,7 +1,9 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.14
+# Revision: 1.0.16
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Assert strict structured-output request and supplied-authority clarification for final reviews.
+# Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Test sanitized review parse metadata and one-shot private response capture
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Verify generation-two evidence preserves the active digest-checked artifact-review contract.
@@ -23,9 +25,15 @@
 import unittest
 import json
 import hashlib
+import os
+import stat
+import tempfile
+import time
+from contextlib import nullcontext
 import hashlib
 import json
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from riverview_core.resident_execution.conversation import ResidentConversationService
 from riverview_core.resident_execution.conversation import ConversationUnavailable
@@ -84,15 +92,18 @@ class FakeRouter:
     def supports_capability(self, capability):
         return capability == "grace.reasoning.80b"
 
-    def complete_chat(self, messages, *, max_tokens, expected_revision, required_capability):
-        self.calls.append((messages, max_tokens, expected_revision, required_capability))
+    def complete_chat(self, messages, *, max_tokens, expected_revision, required_capability,
+                      response_schema=None):
+        self.calls.append((messages, max_tokens, expected_revision, required_capability,
+                           response_schema))
         if self.failure is not None:
             raise self.failure
         if self.on_complete is not None:
             self.on_complete()
         return SimpleNamespace(content=getattr(self, "content", json_complete()),
             served_model="Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
-            reasoning_stage="reasoning", finish_reason="stop", provider_attempts=(),
+            reasoning_stage="reasoning", finish_reason="stop", completion_tokens=41,
+            provider_attempts=(),
             provider_id="local.inference.v1")
 
 
@@ -141,6 +152,11 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(result["served_model"], "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf")
         self.assertEqual(self.actions, [("resident-credential", "resident.conversation.send")])
         self.assertEqual(self.router.calls[0][3], "grace.reasoning.80b")
+        self.assertEqual(self.router.calls[0][4]["required"], ["decision", "rationale",
+            "additional_evidence", "proposed_step"])
+        review_instructions = self.router.calls[0][0][0]["content"]
+        self.assertIn("already authenticated this review request", review_instructions)
+        self.assertIn("preserve every decision/authorization boundary", review_instructions)
         request_id = result["request_id"]
         row = self.store.responses[request_id]
         self.assertEqual(row["conversation_id"], context["origin"]["conversation_id"])
@@ -264,6 +280,69 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertIn('"unexpected_field_count": 1', captured.output[0])
         self.assertNotIn("PRIVATE-GENERATED-RATIONALE", captured.output[0])
         self.assertNotIn("PRIVATE-EXTRA", captured.output[0])
+
+    def test_invalid_json_review_logs_correlated_parse_metadata_without_response_text(self):
+        from riverview_core.resident_execution.conversation import ConversationUnavailable
+        private_response = '{"decision": OBJECTIVE_COMPLETE, private text'
+        self.router.content = private_response
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            with self.assertRaises(ConversationUnavailable):
+                self.service.review_verified_work_order(valid_context())
+        diagnostic = captured.output[0]
+        self.assertIn('"request_id":', diagnostic)
+        self.assertIn('"failure_stage": "json_parse"', diagnostic)
+        self.assertIn('"json_error_message": "Expecting value"', diagnostic)
+        self.assertIn('"json_error_position": 13', diagnostic)
+        self.assertIn(f'"response_byte_length": {len(private_response.encode("utf-8"))}',
+                      diagnostic)
+        self.assertIn('"finish_reason": "stop"', diagnostic)
+        self.assertIn('"completion_tokens": 41', diagnostic)
+        self.assertIn('"response_begins_with_json_object": true', diagnostic)
+        self.assertNotIn(private_response, diagnostic)
+        self.assertEqual(self.store.responses, {})
+
+    def test_targeted_review_capture_is_private_single_use_and_expiring(self):
+        from riverview_core.resident_execution import conversation
+        response = '{"decision": OBJECTIVE_COMPLETE, restricted response}'
+        with tempfile.TemporaryDirectory() as directory:
+            os.chmod(directory, 0o700)
+            expires_at = int(time.time()) + 300
+            environment = {
+                "RIVERVIEW_GRACE_REVIEW_CAPTURE_OBJECTIVE_ID": "objective:grace-conversation:demo",
+                "RIVERVIEW_GRACE_REVIEW_CAPTURE_EXPIRES_AT": str(expires_at)}
+            with patch.object(conversation, "_REVIEW_CAPTURE_RUNTIME_DIR", directory), \
+                    patch.object(conversation.threading, "Timer") as timer, \
+                    (patch.object(conversation.os, "stat", return_value=SimpleNamespace(
+                        st_mode=stat.S_IFDIR | 0o700, st_uid=1))
+                     if os.name == "nt" else nullcontext()):
+                captured = conversation._capture_verified_result_review_response(
+                    "objective:grace-conversation:demo", "request-demo", response,
+                    environ=environment)
+                capture = os.path.join(directory, "verified-review-request-demo.response")
+                marker = os.path.join(directory, "verified-review-request-demo.captured")
+                self.assertTrue(captured)
+                with open(capture, "rb") as stream:
+                    self.assertEqual(stream.read(), response.encode("utf-8"))
+                self.assertTrue(os.path.exists(marker))
+                timer.return_value.start.assert_called_once_with()
+                self.assertGreater(timer.call_args.args[0], 298)
+                self.assertLessEqual(timer.call_args.args[0], 300)
+                self.assertFalse(conversation._capture_verified_result_review_response(
+                    "objective:grace-conversation:demo", "request-demo", response,
+                    environ=environment))
+                self.assertFalse(conversation._capture_verified_result_review_response(
+                    "objective:grace-conversation:other", "request-other", response,
+                    environ=environment))
+                self.assertFalse(conversation._capture_verified_result_review_response(
+                    "objective:grace-conversation:demo", "request-expired", response,
+                    environ={**environment,
+                        "RIVERVIEW_GRACE_REVIEW_CAPTURE_EXPIRES_AT": str(int(time.time()) - 1)}))
+                if os.name == "posix":
+                    self.assertEqual(stat.S_IMODE(os.stat(capture).st_mode), 0o600)
+                timer.call_args.args[1]()
+                self.assertFalse(os.path.exists(capture))
+                self.assertFalse(os.path.exists(marker))
 
     def test_smaller_direct_model_cannot_review_substantive_result(self):
         small = SimpleNamespace(model="qwen3-0.6b", model_sha256="r" * 64)

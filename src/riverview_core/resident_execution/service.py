@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.36
+# Revision: 1.0.37
+# Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Correlate objective proposal persistence outcomes with the resident request
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Service ready dispatch, execution, verification, completion and conversation publication before potentially slow model planning
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Provide enough bounded completion tokens for full typed proposals with dynamic objective criteria
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Persist reasoning turns and skip externally blocked candidates without starving later grounded objectives.
@@ -281,9 +282,29 @@ class GraceExecutionService:
                         proposal_revision=proposal_revision, source_references=references,
                         review_subject=review_subject)
                     return True
-                self.pipeline.record_proposal(
-                    objective_id, result.proposal,
-                    actor_id="office:" + self.resident_reasoner.office_id)
+                proposal_persist_started = time.monotonic()
+                try:
+                    self.pipeline.record_proposal(
+                        objective_id, result.proposal,
+                        actor_id="office:" + self.resident_reasoner.office_id)
+                except Exception as exc:
+                    LOG.warning(json.dumps({
+                        "event": "resident_objective_proposal_persistence_failed",
+                        "request_id": result.request_id,
+                        "objective_id": objective_id,
+                        "operation": "pipeline.record_proposal",
+                        "failure_type": type(exc).__name__,
+                        "detail_code": self._reasoning_failure_detail_code(exc),
+                        "elapsed_ms": round((time.monotonic() - proposal_persist_started) * 1000),
+                    }, sort_keys=True))
+                    raise
+                LOG.info(json.dumps({
+                    "event": "resident_objective_proposal_persisted",
+                    "request_id": result.request_id,
+                    "objective_id": objective_id,
+                    "operation": "pipeline.record_proposal",
+                    "elapsed_ms": round((time.monotonic() - proposal_persist_started) * 1000),
+                }, sort_keys=True))
                 return True
             self._record_reasoning_failure(objective_id, result=result)
         except Exception as exc:

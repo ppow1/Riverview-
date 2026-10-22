@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.8
+# Revision: 1.2.10
+# Changed: 2026-10-22 UTC | RV-GRACE-RESULT-REVIEW-ROUTER-20261022 | Do not inject an unrelated required status-tool turn into schema-constrained reviews.
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Forward optional structured-output schema through the existing capability-pinned reasoning route.
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Trim oldest conversational context to the provider byte limit while preserving system instructions and the active turn.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Preserve sanitized HTTP failure classes for bounded deferred recovery.
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-PROPOSAL-DIAGNOSTICS-20261020 | Preserve typed sanitized proposal-failure codes from the 80B adapter
@@ -192,7 +194,8 @@ class GraceModelRouter:
         raise ReasoningDeferred(states["vision"].state)
 
     def complete_chat(self, messages, *, max_tokens, expected_revision,
-                      timeout_seconds=120, required_capability=None):
+                      timeout_seconds=120, required_capability=None,
+                      response_schema=None):
         if expected_revision != self.model_sha256:
             raise LocalReasoningUnavailable("router_binding_mismatch")
         try:
@@ -214,7 +217,8 @@ class GraceModelRouter:
                 provider_context.pop(removable)
         available_tools = (self.internal_tools.catalog()
                            if stage == "reasoning" and self.internal_tools is not None else [])
-        required_tool = self._required_internal_tool(messages, available_tools)
+        required_tool = (None if response_schema is not None else
+                         self._required_internal_tool(messages, available_tools))
         # Tool definitions are large and are not needed for ordinary reasoning.
         # Keep the full registry in-process for deterministic matching, but add
         # only the exact selected schema to the model prompt when a current lookup
@@ -243,9 +247,14 @@ class GraceModelRouter:
         try:
             started_at = datetime.now(UTC)
             started = monotonic()
-            completion = provider.complete_chat(routed, max_tokens=stage_max_tokens,
-                expected_revision=provider.model_sha256,
-                timeout_seconds=min(timeout_seconds, self.TIMEOUTS[stage]))
+            completion_kwargs = {"max_tokens": stage_max_tokens,
+                "expected_revision": provider.model_sha256,
+                "timeout_seconds": min(timeout_seconds, self.TIMEOUTS[stage])}
+            if response_schema is not None:
+                if stage != "reasoning":
+                    raise LocalReasoningUnavailable("request_contract_invalid")
+                completion_kwargs["response_schema"] = response_schema
+            completion = provider.complete_chat(routed, **completion_kwargs)
             attempts.append(self._attempt(stage, provider, started_at, started,
                 outcome="succeeded", finish_reason=completion.finish_reason,
                 completion_tokens=completion.completion_tokens,

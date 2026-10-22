@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.61
+# Revision: 1.0.64
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Align retry-copy assertion with immutable criteria-source semantics.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Cover blank/explicit intake and criteria-source visibility.
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify telemetry endpoint authentication, projection, and read-only methods.
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Verify knowledge source pin is independent of dashboard source identity.
 # Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Cover persisted-sequence binding and visible recovery when the retry dialog cannot open.
@@ -142,6 +144,14 @@ class _FakeProjection:
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
+    def test_work_order_form_allows_grace_derived_criteria_and_dashboard_shows_source(self):
+        static = ROOT / "src/riverview_core/status_dashboard/static"
+        html = (static / "index.html").read_text(encoding="utf-8")
+        app = (static / "app.js").read_text(encoding="utf-8")
+        self.assertIn("Acceptance criteria (optional", html)
+        self.assertIn("Leave criteria blank to have Grace derive proposed formal criteria", html)
+        self.assertIn("Derived by Grace", app)
+        self.assertIn("Steward-supplied", app)
     def test_talk_with_grace_has_persistent_objective_progress_panel(self):
         static = ROOT / "src/riverview_core/status_dashboard/static"
         html = (static / "index.html").read_text(encoding="utf-8")
@@ -384,7 +394,7 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn('This saved message is no longer available', app)
         self.assertIn('The work-order form could not be opened', app)
         self.assertNotIn('if(!ev||!Number.isInteger(ev.sequence))return;state.workOrderSourceSequence=ev.sequence', app)
-        self.assertIn("Existing source retries retain the original acceptance criteria", html)
+        self.assertIn("Existing source retries retain their original criteria", html)
         self.assertIn('acceptance_criteria:criteria', app)
 
     def test_grace_conversation_workspace_controls_and_complete_rendering_contract(self):
@@ -679,10 +689,17 @@ class DashboardHTTPTests(unittest.TestCase):
                 return {"roles": ["steward"], "authority_principal_id": "steward:camrui"}
 
         self.server._account_auth_service = AccountAuth()
+        self.projection.objective_items = [{"objective_id": "objective:derived-visible",
+            "status": "PROPOSED", "acceptance_criteria_source": "grace_derived",
+            "acceptance_criteria": ["The requested deliverable is verified."]}]
         status, _, body = self.request("GET", "/api/v1/objectives?limit=7",
             token=self.token, cookie="rv_account_session=session")
         self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body)["schema_version"], "rv.dashboard.objectives.v1")
+        response = json.loads(body)
+        self.assertEqual(response["schema_version"], "rv.dashboard.objectives.v1")
+        self.assertEqual(response["items"][0]["acceptance_criteria_source"], "grace_derived")
+        self.assertEqual(response["items"][0]["acceptance_criteria"],
+                         ["The requested deliverable is verified."])
         self.assertEqual(self.projection.last_owner_principal_id, None)
         self.assertFalse(self.projection.last_progress_only)
         conversation_id = "00000000-0000-4000-8000-000000000003"
@@ -807,12 +824,13 @@ class DashboardHTTPTests(unittest.TestCase):
                     raise ObjectiveNotAuthorized("objective.submit is not authorized")
                 return {"principal_id": principal_id, "grant_id": "grant:test"}
             def submit_objective(self, objective_id, request, acceptance_criteria, *,
-                                 scope_ref, principal, origin):
+                                 scope_ref, principal, origin, criteria_source):
                 self.submit_count += 1
                 self.objective = {"objective_id": objective_id, "request": request.strip(),
                     "acceptance_criteria": acceptance_criteria, "scope_ref": scope_ref,
                     "submitter_id": principal.principal_id, "status": "RECEIVED",
-                    "evidence": None, "source_revision": None, "origin": origin}
+                    "evidence": None, "source_revision": None, "origin": origin,
+                    "acceptance_criteria_source": criteria_source}
                 return self.objective
             def ground_objective(self, _objective_id):
                 self.ground_count += 1
@@ -857,6 +875,8 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(pipeline.submit_count, 1)
         self.assertEqual(pipeline.ground_count, 2)
         self.assertEqual(auth.assertion, ("session", "csrf", True))
+        self.assertEqual(pipeline.objective["acceptance_criteria"], criteria)
+        self.assertEqual(first["acceptance_criteria_source"], "steward_supplied")
 
         original_criteria = list(pipeline.objective["acceptance_criteria"])
         recorded_objective = dict(pipeline.objective)
@@ -879,10 +899,12 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(denied["error"], "engineering_work_order_submission_not_authorized")
         self.assertEqual(pipeline.submit_count, 1)
         pipeline.objective = None
-        empty_new_status, empty_new = post_work_order(None)
-        self.assertEqual(empty_new_status, 400)
-        self.assertEqual(empty_new["error"], "invalid_work_order_request")
-        self.assertEqual(pipeline.submit_count, 1)
+        empty_new_status, empty_new = post_work_order([])
+        self.assertEqual(empty_new_status, 202)
+        self.assertEqual(empty_new["acceptance_criteria_source"], "grace_derived")
+        self.assertEqual(pipeline.objective["acceptance_criteria"], [])
+        self.assertEqual(pipeline.objective["acceptance_criteria_source"], "grace_derived")
+        self.assertEqual(pipeline.submit_count, 2)
         pipeline.objective = recorded_objective
         pipeline.authorization_revoked = False
         pipeline.objective["scope_ref"] = "work-order:other"

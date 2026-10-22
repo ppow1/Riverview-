@@ -2,7 +2,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.24
+# Revision: 1.0.29
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Map structural list labels and exact single-dispatch lifecycle criteria.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Carry per-attempt correlation ID into provider validation diagnostics.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Correlate separate grounding provider outcomes without request content
+# Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Keep office-state writes within the database JSONB text bound and expose safe SQLSTATE diagnostics
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Restrict lifecycle ownership to complete canonical criterion forms
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Model typed lifecycle criteria separately from Engineering steps while retaining exact objective criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Require explicit lifecycle language before classifying conversation and grounding criteria as system-owned
@@ -50,6 +54,7 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 import hashlib
 import json
+import logging
 import re
 import threading
 import time
@@ -58,6 +63,33 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .worker_adapter.knowledge import KnowledgeProvider, KnowledgeResult, KnowledgeStatus
 from .institutional_authority import AuthorityDenied, IdentityConflict, RegistryUnavailable
+
+LOG = logging.getLogger(__name__)
+
+
+def _reasoning_diagnostic(stage, *, request_id, assignment_id, level=logging.INFO,
+                          correlation_id=None, **fields):
+    payload = {"event": "resident_reasoning_diagnostic", "stage": stage,
+               "request_id": request_id, "assignment_id": assignment_id}
+    if correlation_id is not None:
+        payload["correlation_id"] = correlation_id
+    payload.update(fields)
+    LOG.log(level, json.dumps(payload, sort_keys=True))
+
+
+def _exception_diagnostic_fields(exc):
+    fields = {"exception_type": type(exc).__name__}
+    if isinstance(exc, RegistryUnavailable):
+        cause_type = str(exc)
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,63}", cause_type):
+            fields["registry_cause_type"] = cause_type
+    underlying = exc.__context__
+    if underlying is not None:
+        fields["underlying_exception_type"] = type(underlying).__name__
+        sqlstate = getattr(underlying, "sqlstate", None)
+        if isinstance(sqlstate, str) and re.fullmatch(r"[A-Z0-9]{5}", sqlstate):
+            fields["sqlstate"] = sqlstate
+    return fields
 
 
 class ReasoningStatus(str, Enum):
@@ -168,6 +200,13 @@ def lifecycle_evidence_event(criterion: str) -> str | None:
     if not isinstance(criterion, str):
         return None
     value = " ".join(criterion.lower().split())
+    value = re.sub(r"^(?:[-*+]\s+|\d{1,2}[.)]\s+)", "", value)
+    if re.fullmatch(
+            r"(?:create|ensure there is) exactly one (?:approved )?(?:engineering )?"
+            r"(?:work order|assignment)(?: for [^.]+)?\.?|"
+            r"exactly one (?:approved )?(?:engineering )?(?:work order|assignment) "
+            r"(?:is )?(?:created|dispatched)\.?", value):
+        return "work_order.exactly_one_dispatched"
     if re.fullmatch(
             r"(?:grace )?(?:returns?|publishes?|reports?) (?:the )?(?:result|response) "
             r"to (?:the )?(?:steward )?conversation\.?|"
@@ -264,6 +303,7 @@ class ReasoningRequest:
     external_advisory: Mapping[str, Any] | None = None
     external_reasoning_targets: tuple[str, ...] = ()
     review_subject: Mapping[str, Any] | None = None
+    correlation_id: str | None = None
 
 
 class AssignmentContextReader(Protocol):
@@ -317,23 +357,27 @@ class _TimedCall:
         self.slots = slots
 
     def run(self, fn, timeout):
+        outcome, result, _ = self.run_diagnostic(fn, timeout)
+        return outcome == "returned", result
+
+    def run_diagnostic(self, fn, timeout):
         if not self.slots.acquire(timeout=timeout):
-            return False, None
+            return "capacity_unavailable", None, None
         done = threading.Event()
         box = []
 
         def invoke():
             try:
-                box.append((True, fn()))
-            except Exception:
-                box.append((False, None))
+                box.append(("returned", fn(), None))
+            except Exception as exc:
+                box.append(("failed", None, type(exc).__name__))
             finally:
                 self.slots.release()
                 done.set()
 
         threading.Thread(target=invoke, name="resident-reasoner", daemon=True).start()
         if not done.wait(timeout):
-            return False, None
+            return "timeout", None, None
         return box[0]
 
 
@@ -386,6 +430,11 @@ class ResidentReasoner:
                 "retrieval_complete": result.retrieval_complete}
 
     def _persist(self, snapshot, *, assignment_id, observation, proposal=None):
+        started = time.monotonic()
+        request_id = observation.get("request_id")
+        correlation_id = observation.get("correlation_id")
+        persistence_stage = ("proposal_state_persistence" if proposal is not None
+                             else "reasoning_outcome_persistence")
         state = dict(snapshot["state"])
         runtime = dict(state.get(self.STATE_KEY, {}))
         outcomes = list(runtime.get("outcomes", []))
@@ -398,20 +447,71 @@ class ResidentReasoner:
             plans[assignment_id] = asdict(proposal)
         runtime["plans"] = plans
         state[self.STATE_KEY] = runtime
-        if len(json.dumps(state, sort_keys=True, separators=(",", ":")).encode()) > self.MAX_STATE_BYTES:
+        serialized_state = json.dumps(
+            state, sort_keys=True, separators=(", ", ": ")).encode("utf-8")
+        while len(serialized_state) > self.MAX_STATE_BYTES and len(outcomes) > 1:
+            outcomes.pop(0)
+            runtime["outcomes"] = outcomes
+            state[self.STATE_KEY] = runtime
+            serialized_state = json.dumps(
+                state, sort_keys=True, separators=(", ", ": ")).encode("utf-8")
+        if len(serialized_state) > self.MAX_STATE_BYTES:
+            _reasoning_diagnostic(
+                "office_state_persistence_failed", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                operation="set_office_state", persistence_stage=persistence_stage,
+                failure_code="OFFICE_STATE_SIZE_LIMIT",
+                serialized_state_bytes=len(serialized_state),
+                elapsed_ms=round((time.monotonic() - started) * 1000),
+                level=logging.WARNING)
             return None
         try:
-            return self.registry.set_office_state(
+            revision = self.registry.set_office_state(
                 self._credential, self.office_id, state,
                 expected_revision=snapshot["state_revision"])
-        except AuthorityDenied:
+        except AuthorityDenied as exc:
+            _reasoning_diagnostic(
+                "office_state_persistence_failed", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                operation="set_office_state", persistence_stage=persistence_stage,
+                failure_code="AUTHORITY_DENIED", elapsed_ms=round(
+                    (time.monotonic() - started) * 1000), level=logging.WARNING,
+                **_exception_diagnostic_fields(exc))
             return "AUTHORITY_DENIED"
-        except IdentityConflict:
+        except IdentityConflict as exc:
+            _reasoning_diagnostic(
+                "office_state_persistence_failed", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                operation="set_office_state", persistence_stage=persistence_stage,
+                failure_code="STATE_CONFLICT", elapsed_ms=round(
+                    (time.monotonic() - started) * 1000), level=logging.WARNING,
+                **_exception_diagnostic_fields(exc))
             return "STATE_CONFLICT"
-        except RegistryUnavailable:
+        except RegistryUnavailable as exc:
+            _reasoning_diagnostic(
+                "office_state_persistence_failed", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                operation="set_office_state", persistence_stage=persistence_stage,
+                failure_code="OFFICE_STATE_STORE_UNAVAILABLE", elapsed_ms=round(
+                    (time.monotonic() - started) * 1000), level=logging.WARNING,
+                **_exception_diagnostic_fields(exc))
             return "AUTHORITY_UNAVAILABLE"
-        except Exception:
+        except Exception as exc:
+            _reasoning_diagnostic(
+                "office_state_persistence_failed", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                operation="set_office_state", persistence_stage=persistence_stage,
+                failure_code="OFFICE_STATE_STORE_UNAVAILABLE", elapsed_ms=round(
+                    (time.monotonic() - started) * 1000), level=logging.WARNING,
+                **_exception_diagnostic_fields(exc))
             return "AUTHORITY_UNAVAILABLE"
+        _reasoning_diagnostic(
+            "office_state_persisted", request_id=request_id,
+            assignment_id=assignment_id, correlation_id=correlation_id,
+            operation="set_office_state", persistence_stage=persistence_stage,
+            state_revision=revision,
+            elapsed_ms=round((time.monotonic() - started) * 1000))
+        return revision
 
     @staticmethod
     def _result_after_record(revision, desired, request_id, code, provider_id=None):
@@ -428,7 +528,8 @@ class ResidentReasoner:
 
     def _record(self, snapshot, assignment_id, request_id, status, trigger,
                 grounding, regrounding, *, provider_id=None, code="", proposal=None,
-                external_advisory=None):
+                external_advisory=None, correlation_id=None,
+                provider_response_received=False):
         advisory_provenance = None
         if external_advisory is not None:
             advisory_provenance = {
@@ -450,14 +551,48 @@ class ResidentReasoner:
                                           "grounding": self._knowledge_record(grounding),
                                           "regrounding": self._knowledge_record(regrounding),
                                           "provider_id": provider_id,
+                                          "correlation_id": correlation_id,
+                                          "provider_response_received": provider_response_received,
                                           "external_advisory": advisory_provenance},
                              proposal=proposal)
 
-    def _call_knowledge(self, operation, *args):
-        ok, result = self._timed_call.run(
-            lambda: getattr(self.knowledge, operation)(*args), self.timeout_seconds)
-        if not ok or not isinstance(result, KnowledgeResult):
-            return KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
+    def _call_knowledge(self, operation, *args, request_id=None, assignment_id=None):
+        diagnostic_context = {"request_id": request_id, "assignment_id": assignment_id}
+        provider_call = getattr(self.knowledge, operation)
+        supports_diagnostics = getattr(
+            self.knowledge, "supports_reasoning_diagnostics", False) is True
+
+        def invoke():
+            if supports_diagnostics:
+                return provider_call(*args, diagnostic_context=diagnostic_context)
+            return provider_call(*args)
+
+        started = time.monotonic()
+        outcome, result, exception_type = self._timed_call.run_diagnostic(
+            invoke, self.timeout_seconds)
+        elapsed_ms = round((time.monotonic() - started) * 1000)
+        failure_reason = None
+        if outcome == "timeout":
+            failure_reason = "KNOWLEDGE_CALL_TIMEOUT"
+        elif outcome == "capacity_unavailable":
+            failure_reason = "KNOWLEDGE_CALL_CAPACITY_UNAVAILABLE"
+        elif outcome == "failed":
+            failure_reason = "KNOWLEDGE_CALL_EXCEPTION"
+        elif not isinstance(result, KnowledgeResult):
+            failure_reason = "KNOWLEDGE_RESULT_INVALID"
+        if not isinstance(result, KnowledgeResult):
+            result = KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
+        _reasoning_diagnostic(
+            "knowledge_call_result", request_id=request_id,
+            assignment_id=assignment_id, correlation_id=request_id,
+            operation=operation, elapsed_ms=elapsed_ms,
+            outcome=outcome, status=result.status.value,
+            source_revision=result.source_revision,
+            source_hash_present=bool(result.source_sha256),
+            retrieval_complete=result.retrieval_complete,
+            reference_count=len(result.source_references),
+            failure_reason=failure_reason,
+            exception_type=exception_type)
         return result
 
     @classmethod
@@ -511,15 +646,34 @@ class ResidentReasoner:
         if review_subject is not None:
             from .resident_execution.external_reasoning import validate_review_subject
             review_subject = validate_review_subject(review_subject)
+        correlation_id = request_id
+        state_read_started = time.monotonic()
         try:
             snapshot = self.registry.authorize_office_state(
                 self._credential, self.office_id)
-        except AuthorityDenied:
+        except AuthorityDenied as exc:
+            _reasoning_diagnostic(
+                "office_state_read_denied", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                operation="authorize_office_state", phase="pre_provider",
+                elapsed_ms=round((time.monotonic() - state_read_started) * 1000),
+                level=logging.WARNING, **_exception_diagnostic_fields(exc))
             return ReasoningResult(ReasoningStatus.AUTHORITY_DENIED, request_id,
                                   "OFFICE_STATE_GRANT_REQUIRED")
-        except Exception:
+        except Exception as exc:
+            _reasoning_diagnostic(
+                "office_state_read_failed", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                operation="authorize_office_state", phase="pre_provider",
+                elapsed_ms=round((time.monotonic() - state_read_started) * 1000),
+                level=logging.WARNING, **_exception_diagnostic_fields(exc))
             return ReasoningResult(ReasoningStatus.UNAVAILABLE, request_id,
                                   "OFFICE_STATE_STORE_UNAVAILABLE")
+        _reasoning_diagnostic(
+            "office_state_read_succeeded", request_id=request_id,
+            assignment_id=assignment_id, correlation_id=correlation_id,
+            operation="authorize_office_state", phase="pre_provider",
+            elapsed_ms=round((time.monotonic() - state_read_started) * 1000))
         if not snapshot.get("occupant_id") or not snapshot.get("provider_ref"):
             empty = KnowledgeResult(KnowledgeStatus.UNVERIFIED)
             revision = self._record(snapshot, assignment_id, request_id,
@@ -540,8 +694,12 @@ class ResidentReasoner:
                 context_failure_code = "ASSIGNMENT_CONTEXT_REDACTION_REJECTED"
                 raise ValueError("assignment context contains a protected credential field")
             context_failure_code = None
-            grounded = self._call_knowledge("ground_assignment", assignment)
-            regrounded = self._call_knowledge("reground_assignment", assignment, trigger)
+            grounded = self._call_knowledge(
+                "ground_assignment", assignment, request_id=request_id,
+                assignment_id=assignment_id)
+            regrounded = self._call_knowledge(
+                "reground_assignment", assignment, trigger, request_id=request_id,
+                assignment_id=assignment_id)
         except Exception:
             grounded = regrounded = KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
             assignment = {"id": assignment_id, "revision": "unavailable"}
@@ -611,7 +769,8 @@ class ResidentReasoner:
                 {"value": regrounded.value, **self._knowledge_record(regrounded)}),
             prior_plan=prior_plan, external_advisory=external_advisory,
             review_subject=review_subject,
-            external_reasoning_targets=self.external_reasoning_targets)
+            external_reasoning_targets=self.external_reasoning_targets,
+            correlation_id=correlation_id)
 
         for provider_id in route:
             provider = self.providers[provider_id]
@@ -621,46 +780,116 @@ class ResidentReasoner:
                                         provider_id=provider_id, code="PROVIDER_ID_MISMATCH")
                 return self._result_after_record(revision, ReasoningStatus.UNAVAILABLE,
                                                  request_id, "PROVIDER_ID_MISMATCH", provider_id)
-            ok, result = self._timed_call.run(lambda: provider.propose(request), self.timeout_seconds)
-            if not ok:
+            provider_started = time.monotonic()
+            _reasoning_diagnostic(
+                "provider_invocation_started", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                provider_id=provider_id, token_budget=per_attempt_budget,
+                timeout_seconds=self.timeout_seconds)
+            outcome, result, exception_type = self._timed_call.run_diagnostic(
+                lambda: provider.propose(request), self.timeout_seconds)
+            provider_elapsed_ms = round((time.monotonic() - provider_started) * 1000)
+            if outcome == "timeout":
+                _reasoning_diagnostic(
+                    "provider_invocation_timed_out", request_id=request_id,
+                    assignment_id=assignment_id, correlation_id=correlation_id,
+                    provider_id=provider_id, elapsed_ms=provider_elapsed_ms,
+                    timeout_seconds=self.timeout_seconds, level=logging.WARNING)
+            elif outcome == "failed":
+                _reasoning_diagnostic(
+                    "provider_invocation_failed", request_id=request_id,
+                    assignment_id=assignment_id, correlation_id=correlation_id,
+                    provider_id=provider_id, elapsed_ms=provider_elapsed_ms,
+                    exception_type=exception_type, level=logging.WARNING)
+            elif outcome == "capacity_unavailable":
+                _reasoning_diagnostic(
+                    "provider_invocation_not_started", request_id=request_id,
+                    assignment_id=assignment_id, correlation_id=correlation_id,
+                    provider_id=provider_id, elapsed_ms=provider_elapsed_ms,
+                    failure_code="PROVIDER_CAPACITY_UNAVAILABLE", level=logging.WARNING)
+            if outcome != "returned":
                 # Only unavailable/timeout can use explicitly configured fallback.
                 if provider_id == route[-1]:
                     revision = self._record(snapshot, assignment_id, request_id,
                                             ReasoningStatus.UNAVAILABLE, trigger, grounded, regrounded,
-                                            provider_id=provider_id, code="PROVIDER_TIMEOUT_OR_FAILURE")
+                                            provider_id=provider_id, code="PROVIDER_TIMEOUT_OR_FAILURE",
+                                            correlation_id=correlation_id)
                     return self._result_after_record(revision, ReasoningStatus.UNAVAILABLE,
                                                      request_id, "PROVIDER_TIMEOUT_OR_FAILURE", provider_id)
                 continue
+            _reasoning_diagnostic(
+                "provider_response_received", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                provider_id=provider_id, elapsed_ms=provider_elapsed_ms,
+                result_type=type(result).__name__)
             if isinstance(result, ProposalValidationFailure):
                 code = result.detail_code
+                _reasoning_diagnostic(
+                    "proposal_validation_failed", request_id=request_id,
+                    assignment_id=assignment_id, correlation_id=correlation_id,
+                    provider_id=provider_id, detail_code=code, level=logging.WARNING)
                 revision = self._record(snapshot, assignment_id, request_id,
                                         ReasoningStatus.INVALID_PROPOSAL, trigger, grounded, regrounded,
-                                        provider_id=provider_id, code=code)
+                                        provider_id=provider_id, code=code,
+                                        correlation_id=correlation_id,
+                                        provider_response_received=True)
                 return self._result_after_record(revision, ReasoningStatus.INVALID_PROPOSAL,
                                                  request_id, code, provider_id)
             if not isinstance(result, PlanProposal):
                 code = "PROVIDER_RETURNED_NON_PROPOSAL"
+                _reasoning_diagnostic(
+                    "proposal_validation_failed", request_id=request_id,
+                    assignment_id=assignment_id, correlation_id=correlation_id,
+                    provider_id=provider_id, detail_code=code, level=logging.WARNING)
                 revision = self._record(snapshot, assignment_id, request_id,
                                         ReasoningStatus.INVALID_PROPOSAL, trigger, grounded, regrounded,
-                                        provider_id=provider_id, code=code)
+                                        provider_id=provider_id, code=code,
+                                        correlation_id=correlation_id,
+                                        provider_response_received=True)
                 return self._result_after_record(revision, ReasoningStatus.INVALID_PROPOSAL,
                                                  request_id, code, provider_id)
             if result.tokens_used > request.token_budget:
                 code = "PROPOSAL_TOKEN_BUDGET_EXCEEDED"
+                _reasoning_diagnostic(
+                    "proposal_validation_failed", request_id=request_id,
+                    assignment_id=assignment_id, correlation_id=correlation_id,
+                    provider_id=provider_id, detail_code=code, level=logging.WARNING)
                 revision = self._record(snapshot, assignment_id, request_id,
                                         ReasoningStatus.INVALID_PROPOSAL, trigger, grounded, regrounded,
-                                        provider_id=provider_id, code=code)
+                                        provider_id=provider_id, code=code,
+                                        correlation_id=correlation_id,
+                                        provider_response_received=True)
                 return self._result_after_record(revision, ReasoningStatus.INVALID_PROPOSAL,
                                                  request_id, code, provider_id)
             # The persistent runtime role is intentionally denied direct reads of
             # AuthorityRegistry tables. Revalidate authorization and binding via
             # the narrowly granted runtime-safe function.
-            latest = self.registry.authorize_office_state(self._credential, self.office_id)
+            post_provider_read_started = time.monotonic()
+            try:
+                latest = self.registry.authorize_office_state(
+                    self._credential, self.office_id)
+            except Exception as exc:
+                _reasoning_diagnostic(
+                    "office_state_read_failed", request_id=request_id,
+                    assignment_id=assignment_id, correlation_id=correlation_id,
+                    operation="authorize_office_state", phase="post_provider_revalidation",
+                    provider_id=provider_id, provider_response_received=True,
+                    elapsed_ms=round((time.monotonic() - post_provider_read_started) * 1000),
+                    level=logging.WARNING, **_exception_diagnostic_fields(exc))
+                raise
+            _reasoning_diagnostic(
+                "office_state_read_succeeded", request_id=request_id,
+                assignment_id=assignment_id, correlation_id=correlation_id,
+                operation="authorize_office_state", phase="post_provider_revalidation",
+                provider_id=provider_id, provider_response_received=True,
+                elapsed_ms=round((time.monotonic() - post_provider_read_started) * 1000))
             if (latest.get("binding_revision") != request.binding_revision
                     or latest.get("implementation_revision") != request.implementation_revision):
                 revision = self._record(latest, assignment_id, request_id,
                                         ReasoningStatus.STALE_CONTEXT, trigger, grounded, regrounded,
-                                        provider_id=provider_id, code="OFFICE_BINDING_CHANGED")
+                                        provider_id=provider_id, code="OFFICE_BINDING_CHANGED",
+                                        correlation_id=correlation_id,
+                                        provider_response_received=True)
                 return self._result_after_record(revision, ReasoningStatus.STALE_CONTEXT,
                                                  request_id, "OFFICE_BINDING_CHANGED", provider_id)
             try:
@@ -673,14 +902,18 @@ class ResidentReasoner:
             if not current_assignment or str(current_assignment.get("revision")) != request.assignment_revision:
                 revision = self._record(latest, assignment_id, request_id,
                                         ReasoningStatus.STALE_CONTEXT, trigger, grounded, regrounded,
-                                        provider_id=provider_id, code="ASSIGNMENT_CHANGED")
+                                        provider_id=provider_id, code="ASSIGNMENT_CHANGED",
+                                        correlation_id=correlation_id,
+                                        provider_response_received=True)
                 return self._result_after_record(revision, ReasoningStatus.STALE_CONTEXT,
                                                  request_id, "ASSIGNMENT_CHANGED", provider_id)
             revision = self._record(latest, assignment_id, request_id,
                                     ReasoningStatus.PROPOSED, trigger, grounded, regrounded,
                                     provider_id=provider_id, code="PROPOSAL_ONLY",
                                     proposal=(result if request.review_subject is None else None),
-                                    external_advisory=external_advisory)
+                                    external_advisory=external_advisory,
+                                    correlation_id=correlation_id,
+                                    provider_response_received=True)
             final = self._result_after_record(revision, ReasoningStatus.PROPOSED,
                                               request_id, "PROPOSAL_ONLY", provider_id)
             if final.status is not ReasoningStatus.PROPOSED:

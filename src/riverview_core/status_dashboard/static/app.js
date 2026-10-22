@@ -1,6 +1,7 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.22
+// Revision: 1.4.23
+// Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Display effective criteria and their source in objective projections.
 // Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Bind work-order intake to persisted message sequence and surface stale-source or dialog failures.
 // Predecessor: .riverview-backups/20261020T153249701305Z/src/riverview_core/status_dashboard/static/app.js (SHA-256 50cc5acbcaebb0cb1f6baeea10274c7eacdd21f60885b9936498303cd0164bb8)
 // Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Show persistent authenticated objective and assignment progress linked to the active Grace conversation.
@@ -314,7 +315,7 @@
       state.objectives = page.items || [];
       $("objective-state").textContent = `Source ${human(page.status)} · ${state.objectives.length} observed`;
       $("objective-list").innerHTML = state.objectives.length ? state.objectives.map((o) =>
-        `<article class="row"><div><strong>${esc(o.objective_id)}</strong><div class="row-meta">${esc(o.request)}</div></div><span class="pill ${stateClass(o.status)}">${esc(human(o.status))}</span><span class="row-meta">Assignment ${esc(o.assignment_state || "not dispatched")} · Verification ${esc(o.verification?.decision || "not recorded")} · dispatch failures ${esc(o.dispatch_failures || 0)} · verification failures ${esc(o.verification_failures || 0)}</span>${o.artifact ? `<span class="row-meta">Artifact ${esc(o.artifact.sha256)} · ${esc(o.artifact.reference)}</span>` : ""}<span class="row-meta">Source ${esc(o.source_revision || "unavailable")} · updated ${esc(when(o.updated_at))}</span></article>`).join("") : noData(page.status === "not_initialized" ? "Grace objective migrations are not initialized in this schema." : "No objectives have been recorded.");
+        `<article class="row"><div><strong>${esc(o.objective_id)}</strong><div class="row-meta">${esc(o.request)}</div></div><span class="pill ${stateClass(o.status)}">${esc(human(o.status))}</span><span class="row-meta">Acceptance criteria (${esc(o.acceptance_criteria_source === "grace_derived" ? "Derived by Grace" : o.acceptance_criteria_source === "steward_supplied" ? "Steward-supplied" : "Source not recorded")})${o.acceptance_criteria?.length ? `: ${o.acceptance_criteria.map(esc).join(" · ")}` : o.acceptance_criteria_source === "grace_derived" ? ": pending Grace proposal" : ": none recorded"}</span><span class="row-meta">Assignment ${esc(o.assignment_state || "not dispatched")} · Verification ${esc(o.verification?.decision || "not recorded")} · dispatch failures ${esc(o.dispatch_failures || 0)} · verification failures ${esc(o.verification_failures || 0)}</span>${o.artifact ? `<span class="row-meta">Artifact ${esc(o.artifact.sha256)} · ${esc(o.artifact.reference)}</span>` : ""}<span class="row-meta">Source ${esc(o.source_revision || "unavailable")} · updated ${esc(when(o.updated_at))}</span></article>`).join("") : noData(page.status === "not_initialized" ? "Grace objective migrations are not initialized in this schema." : "No objectives have been recorded.");
     } catch (error) {
       $("objective-state").textContent = "Unavailable";
       $("objective-list").innerHTML = noData(`Objective projection unavailable (${error.message}).`);
@@ -817,7 +818,7 @@
     const submit=$("work-order-submit");submit.disabled=true;submit.textContent="Submitting…";$("work-order-error").textContent="";
     try{
       const result=await api(`/api/v1/resident/conversations/${encodeURIComponent(state.chatConversationId)}/work-orders`,10000,"POST",{body:{source_sequence:state.workOrderSourceSequence,acceptance_criteria:criteria}});
-      $("work-order-dialog").close();toast(result.reused_existing_objective?`Existing objective ${result.objective_id} resumed (${result.status}); its original acceptance criteria were retained.`:`Objective ${result.objective_id} recorded (${result.status}).`);await Promise.all([loadObjectives(),loadConversationEngineeringProgress()]);
+      $("work-order-dialog").close();toast(result.reused_existing_objective?`Existing objective ${result.objective_id} resumed (${result.status}); its original criteria source was retained.`:`Objective ${result.objective_id} recorded (${result.status}); ${criteria.length?"Steward criteria retained":"Grace will derive proposed criteria from the original request"}.`);await Promise.all([loadObjectives(),loadConversationEngineeringProgress()]);
     }catch(error){
       const message=error.payload?.error==="engineering_work_order_submission_not_authorized"?"The authenticated Steward lacks objective.submit on work-order:engineering. No work order was created.":`Work-order intake failed (${error.payload?.error||error.message}). No approval or execution is implied.`;
       $("work-order-error").textContent=message;

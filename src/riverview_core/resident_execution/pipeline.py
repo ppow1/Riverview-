@@ -2,7 +2,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.21
+# Revision: 1.1.26
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Permit artifact-specific step checks only when retained in the same artifact contract.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Add exact-objective audited removal of one misclassified structural heading.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Persist Grace-derived criteria as the objective's validated effective list.
+# Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Require artifact destinations to be named in the authorized objective scope
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Require unique criterion ownership and conversation origin for publication lifecycle evidence
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Persist lifecycle criteria separately from Engineering steps and bind them to durable workflow evidence
 # Changed: 2026-10-20 UTC | RV-GRACE-GROUNDED-OBJECTIVE-FAIR-QUEUE-001 | Order grounded reasoning candidates by their most recent persisted attempt, with never-attempted objectives first.
@@ -129,17 +133,96 @@ class GraceExecutionPipeline:
                 raise ObjectiveNotAuthorized("objective.submit is not authorized") from None
             raise
 
+    def reconcile_misclassified_requirements_heading(
+            self, objective_id, *, expected_revision, credential, reason):
+        """Remove only the previously approved structural heading from one objective."""
+        target_id = "objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1"
+        if (objective_id != target_id or expected_revision != 2 or
+                not isinstance(credential, str) or len(credential) < 32 or
+                not isinstance(reason, str) or
+                not reason.strip() or len(reason.strip()) > 500):
+            raise ObjectiveStateError("criteria reconciliation request is outside its approved scope")
+        db = self.ledger.db
+        try:
+            with db.transaction():
+                with db.cursor() as cur:
+                    self.ledger._set_search_path(cur)
+                    try:
+                        grant = self.authorizer.require(
+                            cur, credential, "objective.criteria.reconcile", objective_id)
+                    except Exception as exc:
+                        if type(exc).__name__ in {"GrantDenied", "GrantCheckUnavailable"}:
+                            raise ObjectiveNotAuthorized(
+                                "objective.criteria.reconcile is not authorized") from None
+                        raise
+                    actor_id = grant["principal_id"]
+                    cur.execute("""SELECT objective_id,request,scope_ref,submitter_id,
+                        acceptance_criteria,status,evidence,proposal,assignment_id,revision
+                        FROM grace_objectives WHERE objective_id=%s FOR UPDATE""",
+                        (objective_id,))
+                    row = cur.fetchone()
+                    expected_before = [
+                        "Requirements:",
+                        "- Create exactly one Engineering assignment for the file.",
+                        "- Use the authorized artifact destination recorded in the work order.",
+                        "- Independently verify the actual file contents.",
+                        "- Close the objective only after successful verification.",
+                    ]
+                    if (row is None or row["revision"] != expected_revision or
+                            row["status"] != "GROUNDED" or row["proposal"] is not None or
+                            row["assignment_id"] is not None or
+                            row["scope_ref"] != "work-order:engineering" or
+                            row["submitter_id"] != actor_id or
+                            row["acceptance_criteria"] != expected_before or
+                            not isinstance(row["evidence"], dict) or
+                            row["evidence"].get("status") != "VERIFIED"):
+                        raise ObjectiveStateError(
+                            "objective no longer satisfies the authorized reconciliation preconditions")
+                    after = expected_before[1:]
+                    grant_id = grant["grant_id"]
+                    payload = {
+                        "before_criteria": expected_before,
+                        "after_criteria": after,
+                        "reason": reason.strip(),
+                        "authorized_actor": actor_id,
+                        "authorization_action": "objective.criteria.reconcile",
+                        "authorization_scope": objective_id,
+                        "authorization_grant_id": grant_id,
+                        "expected_revision": expected_revision,
+                        "new_revision": expected_revision + 1,
+                    }
+                    self._event(cur, objective_id, "objective.criteria_reconciled",
+                        f"grace-criteria-reconciled:{objective_id}:r{expected_revision}",
+                        actor_id, payload)
+                    cur.execute("""UPDATE grace_objectives SET acceptance_criteria=%s::jsonb,
+                        revision=revision+1,updated_at=clock_timestamp()
+                        WHERE objective_id=%s AND revision=%s AND status='GROUNDED'
+                          AND proposal IS NULL AND assignment_id IS NULL
+                          AND acceptance_criteria=%s::jsonb
+                        RETURNING revision""",
+                        (_json(after), objective_id, expected_revision,
+                         _json(expected_before)))
+                    updated = cur.fetchone()
+                    if updated is None:
+                        raise ObjectiveStateError("objective revision changed during reconciliation")
+        except (ObjectiveNotAuthorized, ObjectiveStateError):
+            raise
+        return self.get_objective(objective_id)
+
     def submit_objective(self, objective_id, request, acceptance_criteria, *,
                          scope_ref, credential=None, principal=None, origin=None,
-                         proposal_reference=None):
+                         proposal_reference=None, criteria_source="steward_supplied"):
         if (not isinstance(objective_id, str) or not re.fullmatch(r"objective:[A-Za-z0-9._:-]{1,120}", objective_id)
                 or not isinstance(request, str) or not request.strip()
                 or len(request.encode("utf-8")) > self.MAX_OBJECTIVE_BYTES
                 or not isinstance(acceptance_criteria, (list, tuple))
-                or not acceptance_criteria or len(acceptance_criteria) > 20
+                or len(acceptance_criteria) > 20
                 or any(not isinstance(item, str) or not item.strip() or len(item) > 1000
-                       for item in acceptance_criteria)):
-            raise ValueError("objective identity, bounded request, and acceptance criteria are required")
+                       for item in acceptance_criteria)
+                or criteria_source not in {"steward_supplied", "grace_derived"}
+                or (criteria_source == "steward_supplied" and not acceptance_criteria)
+                or (criteria_source == "grace_derived" and acceptance_criteria)):
+            raise ValueError("objective identity, bounded request, and criteria source are required")
         if (credential is None) == (principal is None):
             raise ValueError("exactly one authenticated credential or principal is required")
         if origin is not None:
@@ -149,6 +232,9 @@ class GraceExecutionPipeline:
                     or type(origin["source_sequence"]) is not int
                     or origin["source_sequence"] < 1):
                 raise ValueError("conversation origin is invalid")
+        if criteria_source == "grace_derived" and (
+                scope_ref != "work-order:engineering" or origin is None):
+            raise ValueError("Grace-derived criteria require the authorized conversation intake")
         if proposal_reference is not None:
             if (not isinstance(proposal_reference, dict) or set(proposal_reference) != {
                     "proposal_id", "revision", "content_sha256", "approval_event_key",
@@ -189,6 +275,7 @@ class GraceExecutionPipeline:
                     self._event(cur, objective_id, "objective.received",
                                 f"grace-objective-received:{objective_id}", actor["principal_id"],
                                 {"acceptance_criteria": list(acceptance_criteria),
+                                 "acceptance_criteria_source": criteria_source,
                                  **({"proposal_reference": proposal_reference}
                                     if proposal_reference is not None else {}),
                                  **({"origin": origin} if origin is not None else {})})
@@ -283,25 +370,47 @@ class GraceExecutionPipeline:
                 evidence.get("retrieval_complete") is not True or
                 not evidence.get("source_references") or not evidence.get("source_sha256")):
             raise ObjectiveStateError("proposal cannot use missing or incomplete evidence")
-        requested = set(objective["acceptance_criteria"])
+        requested_list = list(objective["acceptance_criteria"])
         step_criteria = [criterion for step in proposal.steps
                          for criterion in step.acceptance_criteria]
         proposed = set(step_criteria)
         lifecycle = set(proposal.system_owned_criteria)
         received = next((event for event in self.objective_events(objective_id)
                          if event["event_type"] == "objective.received"), None)
-        origin = (received or {}).get("payload", {}).get("origin")
+        received_payload = (received or {}).get("payload") or {}
+        criteria_source = received_payload.get("acceptance_criteria_source", "steward_supplied")
+        origin = received_payload.get("origin")
         has_conversation_origin = (isinstance(origin, dict) and
                                    isinstance(origin.get("conversation_id"), str) and
                                    bool(origin["conversation_id"]))
+        if criteria_source == "grace_derived" and not requested_list:
+            requested_list = [*step_criteria, *proposal.system_owned_criteria]
+            if (not requested_list or len(requested_list) > 20 or
+                    len(set(requested_list)) != len(requested_list)):
+                raise ObjectiveStateError("Grace-derived proposal criteria are empty, excessive, or duplicated")
+        elif criteria_source != "steward_supplied" or not requested_list:
+            raise ObjectiveStateError("objective acceptance-criteria source is invalid")
+        requested = set(requested_list)
+        artifact_criteria = {criterion for step in proposal.steps
+            for requirement in step.artifact_requirements
+            for criterion in requirement.acceptance_criteria}
+        supplemental_step_criteria = proposed - requested
+        formal_step_criteria = proposed & requested
+        requires_one_dispatch = any(
+            lifecycle_evidence_event(criterion) == "work_order.exactly_one_dispatched"
+            for criterion in proposal.system_owned_criteria)
         if (proposed & lifecycle or
                 len(step_criteria) != len(proposed) or
+                not supplemental_step_criteria <= artifact_criteria or
+                any(lifecycle_evidence_event(criterion) is not None
+                    for criterion in supplemental_step_criteria) or
+                (requires_one_dispatch and len(proposal.steps) != 1) or
                 any(criterion not in requested or lifecycle_evidence_event(criterion) is None
                     for criterion in lifecycle) or
                 (not has_conversation_origin and any(
                     lifecycle_evidence_event(criterion) == "conversation.result_published"
                     for criterion in lifecycle)) or
-                proposed | lifecycle != requested):
+                formal_step_criteria | lifecycle != requested):
             raise ObjectiveStateError(
                 "proposal must bind every original criterion to an Engineering step or a supported lifecycle event")
         # A model cannot turn a general objective into filesystem authority.
@@ -322,6 +431,13 @@ class GraceExecutionPipeline:
                        for path in step.authorized_paths):
                     raise ObjectiveStateError(
                         "source-change path is absent from the Steward-approved objective scope")
+            elif step.execution_capability == "engineering.codex-cli-artifact.v1":
+                if any(not any(re.search(r"(?<![A-Za-z0-9._/-])" + re.escape(item.path) +
+                                         r"(?![A-Za-z0-9_/-]|\.(?=[A-Za-z0-9._/-]))", text)
+                               for text in approved_source_scope)
+                       for item in step.artifact_requirements):
+                    raise ObjectiveStateError(
+                        "artifact path is absent from the Steward-approved objective scope")
         if external_exchange is not None:
             required = {"request_id", "correlation_id", "response_id", "response_sha256", "provider_id",
                         "provider_model", "reasoning_request_id"}
@@ -362,10 +478,17 @@ class GraceExecutionPipeline:
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
-                cur.execute("""UPDATE grace_objectives SET status='PROPOSED',proposal=%s::jsonb,
-                    revision=revision+1,updated_at=clock_timestamp()
-                    WHERE objective_id=%s AND status='GROUNDED'""",
-                    (_json(document), objective_id))
+                if criteria_source == "grace_derived":
+                    cur.execute("""UPDATE grace_objectives SET status='PROPOSED',proposal=%s::jsonb,
+                        acceptance_criteria=%s::jsonb,revision=revision+1,
+                        updated_at=clock_timestamp()
+                        WHERE objective_id=%s AND status='GROUNDED' AND acceptance_criteria='[]'::jsonb""",
+                        (_json(document), _json(requested_list), objective_id))
+                else:
+                    cur.execute("""UPDATE grace_objectives SET status='PROPOSED',proposal=%s::jsonb,
+                        revision=revision+1,updated_at=clock_timestamp()
+                        WHERE objective_id=%s AND status='GROUNDED'""",
+                        (_json(document), objective_id))
                 if cur.rowcount != 1:
                     raise ObjectiveStateError("objective changed during proposal")
                 for ordinal, step in enumerate(proposal.steps, start=1):
@@ -383,6 +506,7 @@ class GraceExecutionPipeline:
                                  {"criterion": criterion,
                                   "evidence_event_type": lifecycle_evidence_event(criterion)}
                                  for criterion in proposal.system_owned_criteria],
+                             "acceptance_criteria_source": criteria_source,
                              "approved": False})
                 if external_exchange is not None:
                     self._event(cur, objective_id,
@@ -465,6 +589,18 @@ class GraceExecutionPipeline:
                 keys = [f"grace-objective-completed:{objective_id}:{completion_cycle}"]
             elif event_type == "conversation.result_published":
                 keys = [f"grace-conversation-result-published:{objective_id}:{completion_cycle}"]
+            elif event_type == "work_order.exactly_one_dispatched":
+                cur.execute("""SELECT e.idempotency_key,e.payload->>'assignment_id' AS assignment_id
+                    FROM grace_objective_events e JOIN assignments a
+                      ON a.id=e.payload->>'assignment_id'
+                    WHERE e.objective_id=%s AND e.event_type='work_order.dispatched'
+                      AND a.objective_ref=%s ORDER BY e.sequence""",
+                    (objective_id, objective_id))
+                rows = cur.fetchall()
+                assignment_ids = {row["assignment_id"] for row in rows}
+                if len(rows) != 1 or len(assignment_ids) != 1:
+                    raise ObjectiveStateError("exactly one dispatched Engineering assignment is required")
+                keys = [rows[0]["idempotency_key"]]
             else:
                 acceptable_types = (("execution.step_verified", "objective.completed")
                     if event_type == "execution.step_verified" else (event_type,))
@@ -839,7 +975,16 @@ class GraceExecutionPipeline:
             self.ledger._set_search_path(cur)
             cur.execute("SELECT * FROM grace_objectives WHERE objective_id=%s", (objective_id,))
             row = cur.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        objective = dict(row)
+        received = next((event for event in self.objective_events(objective_id)
+                         if event["event_type"] == "objective.received"), None)
+        payload = (received or {}).get("payload") or {}
+        objective["acceptance_criteria_source"] = payload.get(
+            "acceptance_criteria_source",
+            "steward_supplied" if objective["acceptance_criteria"] else "legacy_unspecified")
+        return objective
 
     def objective_proposal_reference(self, objective_id):
         """Read proposal provenance from the immutable objective.received event."""
@@ -883,6 +1028,9 @@ class GraceExecutionPipeline:
                 or objective["evidence"].get("status") != KnowledgeStatus.VERIFIED.value
                 or objective["evidence"].get("retrieval_complete") is not True):
             raise ObjectiveStateError("verified grounded objective context is required")
+        received = next((event for event in self.objective_events(objective_id)
+                         if event["event_type"] == "objective.received"), None)
+        received_payload = (received or {}).get("payload") or {}
         return {
             "id": objective["objective_id"],
             "revision": str(objective["revision"]),
@@ -890,6 +1038,8 @@ class GraceExecutionPipeline:
             "contract_ref": self.CONTRACT_REF,
             "objective": objective["request"],
             "acceptance_criteria": list(objective["acceptance_criteria"]),
+            "acceptance_criteria_source": received_payload.get(
+                "acceptance_criteria_source", "steward_supplied"),
             "verified_evidence": objective["evidence"],
         }
 
