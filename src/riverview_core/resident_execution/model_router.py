@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.9
+# Revision: 1.2.10
+# Changed: 2026-10-22 UTC | RV-GRACE-RESULT-REVIEW-ROUTER-20261022 | Do not inject an unrelated required status-tool turn into schema-constrained reviews.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Forward optional structured-output schema through the existing capability-pinned reasoning route.
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Trim oldest conversational context to the provider byte limit while preserving system instructions and the active turn.
 # Changed: 2026-10-18 UTC | RV-C3-GRACE-REASONING-RELIABILITY-001 | Preserve sanitized HTTP failure classes for bounded deferred recovery.
@@ -216,7 +217,8 @@ class GraceModelRouter:
                 provider_context.pop(removable)
         available_tools = (self.internal_tools.catalog()
                            if stage == "reasoning" and self.internal_tools is not None else [])
-        required_tool = self._required_internal_tool(messages, available_tools)
+        required_tool = (None if response_schema is not None else
+                         self._required_internal_tool(messages, available_tools))
         # Tool definitions are large and are not needed for ordinary reasoning.
         # Keep the full registry in-process for deterministic matching, but add
         # only the exact selected schema to the model prompt when a current lookup
