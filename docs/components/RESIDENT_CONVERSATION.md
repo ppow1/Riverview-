@@ -2,13 +2,14 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_CONVERSATION.md
 Component: RESIDENT-CONVERSATION
-File Revision: 1.1.42
+File Revision: 1.1.43
 Purpose: Specify authenticated persistent conversation with the office-bound Grace resident
 Authority: Dashboard authentication plus exact resident.conversation.read/send grants; chat is not work authorization
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Initial isolated conversation contract and operator procedure
 Changed: 2026-10-15 UTC | RV-GRACE-AUTONOMIC-CONTEXT-BOUND-001 | Keep persisted history intact while limiting 0.6B acknowledgments to current-turn identity context
 Changed: 2026-10-15 UTC | RV-GRACE-PROPOSAL-GUIDANCE-001 | Clarify user-facing Engineering proposal behavior, exact intake boundary, and live refusal evidence
 Changed: 2026-10-18 UTC | RV-PR115-0013-RUNTIME-ACL | Document the restricted runtime permissions for bounded deferred retry state
+Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Document content-free durable delta timing and owner-scoped live output activity.
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Set a short CPU-model response budget and record observed timeout evidence
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Document model-specific inference prefix and real browser verification approach
 Changed: 2026-10-11 UTC | RV-M3.4-GRACE-CHAT | Record committed-source local Firefox and PostgreSQL commissioning evidence
@@ -514,6 +515,22 @@ not include a common clock offset. While Talk with Grace is the active view, the
 browser also refreshes authorized canonical history every four seconds so a later
 verified Engineering review appended to the original conversation appears without
 a manual reload. The same history refresh rechecks pending request state.
+
+The bounded `GET /api/v1/resident/conversations/{conversation_id}/stream-activity`
+projection reuses the exact conversation read grant and owner check. It returns up
+to 12 recent stream identities, status, generation/provider/model/stage, timestamps,
+and at most 120 per-generation delta points containing only sequence, timestamp,
+and Unicode character count. Raw delta text is excluded. Deltas persist their
+database observation timestamp and character count alongside the existing SSE text
+event so the original response delivery contract is unchanged. The dashboard may
+derive *received streamed characters per second* from adjacent measured deltas;
+this is application-side streamed-text cadence, not model-server token throughput or
+GPU compute speed. It must remain unavailable until two timed deltas exist and must
+not use GPU utilization or active-slot occupancy as a substitute. Existing completed
+response tokens-per-provider-second remains a separate historical metric. Current
+inference `/metrics` endpoints return HTTP 501 and expose no live generated-token
+counter; native live tokens/s remains unavailable until the inference server supplies
+an authoritative counter.
 
 The isolated Firefox acceptance harness checks that the complete assistant response
 is unchanged after reload and that a durable verified-result fixture appended after
