@@ -4341,6 +4341,407 @@
       ]
     },
     {
+      "graph_id": "rv:steward-dashboard:linux-browser-acceptance",
+      "graph_revision": "1.0.7",
+      "component_id": "STEWARD-DASHBOARD",
+      "workflow_id": "linux-browser-acceptance.v1",
+      "diagram_order": 20,
+      "source_references": [
+        "scripts/run_linux_browser_acceptance.py",
+        "browser-tests/conftest.py",
+        "browser-tests/test_read_only_smoke.py",
+        "browser-tests/test_grace_workflow_synthetic.py",
+        "browser-tests/test_grace_staging_readonly.py",
+        "browser-tests/fixtures/grace-workflow.html",
+        "scripts/grace_staging_browser.py",
+        "browser-tests/fixtures/smoke.html",
+        "browser-tests/test_grace_staging_network_guard.py",
+        "tests/test_grace_staging_browser_fixture.py",
+        "scripts/browser_error_safety.py",
+        "scripts/browser_status_projection.py",
+        "tests/test_browser_status_projection.py"
+      ],
+      "documentation_references": [
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
+        "process_graphs/README.md",
+        "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md",
+        "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.md",
+        "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.schema.json"
+      ],
+      "verification_evidence": [],
+      "nodes": [
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:request",
+          "node_revision": "1.0.0",
+          "type": "entry",
+          "label": "Authorized browser smoke requested with origin and page assertion",
+          "source_references": [
+            "scripts/run_linux_browser_acceptance.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:target-allowed",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "HTTP origin and read-only target satisfy loopback or explicit staging opt-in",
+          "source_references": [
+            "scripts/run_linux_browser_acceptance.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:run-chromium",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Run isolated headless Chromium GET smoke and block non-GET requests",
+          "source_references": [
+            "browser-tests/conftest.py",
+            "browser-tests/test_read_only_smoke.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Write private summary, errors, screenshot, and failure trace",
+          "source_references": [
+            "browser-tests/conftest.py",
+            "scripts/run_linux_browser_acceptance.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:accept",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Accept only successful same-origin page render with no browser errors or blocked mutations",
+          "source_references": [
+            "browser-tests/test_read_only_smoke.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Reject unsafe target or retain failure evidence without retrying mutations",
+          "source_references": [
+            "scripts/run_linux_browser_acceptance.py",
+            "browser-tests/conftest.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Synthetic browser fixture submits harmless request and displays proposal pending approval",
+          "source_references": [
+            "browser-tests/fixtures/grace-workflow.html",
+            "browser-tests/test_grace_workflow_synthetic.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Synthetic-only approval button demonstrates UI gate and never grants real Steward authority",
+          "source_references": [
+            "browser-tests/fixtures/grace-workflow.html",
+            "browser-tests/test_grace_workflow_synthetic.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:synthetic-work-order-status",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Mock work-order record remains pending actual execution authorization; no CME dispatch or execution",
+          "source_references": [
+            "browser-tests/test_grace_workflow_synthetic.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Opt-in staged origin, exact-host private cookie state, test account, and seeded conversation pass fail-closed validation",
+          "source_references": [
+            "scripts/grace_staging_browser.py",
+            "scripts/run_linux_browser_acceptance.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:staging-boundary-inspection",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Read seeded Grace conversation, inspect exact-grant work-order dialog, read objective status, and stop before mutation",
+          "source_references": [
+            "browser-tests/test_grace_staging_readonly.py",
+            "browser-tests/conftest.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:staging-fixture-proof",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Disposable loopback authenticated fixture proves cookie scope, mutation and cross-origin blocking, redacted private evidence, and skip reporting",
+          "source_references": [
+            "browser-tests/fixtures/grace-staging.html",
+            "browser-tests/test_grace_staging_readonly.py",
+            "browser-tests/test_grace_staging_network_guard.py",
+            "tests/test_grace_staging_browser_fixture.py",
+            "browser-tests/conftest.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Record fixed error categories only; remove arbitrary exception text and all request URLs",
+          "source_references": [
+            "browser-tests/conftest.py",
+            "scripts/browser_error_safety.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
+          ],
+          "verification_evidence": [
+            "tests/test_linux_browser_runner.py",
+            "tests/test_grace_staging_browser_fixture.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:diagnose-private-run",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Diagnose with safe error kind, assertion, exit status, and private local output; never copy raw authenticated content",
+          "source_references": [
+            "scripts/run_linux_browser_acceptance.py",
+            "browser-tests/conftest.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:retain-reviewed-evidence",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Keep private evidence through review and incident closure; delete only after required redacted evidence is linked",
+          "source_references": [
+            "scripts/run_linux_browser_acceptance.py"
+          ],
+          "documentation_references": [
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md",
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE_FLOW.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:project-run-status",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Project safe local run identity, bounded counts, freshness, closed failure category, and fixed diagnostic reference",
+          "source_references": [
+            "scripts/browser_status_projection.py"
+          ],
+          "documentation_references": [
+            "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.md",
+            "docs/operations/LINUX_BROWSER_ACCEPTANCE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_browser_status_projection.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:linux-browser-acceptance:dashboard-consumer-handoff",
+          "node_revision": "1.0.0",
+          "type": "escalation",
+          "label": "Status JSON remains local until the dashboard owner adds a read-only allowlisted consumer; no live Steward view is claimed",
+          "source_references": [
+            "scripts/browser_status_projection.py"
+          ],
+          "documentation_references": [
+            "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.md",
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": []
+        }
+      ],
+      "edges": [
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:request",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:target-allowed",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:target-allowed",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:run-chromium",
+          "type": "runtime_transition",
+          "label": "valid target"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:target-allowed",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+          "type": "diagnostic_branch",
+          "label": "invalid or unauthorized target"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:run-chromium",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:accept",
+          "type": "verification",
+          "label": "successful smoke"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+          "type": "diagnostic_branch",
+          "label": "browser error or failed assertion"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:request",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
+          "type": "runtime_transition",
+          "label": "isolated fixture test only"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
+          "type": "runtime_transition"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:synthetic-work-order-status",
+          "type": "runtime_transition",
+          "label": "test-only synthetic approval; no actual authority"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:request",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
+          "type": "runtime_transition",
+          "label": "optional actual staging UI only"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:staging-boundary-inspection",
+          "type": "runtime_transition",
+          "label": "all scoped prerequisites pass"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+          "type": "diagnostic_branch",
+          "label": "missing or unsafe staging precondition"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:staging-fixture-proof",
+          "type": "verification",
+          "label": "isolated fixture test uses synthetic host-scoped cookie and asserts blocked requests plus redacted evidence"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:collect-evidence",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+          "type": "runtime_transition",
+          "label": "redact browser diagnostics"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:accept",
+          "type": "verification",
+          "label": "safe evidence emitted"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+          "type": "diagnostic_branch",
+          "label": "failure remains failed; no automatic retry"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:diagnose-private-run",
+          "type": "recovery_route",
+          "label": "inspect local safe diagnostics"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:accept",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:retain-reviewed-evidence",
+          "type": "runtime_transition",
+          "label": "record evidence location and commit"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:diagnose-private-run",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:retain-reviewed-evidence",
+          "type": "recovery_route",
+          "label": "retain while review or incident is open"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:project-run-status",
+          "type": "runtime_transition",
+          "label": "read local safe report fields only"
+        },
+        {
+          "from": "rv:steward-dashboard:linux-browser-acceptance:project-run-status",
+          "to": "rv:steward-dashboard:linux-browser-acceptance:dashboard-consumer-handoff",
+          "type": "escalation",
+          "label": "requires separately owned dashboard integration"
+        }
+      ]
+    },
+    {
       "graph_id": "rv:steward-dashboard:status",
       "graph_revision": "1.0.7",
       "component_id": "STEWARD-DASHBOARD",
@@ -6090,6 +6491,23 @@
     "rv:runtime-baseline:commissioning:storage",
     "rv:runtime-baseline:commissioning:systemd",
     "rv:runtime-baseline:commissioning:tty-failure",
+    "rv:steward-dashboard:linux-browser-acceptance:accept",
+    "rv:steward-dashboard:linux-browser-acceptance:collect-evidence",
+    "rv:steward-dashboard:linux-browser-acceptance:dashboard-consumer-handoff",
+    "rv:steward-dashboard:linux-browser-acceptance:diagnose-private-run",
+    "rv:steward-dashboard:linux-browser-acceptance:fail-closed",
+    "rv:steward-dashboard:linux-browser-acceptance:project-run-status",
+    "rv:steward-dashboard:linux-browser-acceptance:request",
+    "rv:steward-dashboard:linux-browser-acceptance:retain-reviewed-evidence",
+    "rv:steward-dashboard:linux-browser-acceptance:run-chromium",
+    "rv:steward-dashboard:linux-browser-acceptance:safe-error-report",
+    "rv:steward-dashboard:linux-browser-acceptance:staging-boundary-inspection",
+    "rv:steward-dashboard:linux-browser-acceptance:staging-fixture-proof",
+    "rv:steward-dashboard:linux-browser-acceptance:staging-scope-check",
+    "rv:steward-dashboard:linux-browser-acceptance:synthetic-approval-boundary",
+    "rv:steward-dashboard:linux-browser-acceptance:synthetic-proposal",
+    "rv:steward-dashboard:linux-browser-acceptance:synthetic-work-order-status",
+    "rv:steward-dashboard:linux-browser-acceptance:target-allowed",
     "rv:steward-dashboard:status:attention-relation-check",
     "rv:steward-dashboard:status:attention-uninitialized",
     "rv:steward-dashboard:status:authenticate",

@@ -1,6 +1,6 @@
 # Riverview aggregate process graph
 
-**Document Revision:** 1.0.14
+**Document Revision:** 1.0.15
 **Generated from:** canonical workflow JSON; do not edit this projection by hand.  
 **Source:** `python3 scripts/process_graph.py generate`  
 
@@ -19,6 +19,7 @@ flowchart LR
   g_rv_postgres_ledger_assignment_lifecycle_a9a01b67[["POSTGRES-LEDGER<br/>assignment-lifecycle.v1<br/>rv:postgres-ledger:assignment-lifecycle"]]
   g_rv_postgres_ledger_migration_4c89ef23[["POSTGRES-LEDGER<br/>postgres-migration.v1<br/>rv:postgres-ledger:migration"]]
   g_rv_runtime_baseline_commissioning_46ff1ccf[["RUNTIME-BASELINE<br/>runtime-baseline.v1<br/>rv:runtime-baseline:commissioning"]]
+  g_rv_steward_dashboard_linux_browser_acceptance_c8ec2a5b[["STEWARD-DASHBOARD<br/>linux-browser-acceptance.v1<br/>rv:steward-dashboard:linux-browser-acceptance"]]
   g_rv_steward_dashboard_status_75f7c259[["STEWARD-DASHBOARD<br/>status-projection.v1<br/>rv:steward-dashboard:status"]]
   g_rv_worker_adapter_deterministic_attempt_15d59b6f[["WORKER-ADAPTER<br/>deterministic-attempt.v1<br/>rv:worker-adapter:deterministic-attempt"]]
   g_rv_assignment_scheduler_independent_claims_88bd80c4 -->|jump: Open the M1.3 ready-state producer workflow| g_rv_event_processor_assignment_progression_fa10db2d

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://riverview.invalid/contracts/linux-browser-acceptance-status-v1.schema.json",
+  "title": "Riverview Linux browser acceptance run status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "component_id", "source_commit", "run_id", "environment",
+    "run_status", "failure_category", "observed_at", "started_at", "completed_at",
+    "freshness", "counts", "diagnostic_ref"
+  ],
+  "properties": {
+    "schema_version": {"const": "rv.browser-acceptance.status.v1"},
+    "component_id": {"const": "LINUX-BROWSER-ACCEPTANCE"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "run_id": {"type": ["string", "null"], "pattern": "^rvba-[0-9a-f]{20}$"},
+    "environment": {"enum": ["local_loopback", "staging", "unknown"]},
+    "run_status": {"enum": ["passed", "failed", "blocked", "staging_not_available", "running", "unknown"]},
+    "failure_category": {
+      "type": ["string", "null"],
+      "enum": ["none", "assertion_failed", "browser_console_error", "browser_page_error",
+               "request_failed", "blocked_non_get", "blocked_cross_origin",
+               "runner_unavailable", "staging_target_unavailable", "unsupported_remote_target", "unknown", null]
+    },
+    "observed_at": {"type": "string", "format": "date-time"},
+    "started_at": {"type": ["string", "null"], "format": "date-time"},
+    "completed_at": {"type": ["string", "null"], "format": "date-time"},
+    "freshness": {"enum": ["current", "stale", "unknown", "unavailable"]},
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "failed", "skipped"],
+      "properties": {
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "skipped": {"type": "integer", "minimum": 0}
+      }
+    },
+    "diagnostic_ref": {"const": "docs/components/LINUX_BROWSER_ACCEPTANCE_STATUS.md"}
+  }
+}

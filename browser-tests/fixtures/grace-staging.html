@@ -1,0 +1,84 @@
+<!--
+Riverview~ Controlled Fixture
+File: browser-tests/fixtures/grace-staging.html
+Component: LINUX-BROWSER-ACCEPTANCE
+File Revision: 1.0.0
+Purpose: Disposable authenticated local page exercising the Grace staging selectors
+Authority: Synthetic identity and conversation only; no Riverview APIs or authority
+Changed: 2026-10-18 UTC | RV-C2-STAGING-GRACE-BROWSER-004 | Add local authenticated staging fixture
+Contracts: docs/operations/LINUX_BROWSER_ACCEPTANCE.md
+Tests: tests/test_grace_staging_browser_fixture.py
+History: Git
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Grace Staging — Disposable Authenticated Fixture</title>
+    <style>[hidden] { display: none !important; }</style>
+  </head>
+  <body>
+    <header>
+      <span id="account-label">C2 Synthetic Steward (fixture only)</span>
+      <nav>
+        <button data-view="grace-chat">Talk with Grace</button>
+        <button data-view="objectives">Objectives</button>
+      </nav>
+    </header>
+    <main>
+      <section id="view-grace-chat">
+        <h1 id="chat-title">Conversation 00000000-0000-4000-8000-000000000001</h1>
+        <div id="chat-history">
+          <article data-message-row>
+            <p class="message-content">Harmless local staging acceptance request.</p>
+            <details open>
+              <summary>Work-order actions</summary>
+              <button data-message-work-order>Prepare Engineering work order</button>
+            </details>
+          </article>
+        </div>
+        <textarea id="chat-message">Private fixture input that must be redacted.</textarea>
+      </section>
+      <section id="view-objectives" hidden>
+        <h2>Engineering objectives</h2>
+        <p id="objective-state">Source available</p>
+        <p class="note">Submission requires objective.submit on work-order:engineering.</p>
+        <div id="objective-list">Synthetic fixture objective details must be redacted.</div>
+      </section>
+    </main>
+    <div id="work-order-dialog" role="dialog" hidden>
+      <h2>Prepare a work order</h2>
+      <p id="work-order-source">Harmless local staging acceptance request.</p>
+      <p>Submission requires the exact Steward grant. It does not approve execution.</p>
+      <button id="work-order-submit">Submit work order</button>
+      <button data-close-dialog>Close</button>
+    </div>
+    <script>
+      fetch('/api/v1/resident/conversation-session', {method: 'POST'})
+        .then(response => {
+          if (!response.ok) throw new Error('synthetic fixture session cookie rejected');
+          return response.json();
+        });
+      document.querySelectorAll('[data-view="grace-chat"]').forEach(button =>
+        button.addEventListener('click', () => {
+          document.querySelector('#view-grace-chat').hidden = false;
+          document.querySelector('#view-objectives').hidden = true;
+        }));
+      document.querySelector('[data-view="objectives"]').addEventListener('click', () => {
+        document.querySelector('#view-grace-chat').hidden = true;
+        document.querySelector('#view-objectives').hidden = false;
+      });
+      document.querySelector('[data-message-work-order]').addEventListener('click', () => {
+        document.querySelector('#work-order-dialog').hidden = false;
+      });
+      document.querySelector('#chat-history summary').addEventListener('click', event => {
+        event.preventDefault();
+        event.currentTarget.parentElement.open = true;
+      });
+      document.querySelector('[data-close-dialog]').addEventListener('click', () => {
+        document.querySelector('#work-order-dialog').hidden = true;
+      });
+    </script>
+  </body>
+</html>

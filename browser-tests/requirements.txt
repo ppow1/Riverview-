@@ -1,0 +1,11 @@
+# Riverview~ controlled dependency list
+# File: browser-tests/requirements.txt
+# Component: LINUX-BROWSER-ACCEPTANCE
+# Revision: 1.0.0
+# Purpose: Pin the isolated Playwright Chromium acceptance runner
+# Execution Model: Installed into a repository-local Python virtual environment
+# Authority: Test-only; no production credentials or profile access
+# Changed: 2026-10-18 UTC | RV-LINUX-BROWSER-ACCEPTANCE-001 | Initial Linux browser test dependencies
+# =============================================================================
+playwright==1.64.0
+pytest-playwright==0.10.0
