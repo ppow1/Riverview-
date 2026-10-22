@@ -787,6 +787,63 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 403)
         self.assertEqual(json.loads(body)["error"], "steward_account_session_required")
 
+    def test_history_lookup_failure_logs_deterministic_objective_id(self):
+        from uuid import NAMESPACE_URL, uuid5
+
+        principal_id = "steward:camrui"
+        conversation_id = "00000000-0000-4000-8000-000000000001"
+        sequence = 6
+        expected_objective_id = "objective:grace-conversation:" + str(uuid5(
+            NAMESPACE_URL,
+            f"riverview:grace-conversation-objective:{conversation_id}:{sequence}"))
+
+        class AccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                return {"roles": ["steward"], "authority_principal_id": principal_id}
+            def require_role(self, identity, *roles):
+                return None
+
+        class StoreCursor:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def execute(self, *_): return None
+            def fetchone(self):
+                return {"body": "bounded source message", "actor_kind": "principal",
+                        "actor_id": principal_id}
+
+        class ConversationService:
+            store = type("Store", (), {
+                "db": type("DB", (), {"cursor": lambda _: StoreCursor()})(),
+                "_path": lambda *_: None})()
+            def history(self, _authority, _conversation_id): return []
+
+        class Pipeline:
+            ledger = type("Ledger", (), {"db": object()})()
+
+        self.server._account_auth_service = AccountAuth()
+        self.server._conversation_service = ConversationService()
+        self.server._objective_pipeline = Pipeline()
+        body = json.dumps({"source_sequence": sequence,
+                           "acceptance_criteria": ["controlled fixture"]}).encode()
+        conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        with mock.patch("riverview_core.status_dashboard.server._find_conversation_objective",
+                        side_effect=RuntimeError("private database detail")):
+            with self.assertLogs("riverview.dashboard.intake", level="ERROR") as captured:
+                conn.request("POST",
+                    f"/api/v1/resident/conversations/{conversation_id}/work-orders",
+                    body=body, headers={"Cookie": "rv_account_session=session; rv_account_csrf=csrf",
+                                        "X-Riverview-CSRF": "csrf",
+                                        "Content-Type": "application/json"})
+                response = conn.getresponse()
+                status, response_body = response.status, json.loads(response.read())
+        conn.close()
+        self.assertEqual(status, 503)
+        event = json.loads(captured.output[-1].split(":", 2)[2])
+        self.assertEqual(event["objective_id"], expected_objective_id)
+        self.assertEqual(event["failure_stage"], "event_history")
+        self.assertNotIn("private database detail", captured.output[-1])
+        self.assertEqual(response_body["error"], "work_order_intake_unavailable")
+
     def test_conversation_work_order_wait_is_receipted_and_same_origin_retry_is_idempotent(self):
         from contextlib import contextmanager
         from riverview_core.resident_execution import ObjectiveStateError

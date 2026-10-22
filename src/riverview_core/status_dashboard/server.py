@@ -1138,6 +1138,9 @@ def make_handler():
                         origin = {"conversation_id": conversation_id,
                                   "source_sequence": sequence}
                         from riverview_core.resident_execution import ObjectiveStateError
+                        suffix = uuid5(NAMESPACE_URL,
+                            f"riverview:grace-conversation-objective:{conversation_id}:{sequence}")
+                        objective_id = "objective:grace-conversation:" + str(suffix)
                         failure_stage = "event_history"
                         existing = _find_conversation_objective(
                             pipeline, conversation_id, sequence)
@@ -1168,9 +1171,6 @@ def make_handler():
                         else:
                             # Deterministic origin identity closes the concurrent
                             # double-submit race without a new migration or grant.
-                            suffix = uuid5(NAMESPACE_URL,
-                                f"riverview:grace-conversation-objective:{conversation_id}:{sequence}")
-                            objective_id = "objective:grace-conversation:" + str(suffix)
                             emit(_INTAKE_LOG, logging.DEBUG, "grace_work_order_submission_started",
                                  request_id=request_id, conversation_id=conversation_id,
                                  source_sequence=sequence, objective_id=objective_id,
