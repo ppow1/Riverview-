@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.27
+# Revision: 1.0.28
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Carry per-attempt correlation ID into provider validation diagnostics.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Correlate separate grounding provider outcomes without request content
 # Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Keep office-state writes within the database JSONB text bound and expose safe SQLSTATE diagnostics
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Restrict lifecycle ownership to complete canonical criterion forms
@@ -294,6 +295,7 @@ class ReasoningRequest:
     external_advisory: Mapping[str, Any] | None = None
     external_reasoning_targets: tuple[str, ...] = ()
     review_subject: Mapping[str, Any] | None = None
+    correlation_id: str | None = None
 
 
 class AssignmentContextReader(Protocol):
@@ -759,7 +761,8 @@ class ResidentReasoner:
                 {"value": regrounded.value, **self._knowledge_record(regrounded)}),
             prior_plan=prior_plan, external_advisory=external_advisory,
             review_subject=review_subject,
-            external_reasoning_targets=self.external_reasoning_targets)
+            external_reasoning_targets=self.external_reasoning_targets,
+            correlation_id=correlation_id)
 
         for provider_id in route:
             provider = self.providers[provider_id]
