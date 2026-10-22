@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.29
+File Revision: 1.0.30
 Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Connect authenticated Hardware view to host telemetry.
@@ -12,6 +12,7 @@ Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Read a content-free trac
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Render supplied X12 Ultra manufacturer references with interactive, source-bounded selections
 Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Keep measured GPU cards mounted during five-second refresh; mark retained samples stale on source failure
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document VRAM bars, measured router response-rate traces, slot context, and bounded activity paging
+Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Document content-free live streamed-character cadence and native token-counter limitation.
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
@@ -39,6 +40,8 @@ Each retained GPU card displays a visual VRAM bar only when both measured used a
 The model response-throughput charts use only successful durable Grace provider attempts that include output-token count, elapsed provider-call milliseconds, and an end timestamp. A point is output tokens divided by the router-recorded provider-call interval, so it includes endpoint and transport overhead; it is not server-only GPU throughput. The rolling window is five minutes, updated with the authenticated trace poll. Prompt-processing/generation split times are unavailable because the current llama.cpp servers return HTTP 501 for `/metrics` and `/slots` does not contain those timings. Missing 80B/30B samples remain explicitly unavailable.
 
 Selected 80B/30B details use only the Dashboard's authenticated, bounded numeric `slot_context` projection from fixed llama.cpp `/slots` endpoints. Configured context is reported per slot; the server-wide capacity is the sum of those per-slot limits and is labeled as such. Prompt counts and processed/cached counts appear only when numeric counters are present. KV-cache allocation bytes and queue depth are unavailable from these model-server builds. Raw task identifiers, prompts, and token data are not returned by the Dashboard projection.
+
+Live model activity is separate from completed token-throughput points. Dashboard adds an owner/conversation-authorized `/api/v1/resident/conversations/{id}/stream-activity?limit=12` projection of the same durable stream rows; it exposes request IDs, stage/provider/model, status, generation, event sequence, timestamps, and bounded character counts, never delta text. V2 computes received text characters per second only from adjacent positive timestamp intervals and labels it `characters/s`; it is application-side delivery cadence, not token throughput or GPU compute. One delta shows generation active while awaiting another sample. Stale/unavailable stream reads retain prior points with a stale label. llama.cpp `/metrics` remains HTTP 501 and `/slots` has no live output-token counters, so native token-generation speed remains unavailable.
 
 Recent Hardware Activity retains at most 60 browser-side samples and shows four per page. Previous/Next changes the visible page without resetting on telemetry refresh. The selected page and activity scroll offset are retained while visible items update; only the current page's four keyed records are mounted. Server-side diagnostic retention is unchanged.
 

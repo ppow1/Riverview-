@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.22
+File Revision: 1.0.23
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
@@ -101,6 +101,9 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_octo1_slot_context_4e097d99["Show configured context per slot, server capacity as the sum of slot limits, and prompt counters only when numeric llama.cpp /slots fields exist; KV bytes remain unavailable"]
     g_rv_riverview_v2_workspace_shell_octo1_response_rate_chart_c9d52f49["Plot successful output-token counts over router-recorded provider-call elapsed time in a bounded rolling five-minute window; do not claim server-only GPU throughput"]
     g_rv_riverview_v2_workspace_shell_octo1_activity_pages_05d90aba["Keep at most 60 browser activity samples, mount four keyed records per page, and preserve page and scroll position during refresh"]
+    g_rv_riverview_v2_workspace_shell_authorized_stream_activity_b7205719["Read bounded stream metadata through owner-authorized conversation projection"]
+    g_rv_riverview_v2_workspace_shell_live_stream_character_cadence_f08acf21["Graph timestamped received text characters per second separately from completed token rates"]
+    g_rv_riverview_v2_workspace_shell_native_live_output_counter_unavailable_f16e884a[["Report native live generated-token counters unavailable from current inference-server interfaces"]]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -223,6 +226,9 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_octo1_grace_request_trace_67118e93 -->|Accept successful trace attempts with completion tokens, elapsed time, and end timestamp| g_rv_riverview_v2_workspace_shell_octo1_response_rate_chart_c9d52f49
   g_rv_riverview_v2_workspace_shell_octo1_response_rate_chart_c9d52f49 -->|Update measured rate points on the existing authenticated five-second poll| g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81
   g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81 -->|Retain bounded samples and page four visible records without resetting scroll/page| g_rv_riverview_v2_workspace_shell_octo1_activity_pages_05d90aba
+  g_rv_riverview_v2_workspace_shell_octo1_grace_request_trace_67118e93 -->|Join same-conversation stream metadata under exact owner read authorization| g_rv_riverview_v2_workspace_shell_authorized_stream_activity_b7205719
+  g_rv_riverview_v2_workspace_shell_authorized_stream_activity_b7205719 -->|Calculate received characters per second only from timestamped positive text deltas| g_rv_riverview_v2_workspace_shell_live_stream_character_cadence_f08acf21
+  g_rv_riverview_v2_workspace_shell_live_stream_character_cadence_f08acf21 -->|diagnostic_branch: Keep native generated tokens per second unavailable because model server exposes no output counter| g_rv_riverview_v2_workspace_shell_native_live_output_counter_unavailable_f16e884a
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

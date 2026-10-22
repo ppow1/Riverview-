@@ -1,7 +1,8 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.23
+# Revision: 1.0.24
+# Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Verify owner-authorized stream activity is graphed only as measured characters/s, separate from completed token rates.
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -200,11 +201,17 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('request_attribution:"gpu_request_mapping_unavailable_from_model_server"', monitor)
         self.assertIn('requestTraceSnapshot', monitor)
         self.assertIn('request_trace:state.requestTrace?.state||"unavailable"', monitor)
+        self.assertIn('live_stream_activity:state.requestTrace?.stream_activity_state||"unavailable"', monitor)
+        self.assertIn('Live streamed output · characters/s', monitor)
+        self.assertIn('characters_per_second', monitor)
+        self.assertIn('native_live_token_counter:"unavailable_from_current_model_server_api"', monitor)
         self.assertIn('id="octo1-request-trace-list"', html)
         trace_chat = (ROOT / "website/v2/assets/grace-chat.js").read_text(encoding="utf-8")
         self.assertIn('rv.v2.grace-request-trace.v1', trace_chat)
         self.assertIn('requestTraceSnapshot', trace_chat)
         self.assertIn('response_persisted_at', trace_chat)
+        self.assertIn('/stream-activity?limit=12', trace_chat)
+        self.assertIn('stream_activity_state="available"', trace_chat)
         self.assertIn('controller:"Manufacturer fan controller"', monitor)
         self.assertIn('addRow(metrics,"Prompt/generation timing"', monitor)
         self.assertNotIn("fan PWM", monitor)
