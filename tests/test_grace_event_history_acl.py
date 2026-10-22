@@ -106,8 +106,10 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
                          migrations_dir=CORE / "resident_execution/migrations")
         migration = CORE / "resident_execution/migrations/0017_grace_objective_event_id_select.sql"
         checksum = hashlib.sha256(migration.read_bytes()).hexdigest()
-        applied = self.db.execute("SELECT checksum FROM schema_migrations WHERE version=%s",
-                                  ("0017_grace_objective_event_id_select",)).fetchone()
+        applied = self.db.execute(self.sql.SQL(
+            "SELECT checksum FROM {}.schema_migrations WHERE version=%s").format(
+                self.sql.Identifier(self.schema)),
+            ("0017_grace_objective_event_id_select",)).fetchone()
         self.assertEqual(applied[0], checksum)
 
     def tearDown(self):
