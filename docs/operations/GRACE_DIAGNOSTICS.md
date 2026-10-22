@@ -1,3 +1,4 @@
+# Document Revision: 1.0.0
 # Grace intake diagnostics
 
 Dashboard and Grace execution write bounded JSON diagnostics to the systemd journal.
