@@ -938,6 +938,43 @@
                     "active_slots": {
                       "type": "object"
                     },
+                    "slot_context": {
+                      "type": "object",
+                      "required": ["state", "source", "observed_at", "slots", "kv_cache_bytes"],
+                      "properties": {
+                        "state": {"enum": ["measured", "unavailable"]},
+                        "source": {"const": "llama.cpp /slots numeric fields"},
+                        "observed_at": {"$ref": "#/$defs/timestamp"},
+                        "slots": {
+                          "type": "array",
+                          "maxItems": 256,
+                          "items": {
+                            "type": "object",
+                            "required": ["slot_id", "processing", "context_tokens", "prompt_tokens", "prompt_tokens_processed", "prompt_tokens_cached"],
+                            "properties": {
+                              "slot_id": {"type": "integer", "minimum": 0},
+                              "processing": {"type": ["boolean", "null"]},
+                              "context_tokens": {"type": ["integer", "null"], "minimum": 0},
+                              "prompt_tokens": {"type": ["integer", "null"], "minimum": 0},
+                              "prompt_tokens_processed": {"type": ["integer", "null"], "minimum": 0},
+                              "prompt_tokens_cached": {"type": ["integer", "null"], "minimum": 0}
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "kv_cache_bytes": {
+                          "type": "object",
+                          "required": ["state", "value", "reason"],
+                          "properties": {
+                            "state": {"const": "unavailable"},
+                            "value": {"type": "null"},
+                            "reason": {"type": "string"}
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
                     "queued_requests": {
                       "type": "object"
                     },

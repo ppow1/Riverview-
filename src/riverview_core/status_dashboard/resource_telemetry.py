@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/resource_telemetry.py
 # Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-# Revision: 1.0.0
+# Revision: 1.1.0
 # Purpose: Build a read-only, timestamped projection from the approved GPU host and model APIs
 # Execution Model: Request-driven; one bounded collection per authenticated GET
 # Observability: rv.dashboard.resource-telemetry.v1 with per-source state, timestamps, and safe error codes
@@ -10,6 +10,7 @@
 # Inputs/Outputs: NVIDIA CSV via forced-command SSH; model health/models/slots; redacted host projection
 # Authority: Dashboard authentication is enforced by the parent API; fixed host and endpoint allowlists only
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial read-only telemetry projection
+# Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Project bounded numeric per-slot context counters without task IDs or prompt data
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_resource_telemetry.py; tests/test_status_dashboard.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -19,9 +20,10 @@
 This module has no cache, write, scheduling, or model-control path. Host access
 uses a dedicated SSH key whose server-side authorized_keys entry forces one
 read-only NVIDIA collector command. Model APIs are fixed private-LAN/loopback
-URLs and only their health, loaded model basename, and active-slot booleans are
-projected. Queue depth remains unavailable because this llama.cpp build has
-metrics disabled and exposes no queue count through its slot endpoint.
+URLs; only health, loaded model basename, active-slot count, and bounded numeric
+slot context counters are projected. Slot task IDs, prompt text, token data, and
+other raw fields are discarded. Queue depth and KV-cache allocation bytes remain
+unavailable because the deployed llama.cpp build does not expose them.
 """
 
 from __future__ import annotations
@@ -250,6 +252,26 @@ class DashboardResourceTelemetry:
                 raise ValueError("slot_schema_invalid")
             active_slots = sum(1 for slot in slots
                                if isinstance(slot, dict) and slot.get("is_processing") is True)
+            context_slots = []
+            for slot in slots:
+                if not isinstance(slot, dict):
+                    continue
+                slot_id = _safe_integer(slot.get("id"))
+                if slot_id is None:
+                    continue
+                context_slots.append({
+                    "slot_id": slot_id,
+                    "processing": slot.get("is_processing") if type(slot.get("is_processing")) is bool else None,
+                    "context_tokens": _safe_integer(slot.get("n_ctx")),
+                    "prompt_tokens": _safe_integer(slot.get("n_prompt_tokens")),
+                    "prompt_tokens_processed": _safe_integer(slot.get("n_prompt_tokens_processed")),
+                    "prompt_tokens_cached": _safe_integer(slot.get("n_prompt_tokens_cache")),
+                })
+            has_context_measurement = any(
+                any(slot[key] is not None for key in (
+                    "context_tokens", "prompt_tokens", "prompt_tokens_processed",
+                    "prompt_tokens_cached"))
+                for slot in context_slots)
             observed = _utc_now()
             return {
                 "service_id": source["service_id"],
@@ -261,6 +283,14 @@ class DashboardResourceTelemetry:
                 "loaded_models": model_ids,
                 "active_slots": {"state": "measured", "value": active_slots,
                                  "total": len(slots), "source": "llama.cpp /slots"},
+                "slot_context": {
+                    "state": "measured" if has_context_measurement else "unavailable",
+                    "source": "llama.cpp /slots numeric fields",
+                    "observed_at": observed,
+                    "slots": context_slots,
+                    "kv_cache_bytes": {"state": "unavailable", "value": None,
+                                       "reason": "not_exposed_by_current_model_server"},
+                },
                 "queued_requests": {"state": "unavailable", "value": None,
                                      "reason": "queue_depth_not_exposed_by_current_server"},
                 "error_code": None,
@@ -277,6 +307,10 @@ class DashboardResourceTelemetry:
                 "loaded_models": [],
                 "active_slots": {"state": "unavailable", "value": None,
                                  "total": None, "source": "llama.cpp /slots"},
+                "slot_context": {"state": "unavailable", "source": "llama.cpp /slots",
+                                  "observed_at": None, "slots": [],
+                                  "kv_cache_bytes": {"state": "unavailable", "value": None,
+                                                      "reason": "model_server_unavailable"}},
                 "queued_requests": {"state": "unavailable", "value": None,
                                      "reason": "queue_depth_not_exposed_by_current_server"},
                 "error_code": "model_server_unavailable",
