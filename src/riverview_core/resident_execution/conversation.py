@@ -2,8 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.29
-# Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Persist timestamped stream-delta character counts and expose an owner-authorized content-free activity projection.
+# Revision: 1.2.28
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Request constrained JSON for the fail-closed review contract and clarify supplied authority/evidence boundaries.
 # Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Add sanitized parse metadata and one-shot expiring private capture for a target review response
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Carry assignment-defined artifact sets through review and continuation
@@ -802,12 +801,10 @@ class ConversationStore:
                     events=CASE WHEN generation=0 THEN events || jsonb_build_array(jsonb_build_object(
                         'sequence',event_sequence+1,'generation',generation+1,
                         'event_type',CASE WHEN generation=0 THEN 'generating' ELSE 'reset' END,
-                        'occurred_at',clock_timestamp(),
                         'provider_ref',%s::text,'model_id',%s::text,'reasoning_stage',%s::text))
                       ELSE jsonb_build_array(jsonb_build_object(
                         'sequence',event_sequence+1,'generation',generation+1,
-                        'event_type','reset','occurred_at',clock_timestamp(),
-                        'provider_ref',%s::text,'model_id',%s::text,
+                        'event_type','reset','provider_ref',%s::text,'model_id',%s::text,
                         'reasoning_stage',%s::text)) END,
                     output_bytes=0,updated_at=clock_timestamp()
                 WHERE request_id=%s AND status IN ('queued','deferred','generating')
@@ -832,12 +829,11 @@ class ConversationStore:
                 SET event_sequence=event_sequence+1,output_bytes=output_bytes+%s,
                     events=events || jsonb_build_array(jsonb_build_object(
                         'sequence',event_sequence+1,'generation',generation,
-                        'event_type','delta','occurred_at',clock_timestamp(),
-                        'text_characters',char_length(%s::text),'text',%s::text)),updated_at=clock_timestamp()
+                        'event_type','delta','text',%s::text)),updated_at=clock_timestamp()
                 WHERE request_id=%s AND status='generating' AND output_bytes+%s<=8192
                   AND jsonb_array_length(events)<600
                 RETURNING event_sequence""",
-                (size,text,text,UUID(str(request_id)),size))
+                (size,text,UUID(str(request_id)),size))
             row = cur.fetchone()
             if row is None:
                 raise ConversationUnavailable("stream output bound or state rejected")
@@ -885,58 +881,6 @@ class ConversationStore:
             return {"status":row["status"],"event_sequence":row["event_sequence"],
                 "events":events,"provider_ref":row["provider_ref"],
                 "model_id":row["model_id"],"reasoning_stage":row["reasoning_stage"]}
-
-    @_serialized_store_operation
-    def stream_activity_snapshot(self, conversation_id, office_id, principal_id, *, limit=12):
-        """Return bounded stream timing/count metadata without response text."""
-        if type(limit) is not int or not 1 <= limit <= 12:
-            raise ValueError("stream activity limit must be between 1 and 12")
-        conversation_uuid=UUID(str(conversation_id))
-        with self.db.cursor() as cur:
-            self._path(cur)
-            cur.execute("""SELECT 1 FROM resident_conversations
-                WHERE conversation_id=%s AND office_id=%s AND owner_principal_id=%s""",
-                (conversation_uuid,office_id,principal_id))
-            if cur.fetchone() is None:
-                raise ConversationNotFound("conversation not found")
-            cur.execute("""SELECT request_id,status,generation,event_sequence,events,
-                    provider_ref,model_id,reasoning_stage,created_at,updated_at
-                FROM resident_conversation_streams WHERE conversation_id=%s
-                ORDER BY created_at DESC,request_id DESC LIMIT %s""",
-                (conversation_uuid,limit))
-            rows=cur.fetchall()
-            cur.execute("SELECT clock_timestamp() AS observed_at")
-            observed_at=cur.fetchone()["observed_at"]
-        streams=[]
-        for row in reversed(rows):
-            events=row["events"] if isinstance(row["events"],list) else []
-            generation_events=[event for event in events
-                if isinstance(event,dict) and event.get("event_type") in {"generating","reset"}]
-            current_generation_events=[event for event in events
-                if isinstance(event,dict) and event.get("generation")==row["generation"]]
-            started=(generation_events[-1].get("occurred_at") if generation_events else None)
-            deltas=[]
-            for event in current_generation_events:
-                if event.get("event_type")!="delta":
-                    continue
-                characters=event.get("text_characters")
-                occurred_at=event.get("occurred_at")
-                sequence=event.get("sequence")
-                if (type(characters) is int and 0 < characters <= 8192 and
-                        isinstance(occurred_at,str) and type(sequence) is int):
-                    deltas.append({"sequence":sequence,"generation":row["generation"],
-                        "occurred_at":occurred_at,"characters":characters})
-            deltas=deltas[-120:]
-            streams.append({"request_id":str(row["request_id"]),"status":row["status"],
-                "generation":row["generation"],"event_sequence":row["event_sequence"],
-                "provider_ref":row["provider_ref"],"model_id":row["model_id"],
-                "reasoning_stage":row["reasoning_stage"],
-                "generation_started_at":started,
-                "generated_characters":sum(item["characters"] for item in deltas),
-                "deltas":deltas,"updated_at":row["updated_at"]})
-        return {"schema_version":"rv.resident.stream-activity.v1",
-            "conversation_id":str(conversation_uuid),"observed_at":observed_at,
-            "streams":streams}
 
     @_serialized_store_operation
     def streaming_turn(self, request_id):
@@ -1462,11 +1406,6 @@ class ResidentConversationService:
         actor = self._authorize(credential, self.READ_ACTION)
         return self.store.stream_snapshot(conversation_id, request_id, self.office_id,
             actor["principal_id"], after_sequence=after_sequence)
-
-    def stream_activity_snapshot(self, credential, conversation_id, *, limit=12):
-        actor=self._authorize(credential,self.READ_ACTION)
-        return self.store.stream_activity_snapshot(conversation_id,self.office_id,
-            actor["principal_id"],limit=limit)
 
     def resume_streams(self, *, limit=20):
         """Restart queued generations after process recovery with original authorization."""
