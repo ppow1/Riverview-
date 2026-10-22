@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.27
+# Revision: 1.1.28
+# Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Serialize grounding failure event persistence and make attempt replay idempotent.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Persist sanitized, correlated grounding failure details in durable objective events.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Permit artifact-specific step checks only when retained in the same artifact contract.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Add exact-objective audited removal of one misclassified structural heading.
@@ -452,14 +453,13 @@ class GraceExecutionPipeline:
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
-                cur.execute("""UPDATE grace_objectives SET status='WAITING_FOR_EVIDENCE',
-                    evidence=%s::jsonb,revision=revision+1,updated_at=clock_timestamp()
+                cur.execute("""SELECT revision,status FROM grace_objectives
                     WHERE objective_id=%s AND status IN ('RECEIVED','WAITING_FOR_EVIDENCE')
-                    RETURNING revision""",
-                    (_json(evidence), objective_id))
+                    FOR UPDATE""", (objective_id,))
                 row = cur.fetchone()
                 if not row:
                     raise ObjectiveStateError("objective changed while recording missing evidence")
+                next_revision = row["revision"] + 1
                 event_id = str(uuid4())
                 source_revision = evidence.get("source_revision")
                 if (not isinstance(source_revision, str) or len(source_revision) > 128 or
@@ -467,11 +467,11 @@ class GraceExecutionPipeline:
                     source_revision = None
                 diagnostic = {
                     "event_id": event_id, "attempt_id": attempt_id,
-                    "objective_id": objective_id, "objective_revision": row["revision"],
+                    "objective_id": objective_id, "objective_revision": next_revision,
                     "source": ({"conversation_id": origin.get("conversation_id"),
                                 "source_sequence": origin.get("source_sequence")}
                                if isinstance(origin, dict) else None),
-                    "previous_state": objective["status"],
+                    "previous_state": row["status"],
                     "new_state": "WAITING_FOR_EVIDENCE", "stage": stage,
                     "attempted_operation": "knowledge_provider.ground_assignment",
                     "outcome": "blocked", "reason_code": error_code,
@@ -501,9 +501,17 @@ class GraceExecutionPipeline:
                     ON CONFLICT (idempotency_key) DO NOTHING
                     RETURNING event_id""",
                     (event_id, objective_id,
-                     f"grace-objective-waiting:{objective_id}:{row['revision']}", _json(payload)))
+                     f"grace-grounding-failure:{objective_id}:{attempt_id}", _json(payload)))
                 if cur.fetchone() is None:
-                    raise ObjectiveStateError("grounding diagnostic event already exists")
+                    return False
+                cur.execute("""UPDATE grace_objectives SET status='WAITING_FOR_EVIDENCE',
+                    evidence=%s::jsonb,revision=%s,updated_at=clock_timestamp()
+                    WHERE objective_id=%s AND revision=%s
+                      AND status IN ('RECEIVED','WAITING_FOR_EVIDENCE')""",
+                    (_json(evidence), next_revision, objective_id, row["revision"]))
+                if cur.rowcount != 1:
+                    raise ObjectiveStateError("objective changed while recording missing evidence")
+        return True
 
     def record_proposal(self, objective_id, proposal: PlanProposal, *, actor_id="resident:grace",
                         external_exchange=None, review_evidence=None):

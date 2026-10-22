@@ -2,13 +2,13 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.26",
-      "sha256": "81dfb4819c901bb9f9ead71ac80c450a0d854cb4617df230c2e7f2b67a20ba23",
-      "size_bytes": 1355378
+      "revision": "1.0.27",
+      "sha256": "cc8aa48d4b2acc706a0b122ebaca656e419cf6db4e228865ea3880fd763c5822",
+      "size_bytes": 1361064
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.304",
+      "revision": "1.1.305",
       "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
       "size_bytes": 20273
     },
@@ -44,9 +44,9 @@
     },
     "docs/components/GRACE_EXECUTION_PIPELINE.md": {
       "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
-      "revision": "1.1.32",
-      "sha256": "54a1944075da7706cf9996ff94ae8faf4b7515ad5919489e2f015c01486940d0",
-      "size_bytes": 45635
+      "revision": "1.1.33",
+      "sha256": "c4277e3edf11d8a75fe2beb71f5b1c243f511e2238fe2e988f022aabf37af719",
+      "size_bytes": 46002
     },
     "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md": {
       "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
@@ -350,9 +350,9 @@
     },
     "src/riverview_core/resident_execution/pipeline.py": {
       "path": "src/riverview_core/resident_execution/pipeline.py",
-      "revision": "1.1.27",
-      "sha256": "3524edb06cccbff22842578fdace2bf59cae7186961e24e77fad1be5b3d992e4",
-      "size_bytes": 130075
+      "revision": "1.1.28",
+      "sha256": "629f141d9ae6c5c9a2c081df1352d85a55ab74f7348d1b83e14382469e0de5bf",
+      "size_bytes": 130597
     },
     "src/riverview_core/resident_execution/service.py": {
       "path": "src/riverview_core/resident_execution/service.py",
@@ -422,9 +422,9 @@
     },
     "tests/test_grace_execution.py": {
       "path": "tests/test_grace_execution.py",
-      "revision": "1.0.58",
-      "sha256": "8e56cffed7f85d61e5dc5a5983392d80755a8bd0d25ea1bd936f98a0e39136a5",
-      "size_bytes": 188932
+      "revision": "1.0.59",
+      "sha256": "5b4d9e9e3109c3b5d60b409b23a539a4d3596cb2ea4539dd6dfd96da6aef69c1",
+      "size_bytes": 192809
     },
     "tests/test_runtime_baseline.py": {
       "path": "tests/test_runtime_baseline.py",
@@ -482,9 +482,9 @@
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-      "revision": "1.1.30",
-      "sha256": "6240b3b9c0e3c7c47fcadd2d20ba2f9e56283f450bda661f053f79811e9431dc",
-      "size_bytes": 61684
+      "revision": "1.1.31",
+      "sha256": "8b669fdef3b7cbb4747a12eb61ba1ea6ee456971951d8a0f04c3320ec84a8efd",
+      "size_bytes": 63169
     },
     "docs/components/STATUS_DASHBOARD_FLOW.md": {
       "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
@@ -493,6 +493,6 @@
       "size_bytes": 17303
     }
   },
-  "manifest_revision": "1.1.304",
-  "updated_at": "2026-10-22T04:15:47Z"
+  "manifest_revision": "1.1.305",
+  "updated_at": "2026-10-22T13:19:40Z"
 }

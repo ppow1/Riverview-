@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.58
+# Revision: 1.0.59
+# Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Verify concurrent grounding failures serialize into distinct durable attempts and duplicate attempt replay is a no-op.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Cover durable sanitized grounding failure codes, persistence, exception redaction, and retry history.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022-R1 | Align the database regression fixture with available repository grounding terms.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Verify artifact checks remain separate from exact formal-criteria coverage.
@@ -2254,6 +2255,73 @@ class GraceExecutionTests(unittest.TestCase):
                          "GROUNDING_NO_MATCH")
         self.assertEqual(diagnostics[1]["payload"]["grounding_diagnostic"]["objective_revision"], 3)
         self.assertEqual([event["event_type"] for event in events][-1], "objective.grounded")
+
+    def test_concurrent_grounding_failures_keep_attempt_history_and_idempotent_replay(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+
+        barrier = Barrier(2)
+
+        class ConcurrentKnowledge:
+            def ground_assignment(self, _assignment):
+                barrier.wait(timeout=10)
+                return KnowledgeResult(KnowledgeStatus.NO_MATCH)
+
+        pipeline = GraceExecutionPipeline(self.ledger, self.authorizer, self.intake,
+                                          ConcurrentKnowledge())
+        objective_id = "objective:grounding-diagnostic:concurrent-failures"
+        pipeline.submit_objective(objective_id, "Ground then retry concurrently",
+            ["preserve objective evidence"], credential=self.credentials["steward"],
+            scope_ref=self.scope)
+
+        def attempt_grounding():
+            from riverview_core.assignment_intake import AuthorizedAssignmentIntake
+            from riverview_core.postgres_ledger import PostgresLedger
+
+            ledger = PostgresLedger(DSN, schema=self.schema)
+            attempt_pipeline = GraceExecutionPipeline(ledger, self.authorizer,
+                AuthorizedAssignmentIntake(ledger, self.authorizer), ConcurrentKnowledge())
+            try:
+                attempt_pipeline.ground_objective(objective_id)
+            except Exception as exc:
+                return exc
+            finally:
+                ledger.close()
+            return None
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(lambda _index: attempt_grounding(), range(2)))
+
+        self.assertTrue(all(isinstance(result, ObjectiveStateError) and
+                            str(result) == "repository evidence is not complete and verified"
+                            for result in results), repr(results))
+        objective = pipeline.get_objective(objective_id)
+        self.assertEqual(objective["status"], "WAITING_FOR_EVIDENCE")
+        self.assertEqual(objective["revision"], 3)
+        self.assertEqual(objective["evidence"]["error_code"], "GROUNDING_NO_MATCH")
+        events = [event for event in pipeline.objective_events(objective_id)
+                  if event["event_type"] == "objective.waiting_for_evidence"]
+        self.assertEqual(len(events), 2)
+        diagnostics = [event["payload"]["grounding_diagnostic"] for event in events]
+        self.assertEqual([diagnostic["objective_revision"] for diagnostic in diagnostics], [2, 3])
+        self.assertEqual([diagnostic["previous_state"] for diagnostic in diagnostics],
+                         ["RECEIVED", "WAITING_FOR_EVIDENCE"])
+        self.assertEqual(len({diagnostic["attempt_id"] for diagnostic in diagnostics}), 2)
+
+        latest = diagnostics[-1]
+        duplicate_result = pipeline._set_waiting(objective, objective["evidence"],
+            latest["attempt_id"], latest["attempt_started_at"],
+            error_code="GROUNDING_NO_MATCH",
+            explanation="The knowledge provider returned no matching evidence.",
+            stage="provider_result", responsible_component="KNOWLEDGE-PROVIDER",
+            evidence_bytes=None)
+        self.assertFalse(duplicate_result)
+        after_replay = pipeline.get_objective(objective_id)
+        self.assertEqual(after_replay["revision"], objective["revision"])
+        self.assertEqual(after_replay["evidence"], objective["evidence"])
+        self.assertEqual(len([event for event in pipeline.objective_events(objective_id)
+                              if event["event_type"] == "objective.waiting_for_evidence"]), 2)
 
     def test_verified_grounding_retry_advances_waiting_objective_once(self):
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
