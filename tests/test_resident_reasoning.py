@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.22
+# Revision: 1.0.23
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Cover explicit exactly-one dispatch lifecycle mapping and structural bullets.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Verify correlated separate grounding results and sanitized exceptions
 # Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Cover DB-size-aware outcome pruning and translated SQLSTATE diagnostics
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject ambiguous deliverable prose as lifecycle-only criteria
@@ -789,6 +790,11 @@ class LifecycleEvidenceClassificationTests(unittest.TestCase):
             "conversation.result_published")
         self.assertEqual(lifecycle_evidence_event(
             "The objective is grounded before execution."), "objective.grounded")
+        self.assertEqual(lifecycle_evidence_event(
+            "- Create exactly one Engineering assignment for the file."),
+            "work_order.exactly_one_dispatched")
+        self.assertIsNone(lifecycle_evidence_event(
+            "Create exactly two Engineering assignments for the file."))
         self.assertIsNone(lifecycle_evidence_event(
             "The conversation summary includes every cited source."))
         self.assertIsNone(lifecycle_evidence_event(

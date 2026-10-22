@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.28
-# Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CRITERION-CAPTURE-20261022 | Cover one-shot private capture of the rejected target lifecycle criterion.
+# Revision: 1.1.29
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify lifecycle criterion binding restores only a stripped structural bullet.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Verify actionable value-free diagnostics for proposal rejection stages.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Match the revised prompt's formal-criteria boundary.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Verify derived and Steward-supplied criteria prompt paths.
@@ -55,16 +55,13 @@ from io import BytesIO
 from dataclasses import replace
 import json
 import logging
-import os
-import stat
-import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 
 from riverview_core.resident_reasoning import (ExternalEscalationIntent,
-    ProposalValidationFailure, ReasoningRequest)
+    PlanProposal, ProposalValidationFailure, ReasoningRequest)
 from riverview_core.local_reasoning_provider import (
     LocalReasoningProvider, LocalReasoningUnavailable)
 
@@ -124,43 +121,23 @@ class LocalReasoningProviderTests(unittest.TestCase):
                             "fixture failure", {}, self.error_stream)
         return _Response(self.response_body)
 
-    @unittest.skipUnless(os.name == "posix", "capture permissions are POSIX-specific")
-    def test_one_shot_capture_is_private_target_scoped_and_value_limited(self):
-        target = "objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1"
-        criterion = "The system performs a private lifecycle transition."
-        self.request = replace(self.request, assignment_id=target,
-            correlation_id="attempt-correlation-1")
+    def test_lifecycle_criterion_restores_only_structural_bullet_from_source(self):
+        criterion = "- Create exactly one Engineering assignment for the report."
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [criterion],
+        })
         self.response_body = self._response(text=json.dumps({
-            "summary": "Invalid lifecycle", "system_owned_criteria": [criterion],
-            "steps": [{"step_id": "report", "objective": "Create report",
-                "acceptance_criteria": ["Complete report"], "depends_on": [],
+            "summary": "Create the requested report.",
+            "system_owned_criteria": [criterion[2:]],
+            "steps": [{"step_id": "report", "objective": "Create the report",
+                "acceptance_criteria": ["Create report.txt"], "depends_on": [],
                 "execution_capability": "engineering.codex-cli-artifact.v1",
                 "artifact_requirements": [{"name": "report", "path": "report.txt",
-                    "media_type": "text/plain", "acceptance_criteria": ["Complete report"]}]}]}))
-        with tempfile.TemporaryDirectory() as temporary:
-            os.chmod(temporary, 0o700)
-            trigger = os.path.join(temporary, "grace-lifecycle-criterion-capture.trigger")
-            capture = os.path.join(temporary, "grace-lifecycle-criterion-capture.json")
-            with open(trigger, "w", encoding="utf-8") as stream:
-                stream.write("capture-once")
-            os.chmod(trigger, 0o600)
-            with patch.dict(os.environ, {"RIVERVIEW_CODEX_STATE_DIR": temporary}):
-                with self.assertLogs("riverview_core.local_reasoning_provider",
-                                     level=logging.WARNING) as captured:
-                    result = self.provider.propose(self.request)
-                    second = self.provider.propose(self.request)
-            self.assertEqual(result.detail_code, "PROPOSAL_SCHEMA_INVALID")
-            self.assertEqual(second.detail_code, "PROPOSAL_SCHEMA_INVALID")
-            with open(capture, "r", encoding="utf-8") as stream:
-                payload = json.load(stream)
-            self.assertEqual(payload, {
-                "assignment_id": target, "request_id": "request-1",
-                "correlation_id": "attempt-correlation-1",
-                "field_path": "$.system_owned_criteria[0]", "criterion": criterion})
-            self.assertEqual(stat.S_IMODE(os.stat(capture).st_mode), 0o600)
-            self.assertFalse(os.path.exists(trigger))
-            self.assertLess(os.stat(capture).st_size, 4096)
-            self.assertEqual(captured.output.count(criterion), 0)
+                    "media_type": "text/plain", "acceptance_criteria": ["Create report.txt"]}]}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertIsInstance(proposal, PlanProposal)
+        self.assertEqual(proposal.system_owned_criteria, (criterion,))
 
     @staticmethod
     def _response(*, served="fixture-model", finish="stop", tokens=9, text=None):
