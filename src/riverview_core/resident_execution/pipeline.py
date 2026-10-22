@@ -774,7 +774,7 @@ class GraceExecutionPipeline:
     def objective_events(self, objective_id):
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
-            cur.execute("""SELECT event_type,idempotency_key,actor_id,payload,occurred_at
+            cur.execute("""SELECT event_id,event_type,idempotency_key,actor_id,payload,occurred_at
                 FROM grace_objective_events WHERE objective_id=%s ORDER BY sequence""",
                 (objective_id,))
             return cur.fetchall()
