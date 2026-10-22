@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.21
+File Revision: 1.0.22
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated live GPU/model reads and source gaps.
@@ -12,6 +12,7 @@ Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Clarify isolated desktop sc
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Document authenticated conversation traces and exact model-server evidence gap
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Record artwork provenance, interaction checks, mobile fix, and physical mapping limits
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Verify VRAM missing states, measured-rate provenance, context limits, and paged bounded activity
+Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Troubleshoot authorized live stream character cadence and unavailable native output-token counters.
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -283,3 +284,9 @@ The focused fixture browser checks exercise theme choices, sidebar states, keybo
 - Recent Hardware Activity stores at most 60 entries and mounts four visible samples per page. Previous/Next should show `Page N of M`; a five-second refresh must preserve the selected page, list scroll offset, and GPU-card node identity. `node scripts/verify_v2_resource_monitor.cjs` exercises 12 consecutive fixture refreshes and asserts four records per page, retained GPU nodes, and no overlap.
 
 If slot context is missing after deployment, check the Dashboard `/api/v1/resources/telemetry` response in the authenticated browser and compare only numeric projected counters with the fixed server `/slots` endpoint. Do not add direct model-server browser access or alter inference startup arguments. For stale telemetry, confirm Dashboard service health and source freshness; do not erase prior cards or replace values with fixture data.
+
+## Live model activity chart (RV-HW-LIVE-STREAM-ACTIVITY-001)
+
+The existing completed `tokens/s · measured` chart requires a successful provider attempt with completion tokens and elapsed duration, so it is empty before the provider returns. A separate `Live streamed output · characters/s` chart uses timestamped text deltas already persisted for the originating Grace conversation and is explicitly application-side received-text cadence. It never estimates token count from characters or uses GPU utilization as a proxy.
+
+V2 reads `/api/v1/resident/conversations/{conversation_id}/stream-activity?limit=12`; the endpoint requires the existing exact owner-bound `resident.conversation.read` authority and returns only bounded metadata/counts. If the user is not authorized, activity data is unavailable; if a request is generating with fewer than two timed deltas, the UI says generation is active and waits instead of drawing a rate. A gap or expired latest delta is marked stale. Diagnostics report `native_live_token_counter=unavailable_from_current_model_server_api`. The current inference servers return 501 for `/metrics`; `/slots` does not expose generated output counters. Do not infer generation from utilization or silently turn unavailable telemetry into zero.

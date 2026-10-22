@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.5
+Revision: 1.0.6
 Purpose: Connect V2 Grace chat and expose a content-free trace of its durable request lifecycle
 Execution Model: Interactive browser; request-driven reads/sends with durable response polling
 Observability: Visible auth/status plus request IDs, provider attempts, timestamps, and persistence state
@@ -10,6 +10,7 @@ Dependencies: Same-origin rv.resident.conversation.v1 endpoints; secure account 
 Inputs/Outputs: Steward text and durable conversation events; message content is not browser-persisted
 Authority: Exact resident.conversation.read/send grants are enforced by Dashboard on each request
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Expose only sanitized trace metadata from authenticated durable history
+Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Attach the owner-scoped content-free activity projection to same-conversation request traces.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_grace_chat_chrome.py
 History: Git and revision/backup manifest
@@ -163,7 +164,17 @@ History: Git and revision/backup manifest
     try {
       const record = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.conversationId)}`);
       if (record.conversation_id !== state.conversationId || !Array.isArray(record.events)) throw new Error("conversation_identity_mismatch");
-      return requestTraceFromEvents(record.events, new Date().toISOString());
+      const trace=requestTraceFromEvents(record.events, new Date().toISOString());
+      try {
+        const activity=await api(`/api/v1/resident/conversations/${encodeURIComponent(state.conversationId)}/stream-activity?limit=12`);
+        if(activity.schema_version!=="rv.resident.stream-activity.v1"||activity.conversation_id!==state.conversationId||!Array.isArray(activity.streams))throw new Error("stream_activity_contract_invalid");
+        const byRequest=new Map(activity.streams.filter(item=>item&&typeof item.request_id==="string").map(item=>[item.request_id,item]));
+        trace.requests=trace.requests.map(request=>({...request,stream_activity:byRequest.get(request.request_id)||null}));
+        trace.stream_activity_state="available";
+      } catch(error) {
+        trace.stream_activity_state=error.status===401?"authentication_required":error.status===403?"denied":"unavailable";
+      }
+      return trace;
     } catch (error) {
       return {schema_version: "rv.v2.grace-request-trace.v1", state: error.status === 401 ? "authentication_required" : error.status === 403 ? "denied" : "unavailable", observed_at: null, requests: []};
     }

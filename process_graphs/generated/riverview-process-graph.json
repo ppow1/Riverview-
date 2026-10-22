@@ -3765,7 +3765,7 @@
     },
     {
       "graph_id": "rv:riverview-v2:workspace-shell",
-      "graph_revision": "1.0.21",
+      "graph_revision": "1.0.22",
       "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
       "workflow_id": "local-static-preview",
       "diagram_order": 80,
@@ -3790,7 +3790,8 @@
         "scripts/verify_v2_octo1_browser.cjs",
         "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
         "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
-        "website/v2/assets/octominer/controller-feature-reference.png"
+        "website/v2/assets/octominer/controller-feature-reference.png",
+        "src/riverview_core/status_dashboard/server.py"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
@@ -3808,7 +3809,8 @@
         "scripts/verify_v2_grace_chat_chrome.py",
         "scripts/verify_v2_resource_monitor.cjs",
         "scripts/verify_v2_work_monitor.cjs",
-        "scripts/verify_v2_octo1_browser.cjs"
+        "scripts/verify_v2_octo1_browser.cjs",
+        "tests/test_status_dashboard.py"
       ],
       "nodes": [
         {
@@ -5207,6 +5209,56 @@
           "verification_evidence": [
             "scripts/verify_v2_resource_monitor.cjs"
           ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:authorized-stream-activity",
+          "node_revision": "1.0.1",
+          "type": "process",
+          "label": "Read bounded stream metadata through owner-authorized conversation projection",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "website/v2/assets/grace-chat.js"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "tests/test_v2_workspace_shell.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:live-stream-character-cadence",
+          "node_revision": "1.0.1",
+          "type": "measurement",
+          "label": "Graph timestamped received text characters per second separately from completed token rates",
+          "source_references": [
+            "website/v2/assets/resource-monitor.js",
+            "scripts/verify_v2_resource_monitor.cjs"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_resource_monitor.cjs"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:native-live-output-counter-unavailable",
+          "node_revision": "1.0.1",
+          "type": "failure",
+          "label": "Report native live generated-token counters unavailable from current inference-server interfaces",
+          "source_references": [
+            "src/riverview_core/status_dashboard/server.py",
+            "website/v2/assets/resource-monitor.js"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_resource_monitor.cjs"
+          ]
         }
       ],
       "edges": [
@@ -5924,6 +5976,24 @@
           "to": "rv:riverview-v2:workspace-shell:octo1-activity-pages",
           "type": "runtime_transition",
           "label": "Retain bounded samples and page four visible records without resetting scroll/page"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+          "to": "rv:riverview-v2:workspace-shell:authorized-stream-activity",
+          "type": "runtime_transition",
+          "label": "Join same-conversation stream metadata under exact owner read authorization"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:authorized-stream-activity",
+          "to": "rv:riverview-v2:workspace-shell:live-stream-character-cadence",
+          "type": "runtime_transition",
+          "label": "Calculate received characters per second only from timestamped positive text deltas"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:live-stream-character-cadence",
+          "to": "rv:riverview-v2:workspace-shell:native-live-output-counter-unavailable",
+          "type": "diagnostic_branch",
+          "label": "Keep native generated tokens per second unavailable because model server exposes no output counter"
         }
       ]
     },
@@ -8228,6 +8298,7 @@
     "rv:postgres-ledger:migration:transaction",
     "rv:postgres-ledger:migration:update",
     "rv:riverview-v2:workspace-shell:apply-theme",
+    "rv:riverview-v2:workspace-shell:authorized-stream-activity",
     "rv:riverview-v2:workspace-shell:check-client",
     "rv:riverview-v2:workspace-shell:check-session",
     "rv:riverview-v2:workspace-shell:choose-presentation",
@@ -8251,7 +8322,9 @@
     "rv:riverview-v2:workspace-shell:grace-send-message",
     "rv:riverview-v2:workspace-shell:integration-unavailable",
     "rv:riverview-v2:workspace-shell:issue-session",
+    "rv:riverview-v2:workspace-shell:live-stream-character-cadence",
     "rv:riverview-v2:workspace-shell:missing-hash",
+    "rv:riverview-v2:workspace-shell:native-live-output-counter-unavailable",
     "rv:riverview-v2:workspace-shell:octo1-activity-pages",
     "rv:riverview-v2:workspace-shell:octo1-controller-unavailable",
     "rv:riverview-v2:workspace-shell:octo1-device-bay-unavailable",
