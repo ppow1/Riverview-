@@ -1,6 +1,7 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.23
+// Revision: 1.4.24
+// Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Show persisted grounding blockers, responsibility, authorized retry guidance, and bounded attempt history.
 // Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Display effective criteria and their source in objective projections.
 // Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Bind work-order intake to persisted message sequence and surface stale-source or dialog failures.
 // Predecessor: .riverview-backups/20261020T153249701305Z/src/riverview_core/status_dashboard/static/app.js (SHA-256 50cc5acbcaebb0cb1f6baeea10274c7eacdd21f60885b9936498303cd0164bb8)
@@ -671,12 +672,22 @@
     summary.textContent=`${items.length} linked objective${items.length===1?"":"s"} · refreshed ${new Date().toLocaleTimeString()}`;
     host.innerHTML=items.map((item)=>{
       const progress=item.lifecycle_status||"waiting", rework=item.rework||{}, verification=item.verification||{};
+      const grounding=Array.isArray(item.grounding_diagnostics)?item.grounding_diagnostics:[];
+      const latestGrounding=grounding.length?grounding[grounding.length-1]?.diagnostic:null;
       const badge=`<span class="pill ${stateClass(progress)}">${esc(human(progress))}</span>`;
       const latest=item.latest_event?`${human(item.latest_event.event_type)} · ${when(item.latest_event.occurred_at)}`:"No lifecycle event recorded";
       const origin=item.origin?.source_sequence?`Source conversation message ${esc(item.origin.source_sequence)}`:"Conversation origin unavailable";
       const verificationText=verification.decision?`${esc(verification.decision)}${verification.summary?` · ${esc(verification.summary)}`:""}`:"No independent verification recorded";
       const reworkText=rework.rejected_results?`${esc(rework.rejected_results)} rejected result${rework.rejected_results===1?"":"s"}; ${esc(rework.attempts||0)} rework attempt${rework.attempts===1?"":"s"}${rework.decision?` · ${esc(human(rework.decision))}`:""}`:"No rework recorded";
-      return `<article class="engineering-progress-item"><div class="engineering-progress-title"><strong>Objective ${esc(item.objective_id)}</strong>${badge}</div><div class="row-meta">${origin}</div><div class="engineering-progress-grid"><span>Assignment</span><span>${esc(item.assignment_id||"Not created")}</span><span>Stage</span><span>${esc(item.lifecycle_stage||human(item.status))}</span><span>Latest activity</span><span>${esc(latest)}</span><span>Verification</span><span>${verificationText}</span><span>Rework</span><span>${reworkText}</span><span>Steward action</span><span>${item.steward_action_required?"Required":"Not currently required"}</span></div></article>`;
+      const retry=latestGrounding?.retry||{};
+      const blocker=(item.status==="WAITING_FOR_EVIDENCE")
+        ? (latestGrounding?`<div class="engineering-progress-grid"><span>Grounding blocker</span><span>${esc(latestGrounding.reason_code||"Failure code unavailable")} · ${esc(latestGrounding.explanation||"Explanation unavailable")}</span><span>Responsible component</span><span>${esc(latestGrounding.responsible_component||"Not recorded")}</span><span>Retry status</span><span>${esc(human(retry.status||"not recorded"))}</span><span>Next retry</span><span>${retry.automatic?esc(when(retry.next_retry_at)):"No automatic retry scheduled"}</span><span>Next permitted action</span><span>${esc(retry.next_permitted_action||"No next action recorded")}</span></div>`:`<div class="engineering-progress-grid"><span>Grounding blocker</span><span>Grounding reason unavailable: this attempt predates structured diagnostics.</span><span>Responsible component</span><span>Not recorded</span><span>Retry status</span><span>Existing same-objective retry route; authorization is rechecked.</span><span>Next retry</span><span>No automatic retry scheduled.</span><span>Next permitted action</span><span>Use the original conversation work-order action; objective.submit is rechecked.</span></div>`)
+        : "";
+      const attempts=grounding.length?`<details class="grounding-history"><summary>${grounding.length} persisted grounding attempt${grounding.length===1?"":"s"}</summary>${grounding.map((entry)=>{const diagnostic=entry?.diagnostic||{};return `<div class="row-meta">${esc(when(entry.occurred_at))} · ${esc(diagnostic.reason_code||"Failure code unavailable")} · ${esc(diagnostic.stage||"stage unavailable")} · ${esc(diagnostic.attempt_id||"attempt ID unavailable")}</div>`;}).join("")}</details>`:"";
+      const stewardAction=item.status==="WAITING_FOR_EVIDENCE"
+        ? `Same-objective retry available to ${esc(human(retry.required_actor||"steward"))}; authorization is rechecked`
+        : (item.steward_action_required?"Required":"Not currently required");
+      return `<article class="engineering-progress-item"><div class="engineering-progress-title"><strong>Objective ${esc(item.objective_id)}</strong>${badge}</div><div class="row-meta">${origin}</div><div class="engineering-progress-grid"><span>Assignment</span><span>${esc(item.assignment_id||"Not created")}</span><span>Stage</span><span>${esc(item.lifecycle_stage||human(item.status))}</span><span>Latest activity</span><span>${esc(latest)}</span><span>Verification</span><span>${verificationText}</span><span>Rework</span><span>${reworkText}</span><span>Steward action</span><span>${stewardAction}</span></div>${blocker}${attempts}</article>`;
     }).join("");
   }
   async function loadConversationEngineeringProgress() {

@@ -1,7 +1,8 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.29
+File Revision: 1.1.30
+Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Document authorized Engineering Progress grounding diagnostics and same-objective recovery guidance.
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Add dedicated telemetry credential, source and rollback runbook.
@@ -51,6 +52,25 @@ cover durable visual receipts. Receipt acknowledgment is not a Steward decision.
 **Task:** RV-M3.1-001 · **Component:** STEWARD-DASHBOARD · **Execution model:** request-driven.  
 The dashboard does not own assignments, dispatch workers, mutate the ledger, or
 gate CME execution.
+
+## Grace grounding blockers in Engineering Progress
+
+Open **Talk with Grace** for the source conversation and refresh Engineering
+Progress. Its existing authenticated `GET /api/v1/objectives?conversation_id=…`
+projection is filtered through the account session and conversation-read grant.
+For `WAITING_FOR_EVIDENCE`, the panel shows the latest persisted grounding
+reason code and safe explanation, responsible component, retry availability,
+and next permitted action. Expand the attempt history to see prior durable
+grounding failures. Older failure events without structured diagnostics are
+shown as **reason unavailable**; the UI does not infer a cause from the status.
+
+The displayed retry action refers to the existing same-conversation work-order
+retry pathway, which rechecks the exact `objective.submit` grant before calling
+grounding. It does not create a second objective or assignment. A failed retry
+adds another event/revision. Source references and raw evidence are not included
+in the diagnostic projection; only the provider status, source revision,
+reference count, hash-presence bit and SHA-256 digest are exposed. A missing
+diagnostic on an older waiting objective is not evidence that grounding passed.
 
 ## Readable diagnostic documents and workflow viewer
 

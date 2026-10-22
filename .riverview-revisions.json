@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.303",
+      "revision": "1.1.304",
       "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
       "size_bytes": 20273
     },
@@ -44,9 +44,9 @@
     },
     "docs/components/GRACE_EXECUTION_PIPELINE.md": {
       "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
-      "revision": "1.1.25",
-      "sha256": "015aa229a7d0f90c480066fe1442ac36860da2ef35e510e848589aec34a73721",
-      "size_bytes": 38875
+      "revision": "1.1.32",
+      "sha256": "54a1944075da7706cf9996ff94ae8faf4b7515ad5919489e2f015c01486940d0",
+      "size_bytes": 45635
     },
     "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md": {
       "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
@@ -80,9 +80,9 @@
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.2.0",
-      "sha256": "50d550acda86014c541c4117f24217fbaa16a31e136cc279a237498a08456bf5",
-      "size_bytes": 22473
+      "revision": "1.2.1",
+      "sha256": "13dde520eb6226c453947e45c0722a64d23086efaa75f7fab01ab15965978711",
+      "size_bytes": 25620
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
@@ -350,9 +350,9 @@
     },
     "src/riverview_core/resident_execution/pipeline.py": {
       "path": "src/riverview_core/resident_execution/pipeline.py",
-      "revision": "1.1.17",
-      "sha256": "ce0facd1b044130450e0229ecc7def9a7c601673caf6990d4b27406198936e34",
-      "size_bytes": 100273
+      "revision": "1.1.27",
+      "sha256": "3524edb06cccbff22842578fdace2bf59cae7186961e24e77fad1be5b3d992e4",
+      "size_bytes": 130075
     },
     "src/riverview_core/resident_execution/service.py": {
       "path": "src/riverview_core/resident_execution/service.py",
@@ -362,9 +362,9 @@
     },
     "src/riverview_core/status_dashboard/projection.py": {
       "path": "src/riverview_core/status_dashboard/projection.py",
-      "revision": "1.0.10",
-      "sha256": "2f77bd7e2c0f16d907593e03a8006542eb0b3594a3aeaf3e35e7eeec38ad3ece",
-      "size_bytes": 45998
+      "revision": "1.0.12",
+      "sha256": "bbd5ef7f9a36aa2905de2d0c887799b650b6a4225cc318c7d5b2479551fc1a19",
+      "size_bytes": 47424
     },
     "src/riverview_core/status_dashboard/server.py": {
       "path": "src/riverview_core/status_dashboard/server.py",
@@ -422,9 +422,9 @@
     },
     "tests/test_grace_execution.py": {
       "path": "tests/test_grace_execution.py",
-      "revision": "1.0.42",
-      "sha256": "3cfc6313b906c11931c2bd6e4ab14d13d625b4beaf8fffa5bfc2b5d20a68abeb",
-      "size_bytes": 142923
+      "revision": "1.0.58",
+      "sha256": "8e56cffed7f85d61e5dc5a5983392d80755a8bd0d25ea1bd936f98a0e39136a5",
+      "size_bytes": 188932
     },
     "tests/test_runtime_baseline.py": {
       "path": "tests/test_runtime_baseline.py",
@@ -452,9 +452,9 @@
     },
     "tests/test_status_dashboard.py": {
       "path": "tests/test_status_dashboard.py",
-      "revision": "1.0.61",
-      "sha256": "e8b6154004462e947600964020363dba611ca02688e089a480bfa8b02fa356a8",
-      "size_bytes": 95593
+      "revision": "1.0.65",
+      "sha256": "5109855ac184aa9f1649b01aec82911762803980895940f3573bdb74a943fd18",
+      "size_bytes": 101556
     },
     "tests/test_resource_telemetry.py": {
       "path": "tests/test_resource_telemetry.py",
@@ -482,9 +482,9 @@
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-      "revision": "1.1.29",
-      "sha256": "85672f4fdf9a765570b849249ad7e27423475d1ac63f8c604e8052f191d842b1",
-      "size_bytes": 60285
+      "revision": "1.1.30",
+      "sha256": "6240b3b9c0e3c7c47fcadd2d20ba2f9e56283f450bda661f053f79811e9431dc",
+      "size_bytes": 61684
     },
     "docs/components/STATUS_DASHBOARD_FLOW.md": {
       "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
@@ -493,6 +493,6 @@
       "size_bytes": 17303
     }
   },
-  "manifest_revision": "1.1.303",
-  "updated_at": "2026-10-22T02:25:00Z"
+  "manifest_revision": "1.1.304",
+  "updated_at": "2026-10-22T04:15:47Z"
 }
