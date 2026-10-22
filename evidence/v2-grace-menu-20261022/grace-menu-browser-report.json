@@ -1,0 +1,19 @@
+{
+  "browser": "Chrome/155.0.8059.84",
+  "mode": "isolated synthetic HTTPS fixture; no production/account calls",
+  "refresh_cycles": 12,
+  "elapsed_seconds": 60,
+  "menu_node_preserved": true,
+  "menu_remained_open": true,
+  "omitted_history_event_retained": true,
+  "scroll_position_preserved": true,
+  "composer_value_and_focus_preserved": true,
+  "copied_transcript_verified": true,
+  "work_order_post": {
+    "path": "/api/v1/resident/conversations/{conversation_id}/work-orders",
+    "source_sequence": 1,
+    "acceptance_criteria_count": 2,
+    "synthetic_receipt": true
+  },
+  "screenshot_sha256": "c83a6bafee8ddf84bfcf285c02758f2b32ebf268d386656b232f7667a5aba7a2"
+}

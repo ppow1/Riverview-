@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/workspace.css
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.8
+Revision: 1.0.9
 Purpose: Style the responsive V2 workspace and full-size authenticated Grace conversation
 Execution Model: Browser presentation stylesheet
 Observability: Responsive layout is checked by browser viewport tests
@@ -10,6 +10,7 @@ Dependencies: Browser CSS implementation; local static stylesheet only
 Inputs/Outputs: Shell DOM and viewport; visual layout
 Authority: Presentation only; no external asset, network, or state behavior
 Changed: 2026-10-20 UTC | RV-WEB-V2-GRACE-WORKSPACE-003 | Size Grace conversation for the center workspace on desktop and mobile
+Changed: 2026-10-22 UTC | RV-V2-GRACE-MESSAGE-ACTIONS-001 | Style persistent keyed message menus and the existing authorized work-order dialog
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -93,3 +94,6 @@ body,.topbar,.context-panel,.metric-card,.list-card,.conversation-card,.fixture-
 :root[data-theme="dark"] .live-conversation-badge{background:var(--surface);color:var(--ink)}
 @media(max-width:760px){.grace-workspace{min-height:calc(100dvh - 175px);gap:14px}.grace-workspace-heading{align-items:flex-start}.grace-workspace-heading h2{font-size:25px}.grace-chat{min-height:calc(100dvh - 280px);padding:13px}.grace-chat .conversation-title b{font-size:13px}#grace-chat-history{min-height:180px;padding:10px}.grace-chat-composer{gap:7px}.grace-chat-composer textarea{min-height:62px;padding:9px}.grace-chat-composer button{min-width:68px}.live-conversation-badge{padding:6px 8px}}
 @media(max-width:400px){.grace-workspace-heading{gap:8px}.live-conversation-badge{font-size:9px}.grace-chat-toolbar{flex-wrap:wrap}#grace-account-label{flex-basis:100%}}
+
+/* RV-V2-GRACE-MESSAGE-ACTIONS-001: stable in-transcript actions */
+.grace-message{position:relative;padding:10px 42px 10px 12px;border-bottom:1px solid var(--line)}.grace-message-actions{position:absolute;right:7px;top:7px}.grace-message-actions>summary{display:grid;place-items:center;width:30px;height:30px;list-style:none;border:1px solid var(--line);border-radius:7px;background:var(--surface,white);color:var(--ink);font-size:21px;cursor:pointer}.grace-message-actions>summary::-webkit-details-marker{display:none}.grace-message-menu{position:absolute;z-index:20;right:0;top:34px;min-width:210px;padding:5px;border:1px solid var(--line);border-radius:8px;background:var(--surface,white);box-shadow:var(--shadow);display:grid;gap:3px}.grace-message-menu button,.grace-work-order-actions button{border:0;border-radius:5px;padding:9px 10px;background:transparent;color:var(--ink);text-align:left;font:inherit;font-size:11px;cursor:pointer}.grace-message-menu button:hover,.grace-work-order-actions button:hover{background:var(--surface-soft,#f4f6f7)}.grace-work-order-dialog{width:min(620px,calc(100vw - 28px));max-height:min(85vh,760px);overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface,white);color:var(--ink);box-shadow:var(--shadow)}.grace-work-order-dialog::backdrop{background:rgba(18,29,37,.42)}.grace-work-order-dialog form{display:grid;gap:12px}.grace-work-order-dialog h3{margin:0;font-family:Georgia,serif;font-weight:500}.grace-work-order-dialog label{font-size:11px;font-weight:650}.grace-work-order-dialog pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--surface-soft,#f8fafa);font:inherit;font-size:11px}.grace-work-order-dialog textarea{width:100%;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:9px;background:var(--surface,white);color:var(--ink);font:inherit;font-size:12px}.grace-work-order-actions{display:flex;justify-content:flex-end;gap:8px}.grace-work-order-actions button:last-child{background:var(--teal);color:white}.grace-chat-action-status{min-height:1em}
