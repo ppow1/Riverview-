@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.29
+# Revision: 1.1.30
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SECOND-LIFECYCLE-CRITERION-CAPTURE-20261022 | Verify the second rejected target criterion is privately captured once.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify lifecycle criterion binding restores only a stripped structural bullet.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Verify actionable value-free diagnostics for proposal rejection stages.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Match the revised prompt's formal-criteria boundary.
@@ -55,6 +56,9 @@ from io import BytesIO
 from dataclasses import replace
 import json
 import logging
+import os
+import stat
+import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -138,6 +142,37 @@ class LocalReasoningProviderTests(unittest.TestCase):
         proposal = self.provider.propose(self.request)
         self.assertIsInstance(proposal, PlanProposal)
         self.assertEqual(proposal.system_owned_criteria, (criterion,))
+
+    @unittest.skipUnless(os.name == "posix", "capture permissions are POSIX-specific")
+    def test_second_lifecycle_capture_is_one_shot_and_private(self):
+        target = "objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1"
+        rejected = "A private second lifecycle criterion."
+        self.request = replace(self.request, assignment_id=target)
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Invalid lifecycle", "system_owned_criteria": [
+                "Create exactly one Engineering assignment.", rejected],
+            "steps": [{"step_id": "report", "objective": "Create report",
+                "acceptance_criteria": ["Complete report"], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.txt",
+                    "media_type": "text/plain", "acceptance_criteria": ["Complete report"]}]}]}))
+        with tempfile.TemporaryDirectory() as temporary:
+            os.chmod(temporary, 0o700)
+            trigger = os.path.join(temporary, "grace-lifecycle-criterion-index-one.trigger")
+            capture = os.path.join(temporary, "grace-lifecycle-criterion-index-one.json")
+            with open(trigger, "w", encoding="utf-8") as stream:
+                stream.write("capture-once")
+            os.chmod(trigger, 0o600)
+            with patch.dict(os.environ, {"RIVERVIEW_CODEX_STATE_DIR": temporary}):
+                result = self.provider.propose(self.request)
+                self.provider.propose(self.request)
+            self.assertEqual(result.detail_code, "PROPOSAL_SCHEMA_INVALID")
+            with open(capture, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            self.assertEqual(payload["criterion"], rejected)
+            self.assertEqual(payload["field_path"], "$.system_owned_criteria[1]")
+            self.assertEqual(stat.S_IMODE(os.stat(capture).st_mode), 0o600)
+            self.assertFalse(os.path.exists(trigger))
 
     @staticmethod
     def _response(*, served="fixture-model", finish="stop", tokens=9, text=None):
