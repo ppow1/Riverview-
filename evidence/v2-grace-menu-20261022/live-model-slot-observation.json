@@ -1,0 +1,42 @@
+{
+  "task": "RV-V2-WEBSITE-INTEGRATION-20261022",
+  "host": "OCTO1",
+  "source": "existing Dashboard collector read-only GETs: fixed llama.cpp /health, /v1/models, /slots endpoints",
+  "window_start_utc": "2026-10-22T19:53:38Z",
+  "window_end_utc": "2026-10-22T19:54:33Z",
+  "sample_count": 12,
+  "interval_seconds": 5,
+  "services": {
+    "grace-autonomic-0.6b": {
+      "ready_samples": 12,
+      "slot_count": 1,
+      "processing_samples": 0
+    },
+    "grace-reasoning-80b": {
+      "ready_samples": 12,
+      "slot_count": 1,
+      "processing_samples": 9,
+      "idle_samples": 3,
+      "processing_by_sample": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    "grace-vision-30b": {
+      "ready_samples": 12,
+      "slot_count": 8,
+      "processing_samples": 0
+    }
+  },
+  "limits": "These are measured server slot occupancy samples, not request attribution, token throughput, or browser graph acceptance. No requests were initiated."
+}

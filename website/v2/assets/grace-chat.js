@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.6
+Revision: 1.0.8
 Purpose: Connect V2 Grace chat and expose a content-free trace of its durable request lifecycle
 Execution Model: Interactive browser; request-driven reads/sends with durable response polling
 Observability: Visible auth/status plus request IDs, provider attempts, timestamps, and persistence state
@@ -11,6 +11,7 @@ Inputs/Outputs: Steward text and durable conversation events; message content is
 Authority: Exact resident.conversation.read/send grants are enforced by Dashboard on each request
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Expose only sanitized trace metadata from authenticated durable history
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Attach the owner-scoped content-free activity projection to same-conversation request traces.
+Changed: 2026-10-22 UTC | RV-V2-GRACE-MESSAGE-ACTIONS-001 | Keyed append-only history reconciliation preserves open action menus, scroll, and composer state; wire authorized work-order intake and transcript copy.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_grace_chat_chrome.py
 History: Git and revision/backup manifest
@@ -21,7 +22,7 @@ History: Git and revision/backup manifest
   const $ = (id) => document.getElementById(id);
   const root = $("grace-chat-root");
   if (!root) return;
-  const state = {connected: false, historyLoaded: false, conversationId: "", pending: new Set(), history: []};
+  const state = {connected: false, historyLoaded: false, conversationId: "", pending: new Set(), history: [], identity: null, workOrderSequence: null, historyInFlight: false};
   const HISTORY_KEY = "rv.grace.conversation";
   const errorNode = $("grace-chat-error");
   const statusNode = $("grace-chat-state");
@@ -85,28 +86,101 @@ History: Git and revision/backup manifest
     return Number.isNaN(date.valueOf()) ? "Timestamp unavailable" : `${date.toLocaleString()} · ${date.toISOString()}`;
   }
 
-  function render(events) {
-    state.history = Array.isArray(events) ? events : [];
-    historyNode.replaceChildren();
+  function render(events, {scrollToBottom = false, reset = false} = {}) {
+    const incoming = Array.isArray(events) ? events : [];
+    if (reset) state.history = incoming;
+    else {
+      const merged = new Map(state.history.map(event => [String(event.sequence ?? `${event.event_type}:${event.request_id || "unknown"}:${event.occurred_at || ""}`), event]));
+      incoming.forEach(event => merged.set(String(event.sequence ?? `${event.event_type}:${event.request_id || "unknown"}:${event.occurred_at || ""}`), event));
+      state.history = [...merged.values()].sort((left, right) => (Number(left.sequence) || 0) - (Number(right.sequence) || 0));
+    }
     const visible = state.history.filter((event) => ["user_message", "assistant_message", "response_failed", "response_interrupted", "response_deferred"].includes(event.event_type));
-    if (!visible.length) {
-      historyNode.textContent = "No saved messages yet. Send a message to start a durable conversation.";
-      return;
-    }
+    const previousScroll = historyNode.scrollTop;
+    const keyed = new Map(Array.from(historyNode.querySelectorAll(":scope > [data-history-key]")).map((item) => [item.dataset.historyKey, item]));
+    const wanted = new Set();
     for (const event of visible) {
-      const item = document.createElement("article");
+      const key = String(event.sequence ?? `${event.event_type}:${event.request_id || "unknown"}:${event.occurred_at || ""}`);
+      wanted.add(key);
+      let item = keyed.get(key);
+      if (!item) item = createMessage(event, key);
       item.className = `grace-message ${event.event_type === "user_message" ? "from-steward" : "from-grace"}`;
-      const role = document.createElement("b");
+      const role = item.querySelector("[data-message-role]");
       role.textContent = event.event_type === "user_message" ? "You" : event.event_type === "assistant_message" ? "Grace" : "Response status";
-      const meta = document.createElement("small");
-      meta.textContent = `Event ${Number.isInteger(event.sequence) ? event.sequence : "unknown"} · ${timeLabel(event.occurred_at)}`;
-      const content = document.createElement("p");
-      content.textContent = event.body || event.error_code || (event.event_type === "response_deferred" ? "Grace response deferred." : "No response text was recorded.");
-      item.append(role, meta, content);
-      historyNode.append(item);
+      item.querySelector("[data-message-meta]").textContent = `Event ${Number.isInteger(event.sequence) ? event.sequence : "unknown"} · ${timeLabel(event.occurred_at)}`;
+      item.querySelector("[data-message-content]").textContent = event.body || event.error_code || (event.event_type === "response_deferred" ? "Grace response deferred." : "No response text was recorded.");
+      item.dataset.sequence = Number.isInteger(event.sequence) ? String(event.sequence) : "";
+      item.querySelector("[data-create-work-order]").hidden = !(event.event_type === "user_message" && Number.isInteger(event.sequence) && state.identity?.roles?.includes("steward"));
+      item.querySelector("[data-create-work-order]").dataset.sequence = Number.isInteger(event.sequence) ? String(event.sequence) : "";
+      if (!keyed.has(key)) historyNode.append(item);
     }
-    historyNode.scrollTop = historyNode.scrollHeight;
+    if (reset) keyed.forEach((item, key) => { if (!wanted.has(key)) item.remove(); });
+    if (!visible.length && !historyNode.querySelector("[data-history-key]")) {
+      let empty = historyNode.querySelector("[data-history-empty]");
+      if (!empty) { empty = document.createElement("p"); empty.dataset.historyEmpty = "true"; historyNode.append(empty); }
+      empty.textContent = "No saved messages yet. Send a message to start a durable conversation.";
+    } else historyNode.querySelector("[data-history-empty]")?.remove();
+    // Preserve the viewport across background reconciliation. New messages only scroll when the user explicitly sent one.
+    historyNode.scrollTop = scrollToBottom ? historyNode.scrollHeight : previousScroll;
   }
+
+  function createMessage(event, key) {
+    const item = document.createElement("article"); item.dataset.historyKey = key;
+    const role = document.createElement("b"); role.dataset.messageRole = "true";
+    const meta = document.createElement("small"); meta.dataset.messageMeta = "true";
+    const content = document.createElement("p"); content.dataset.messageContent = "true";
+    const details = document.createElement("details"); details.className = "grace-message-actions";
+    const summary = document.createElement("summary"); summary.setAttribute("aria-label", "Conversation message actions"); summary.title = "Message actions"; summary.textContent = "⋯";
+    const menu = document.createElement("div"); menu.className = "grace-message-menu"; menu.setAttribute("role", "menu");
+    const copy = document.createElement("button"); copy.type = "button"; copy.setAttribute("role", "menuitem"); copy.setAttribute("data-copy-conversation", "true"); copy.textContent = "Copy Conversation Text";
+    const work = document.createElement("button"); work.type = "button"; work.setAttribute("role", "menuitem"); work.setAttribute("data-create-work-order", "true"); work.textContent = "Create Work Order…";
+    menu.append(copy, work); details.append(summary, menu); item.append(role, meta, content, details); return item;
+  }
+
+  function conversationText() {
+    return state.history.filter(event => ["user_message", "assistant_message"].includes(event.event_type))
+      .map(event => `${event.event_type === "user_message" ? "You" : "Grace"}: ${event.body || ""}`).join("\n\n");
+  }
+
+  async function copyText(value) {
+    if (!value) throw new Error("conversation_text_unavailable");
+    try { await navigator.clipboard.writeText(value); }
+    catch (_) { const box=document.createElement("textarea");box.value=value;box.setAttribute("readonly", "");box.style.position="fixed";box.style.opacity="0";document.body.append(box);box.select();const ok=document.execCommand("copy");box.remove();if(!ok)throw new Error("clipboard_unavailable"); }
+    $("grace-chat-action-status").textContent = "Conversation text copied.";
+  }
+
+  function closeMenus() { historyNode.querySelectorAll(".grace-message-actions[open]").forEach(menu => { menu.open = false; }); }
+  historyNode.addEventListener("click", async event => {
+    const copy = event.target.closest("[data-copy-conversation]");
+    const work = event.target.closest("[data-create-work-order]");
+    if (!copy && !work) return;
+    const row = event.target.closest("[data-history-key]");
+    if (copy) { try { await copyText(conversationText()); } catch (error) { $("grace-chat-action-status").textContent = `Copy failed (${safeError(error.message)}).`; } closeMenus(); return; }
+    const sequence = Number(work.dataset.sequence);
+    const source = state.history.find(item => item.event_type === "user_message" && item.sequence === sequence);
+    if (!source || !state.identity?.roles?.includes("steward")) { $("grace-chat-action-status").textContent = "A saved Steward message and Steward session are required."; closeMenus(); return; }
+    state.workOrderSequence = sequence;
+    $("grace-work-order-source").textContent = source.body || "";
+    $("grace-work-order-criteria").value = "";
+    $("grace-work-order-error").textContent = "";
+    $("grace-work-order-dialog").showModal(); closeMenus();
+  });
+  historyNode.addEventListener("toggle", event => { if (event.target.matches("details[open]")) historyNode.querySelectorAll("details[open]").forEach(menu => { if (menu !== event.target) menu.open = false; }); }, true);
+  document.addEventListener("rvv2:view", event => { if (event.detail?.view !== "grace") closeMenus(); });
+
+  $("grace-work-order-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!state.connected || !state.conversationId || !Number.isInteger(state.workOrderSequence)) return;
+    const submit = $("grace-work-order-submit"), errorNode = $("grace-work-order-error");
+    const criteria = $("grace-work-order-criteria").value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+    submit.disabled = true; errorNode.textContent = "Submitting through the existing Steward-authorized intake…";
+    try {
+      const result = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.conversationId)}/work-orders`, {method:"POST", body:{source_sequence:state.workOrderSequence, acceptance_criteria:criteria}});
+      $("grace-work-order-dialog").close(); $("grace-chat-action-status").textContent = `Objective ${safeError(result.objective_id || "recorded")} submitted (${safeError(result.status || "accepted")}). Execution still requires its existing authorization.`;
+      state.workOrderSequence = null;
+    } catch (error) { errorNode.textContent = `${safeError(error.payload?.error || error.message)} · no approval or execution is implied.`; }
+    finally { submit.disabled = false; }
+  });
+  document.querySelector("[data-close-work-order]").addEventListener("click", () => $("grace-work-order-dialog").close());
 
   function requestTraceFromEvents(events, observedAt) {
     const requests = new Map();
@@ -180,10 +254,13 @@ History: Git and revision/backup manifest
     }
   }
 
-  async function loadHistory() {
-    if (!state.connected) return;
+  async function loadHistory({scrollToBottom = false} = {}) {
+    if (!state.connected || state.historyInFlight) return;
+    state.historyInFlight = true;
     state.historyLoaded = false;
     clearError();
+    try {
+    const previousConversationId = state.conversationId;
     const page = await api("/api/v1/resident/conversations");
     const ids = (page.items || []).map((item) => item.conversation_id);
     if (!state.conversationId || !ids.includes(state.conversationId)) {
@@ -192,17 +269,18 @@ History: Git and revision/backup manifest
       else localStorage.removeItem(HISTORY_KEY);
     }
     if (!state.conversationId) {
-      render([]);
+      render([], {scrollToBottom, reset: previousConversationId !== ""});
       state.historyLoaded = true;
       setStatus("Connected · no saved conversation yet", "connected");
       return;
     }
     const record = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.conversationId)}`);
     if (record.conversation_id !== state.conversationId) throw new Error("conversation_identity_mismatch");
-    render(record.events || []);
+    render(record.events || [], {scrollToBottom, reset: previousConversationId !== state.conversationId});
     state.historyLoaded = true;
     setStatus(`Connected · ${state.history.length} durable events loaded`, "connected");
     resumePending(record.events || []);
+    } finally { state.historyInFlight = false; }
   }
 
   async function pollResponse(conversationId, requestId) {
@@ -239,6 +317,8 @@ History: Git and revision/backup manifest
 
   window.RiverviewGraceChat = {
     requestTraceSnapshot,
+    refreshHistory: () => loadHistory(),
+    menuState: () => ({open: historyNode.querySelector("details[open]") !== null, conversation_id: state.conversationId}),
     snapshotDiagnostics() {
       return {
         status: state.connected ? "connected" : (root.dataset.state || "checking"),
@@ -256,6 +336,7 @@ History: Git and revision/backup manifest
     setStatus("Checking Dashboard account and Grace grants…", "checking");
     try {
       const session = await api("/api/v1/auth/session");
+      state.identity = session.identity || null;
       if (!session.identity?.roles?.includes("steward")) throw new Error("steward_account_required");
       await api("/api/v1/resident/conversation-session", {method: "POST"});
       state.connected = true;
@@ -311,7 +392,7 @@ History: Git and revision/backup manifest
   $("grace-new").addEventListener("click", () => {
     state.conversationId = "";
     localStorage.removeItem(HISTORY_KEY);
-    render([]);
+    render([], {reset:true});
     setStatus("New conversation · the first message creates its durable history", "connected");
     $("grace-message").focus();
   });
@@ -335,7 +416,7 @@ History: Git and revision/backup manifest
       localStorage.setItem(HISTORY_KEY, state.conversationId);
       $("grace-message").value = "";
       setStatus("Message durably accepted · waiting for Grace", "pending");
-      await loadHistory();
+      await loadHistory({scrollToBottom:true});
       pollResponse(result.conversation_id, result.request_id);
     } catch (error) {
       showError(error);

@@ -2,12 +2,15 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.1",
-      "sha256": "f81497b43c1ef7094f5e2e8abad4534004bee34a488704073d83f956ff02d9a3",
-      "size_bytes": 424922
+      "revision": "1.0.6",
+      "sha256": "c89eaf4c986c6f7dd1a94b9edb2397d7101e5e44c9b9c8cf8b5832aef5b8d505",
+      "size_bytes": 444204
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.123"
+      "path": ".riverview-revisions.json",
+      "revision": "1.1.129",
+      "sha256": "56f7af1ee74ac25a058688bd9ee8392c159653c165da2bbfd17eeb42b7389c24",
+      "size_bytes": 32248
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -35,21 +38,21 @@
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
-      "revision": "1.0.29",
-      "sha256": "90d67cbbd0cff6b414475a42c9870b7afe8570e0e17ea2f338fd1edd53e209cb",
-      "size_bytes": 49153
+      "revision": "1.0.32",
+      "sha256": "b554a73f0b3a06bb25ea8f0af54672c183f9af26a0c7ed4fcb4591a0a82d9784",
+      "size_bytes": 53197
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
-      "revision": "1.0.21",
-      "sha256": "5719212f5c13c75ed320eddf91782bfcb951ecf69fe713c5b8507b4a6493ff14",
-      "size_bytes": 42249
+      "revision": "1.0.24",
+      "sha256": "716efc1a8c8bfbdd20e4998c20761b46e6ab899cfda3d0d231aed0ac1c8ee967",
+      "size_bytes": 45186
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
-      "revision": "1.0.22",
-      "sha256": "b740e842440b9d5f52ae375120df206949dd108edf4e3df554775660a1623a8c",
-      "size_bytes": 37481
+      "revision": "1.0.24",
+      "sha256": "dacc863a01676ea523af0ea4f69c41dae18561359a9cbd9c9fb314596fc2fcb4",
+      "size_bytes": 40035
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
@@ -104,6 +107,66 @@
       "revision": "1.0.1",
       "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
       "size_bytes": 548
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/artifacts.json": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/artifacts.json",
+      "revision": "1.0.0",
+      "sha256": "cef75522ecedf1eb8671f891bc2f40094cdb00d9837ee149af5a8b7e4a0b4e7b",
+      "size_bytes": 3022
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/browser-report.json": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "b4647cb3a00dfcb5204baef58f6e457d6efcf2b44a0c1456c0665633e988bf51",
+      "size_bytes": 9629
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-pending-refresh-fixture.png": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-pending-refresh-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "31d943dbe889d8a9d258270577993a99cd06b4c87ca4ca64931370d3344bfb71",
+      "size_bytes": 398428
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-recovered-fixture.png": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-recovered-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "95a044c159e87be093dba3f3c1f6e63840aa41b52c169ebb2b7e483a5611e600",
+      "size_bytes": 397865
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-stale-fixture.png": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-stale-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1665ee07788a5ab7c2d299db4c22eb3e58d6a0a6e6c7fb61cde8dd1d6a6b2891",
+      "size_bytes": 398126
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/octo1-80b-allocation-fixture.png": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-80b-allocation-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "897395ed70597e22b7c2e2d1954732102213401f8540132dd3592c1ba527b6c9",
+      "size_bytes": 420401
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/octo1-chassis-front-fixture.png": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-chassis-front-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "855be2bbed2745b3e906ebc12e5207a34bd8a48e655b373609cdf5aa8ede961f",
+      "size_bytes": 352147
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/octo1-chassis-open-fixture.png": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-chassis-open-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "68b426ba19ae19d283db664bca330addc0a368a4363c04e4e7cdce92878b8f70",
+      "size_bytes": 457061
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/octo1-front-fan-detail-fixture.png": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-front-fan-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1816f92569b867da517d4d6fc466fe2bb3e1341833fa2e42bd7ec2be23bea1c8",
+      "size_bytes": 405856
+    },
+    "evidence/checkouts/ISSUE-207/local-chrome/octo1-rtx4090-detail-fixture.png": {
+      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-rtx4090-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "ff51a51afa26c20df4aeaa1b838703492d87d972f6144f7c1b6871b8135db4eb",
+      "size_bytes": 413071
     },
     "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/artifacts.json": {
       "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/artifacts.json",
@@ -303,6 +366,25 @@
       "sha256": "4be125b6c9cbc7c1a213effdd34fb4dd7ac586cd196f2c9b9d9e7cf1546ade03",
       "size_bytes": 753
     },
+    "evidence/v2-grace-menu-20261022/grace-menu-browser-report.json": {
+      "evidence_type": "isolated_browser_fixture",
+      "path": "evidence/v2-grace-menu-20261022/grace-menu-browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "25f24b31f857a996471c5b13fd84197d7463029e2c29aae625e443b52868e4e4",
+      "size_bytes": 675
+    },
+    "evidence/v2-grace-menu-20261022/grace-menu-fixture.png": {
+      "path": "evidence/v2-grace-menu-20261022/grace-menu-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "e006edc08dab214bc9602a329be1abd3658c1a7a6093668e344a39abb048010f",
+      "size_bytes": 27102
+    },
+    "evidence/v2-grace-menu-20261022/live-model-slot-observation.json": {
+      "path": "evidence/v2-grace-menu-20261022/live-model-slot-observation.json",
+      "revision": "1.0.0",
+      "sha256": "1a2028095e07162b02482b61a7dff650ce12aa8b1998d6593af5a76dd0c2fc8e",
+      "size_bytes": 1049
+    },
     "process_graphs/assignment-scheduler/independent-claims.json": {
       "path": "process_graphs/assignment-scheduler/independent-claims.json",
       "revision": "1.0.4",
@@ -329,9 +411,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.63",
-      "sha256": "f9e1f09fe828a3cb9c55fda210373e398d11f5e308be3dd460a8124a670f54a7",
-      "size_bytes": 347673
+      "revision": "1.0.68",
+      "sha256": "ef643f012977f2749fddc3577e45ce4e4b7ca76ca448b6d07776798859bb32e1",
+      "size_bytes": 351079
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
@@ -371,9 +453,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.22",
-      "sha256": "a23ca02274fe06d67af1fb1ea6910a86a84021f346da4376065d8b7df9efb231",
-      "size_bytes": 86130
+      "revision": "1.0.24",
+      "sha256": "d9a4cc382bb8dbdeee8b3aaf1fd274bcc33259f9010fc405c0bc305d8dcc7f14",
+      "size_bytes": 89059
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -399,6 +481,12 @@
       "sha256": "f9576ede49fe6a9ce7ee20e9198f5c0ee52528d1ec23f02bc059817654d6e9fa",
       "size_bytes": 30113
     },
+    "scripts/verify_v2_grace_menu_chrome.cjs": {
+      "path": "scripts/verify_v2_grace_menu_chrome.cjs",
+      "revision": "1.0.2",
+      "sha256": "155a29112c54ab465ecdbdd825c24641dfc0bdf7549abc3bfef69aafc9cf4011",
+      "size_bytes": 11425
+    },
     "scripts/verify_v2_octo1_browser.cjs": {
       "path": "scripts/verify_v2_octo1_browser.cjs",
       "revision": "1.2.2",
@@ -407,9 +495,9 @@
     },
     "scripts/verify_v2_resource_monitor.cjs": {
       "path": "scripts/verify_v2_resource_monitor.cjs",
-      "revision": "1.4.0",
-      "sha256": "457f88f2bde827f8550c0e478d7cf6813c7f6660b3af86b7423e59fa562e8d20",
-      "size_bytes": 24343
+      "revision": "1.4.2",
+      "sha256": "82623675027371388b0554a83697faa3bb7a87a2a1b97159f5820c2b31c3dd02",
+      "size_bytes": 29689
     },
     "scripts/verify_v2_work_monitor.cjs": {
       "path": "scripts/verify_v2_work_monitor.cjs",
@@ -455,9 +543,9 @@
     },
     "website/v2/assets/grace-chat.js": {
       "path": "website/v2/assets/grace-chat.js",
-      "revision": "1.0.5",
-      "sha256": "732b062fea714bf70d2f1a0d325650140735fe5710777c6b9fbe2fd36d456a0e",
-      "size_bytes": 17235
+      "revision": "1.0.8",
+      "sha256": "39291c795aec0fcdcfd7a0601dbef38183a91fa76949ec3be6721dbce537d47f",
+      "size_bytes": 26000
     },
     "website/v2/assets/octominer/controller-feature-reference.png": {
       "copy_verified_byte_identical": true,
@@ -488,15 +576,15 @@
     },
     "website/v2/assets/resource-monitor.css": {
       "path": "website/v2/assets/resource-monitor.css",
-      "revision": "1.1.4",
-      "sha256": "e26bcfcb66e3621216b799ced2157e6d6fc3445f456170c0875590ca697c079e",
-      "size_bytes": 20621
+      "revision": "1.1.6",
+      "sha256": "f6cf2daa172480c5bd434677ec9dd156434767c49d91df109fbe67df31d90bf8",
+      "size_bytes": 22124
     },
     "website/v2/assets/resource-monitor.js": {
       "path": "website/v2/assets/resource-monitor.js",
-      "revision": "1.4.0",
-      "sha256": "c2d0e32b66f99ac05799946cdab9a60b55ae0b9302e20962a947e2e86fea518c",
-      "size_bytes": 54778
+      "revision": "1.4.2",
+      "sha256": "d928fccf3bf6c8fe3e586905fbfbbf0d660760045bb7e133c9f10d18a2c671f9",
+      "size_bytes": 67369
     },
     "website/v2/assets/snapshot.js": {
       "path": "website/v2/assets/snapshot.js",
@@ -516,6 +604,12 @@
       "sha256": "b618d8ef3a450d6910f3951abc8cb473fbe51e5f2828f10b06bf20c4fe450876",
       "size_bytes": 10017
     },
+    "website/v2/assets/workspace.css": {
+      "path": "website/v2/assets/workspace.css",
+      "revision": "1.0.9",
+      "sha256": "21916a960f004ec03e635d5e1e35f55ad09feb7cda3686b6323425ae152ea912",
+      "size_bytes": 23990
+    },
     "website/v2/assets/workspace.js": {
       "path": "website/v2/assets/workspace.js",
       "revision": "1.0.6",
@@ -524,70 +618,10 @@
     },
     "website/v2/index.html": {
       "path": "website/v2/index.html",
-      "revision": "1.0.16",
-      "sha256": "8ce7217dac9339a1ceb0e9ceb2d1655732ad91df317c9d933e0e74acec7d0f6e",
-      "size_bytes": 33467
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/artifacts.json": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/artifacts.json",
-      "revision": "1.0.0",
-      "sha256": "cef75522ecedf1eb8671f891bc2f40094cdb00d9837ee149af5a8b7e4a0b4e7b",
-      "size_bytes": 3022
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/browser-report.json": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/browser-report.json",
-      "revision": "1.0.0",
-      "sha256": "b4647cb3a00dfcb5204baef58f6e457d6efcf2b44a0c1456c0665633e988bf51",
-      "size_bytes": 9629
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-pending-refresh-fixture.png": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-pending-refresh-fixture.png",
-      "revision": "1.0.0",
-      "sha256": "31d943dbe889d8a9d258270577993a99cd06b4c87ca4ca64931370d3344bfb71",
-      "size_bytes": 398428
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-recovered-fixture.png": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-recovered-fixture.png",
-      "revision": "1.0.0",
-      "sha256": "95a044c159e87be093dba3f3c1f6e63840aa41b52c169ebb2b7e483a5611e600",
-      "size_bytes": 397865
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-stale-fixture.png": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/gpu-cards-stale-fixture.png",
-      "revision": "1.0.0",
-      "sha256": "1665ee07788a5ab7c2d299db4c22eb3e58d6a0a6e6c7fb61cde8dd1d6a6b2891",
-      "size_bytes": 398126
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/octo1-80b-allocation-fixture.png": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-80b-allocation-fixture.png",
-      "revision": "1.0.0",
-      "sha256": "897395ed70597e22b7c2e2d1954732102213401f8540132dd3592c1ba527b6c9",
-      "size_bytes": 420401
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/octo1-chassis-front-fixture.png": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-chassis-front-fixture.png",
-      "revision": "1.0.0",
-      "sha256": "855be2bbed2745b3e906ebc12e5207a34bd8a48e655b373609cdf5aa8ede961f",
-      "size_bytes": 352147
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/octo1-chassis-open-fixture.png": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-chassis-open-fixture.png",
-      "revision": "1.0.0",
-      "sha256": "68b426ba19ae19d283db664bca330addc0a368a4363c04e4e7cdce92878b8f70",
-      "size_bytes": 457061
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/octo1-front-fan-detail-fixture.png": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-front-fan-detail-fixture.png",
-      "revision": "1.0.0",
-      "sha256": "1816f92569b867da517d4d6fc466fe2bb3e1341833fa2e42bd7ec2be23bea1c8",
-      "size_bytes": 405856
-    },
-    "evidence/checkouts/ISSUE-207/local-chrome/octo1-rtx4090-detail-fixture.png": {
-      "path": "evidence/checkouts/ISSUE-207/local-chrome/octo1-rtx4090-detail-fixture.png",
-      "revision": "1.0.0",
-      "sha256": "ff51a51afa26c20df4aeaa1b838703492d87d972f6144f7c1b6871b8135db4eb",
-      "size_bytes": 413071
+      "revision": "1.0.17",
+      "sha256": "857faf5c1b93b17d5e5c3bcc4e4cabc55b803d1b3a853507ae154ecee0fdb8a7",
+      "size_bytes": 35443
     }
   },
-  "manifest_revision": "1.1.123"
+  "manifest_revision": "1.1.126"
 }

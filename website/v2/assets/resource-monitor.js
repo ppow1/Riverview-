@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/resource-monitor.js
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.4.1
+Revision: 1.4.2
 Purpose: Present an interactive manufacturer chassis reference with OCTO1 telemetry and a sanitized Grace request trace
 Execution Model: Same-origin authenticated GETs; five-second polling only while the Resources view is open and visible
 Observability: Source timestamps, freshness, bounded five-minute hardware and model-rate timelines, and request-correlated conversation events
@@ -14,6 +14,7 @@ Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Add physical front-pan
 Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Retain last successful telemetry and update keyed GPU cards in place during refresh
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Add in-place VRAM bars, measured provider response-rate graphs, slot context details, and four-item activity paging
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Plot content-free, timestamped streamed-character cadence separately from completed token throughput.
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Render unique host-mounted capacity through the existing authenticated telemetry projection, preserving unavailable/stale states.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_resource_monitor.cjs; scripts/verify_v2_octo1_browser.cjs
 History: Git and .riverview-backups/manifest.jsonl
@@ -51,7 +52,7 @@ History: Git and .riverview-backups/manifest.jsonl
   };
   const node = (name, className, value) => { const e=document.createElement(name); if(className)e.className=className; if(value!==undefined)e.textContent=String(value); return e; };
   const addRow = (dl,label,value) => { const row=node("div");row.append(node("dt","",label),node("dd","",value));dl.append(row); };
-  const hostLabel = (id) => ({camrui:"Camrui",octominer1:"OCTO1",octominer2:"OCTO2"}[id]||"Unverified host");
+  const hostLabel = (id) => ({camrui:"Camrui",octominer1:"OCTO1",octominer2:"OCTO2","windows-development":"Windows development machine"}[id]||"Unverified host");
   const serviceLabel = (id) => ({"grace-reasoning-80b":"Grace reasoning 80B","grace-vision-30b":"Grace vision 30B","grace-autonomic-0.6b":"Grace autonomic 0.6B"}[id]||id.replaceAll("-"," "));
   const amount = (v,suffix="") => typeof v==="number"&&Number.isFinite(v)?`${v.toLocaleString()}${suffix}`:"Unavailable";
   const bytes = (v) => { if(!Number.isSafeInteger(v)||v<0)return "Unavailable";let n=v,u=0;const units=["B","KiB","MiB","GiB"];while(n>=1024&&u<units.length-1){n/=1024;u++;}return `${n.toFixed(u?1:0)} ${units[u]}`; };
@@ -291,12 +292,54 @@ History: Git and .riverview-backups/manifest.jsonl
     cards.querySelectorAll(":scope > [data-resource-inference-card]").forEach(card=>{if(!seenServices.has(card.dataset.resourceInferenceCard)){const badge=card.querySelector("[data-inference-badge]");badge.textContent="STALE · SERVICE NOT RETURNED";badge.dataset.state="stale";card.dataset.state="stale";}});
     if(!hosts.childElementCount)hosts.append(node("p","","No verified host measurements are available."));if(!cards.childElementCount)cards.append(node("p","","No inference endpoints are verified."));
   };
+  const renderStorage = () => {
+    const root=$("resource-storage-hosts"),stateTag=$("resource-storage-state"),summary=$("resource-storage-summary");
+    if(!root||!stateTag||!summary)return;
+    const hosts=Array.isArray(state.telemetry?.hosts)?state.telemetry.hosts:[];
+    if(!hosts.length){stateTag.textContent=state.telemetryError?"UNAVAILABLE":"NOT OBSERVED";stateTag.dataset.state=state.telemetryError?"unavailable":"unknown";summary.textContent="No authenticated storage observation is available. Capacity is not assumed to be zero.";return;}
+    const seenHosts=new Set(),unique=new Map();
+    hosts.slice(0,8).forEach(host=>{
+      if(!host||typeof host.host_id!=="string")return;
+      seenHosts.add(host.host_id);
+      const storage=host.storage&&typeof host.storage==="object"?host.storage:{state:"unavailable",volumes:[]};
+      if(storage.state==="healthy"&&Array.isArray(storage.volumes))storage.volumes.slice(0,64).forEach(volume=>{
+        if(!volume||typeof volume.filesystem_id!=="string"||!volume.filesystem_id||unique.has(volume.filesystem_id))return;
+        const valid=[volume.total_bytes,volume.used_bytes,volume.available_bytes].every(value=>Number.isSafeInteger(value)&&value>=0)&&volume.total_bytes>0&&volume.used_bytes<=volume.total_bytes&&volume.available_bytes<=volume.total_bytes;
+        if(valid)unique.set(volume.filesystem_id,{host,volume});
+      });
+      let card=directChild(root,"storageHost",host.host_id);
+      if(!card){card=node("article","storage-host");card.dataset.storageHost=host.host_id;const head=node("div","storage-host-head"),title=node("h4","",hostLabel(host.host_id)),badge=node("span","resource-tag");badge.dataset.storageBadge="";head.append(title,badge);const list=node("div","storage-volume-list");list.dataset.storageVolumes="";card.append(head,list);root.append(card);}
+      const badge=card.querySelector("[data-storage-badge]"),volumes=Array.isArray(storage.volumes)?storage.volumes:[];
+      const hostFresh=storage.observed_at&&Date.now()-Date.parse(storage.observed_at)<=Number(state.telemetry.freshness_window_seconds||30)*1000;
+      badge.textContent=state.telemetryError?"STALE":storage.state==="healthy"?(hostFresh?"MEASURED":"STALE"):String(storage.state||"unavailable").replaceAll("_"," ").toUpperCase();badge.dataset.state=state.telemetryError||!hostFresh?"stale":storage.state;
+      const list=card.querySelector("[data-storage-volumes]"),existing=new Map(Array.from(list.querySelectorAll(":scope > [data-volume-key]")).map(item=>[item.dataset.volumeKey,item]));
+      const validRows=[],rowsSeen=new Set();
+      if(storage.state==="healthy")for(const volume of volumes){if(!volume||typeof volume.filesystem_id!=="string"||!unique.has(volume.filesystem_id)||rowsSeen.has(volume.filesystem_id))continue; if(unique.get(volume.filesystem_id).host.host_id!==host.host_id)continue;rowsSeen.add(volume.filesystem_id);validRows.push(volume);}
+      validRows.forEach(volume=>{
+        const key=volume.filesystem_id;let row=existing.get(key);
+        if(!row){row=node("div","storage-volume");row.dataset.volumeKey=key;row.append(node("b","storage-volume-title"),node("span","storage-volume-usage"),node("small","storage-volume-observed"));list.append(row);}
+        const mount=typeof volume.mount_point==="string"?volume.mount_point:"Mount point unavailable",filesystem=typeof volume.filesystem_type==="string"?volume.filesystem_type:"Filesystem unavailable";
+        row.querySelector(".storage-volume-title").textContent=`${mount} · ${filesystem}${volume.device_id?` · ${volume.device_id}`:""}`;
+        row.querySelector(".storage-volume-usage").textContent=`${bytes(volume.used_bytes)} used · ${bytes(volume.available_bytes)} available · ${bytes(volume.total_bytes)} total (${Number(volume.percent_used).toFixed(1)}% used)`;
+        row.querySelector(".storage-volume-observed").textContent=`Last successful measurement: ${visibleTime(volume.observed_at||storage.observed_at)}`;
+        existing.delete(key);
+      });
+      existing.forEach(item=>item.remove());
+      let message=list.querySelector(":scope > [data-storage-unavailable]");
+      if(!validRows.length){if(!message){message=node("p","storage-unavailable");message.dataset.storageUnavailable="true";list.append(message);}message.textContent=storage.state==="healthy"?"No unique supported mounted volume was returned.":`Capacity unavailable · ${safeState(storage.state||"unavailable").replaceAll("_"," ")}${storage.error_code?` (${safeError(storage.error_code)})`:""}.`;}else message?.remove();
+    });
+    root.querySelectorAll(":scope > [data-storage-host]").forEach(card=>{if(!seenHosts.has(card.dataset.storageHost)){const badge=card.querySelector("[data-storage-badge]");badge.textContent="NOT RETURNED · STALE";badge.dataset.state="stale";}});
+    const totals=[...unique.values()].reduce((sum,item)=>({total:sum.total+item.volume.total_bytes,used:sum.used+item.volume.used_bytes,available:sum.available+item.volume.available_bytes}),{total:0,used:0,available:0});
+    const count=unique.size,allHosts=hosts.length>=4,anyUnavailable=hosts.some(host=>host.storage?.state!=="healthy"),stale=hosts.some(host=>host.storage?.state==="healthy"&&(!host.storage.observed_at||Date.now()-Date.parse(host.storage.observed_at)>Number(state.telemetry.freshness_window_seconds||30)*1000));
+    stateTag.textContent=stale?"STALE":count?(anyUnavailable?"PARTIAL · MEASURED":"MEASURED"):(state.telemetryError?"STALE · UNAVAILABLE":"UNAVAILABLE");stateTag.dataset.state=stale?"stale":count?(anyUnavailable||!allHosts?"partial":"healthy"):"unavailable";
+    summary.textContent=count?`${bytes(totals.available)} available · ${bytes(totals.used)} used · ${bytes(totals.total)} total across ${count} unique measured filesystem(s). Duplicate views are excluded; unavailable hosts are not counted.`:"No supported mounted volumes were measured. Offline hosts and unavailable capacity are not treated as zero.";
+  };
   const applyFilters=()=>{const filter=$("resource-filter")?.value||"all",search=($("resource-search")?.value||"").trim().toLowerCase();document.querySelectorAll("[data-resource-card]").forEach(card=>{const kind=filter==="all"||card.dataset.resourceKind===filter,match=!search||`${card.dataset.search||""} ${card.textContent||""}`.toLowerCase().includes(search);card.hidden=!(kind&&match);});};
   const render=()=>{
     const labels={"not-checked":"NOT CHECKED",checking:"CHECKING",partial:"PARTIAL","authentication-required":"SIGN-IN REQUIRED",unavailable:"UNAVAILABLE",denied:"ACCESS DENIED"};tag("resource-source-state",state.status,labels[state.status]||state.status.toUpperCase());const root=$("resource-monitor-workspace");if(root)root.dataset.state=state.status;const refresh=$("resource-refresh");if(refresh)refresh.disabled=state.inFlight;
     const projection=state.dashboardStatus?.projection_status,source=$("resource-dashboard-state");if(source){const label=projection==="healthy"?"AVAILABLE":projection==="not_initialized"?"NOT INITIALIZED":projection==="unavailable"?"UNAVAILABLE":state.status==="checking"?"CHECKING":state.status==="authentication-required"?"SIGN-IN REQUIRED":state.status==="denied"?"ACCESS DENIED":"NOT CHECKED";source.textContent=label;source.dataset.state=projection||state.status;}
     text("resource-refresh-status",state.status==="not-checked"?"Open Resources to read current host and model-server telemetry through the authenticated Dashboard.":state.status==="checking"?"Refreshing authenticated host and model-server readings…":state.status==="partial"?"Authorized sources responded. The OCTO1 view shows measured, stale, and unavailable states separately.":state.status==="authentication-required"?"Sign in through the existing Dashboard account session. No credentials are requested here.":state.status==="denied"?"The Dashboard denied this read. Existing access controls remain in force.":state.status==="unavailable"?`Dashboard telemetry is unavailable (${state.error||"source_error"}). No values are inferred.`:"Resource telemetry is not available in this context.");
-    text("resource-dashboard-observed",state.observedAt?`Dashboard projection observed at ${visibleTime(state.observedAt)} · freshness ${state.freshness}.`:"No Dashboard observation has been received.");text("resource-worker-summary",state.dashboardStatus?workerSummary(state.dashboardStatus.workers):"Unavailable");text("resource-assignment-summary",state.dashboardStatus?assignmentSummary(state.dashboardStatus):"Unavailable");text("resource-cme-summary",state.dashboardStatus?safeState(state.dashboardStatus.cme?.status).replaceAll("_"," "):"Unavailable");text("resource-grace-summary",state.dashboardStatus?safeState(state.dashboardStatus.grace_execution?.status).replaceAll("_"," "):"Unavailable");text("resource-diagnostic-source",state.telemetry?"authenticated same-origin Dashboard telemetry API · read-only GET":"not connected");text("resource-diagnostic-freshness",state.freshness);text("resource-diagnostic-checked",visibleTime(state.checkedAt));text("resource-diagnostic-error",state.error||state.telemetryError||"none");renderOctoConsole();renderTelemetry();applyFilters();
+    text("resource-dashboard-observed",state.observedAt?`Dashboard projection observed at ${visibleTime(state.observedAt)} · freshness ${state.freshness}.`:"No Dashboard observation has been received.");text("resource-worker-summary",state.dashboardStatus?workerSummary(state.dashboardStatus.workers):"Unavailable");text("resource-assignment-summary",state.dashboardStatus?assignmentSummary(state.dashboardStatus):"Unavailable");text("resource-cme-summary",state.dashboardStatus?safeState(state.dashboardStatus.cme?.status).replaceAll("_"," "):"Unavailable");text("resource-grace-summary",state.dashboardStatus?safeState(state.dashboardStatus.grace_execution?.status).replaceAll("_"," "):"Unavailable");text("resource-diagnostic-source",state.telemetry?"authenticated same-origin Dashboard telemetry API · read-only GET":"not connected");text("resource-diagnostic-freshness",state.freshness);text("resource-diagnostic-checked",visibleTime(state.checkedAt));text("resource-diagnostic-error",state.error||state.telemetryError||"none");renderOctoConsole();renderTelemetry();renderStorage();applyFilters();
   };
   const refreshData=async()=>{
     if(state.inFlight)return;if(location.protocol!=="https:"||!location.pathname.startsWith("/v2/")){state.status="unavailable";state.error="lan_https_preview_required";state.inFlight=false;render();return;}

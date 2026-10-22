@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.22",
+  "graph_revision": "1.0.24",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -26,7 +26,8 @@
     "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
     "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
     "website/v2/assets/octominer/controller-feature-reference.png",
-    "src/riverview_core/status_dashboard/server.py"
+    "src/riverview_core/status_dashboard/server.py",
+    "scripts/verify_v2_grace_menu_chrome.cjs"
   ],
   "documentation_references": [
     "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
@@ -1494,6 +1495,55 @@
       "verification_evidence": [
         "scripts/verify_v2_resource_monitor.cjs"
       ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-keyed-history-actions",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Reconcile durable conversation events by sequence key; preserve open menu, scroll, input and focus during background refresh",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_grace_menu_chrome.cjs",
+        "evidence/v2-grace-menu-20261022/grace-menu-browser-report.json"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-authorized-work-order-action",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Submit a selected persisted Steward event through the existing grant-checked conversation work-order API; objective intake does not approve execution",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_grace_menu_chrome.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:resource-storage-summary",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Render unique measured host storage and truthful unavailable states from the authenticated telemetry projection",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "evidence/v2-grace-menu-20261022/live-model-slot-observation.json"
+      ]
     }
   ],
   "edges": [
@@ -2229,6 +2279,24 @@
       "to": "rv:riverview-v2:workspace-shell:native-live-output-counter-unavailable",
       "type": "diagnostic_branch",
       "label": "Keep native generated tokens per second unavailable because model server exposes no output counter"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:grace-keyed-history-actions",
+      "type": "runtime_transition",
+      "label": "Grace view reconciles authenticated durable history without replacing stable message nodes"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-keyed-history-actions",
+      "to": "rv:riverview-v2:workspace-shell:grace-authorized-work-order-action",
+      "type": "runtime_transition",
+      "label": "Steward selects a saved source event; existing Dashboard authorization remains authoritative"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:resource-storage-summary",
+      "type": "runtime_transition",
+      "label": "Render host volumes and aggregate distinct filesystem identifiers"
     }
   ]
 }

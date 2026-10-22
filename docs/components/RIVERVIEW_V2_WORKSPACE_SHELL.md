@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.30
+File Revision: 1.0.32
 Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Connect authenticated Hardware view to host telemetry.
@@ -10,6 +10,9 @@ Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Integrate Work over th
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Add interactive OCTO1 topology and a source-bounded live activity view
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Read a content-free trace from the authorized durable Grace conversation API
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Render supplied X12 Ultra manufacturer references with interactive, source-bounded selections
+Changed: 2026-10-22 UTC | RV-V2-GRACE-MESSAGE-ACTIONS-001 | Document stable keyed history reconciliation, transcript copy, and authorized conversation objective intake.
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Document unique measured storage aggregation and explicit unconfigured host capacity.
+Changed: 2026-10-22 UTC | RV-V2-WEBSITE-INTEGRATION-20261022 | Record read-only 12-sample model slot observation and request-attribution limit.
 Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Keep measured GPU cards mounted during five-second refresh; mark retained samples stale on source failure
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document VRAM bars, measured router response-rate traces, slot context, and bounded activity paging
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Document content-free live streamed-character cadence and native token-counter limitation.
@@ -266,3 +269,13 @@ Chassis fan RPM/PWM/control mode/targets, environmental sensors, PSU telemetry, 
 The four supplied references are now available. The original manufacturer X12 Ultra front/open-chassis artwork is included unchanged at `website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png`; the original watchdog/fan-controller and feature references are included unchanged as `smart-watchdog-fan-controller-reference.png` and `controller-feature-reference.png`. Their recorded SHA-256 values and sizes are in `.riverview-revisions.json`. The earlier Hardware Operations Dashboard concept is used only as visual direction and is not copied into the live asset set or used as physical geometry.
 
 The chassis stage supports front-panel and open-chassis views with selectable five-fan visual positions and front display/control area. Selecting the 80B/30B model or corresponding GPU highlights only the dynamic host process-to-GPU telemetry mapping. No host GPU device is placed on an internal physical bay because no device-to-riser map has been verified. Fan selection labels left-to-right visual position, not controller channel. Controller installation, fan RPM/PWM, sensors, PSU, and watchdog data remain explicitly unavailable; reference illustrations do not establish OCTO1 hardware identity. This is a static read-only V2 visualization. The existing five-second GPU timeline and authorized content-free Grace request trace are preserved as separate evidence channels; server-side request/GPU attribution remains unavailable. Visual browser captures use a clearly marked synthetic fixture and are not live OCTO1 readings or deployment acceptance.
+
+### Stable conversation actions and refresh behavior
+
+Persisted events are reconciled by their durable sequence key. Background history refresh updates role, event time, and body in the existing message nodes instead of replacing the transcript. This preserves open native details menus, scroll offset, conversation identity, and composer value/focus. Menu state is closed only by selection/dismissal or leaving the Grace view. **Copy Conversation Text** copies durable user and Grace messages in chronological order and excludes system status/error events. **Create Work Order** is shown only for a persisted Steward message in a Steward account session and submits `{source_sequence, acceptance_criteria}` to the existing `POST /api/v1/resident/conversations/{conversation_id}/work-orders` path. The server still validates account authority, exact conversation grants, ownership, and idempotency. A returned objective intake receipt is not an execution approval. The menu placement on a conversation message is a temporary UX choice; the follow-up should place the action on an approved proposal revision without changing this existing backend authorization contract.
+
+### Mounted storage capacity
+
+The Resources view displays host-scoped measured mounts from the same authenticated resource telemetry API. It reports mount/device/filesystem identifiers when available, total/used/available bytes, percent used, and last successful observation. The aggregate sums unique `filesystem_id` values only. Host aliases and duplicate filesystem views are not counted twice. The current collector measures Camrui locally and OCTO1 through the restricted existing host command. Windows development and OCTO2 are listed but remain unavailable until their authorized read-only collection path is commissioned; offline or unconfigured storage is never shown as zero. The section performs no disk writes and provides no migration, deletion, or model movement controls.
+
+**Read-only source observation (2026-10-22 19:53:38–19:54:33 UTC):** Twelve five-second reads of the already-configured model health/model/slot APIs observed all three model services ready; the 80B reported one active slot on nine samples and zero on three. The 0.6B and 30B slot counts remained idle. This establishes that the API source provides changing in-progress occupancy; it does not identify a request or establish characters/tokens per second. The live request-cadence graph remains dependent on the authenticated owner-session stream-activity projection and was not observed in an authenticated browser for this task.
