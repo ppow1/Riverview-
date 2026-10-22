@@ -85,6 +85,7 @@ from riverview_core.resident_execution.operational_context import GraceOperation
 from riverview_core.resident_execution.internal_tools import GraceInternalTools
 from riverview_core.doorbell.runtime import (DoorbellRuntimeConfigurationError,
     create_configured_doorbell_worker)
+from riverview_core.diagnostics import configure_component_logging
 
 
 def resident_reasoning_timeout(environ):
@@ -264,6 +265,7 @@ def reconcile_codex_startup_recovery(execution_action, recovery, *, scope_ref, w
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    configure_component_logging()
     ledger = adapter = authority_registry = conversation_store = proposal_registry = None
     source_worker_adapter = None
     try:

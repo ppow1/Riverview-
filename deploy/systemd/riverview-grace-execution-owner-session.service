@@ -39,7 +39,9 @@ Environment=RIVERVIEW_CODEX_TIMEOUT_SECONDS=180
 Environment=RIVERVIEW_GRACE_POLL_SECONDS=1
 Environment=RIVERVIEW_GRACE_MAX_DISPATCH_FAILURES=3
 Environment=RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES=3
+Environment=RIVERVIEW_DIAGNOSTICS_MODE=NORMAL
 EnvironmentFile=/etc/riverview/grace-execution.env
+EnvironmentFile=-/etc/riverview/grace-diagnostics.env
 LoadCredential=pgpass:/etc/riverview/pgpass
 LoadCredential=dispatch-token:/etc/riverview/worker/grace-dispatch.credential
 LoadCredential=worker-token:/etc/riverview/worker/grace-executor.credential
@@ -53,6 +55,8 @@ StateDirectoryMode=0700
 ExecStart=/opt/riverview-core/.venv/bin/python /opt/riverview-grace-execution/current/scripts/run_grace_execution_service.py
 Restart=on-failure
 RestartSec=3s
+StandardOutput=journal
+StandardError=journal
 UMask=0077
 NoNewPrivileges=yes
 ProtectSystem=strict
