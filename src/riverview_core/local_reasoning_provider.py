@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.27
-# Changed: 2026-10-22 UTC | RV-W4-GRACE-SECOND-LIFECYCLE-CRITERION-CAPTURE-20261022 | Add one-shot private capture for the next rejected target lifecycle criterion.
+# Revision: 1.3.28
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CLASSIFICATION-20261022 | Bind exact original non-lifecycle criteria to the sole engineering step and remove temporary capture.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Restore only stripped structural list markers from original lifecycle criteria and remove temporary capture.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CRITERION-CAPTURE-20261022 | Add one-shot protected capture for one rejected target lifecycle criterion.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Emit correlated schema rejection paths and safe type diagnostics.
@@ -55,13 +55,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import ipaddress
 import json
 import logging
 import os
-from pathlib import Path
-import stat
 import threading
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
@@ -73,57 +71,6 @@ from .resident_reasoning import (ArtifactRequirement, ExternalEscalationIntent, 
 from .resident_execution.grace_role_context import build_grace_role_context
 
 LOG = logging.getLogger(__name__)
-
-_TEMP_CAPTURE_ASSIGNMENT_ID = (
-    "objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1")
-_TEMP_CAPTURE_TRIGGER = "grace-lifecycle-criterion-index-one.trigger"
-_TEMP_CAPTURE_RESULT = "grace-lifecycle-criterion-index-one.json"
-
-
-def _capture_second_rejected_criterion_once(request, criterion):
-    if request.assignment_id != _TEMP_CAPTURE_ASSIGNMENT_ID:
-        return
-    state_dir = Path(os.environ.get(
-        "RIVERVIEW_CODEX_STATE_DIR", "/var/lib/riverview-grace-owner-session"))
-    try:
-        if not state_dir.is_absolute() or not isinstance(criterion, str) or len(criterion) > 1000:
-            return
-        directory = state_dir.stat()
-        if (not stat.S_ISDIR(directory.st_mode)
-                or stat.S_IMODE(directory.st_mode) & 0o077
-                or (hasattr(os, "geteuid") and directory.st_uid != os.geteuid())):
-            return
-        trigger = state_dir / _TEMP_CAPTURE_TRIGGER
-        result = state_dir / _TEMP_CAPTURE_RESULT
-        trigger_info = trigger.lstat()
-        if (not stat.S_ISREG(trigger_info.st_mode) or result.exists()
-                or (hasattr(os, "geteuid") and trigger_info.st_uid != os.geteuid())):
-            return
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= os.O_NOFOLLOW
-        descriptor = os.open(result, flags, 0o600)
-        try:
-            payload = json.dumps({
-                "assignment_id": request.assignment_id,
-                "request_id": request.request_id,
-                "correlation_id": request.correlation_id,
-                "field_path": "$.system_owned_criteria[1]",
-                "criterion": criterion,
-            }, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-            if len(payload) > 4096:
-                return
-            with os.fdopen(descriptor, "wb") as stream:
-                descriptor = -1
-                stream.write(payload)
-                stream.flush()
-                os.fsync(stream.fileno())
-            trigger.unlink()
-        finally:
-            if descriptor >= 0:
-                os.close(descriptor)
-    except (OSError, TypeError, ValueError):
-        return
 
 def _json_type(value):
     if value is _MISSING:
@@ -692,13 +639,34 @@ class LocalReasoningProvider:
                             lifecycle_evidence_event(criterion)]
                     canonicalized.append(matches[0] if len(matches) == 1 else criterion)
                 lifecycle_criteria = tuple(canonicalized)
+            mapped_lifecycle_criteria = []
+            step_criteria = {criterion for step in steps
+                             for criterion in step.acceptance_criteria}
             for index, item in enumerate(lifecycle_criteria):
-                if not isinstance(item, str) or lifecycle_evidence_event(item) is None:
-                    if index == 1 and isinstance(item, str):
-                        _capture_second_rejected_criterion_once(request, item)
+                if not isinstance(item, str):
                     return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
                         "lifecycle_criteria", f"$.system_owned_criteria[{index}]",
                         "string mapping to a lifecycle evidence event", item)
+                if lifecycle_evidence_event(item) is not None:
+                    mapped_lifecycle_criteria.append(item)
+                    continue
+                exact_original = (isinstance(original_criteria, (list, tuple))
+                                  and original_criteria.count(item) == 1)
+                if not exact_original:
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "lifecycle_criteria", f"$.system_owned_criteria[{index}]",
+                        "string mapping to a lifecycle evidence event or exact original criterion",
+                        item)
+                if item not in step_criteria:
+                    if len(steps) != 1:
+                        return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                            "lifecycle_criteria", f"$.system_owned_criteria[{index}]",
+                            "exact original non-lifecycle criterion bound to an unambiguous step",
+                            item)
+                    steps[0] = replace(steps[0],
+                        acceptance_criteria=(*steps[0].acceptance_criteria, item))
+                    step_criteria.add(item)
+            lifecycle_criteria = tuple(mapped_lifecycle_criteria)
             try:
                 return PlanProposal(plan["summary"], tuple(steps), completion_tokens,
                     provider_id=self.provider_id, served_model=served_model,

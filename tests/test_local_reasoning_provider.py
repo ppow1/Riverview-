@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.30
-# Changed: 2026-10-22 UTC | RV-W4-GRACE-SECOND-LIFECYCLE-CRITERION-CAPTURE-20261022 | Verify the second rejected target criterion is privately captured once.
+# Revision: 1.1.31
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CLASSIFICATION-20261022 | Verify exact original non-lifecycle criteria bind to one step and invented criteria remain rejected.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify lifecycle criterion binding restores only a stripped structural bullet.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Verify actionable value-free diagnostics for proposal rejection stages.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Match the revised prompt's formal-criteria boundary.
@@ -56,9 +56,6 @@ from io import BytesIO
 from dataclasses import replace
 import json
 import logging
-import os
-import stat
-import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -143,36 +140,46 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIsInstance(proposal, PlanProposal)
         self.assertEqual(proposal.system_owned_criteria, (criterion,))
 
-    @unittest.skipUnless(os.name == "posix", "capture permissions are POSIX-specific")
-    def test_second_lifecycle_capture_is_one_shot_and_private(self):
-        target = "objective:grace-conversation:8416c5da-bde5-5294-9276-c0163418fae1"
-        rejected = "A private second lifecycle criterion."
-        self.request = replace(self.request, assignment_id=target)
+    def test_unmapped_exact_original_criterion_is_bound_to_single_step(self):
+        lifecycle = "- Create exactly one Engineering assignment for the report."
+        path_constraint = "- Use the authorized artifact destination recorded in the work order."
+        deliverable = "- Create report.txt."
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [lifecycle, path_constraint, deliverable],
+        })
         self.response_body = self._response(text=json.dumps({
-            "summary": "Invalid lifecycle", "system_owned_criteria": [
-                "Create exactly one Engineering assignment.", rejected],
-            "steps": [{"step_id": "report", "objective": "Create report",
-                "acceptance_criteria": ["Complete report"], "depends_on": [],
+            "summary": "Create the report at its authorized destination.",
+            "system_owned_criteria": [lifecycle[2:], path_constraint[2:]],
+            "steps": [{"step_id": "report", "objective": "Create report.txt",
+                "acceptance_criteria": [deliverable[2:]], "depends_on": [],
                 "execution_capability": "engineering.codex-cli-artifact.v1",
                 "artifact_requirements": [{"name": "report", "path": "report.txt",
-                    "media_type": "text/plain", "acceptance_criteria": ["Complete report"]}]}]}))
-        with tempfile.TemporaryDirectory() as temporary:
-            os.chmod(temporary, 0o700)
-            trigger = os.path.join(temporary, "grace-lifecycle-criterion-index-one.trigger")
-            capture = os.path.join(temporary, "grace-lifecycle-criterion-index-one.json")
-            with open(trigger, "w", encoding="utf-8") as stream:
-                stream.write("capture-once")
-            os.chmod(trigger, 0o600)
-            with patch.dict(os.environ, {"RIVERVIEW_CODEX_STATE_DIR": temporary}):
-                result = self.provider.propose(self.request)
-                self.provider.propose(self.request)
-            self.assertEqual(result.detail_code, "PROPOSAL_SCHEMA_INVALID")
-            with open(capture, "r", encoding="utf-8") as stream:
-                payload = json.load(stream)
-            self.assertEqual(payload["criterion"], rejected)
-            self.assertEqual(payload["field_path"], "$.system_owned_criteria[1]")
-            self.assertEqual(stat.S_IMODE(os.stat(capture).st_mode), 0o600)
-            self.assertFalse(os.path.exists(trigger))
+                    "media_type": "text/plain", "acceptance_criteria": [deliverable[2:]]}]}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertIsInstance(proposal, PlanProposal)
+        self.assertEqual(proposal.system_owned_criteria, (lifecycle,))
+        self.assertEqual(proposal.steps[0].acceptance_criteria,
+                         (deliverable[2:], path_constraint))
+
+    def test_unmapped_invented_lifecycle_criterion_remains_rejected(self):
+        lifecycle = "- Create exactly one Engineering assignment for the report."
+        invented = "Use an invented lifecycle event."
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [lifecycle, "- Create report.txt."],
+        })
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Create the report.",
+            "system_owned_criteria": [lifecycle[2:], invented],
+            "steps": [{"step_id": "report", "objective": "Create report.txt",
+                "acceptance_criteria": ["Create report.txt."], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.txt",
+                    "media_type": "text/plain", "acceptance_criteria": ["Create report.txt."]}]}]}))
+        result = self.provider.propose(self.request)
+        self.assertIsInstance(result, ProposalValidationFailure)
+        self.assertEqual(result.detail_code, "PROPOSAL_SCHEMA_INVALID")
 
     @staticmethod
     def _response(*, served="fixture-model", finish="stop", tokens=9, text=None):
@@ -271,7 +278,7 @@ class LocalReasoningProviderTests(unittest.TestCase):
                 "summary": "Plan", "steps": [valid_step], "external_escalation": {
                     "reason": "unsupported-private-value", "target_provider_id": "external"}}),
             ("lifecycle_criteria", "$.system_owned_criteria[0]",
-             "string mapping to a lifecycle evidence event", "string", {
+             "string mapping to a lifecycle evidence event or exact original criterion", "string", {
                 "summary": "Plan", "steps": [valid_step],
                 "system_owned_criteria": ["TOP_SECRET"]}),
             ("typed_proposal_construction", "$", "valid PlanProposal", "object", {
