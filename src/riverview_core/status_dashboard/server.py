@@ -62,6 +62,7 @@ from __future__ import annotations
 import hmac
 import ipaddress
 import json
+import logging
 import os
 import re
 import secrets
@@ -77,6 +78,9 @@ from psycopg import sql
 
 from .markdown import render_markdown
 from .projection import DashboardProjection, ProjectionUnavailable
+from riverview_core.diagnostics import backend_pid, emit, safe_sqlstate
+
+_INTAKE_LOG = logging.getLogger("riverview.dashboard.intake")
 
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
 _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
@@ -1077,11 +1081,21 @@ def make_handler():
                     pipeline = self.server._objective_pipeline
                     if (not getattr(self, "_account_cookie_authenticated", False)
                             or not identity or "steward" not in identity.get("roles", ())):
+                        emit(_INTAKE_LOG, logging.INFO, "grace_work_order_auth_denied",
+                             request_id=request_id, reason_code="steward_session_required")
                         self._error(403, "steward_account_session_required", request_id)
                         return
                     if service is None or pipeline is None:
+                        emit(_INTAKE_LOG, logging.WARNING, "grace_work_order_dependency_unavailable",
+                             request_id=request_id, failure_stage="dependency_check",
+                             reason_code="intake_component_unavailable")
                         self._error(503, "work_order_intake_unavailable", request_id)
                         return
+                    conversation_id = conversation_work_order.group(1)
+                    sequence = None
+                    objective_id = None
+                    failure_stage = "request_parse"
+                    reused_existing = False
                     try:
                         data = self._json_body(_MAX_CHAT_BODY)
                         if set(data) not in ({"source_sequence"}, {"source_sequence", "acceptance_criteria"}):
@@ -1093,9 +1107,15 @@ def make_handler():
                                 any(not isinstance(item, str) or not item.strip() or len(item) > 1000
                                     for item in criteria)):
                             raise ValueError("invalid source sequence or criteria")
-                        conversation_id = conversation_work_order.group(1)
+                        failure_stage = "source_authorization"
+                        emit(_INTAKE_LOG, logging.DEBUG, "grace_work_order_intake_started",
+                             request_id=request_id, conversation_id=conversation_id,
+                             source_sequence=sequence, failure_stage=failure_stage)
                         principal_id = identity.get("authority_principal_id")
                         if not isinstance(principal_id, str) or not principal_id:
+                            emit(_INTAKE_LOG, logging.INFO, "grace_work_order_auth_denied",
+                                 request_id=request_id,
+                                 reason_code="institutional_principal_missing")
                             self._error(403, "institutional_principal_required", request_id)
                             return
                         # history() checks the exact resident.conversation.read grant and
@@ -1111,15 +1131,26 @@ def make_handler():
                             source = cur.fetchone()
                         if (source is None or source["actor_kind"] != "principal" or
                                 source["actor_id"] != principal_id):
+                            emit(_INTAKE_LOG, logging.INFO, "grace_work_order_auth_denied",
+                                 request_id=request_id, reason_code="source_message_not_owned")
                             self._error(404, "conversation_message_not_found", request_id)
                             return
+                        emit(_INTAKE_LOG, logging.INFO, "grace_work_order_auth_accepted",
+                             request_id=request_id, reason_code="steward_source_owned")
                         from riverview_core.institutional_authority.grants import InstitutionalPrincipal
                         origin = {"conversation_id": conversation_id,
                                   "source_sequence": sequence}
                         from riverview_core.resident_execution import ObjectiveStateError
+                        failure_stage = "event_history"
                         existing = _find_conversation_objective(
                             pipeline, conversation_id, sequence)
                         if existing is not None:
+                            objective_id = existing["objective_id"]
+                            reused_existing = True
+                            emit(_INTAKE_LOG, logging.DEBUG, "grace_work_order_retry_reused",
+                                 request_id=request_id, conversation_id=conversation_id,
+                                 source_sequence=sequence, objective_id=objective_id,
+                                 failure_stage=failure_stage, retry_or_reuse="reused")
                             # The first receipt is durable even when grounding is
                             # unavailable. A same-origin retry resumes that exact
                             # objective; its accepted criteria are immutable. The
@@ -1133,16 +1164,21 @@ def make_handler():
                                     "conversation source conflicts with its recorded objective")
                             pipeline.authorize_objective_submission(
                                 principal_id, "work-order:engineering")
+                            failure_stage = "grounding"
                             grounded = (_ground_conversation_objective(pipeline, existing["objective_id"])
                                 if existing["status"] in {"RECEIVED", "WAITING_FOR_EVIDENCE"}
                                 else existing)
-                            reused_existing = True
                         else:
                             # Deterministic origin identity closes the concurrent
                             # double-submit race without a new migration or grant.
                             suffix = uuid5(NAMESPACE_URL,
                                 f"riverview:grace-conversation-objective:{conversation_id}:{sequence}")
                             objective_id = "objective:grace-conversation:" + str(suffix)
+                            emit(_INTAKE_LOG, logging.DEBUG, "grace_work_order_submission_started",
+                                 request_id=request_id, conversation_id=conversation_id,
+                                 source_sequence=sequence, objective_id=objective_id,
+                                 failure_stage="objective_submission")
+                            failure_stage = "objective_submission"
                             try:
                                 accepted = pipeline.submit_objective(
                                     objective_id, source["body"], criteria,
@@ -1165,22 +1201,47 @@ def make_handler():
                                     principal_id, "work-order:engineering")
                                 accepted = existing
                                 reused_existing = True
+                                objective_id = existing["objective_id"]
                             else:
                                 reused_existing = False
+                            failure_stage = "grounding"
                             grounded = _ground_conversation_objective(
                                 pipeline, accepted["objective_id"])
+                        emit(_INTAKE_LOG, logging.INFO, "grace_work_order_receipt_outcome",
+                             request_id=request_id, conversation_id=conversation_id,
+                             source_sequence=sequence,
+                             objective_id=grounded.get("objective_id", objective_id),
+                             failure_stage="durable_receipt",
+                             outcome="reused" if reused_existing else "persisted",
+                             retry_or_reuse="reused" if reused_existing else "created")
+                        emit(_INTAKE_LOG, logging.INFO, "grace_work_order_grounding_outcome",
+                             request_id=request_id, conversation_id=conversation_id,
+                             source_sequence=sequence,
+                             objective_id=grounded.get("objective_id", objective_id),
+                             failure_stage="grounding", outcome=grounded.get("status"),
+                             retry_or_reuse="reused" if reused_existing else "created")
+                        failure_stage = "response"
                         self._json(202, _conversation_objective_response(
                             grounded, reused_existing=reused_existing), request_id)
                     except Exception as exc:
+                        emit(_INTAKE_LOG, logging.ERROR, "grace_work_order_intake_failed",
+                             request_id=request_id, conversation_id=conversation_id,
+                             source_sequence=sequence, objective_id=objective_id,
+                             failure_stage=failure_stage, exception_type=type(exc).__name__,
+                             sqlstate=safe_sqlstate(exc), backend_pid=backend_pid(exc))
                         from riverview_core.resident_execution import ObjectiveNotAuthorized, ObjectiveStateError
                         from riverview_core.institutional_authority import GrantCheckUnavailable
                         from riverview_core.resident_execution.conversation import (
                             ConversationDenied, ConversationNotFound, ConversationUnavailable)
                         if isinstance(exc, ObjectiveNotAuthorized):
+                            emit(_INTAKE_LOG, logging.INFO, "grace_work_order_auth_denied",
+                                 request_id=request_id, reason_code="objective_submit_denied")
                             self._error(403, "engineering_work_order_submission_not_authorized", request_id)
                         elif isinstance(exc, WorkOrderOriginConflict):
                             self._error(409, "work_order_origin_conflict", request_id)
                         elif isinstance(exc, ConversationDenied):
+                            emit(_INTAKE_LOG, logging.INFO, "grace_work_order_auth_denied",
+                                 request_id=request_id, reason_code="conversation_read_denied")
                             self._error(403, "resident_conversation_not_authorized", request_id)
                         elif isinstance(exc, ConversationNotFound):
                             self._error(404, "resident_conversation_not_found", request_id)
@@ -2061,6 +2122,9 @@ def _conversation_objective_response(objective, *, reused_existing=False):
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    from riverview_core.diagnostics import configure_component_logging
+    configure_component_logging()
     token_path = os.environ.get("CREDENTIALS_DIRECTORY", "")
     if not token_path:
         raise SystemExit("systemd dashboard credential directory is required")

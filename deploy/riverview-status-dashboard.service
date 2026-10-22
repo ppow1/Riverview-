@@ -17,6 +17,8 @@ Environment=RIVERVIEW_DATABASE_SCHEMA=riverview_dev
 Environment=RIVERVIEW_DASHBOARD_HOST=127.0.0.1
 Environment=RIVERVIEW_DASHBOARD_PORT=8766
 Environment=RIVERVIEW_STALE_AFTER_SECONDS=30
+Environment=RIVERVIEW_DIAGNOSTICS_MODE=NORMAL
+EnvironmentFile=-/etc/riverview/dashboard-diagnostics.env
 Environment=RIVERVIEW_SOURCE_COMMIT=8556598b19a7da4aa191a600c767d79d24432afe
 Environment=RIVERVIEW_DEPLOYMENT_ID=m3.1-camrui-docs-d2c145c
 RuntimeDirectory=riverview-status-dashboard
