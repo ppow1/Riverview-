@@ -7,7 +7,7 @@
       "size_bytes": 424922
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.122"
+      "revision": "1.1.123"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -401,9 +401,9 @@
     },
     "scripts/verify_v2_octo1_browser.cjs": {
       "path": "scripts/verify_v2_octo1_browser.cjs",
-      "revision": "1.1.0",
-      "sha256": "6750a273a78ef3344a5c8f2255ee3ad701a493abb12d909a42ff98271e2ecfb9",
-      "size_bytes": 27551
+      "revision": "1.2.2",
+      "sha256": "c3ef0c9748a20955cd8224e67212f269aff73f0fc0effcd4d56ed713182de21a",
+      "size_bytes": 32702
     },
     "scripts/verify_v2_resource_monitor.cjs": {
       "path": "scripts/verify_v2_resource_monitor.cjs",
@@ -589,5 +589,5 @@
       "size_bytes": 413071
     }
   },
-  "manifest_revision": "1.1.122"
+  "manifest_revision": "1.1.123"
 }
