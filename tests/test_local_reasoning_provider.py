@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.31
-# Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CLASSIFICATION-20261022 | Verify exact original non-lifecycle criteria bind to one step and invented criteria remain rejected.
+# Revision: 1.1.32
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Verify artifact checks stay in the artifact contract without becoming extra formal criteria.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify lifecycle criterion binding restores only a stripped structural bullet.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Verify actionable value-free diagnostics for proposal rejection stages.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Match the revised prompt's formal-criteria boundary.
@@ -180,6 +180,29 @@ class LocalReasoningProviderTests(unittest.TestCase):
         result = self.provider.propose(self.request)
         self.assertIsInstance(result, ProposalValidationFailure)
         self.assertEqual(result.detail_code, "PROPOSAL_SCHEMA_INVALID")
+
+    def test_artifact_specific_criteria_are_not_extra_formal_step_criteria(self):
+        formal = "Create the requested file."
+        exact_content = "File contents equal the requested text."
+        final_newline = "File ends with one newline."
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [formal],
+        })
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Create the requested file.",
+            "system_owned_criteria": [],
+            "steps": [{"step_id": "write", "objective": "Write the file",
+                "acceptance_criteria": [formal, exact_content, final_newline],
+                "depends_on": [], "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "result", "path": "result.txt",
+                    "media_type": "text/plain", "acceptance_criteria": [
+                        exact_content, final_newline]}]}]}))
+        proposal = self.provider.propose(self.request)
+        self.assertIsInstance(proposal, PlanProposal)
+        self.assertEqual(proposal.steps[0].acceptance_criteria, (formal,))
+        self.assertEqual(proposal.steps[0].artifact_requirements[0].acceptance_criteria,
+                         (exact_content, final_newline))
 
     @staticmethod
     def _response(*, served="fixture-model", finish="stop", tokens=9, text=None):
