@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.20
+# Revision: 1.0.21
+# Changed: 2026-10-22 UTC | RV-GRACE-RESULT-REVIEW-ROUTER-20261022 | Ensure typed reviews do not trigger automatic status-tool routing from structured lifecycle fields.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional structured output is forwarded through the capability-pinned reasoning stage.
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
@@ -103,6 +104,37 @@ class GraceModelRouterTests(unittest.TestCase):
         self.assertEqual(self.reasoner.response_schemas, [schema])
         self.assertEqual(self.vision.calls, [])
         self.assertEqual(self.cpu.calls, [])
+
+    def test_structured_review_does_not_require_status_tool_for_lifecycle_payload(self):
+        class Tools:
+            def __init__(self):
+                self.calls = []
+
+            def catalog(self):
+                return [{"name": "comms5_objective_status",
+                         "inputSchema": {"type": "object"}}]
+
+            def call(self, name, arguments):
+                self.calls.append((name, arguments))
+                return {"status": "ok"}
+
+        tools = Tools()
+        self.router.internal_tools = tools
+        schema = {"type": "object", "required": ["decision"]}
+        review_context = json.dumps({
+            "objective_id": "objective:grace-conversation:example",
+            "objective_status": "WORK_ORDER_CREATED",
+            "step_progress": [{"step_id": "s1", "status": "verified"}],
+        })
+
+        self.router.complete_chat([{"role": "user", "content": review_context}],
+            max_tokens=128, expected_revision=self.router.model_sha256,
+            required_capability="grace.reasoning.80b", response_schema=schema)
+
+        self.assertEqual(len(self.reasoner.calls), 1)
+        self.assertEqual(self.reasoner.response_schemas, [schema])
+        self.assertEqual(tools.calls, [])
+        self.assertNotIn("Available internal tools:", self.reasoner.calls[0][0][0]["content"])
 
     def test_persistent_reasoner_proposal_uses_only_ready_80b_and_records_served_model(self):
         result = self.router.propose(self.proposal_request())
