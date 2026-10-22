@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.37
+# Revision: 1.0.38
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Keep the durable conversation provider double compatible with optional structured chat output.
 # Purpose: Verify durable office-scoped chat, exact authority, model binding and restart recovery
 # Execution Model: Isolated PostgreSQL integration and bounded fake provider
 # Observability: Test assertions and sanitized outcome states; no prompt logging
@@ -72,7 +73,7 @@ class _ChatProvider:
         self.during_completion = None
 
     def complete_chat(self, messages, *, max_tokens, expected_revision,
-                      timeout_seconds=120):
+                      timeout_seconds=120, response_schema=None):
         from riverview_core.local_reasoning_provider import ChatCompletion
         self.calls.append((messages, max_tokens, expected_revision))
         if self.during_completion is not None:
