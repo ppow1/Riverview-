@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.26
+# Revision: 1.1.28
+# Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Serialize grounding failure event persistence and make attempt replay idempotent.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Persist sanitized, correlated grounding failure details in durable objective events.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Permit artifact-specific step checks only when retained in the same artifact contract.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Add exact-objective audited removal of one misclassified structural heading.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Persist Grace-derived criteria as the objective's validated effective list.
@@ -59,9 +61,11 @@ through AuthorizedAssignmentIntake and the existing CME ledger.
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime, timezone
 import hashlib
 import json
 import re
+from uuid import uuid4
 
 from ..assignment_intake import AuthorizedAssignmentIntake, AssignmentIntakeDenied
 from ..resident_reasoning import PlanProposal, lifecycle_evidence_event
@@ -291,40 +295,84 @@ class GraceExecutionPipeline:
         objective = self.get_objective(objective_id)
         if objective is None or objective["status"] not in {"RECEIVED", "WAITING_FOR_EVIDENCE"}:
             raise ObjectiveStateError("objective is not awaiting grounding")
+        attempt_id = str(uuid4())
+        attempt_started_at = datetime.now(timezone.utc).isoformat()
         evidence_input = {"id": objective_id, "objective": objective["request"],
                           "acceptance_criteria": objective["acceptance_criteria"],
                           "contract_ref": self.CONTRACT_REF}
-        result = self.knowledge.ground_assignment(evidence_input)
-        evidence = {"status": result.status.value,
-                    "source_references": list(result.source_references),
-                    "source_revision": result.source_revision,
-                    "source_sha256": result.source_sha256,
-                    "retrieval_complete": result.retrieval_complete,
-                    "value": result.value}
+        try:
+            result = self.knowledge.ground_assignment(evidence_input)
+        except Exception as exc:
+            failure_type = self._safe_failure_type(exc)
+            error_code = ("KNOWLEDGE_PROVIDER_TIMEOUT" if isinstance(exc, TimeoutError)
+                          else "KNOWLEDGE_PROVIDER_ERROR")
+            evidence = {"status": KnowledgeStatus.UNAVAILABLE.value,
+                        "source_references": [], "source_revision": None,
+                        "source_sha256": None, "retrieval_complete": False,
+                        "error_code": error_code, "value": None}
+            self._set_waiting(objective, evidence, attempt_id, attempt_started_at,
+                error_code=error_code,
+                explanation=("The knowledge provider call timed out." if isinstance(exc, TimeoutError)
+                             else "The knowledge provider call failed before returning evidence."),
+                stage="provider_call", responsible_component="KNOWLEDGE-PROVIDER",
+                failure_type=failure_type, evidence_bytes=None)
+            raise ObjectiveStateError("knowledge provider did not return grounding evidence") from None
+
+        status_value = getattr(getattr(result, "status", None), "value", None)
+        source_references = getattr(result, "source_references", ())
+        if not isinstance(source_references, (tuple, list)) or any(
+                not isinstance(reference, str) for reference in source_references):
+            source_references = ()
+        source_revision = getattr(result, "source_revision", None)
+        if not isinstance(source_revision, str) or not source_revision:
+            source_revision = None
+        source_sha256 = getattr(result, "source_sha256", None)
+        if not isinstance(source_sha256, str) or not source_sha256:
+            source_sha256 = None
+        retrieval_complete = getattr(result, "retrieval_complete", None)
+        evidence = {"status": status_value if isinstance(status_value, str)
+                    else KnowledgeStatus.UNVERIFIED.value,
+                    "source_references": list(source_references),
+                    "source_revision": source_revision,
+                    "source_sha256": source_sha256,
+                    "retrieval_complete": retrieval_complete,
+                    "value": getattr(result, "value", None)}
         try:
             raw_evidence = _json(evidence).encode("utf-8")
         except (TypeError, ValueError):
             evidence = {"status": KnowledgeStatus.UNVERIFIED.value,
-                        "source_references": list(result.source_references),
-                        "source_revision": result.source_revision,
-                        "source_sha256": result.source_sha256,
+                        "source_references": list(source_references),
+                        "source_revision": source_revision,
+                        "source_sha256": source_sha256,
                         "retrieval_complete": False,
                         "error_code": "EVIDENCE_SERIALIZATION_FAILED", "value": None}
-            self._set_waiting(objective_id, evidence, "knowledge-provider")
+            self._set_waiting(objective, evidence, attempt_id, attempt_started_at,
+                error_code="EVIDENCE_SERIALIZATION_FAILED",
+                explanation="Grounding evidence could not be serialized for durable storage.",
+                stage="evidence_serialization", responsible_component="RESIDENT-ORCHESTRATION",
+                evidence_bytes=None)
             raise ObjectiveStateError("grounded evidence serialization failed") from None
         if len(raw_evidence) > self.MAX_EVIDENCE_BYTES:
             evidence = {"status": KnowledgeStatus.INCOMPLETE.value,
-                        "source_references": list(result.source_references),
-                        "source_revision": result.source_revision,
-                        "source_sha256": result.source_sha256,
+                        "source_references": list(source_references),
+                        "source_revision": source_revision,
+                        "source_sha256": source_sha256,
                         "retrieval_complete": False,
                         "error_code": "EVIDENCE_TOO_LARGE", "value": None}
-            self._set_waiting(objective_id, evidence, "knowledge-provider")
+            self._set_waiting(objective, evidence, attempt_id, attempt_started_at,
+                error_code="EVIDENCE_TOO_LARGE",
+                explanation="The returned grounding evidence exceeded the configured storage boundary.",
+                stage="evidence_size_validation", responsible_component="RESIDENT-ORCHESTRATION",
+                evidence_bytes=raw_evidence)
             raise ObjectiveStateError("grounded evidence exceeds context boundary")
-        if (result.status is not KnowledgeStatus.VERIFIED or
-                result.retrieval_complete is not True or not result.source_references or
-                not result.source_revision or not result.source_sha256):
-            self._set_waiting(objective_id, evidence, "knowledge-provider")
+        failure = self._grounding_failure(status_value, retrieval_complete,
+                                          source_references, source_revision, source_sha256)
+        if failure:
+            error_code, explanation, stage, responsible_component = failure
+            evidence["error_code"] = error_code
+            self._set_waiting(objective, evidence, attempt_id, attempt_started_at,
+                error_code=error_code, explanation=explanation, stage=stage,
+                responsible_component=responsible_component, evidence_bytes=raw_evidence)
             raise ObjectiveStateError("repository evidence is not complete and verified")
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
@@ -341,22 +389,129 @@ class GraceExecutionPipeline:
                                 "source_revision", "source_sha256", "retrieval_complete")})
         return self.get_objective(objective_id)
 
-    def _set_waiting(self, objective_id, evidence, actor):
+    @staticmethod
+    def _safe_failure_type(exc):
+        name = type(exc).__name__
+        return name[:80] if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", name) else "ProviderException"
+
+    @staticmethod
+    def _grounding_failure(status_value, retrieval_complete,
+                           source_references, source_revision, source_sha256):
+        if not isinstance(status_value, str) or status_value not in {
+                status.value for status in KnowledgeStatus}:
+            return ("KNOWLEDGE_RESULT_INVALID", "The provider returned a result with an unrecognized status.",
+                    "provider_result_validation", "RESIDENT-ORCHESTRATION")
+        status_failures = {
+            KnowledgeStatus.UNAVAILABLE.value: ("KNOWLEDGE_PROVIDER_UNAVAILABLE",
+                "The knowledge provider reported that it is unavailable.", "provider_result",
+                "KNOWLEDGE-PROVIDER"),
+            KnowledgeStatus.NO_MATCH.value: ("GROUNDING_NO_MATCH",
+                "The knowledge provider returned no matching evidence.", "provider_result",
+                "KNOWLEDGE-PROVIDER"),
+            KnowledgeStatus.INCOMPLETE.value: ("GROUNDING_RETRIEVAL_INCOMPLETE",
+                "The knowledge provider reported incomplete retrieval.", "provider_result",
+                "KNOWLEDGE-PROVIDER"),
+            KnowledgeStatus.CONTRADICTORY.value: ("GROUNDING_EVIDENCE_CONTRADICTORY",
+                "The knowledge provider reported contradictory evidence.", "provider_result",
+                "KNOWLEDGE-PROVIDER"),
+            KnowledgeStatus.UNVERIFIED.value: ("GROUNDING_EVIDENCE_UNVERIFIED",
+                "The knowledge provider did not verify the returned evidence.", "provider_result",
+                "KNOWLEDGE-PROVIDER"),
+        }
+        if status_value in status_failures:
+            return status_failures[status_value]
+        if retrieval_complete is not True:
+            return ("GROUNDING_RETRIEVAL_INCOMPLETE",
+                    "The evidence did not confirm complete retrieval.", "grounding_validation",
+                    "RESIDENT-ORCHESTRATION")
+        if not source_references:
+            return ("GROUNDING_SOURCE_REFERENCES_MISSING",
+                    "Verified evidence did not include a source reference.", "grounding_validation",
+                    "RESIDENT-ORCHESTRATION")
+        if not source_revision:
+            return ("GROUNDING_SOURCE_REVISION_MISSING",
+                    "Verified evidence did not include its source revision.", "grounding_validation",
+                    "RESIDENT-ORCHESTRATION")
+        if not source_sha256:
+            return ("GROUNDING_SOURCE_HASH_MISSING",
+                    "Verified evidence did not include its source SHA-256.", "grounding_validation",
+                    "RESIDENT-ORCHESTRATION")
+        return None
+
+    def _set_waiting(self, objective, evidence, attempt_id, attempt_started_at, *,
+                     error_code, explanation, stage, responsible_component,
+                     evidence_bytes, failure_type=None):
+        objective_id = objective["objective_id"]
+        if evidence_bytes is None:
+            evidence_bytes = _json({key: evidence.get(key) for key in
+                ("status", "source_references", "source_revision", "source_sha256",
+                 "retrieval_complete", "error_code")}).encode("utf-8")
+        received = next((event for event in self.objective_events(objective_id)
+                         if event["event_type"] == "objective.received"), None)
+        received_payload = (received or {}).get("payload") or {}
+        origin = received_payload.get("origin") if isinstance(received_payload, dict) else None
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
-                cur.execute("""UPDATE grace_objectives SET status='WAITING_FOR_EVIDENCE',
-                    evidence=%s::jsonb,revision=revision+1,updated_at=clock_timestamp()
+                cur.execute("""SELECT revision,status FROM grace_objectives
                     WHERE objective_id=%s AND status IN ('RECEIVED','WAITING_FOR_EVIDENCE')
-                    RETURNING revision""",
-                    (_json(evidence), objective_id))
+                    FOR UPDATE""", (objective_id,))
                 row = cur.fetchone()
                 if not row:
                     raise ObjectiveStateError("objective changed while recording missing evidence")
-                self._event(cur, objective_id, "objective.waiting_for_evidence",
-                            f"grace-objective-waiting:{objective_id}:{row['revision']}", actor,
-                            {"status": evidence["status"],
-                             "retrieval_complete": evidence["retrieval_complete"]})
+                next_revision = row["revision"] + 1
+                event_id = str(uuid4())
+                source_revision = evidence.get("source_revision")
+                if (not isinstance(source_revision, str) or len(source_revision) > 128 or
+                        not re.fullmatch(r"[A-Za-z0-9._:-]+", source_revision)):
+                    source_revision = None
+                diagnostic = {
+                    "event_id": event_id, "attempt_id": attempt_id,
+                    "objective_id": objective_id, "objective_revision": next_revision,
+                    "source": ({"conversation_id": origin.get("conversation_id"),
+                                "source_sequence": origin.get("source_sequence")}
+                               if isinstance(origin, dict) else None),
+                    "previous_state": row["status"],
+                    "new_state": "WAITING_FOR_EVIDENCE", "stage": stage,
+                    "attempted_operation": "knowledge_provider.ground_assignment",
+                    "outcome": "blocked", "reason_code": error_code,
+                    "explanation": explanation,
+                    "evidence": {"status": evidence.get("status"),
+                        "source_revision": source_revision,
+                        "source_sha256_present": bool(evidence.get("source_sha256")),
+                        "retrieval_complete": evidence.get("retrieval_complete") is True,
+                        "reference_count": len(evidence.get("source_references", ())),
+                        "sha256": hashlib.sha256(evidence_bytes).hexdigest()},
+                    "responsible_component": responsible_component,
+                    "retry": {"status": "authorized_same_objective_retry_available",
+                        "retryable": True, "automatic": False, "next_retry_at": None,
+                        "required_actor": "steward",
+                        "next_permitted_action":
+                            "Retry grounding through the same conversation work-order action; objective.submit is rechecked."},
+                    "attempt_started_at": attempt_started_at,
+                }
+                if failure_type:
+                    diagnostic["failure_type"] = failure_type
+                payload = {"status": evidence["status"],
+                           "retrieval_complete": evidence.get("retrieval_complete") is True,
+                           "grounding_diagnostic": diagnostic}
+                cur.execute("""INSERT INTO grace_objective_events
+                    (event_id,objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,%s,'objective.waiting_for_evidence',%s,'knowledge-provider',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING
+                    RETURNING event_id""",
+                    (event_id, objective_id,
+                     f"grace-grounding-failure:{objective_id}:{attempt_id}", _json(payload)))
+                if cur.fetchone() is None:
+                    return False
+                cur.execute("""UPDATE grace_objectives SET status='WAITING_FOR_EVIDENCE',
+                    evidence=%s::jsonb,revision=%s,updated_at=clock_timestamp()
+                    WHERE objective_id=%s AND revision=%s
+                      AND status IN ('RECEIVED','WAITING_FOR_EVIDENCE')""",
+                    (_json(evidence), next_revision, objective_id, row["revision"]))
+                if cur.rowcount != 1:
+                    raise ObjectiveStateError("objective changed while recording missing evidence")
+        return True
 
     def record_proposal(self, objective_id, proposal: PlanProposal, *, actor_id="resident:grace",
                         external_exchange=None, review_evidence=None):
@@ -1046,7 +1201,7 @@ class GraceExecutionPipeline:
     def objective_events(self, objective_id):
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
-            cur.execute("""SELECT event_type,idempotency_key,actor_id,payload,occurred_at
+            cur.execute("""SELECT event_id,event_type,idempotency_key,actor_id,payload,occurred_at
                 FROM grace_objective_events WHERE objective_id=%s ORDER BY sequence""",
                 (objective_id,))
             return cur.fetchall()

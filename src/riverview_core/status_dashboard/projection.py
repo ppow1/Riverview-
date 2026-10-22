@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.11
+# Revision: 1.0.12
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Project bounded sanitized grounding-failure history with owner-scoped objective progress.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Expose the criteria source alongside effective objective criteria.
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Project durable rework escalation-pending events as actionable Steward holds.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Add principal-scoped, minimized Engineering progress projections
@@ -543,6 +544,7 @@ class DashboardProjection:
                     activity.event_type AS latest_event_type,activity.activity_at AS latest_event_at,
                     attempt_count.attempt_count,rejections.rejection_count,
                     rework.payload AS latest_rework,rework.occurred_at AS rework_at,
+                    grounding.events AS grounding_diagnostics,
                     de.failure_count,
                     de.last_failure_at,ve.failure_count AS verification_failure_count,
                     ve.last_failure_at AS last_verification_failure_at
@@ -576,6 +578,18 @@ class DashboardProjection:
                       AND e.event_type IN ('engineering.rework_decided','engineering.rejection_reviewed','engineering.rework_escalation_pending')
                       AND e.payload->>'assignment_id'=a.id
                     ORDER BY e.sequence DESC LIMIT 1) rework ON true
+                LEFT JOIN LATERAL (
+                    SELECT coalesce(jsonb_agg(history.item ORDER BY history.sequence), '[]'::jsonb) AS events
+                    FROM (
+                        SELECT e.sequence, jsonb_build_object(
+                            'event_id', e.event_id, 'occurred_at', e.occurred_at,
+                            'diagnostic', e.payload->'grounding_diagnostic') AS item
+                        FROM grace_objective_events e
+                        WHERE e.objective_id=o.objective_id
+                          AND e.payload ? 'grounding_diagnostic'
+                        ORDER BY e.sequence DESC LIMIT 25
+                    ) history
+                ) grounding ON true
                 LEFT JOIN LATERAL (SELECT count(*) AS failure_count,max(occurred_at) AS last_failure_at
                     FROM grace_objective_events e WHERE e.objective_id=o.objective_id
                       AND e.event_type='execution.dispatch_failed') de ON true
@@ -654,6 +668,7 @@ class DashboardProjection:
                                       "verifier_revision": row["verifier_revision"],
                                       "summary": str(row["verification_summary"] or "")[:500]}
                                      if row["verification_decision"] else None),
+                    "grounding_diagnostics": row["grounding_diagnostics"] or [],
                     "rework": {"rejected_results": int(row["rejection_count"] or 0),
                                "attempts": max(0, int(row["attempt_count"] or 0) - 1),
                                "decision": (rework.get("decision") if rework_is_current else None),
@@ -675,6 +690,7 @@ class DashboardProjection:
                         "objective_id", "status", "assignment_id", "assignment_state",
                         "origin", "lifecycle_status", "lifecycle_stage", "latest_event",
                         "verification", "rework", "steward_action_required",
+                        "grounding_diagnostics",
                         "dispatch_failures", "last_dispatch_failure_at",
                         "verification_failures", "last_verification_failure_at",
                         "created_at", "updated_at")}

@@ -2,12 +2,12 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.28",
-      "sha256": "542011bd86b6957522fea8ce7d5589e48b8ea1b6797efc5dc68fe47dff504bec",
-      "size_bytes": 1354475
+      "revision": "1.0.30",
+      "sha256": "8e35713ed89b0df8c73b4c879280c8eaf3b2948a6218962293b97165ca0d1223",
+      "size_bytes": 1366958
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.304"
+      "revision": "1.1.307"
     },
     "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
       "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
@@ -42,26 +42,26 @@
     "docs/components/GRACE_EXECUTION_COOKBOOK.md": {
       "path": "docs/components/GRACE_EXECUTION_COOKBOOK.md",
       "revision": "1.1.22",
-      "sha256": "d31edc438c236ddae202681dcc935ee9aeb67103f2cc95d513d5ab7ec61da01a",
-      "size_bytes": 44022
+      "sha256": "ca933de4a7df6c685e7c0b0e4c7a6804706c88c6bb2e1d189969ef473f0cee80",
+      "size_bytes": 50717
     },
     "docs/components/GRACE_EXECUTION_PIPELINE.md": {
       "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
-      "revision": "1.1.25",
-      "sha256": "015aa229a7d0f90c480066fe1442ac36860da2ef35e510e848589aec34a73721",
-      "size_bytes": 38875
+      "revision": "1.1.33",
+      "sha256": "c4277e3edf11d8a75fe2beb71f5b1c243f511e2238fe2e988f022aabf37af719",
+      "size_bytes": 46002
     },
     "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md": {
       "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
       "revision": "1.0.59",
-      "sha256": "8746f286861b4bc8b8d24f397225050ab789b2bc766dcf201fac6024459fd406",
-      "size_bytes": 51189
+      "sha256": "2232c8efeae26d91bd9f6b4bc163cae219fd278c2a0ab635c0b83e9f97e965f2",
+      "size_bytes": 54718
     },
     "docs/components/GRACE_PERSISTENT_EXECUTION.md": {
       "path": "docs/components/GRACE_PERSISTENT_EXECUTION.md",
       "revision": "1.0.22",
-      "sha256": "3774d6eb4805e900a567dda1e91d533d7a751f28d9d1f804f03b608319f5d8bc",
-      "size_bytes": 26065
+      "sha256": "acd0ced77f696ca607c28b31403c86c591f226c84626b0a6cfdf48ad81a3ddce",
+      "size_bytes": 28719
     },
     "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
       "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
@@ -78,8 +78,8 @@
     "docs/components/RUNTIME_BASELINE.md": {
       "path": "docs/components/RUNTIME_BASELINE.md",
       "revision": "1.0.11",
-      "sha256": "40b3ca529b422fe54fa308a5de6cd78be79a4f5d7792dec2092de330ce5cba86",
-      "size_bytes": 20168
+      "sha256": "ba269e753973701282bbfb112951014269d65b14e2fea68485b403b933c86243",
+      "size_bytes": 20686
     },
     "docs/components/STATUS_DASHBOARD.md": {
       "path": "docs/components/STATUS_DASHBOARD.md",
@@ -89,15 +89,15 @@
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.2.1",
-      "sha256": "07339b9da2a4be2a76903ec5b1667f86630478aa84c259fc4e13e5de35bc200b",
-      "size_bytes": 24573
+      "revision": "1.2.2",
+      "sha256": "ffaf2e1cef4dcddb172f7e8d3264b614f7e7a299be9c60a82cb2d42c6664c740",
+      "size_bytes": 27720
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-      "revision": "1.1.30",
-      "sha256": "e5c2e3c327448bc09025841c5779dd82c9d6390209086be700d3a16036fa36ee",
-      "size_bytes": 60744
+      "revision": "1.1.32",
+      "sha256": "dc9b009517f37e0477b8f7c77a19584b7b3006c5530c46a1999c34d4180a87ad",
+      "size_bytes": 63628
     },
     "docs/components/STATUS_DASHBOARD_FLOW.md": {
       "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
@@ -108,8 +108,8 @@
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
       "revision": "1.0.174",
-      "sha256": "5348dd19d8e114f5fc025a5ac4e9b8e648e972564658604f1ba2b304aecb2f81",
-      "size_bytes": 226833
+      "sha256": "79e6bcd93ba4a32a3484687b5cac0958f4d90efeb67b49c50ab3a0ecefb09c50",
+      "size_bytes": 227689
     },
     "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md": {
       "path": "docs/development/RV-C2-CHATGPT-DOORBELL-DISPATCH-001_REVISION_RECORD.md",
@@ -348,8 +348,8 @@
     "scripts/run_grace_execution_service.py": {
       "path": "scripts/run_grace_execution_service.py",
       "revision": "1.2.5",
-      "sha256": "924985f625e836d8c0936b6713b3d5c74a570efebe8d2f2c3ad40ec49fe3ed92",
-      "size_bytes": 39650
+      "sha256": "dbcadcd18c1561ed2e7afcdca86d4e67bf2a798b235dfdf767f67b4ffc755156",
+      "size_bytes": 41305
     },
     "scripts/rv_gpu_telemetry_command.py": {
       "path": "scripts/rv_gpu_telemetry_command.py",
@@ -372,26 +372,26 @@
     "src/riverview_core/resident_execution/conversation.py": {
       "path": "src/riverview_core/resident_execution/conversation.py",
       "revision": "1.2.25",
-      "sha256": "e131a7c23f5d22da0c2e99545cf3f76df905721b0df1b170a9d9b3361bcd5042",
-      "size_bytes": 162850
+      "sha256": "eb3e0a5f77c25688795518ed15988aad430dad6d3b232dda7326505ddfe0d9e1",
+      "size_bytes": 171212
     },
     "src/riverview_core/resident_execution/pipeline.py": {
       "path": "src/riverview_core/resident_execution/pipeline.py",
-      "revision": "1.1.17",
-      "sha256": "ce0facd1b044130450e0229ecc7def9a7c601673caf6990d4b27406198936e34",
-      "size_bytes": 100273
+      "revision": "1.1.28",
+      "sha256": "629f141d9ae6c5c9a2c081df1352d85a55ab74f7348d1b83e14382469e0de5bf",
+      "size_bytes": 130597
     },
     "src/riverview_core/resident_execution/service.py": {
       "path": "src/riverview_core/resident_execution/service.py",
       "revision": "1.0.30",
-      "sha256": "fe7476ecf28445467c40a9dfd0ac56dea381622d9946cf8b5b97d710c4867ed6",
-      "size_bytes": 65114
+      "sha256": "f7f0c64392ddb5109cfcf039125852565a70a22554dd24ce201a79db974b4ab7",
+      "size_bytes": 69094
     },
     "src/riverview_core/status_dashboard/projection.py": {
       "path": "src/riverview_core/status_dashboard/projection.py",
-      "revision": "1.0.10",
-      "sha256": "2f77bd7e2c0f16d907593e03a8006542eb0b3594a3aeaf3e35e7eeec38ad3ece",
-      "size_bytes": 45998
+      "revision": "1.0.12",
+      "sha256": "bbd5ef7f9a36aa2905de2d0c887799b650b6a4225cc318c7d5b2479551fc1a19",
+      "size_bytes": 47424
     },
     "src/riverview_core/status_dashboard/resource_telemetry.py": {
       "path": "src/riverview_core/status_dashboard/resource_telemetry.py",
@@ -402,8 +402,8 @@
     "src/riverview_core/status_dashboard/server.py": {
       "path": "src/riverview_core/status_dashboard/server.py",
       "revision": "1.3.32",
-      "sha256": "e7cf9a264d483d27c51693c71cc590e6f9ba0b389b95491eb94a10ab03858a0e",
-      "size_bytes": 144564
+      "sha256": "89ec994acccf840d0c4dc0c1417f4553d84559e634e9fbe0d6dfc2f9c88dea7b",
+      "size_bytes": 144937
     },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
@@ -450,8 +450,8 @@
     "tests/test_grace_conversation_result.py": {
       "path": "tests/test_grace_conversation_result.py",
       "revision": "1.0.13",
-      "sha256": "724f333d9759f6dad8e4bf0386680341d64e45037fd22d160ea9a3b13d367bc5",
-      "size_bytes": 35781
+      "sha256": "28764b6fd5df7482fb64e528fb0e3b4f5dd8c894b83be53eae58de7a5cee2ffd",
+      "size_bytes": 42871
     },
     "tests/test_grace_doorbell_runtime_wiring.py": {
       "path": "tests/test_grace_doorbell_runtime_wiring.py",
@@ -461,9 +461,9 @@
     },
     "tests/test_grace_execution.py": {
       "path": "tests/test_grace_execution.py",
-      "revision": "1.0.42",
-      "sha256": "3cfc6313b906c11931c2bd6e4ab14d13d625b4beaf8fffa5bfc2b5d20a68abeb",
-      "size_bytes": 142923
+      "revision": "1.0.59",
+      "sha256": "5b4d9e9e3109c3b5d60b409b23a539a4d3596cb2ea4539dd6dfd96da6aef69c1",
+      "size_bytes": 192809
     },
     "tests/test_resource_telemetry.py": {
       "path": "tests/test_resource_telemetry.py",
@@ -474,14 +474,14 @@
     "tests/test_runtime_baseline.py": {
       "path": "tests/test_runtime_baseline.py",
       "revision": "1.0.11",
-      "sha256": "0afd276b81635cce7d2557336969f57b1f80f61ea886325b4dd1345d405e26b7",
-      "size_bytes": 34997
+      "sha256": "8caceaa011f5d66cd7d90c618301e4840a2de09070a7b9008cd42ac2d1b2c3e0",
+      "size_bytes": 37039
     },
     "tests/test_status_dashboard.py": {
       "path": "tests/test_status_dashboard.py",
-      "revision": "1.0.61",
-      "sha256": "e8b6154004462e947600964020363dba611ca02688e089a480bfa8b02fa356a8",
-      "size_bytes": 95593
+      "revision": "1.0.65",
+      "sha256": "5109855ac184aa9f1649b01aec82911762803980895940f3573bdb74a943fd18",
+      "size_bytes": 101556
     },
     "tests/test_w2_p0_integrated_review_acceptance.py": {
       "path": "tests/test_w2_p0_integrated_review_acceptance.py",
@@ -490,6 +490,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.305",
-  "updated_at": "2026-10-22T02:55:05Z"
+  "manifest_revision": "1.1.307",
+  "updated_at": "2026-10-22T14:40:00Z"
 }
