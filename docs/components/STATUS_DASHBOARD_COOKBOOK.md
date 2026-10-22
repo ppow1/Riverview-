@@ -1,10 +1,11 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.29
+File Revision: 1.1.30
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Add dedicated telemetry credential, source and rollback runbook.
+Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document safe per-slot context projection and explicit KV-data limitation.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
@@ -902,6 +903,6 @@ sudo systemctl cat riverview-status-dashboard.service
 sudo journalctl -u riverview-status-dashboard.service --since=-10m --no-pager | grep -E 'dashboard_started|resource|error_type'
 ```
 
-The authenticated endpoint can be checked through the browser session or with the protected operator's existing dashboard credential mechanism; do not put the bearer in shell history or a URL. A successful status code alone is not source verification: compare GPU values against `nvidia-smi` on OCTOMINER1 and model identity/readiness against each fixed host `/health`, `/v1/models`, and `/slots` endpoint. Queue depth is unavailable unless a future model-server build exposes an authoritative queue metric.
+The authenticated endpoint can be checked through the browser session or with the protected operator's existing dashboard credential mechanism; do not put the bearer in shell history or a URL. A successful status code alone is not source verification: compare GPU values against `nvidia-smi` on OCTOMINER1 and model identity/readiness/context values against each fixed host `/health`, `/v1/models`, and `/slots` endpoint. V2 per-slot context and prompt-token values are projected only from numeric `/slots` fields; never expose `id_task`, prompt text, or the raw slot payload. Queue depth and KV-cache allocation bytes are unavailable unless a future model-server build exposes authoritative metrics. `/metrics` currently returns HTTP 501 and must not be enabled by changing inference startup arguments as part of this dashboard task.
 
 If the dedicated telemetry key or host pin is absent or invalid, the API returns unavailable for the GPU source and continues to report other model sources independently. To disable host telemetry, remove only the Dashboard drop-in `riverview-status-dashboard.service.d/resource-telemetry.conf` from the deployment package, run `systemctl daemon-reload`, and restart only `riverview-status-dashboard.service`; the prior release reports GPU fields unavailable. Rollback restores the protected Dashboard `current` symlink and removes the telemetry-only drop-in/credentials, then restarts only the Dashboard service. Preserve the GPU host forced-command entry until the rollback is verified; then remove only its exact key line from the protected `authorized_keys` predecessor copy. Do not edit Comms4, Grace, CME, Comms5, or inference service configuration.

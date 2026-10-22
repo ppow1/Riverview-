@@ -11748,7 +11748,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.1.20",
+      "graph_revision": "1.1.21",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -12540,9 +12540,9 @@
         },
         {
           "id": "rv:steward-dashboard:status:resource-model-source",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Read allowlisted model health, model identity and active slots; queue depth stays unavailable",
+          "label": "Read allowlisted model health, identity, active slots, and bounded numeric per-slot context; queue and KV-cache byte measurements remain unavailable",
           "source_references": [
             "src/riverview_core/status_dashboard/resource_telemetry.py"
           ],
@@ -12555,9 +12555,26 @@
         },
         {
           "id": "rv:steward-dashboard:status:resource-render",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Return timestamped redacted measurements or explicit per-source unavailable states",
+          "label": "Return timestamped redacted GPU/model/context measurements or explicit per-source unavailable states",
+          "source_references": [
+            "src/riverview_core/status_dashboard/resource_telemetry.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resource_telemetry.py",
+            "tests/test_status_dashboard.py"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:resource-slot-context",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Project only numeric llama.cpp /slots context and prompt counters; discard task IDs and prompt fields, and report KV-cache bytes unavailable",
           "source_references": [
             "src/riverview_core/status_dashboard/resource_telemetry.py"
           ],
@@ -12933,6 +12950,18 @@
           "to": "rv:steward-dashboard:status:resource-render",
           "type": "runtime_transition",
           "label": "Readiness/model/slot data; queue unavailable"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-model-source",
+          "to": "rv:steward-dashboard:status:resource-slot-context",
+          "type": "runtime_transition",
+          "label": "Read bounded numeric context and prompt counters from fixed llama.cpp /slots responses"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-slot-context",
+          "to": "rv:steward-dashboard:status:resource-render",
+          "type": "runtime_transition",
+          "label": "Return per-slot context projection with raw task and prompt fields removed"
         }
       ]
     },
@@ -15424,6 +15453,7 @@
     "rv:steward-dashboard:status:resource-gpu-source",
     "rv:steward-dashboard:status:resource-model-source",
     "rv:steward-dashboard:status:resource-render",
+    "rv:steward-dashboard:status:resource-slot-context",
     "rv:steward-dashboard:status:resource-telemetry-route",
     "rv:steward-dashboard:status:return-to-source-jump",
     "rv:steward-dashboard:status:select-cross-workflow-jump",

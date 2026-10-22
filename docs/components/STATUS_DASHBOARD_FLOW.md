@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.14
+**Document Revision:** 1.0.15
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -57,8 +57,9 @@ flowchart LR
     g_rv_steward_dashboard_status_return_to_source_jump_c0627ef6["Return to the source workflow and focus its originating jump node"]
     g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73["Serve bounded authenticated GET /api/v1/resources/telemetry"]
     g_rv_steward_dashboard_status_resource_gpu_source_5155a557["Read GPU metrics through strict-pinned SSH and the host forced-command collector"]
-    g_rv_steward_dashboard_status_resource_model_source_6bb51838["Read allowlisted model health, model identity and active slots; queue depth stays unavailable"]
-    g_rv_steward_dashboard_status_resource_render_1188c907["Return timestamped redacted measurements or explicit per-source unavailable states"]
+    g_rv_steward_dashboard_status_resource_model_source_6bb51838["Read allowlisted model health, identity, active slots, and bounded numeric per-slot context; queue and KV-cache byte measurements remain unavailable"]
+    g_rv_steward_dashboard_status_resource_render_1188c907["Return timestamped redacted GPU/model/context measurements or explicit per-source unavailable states"]
+    g_rv_steward_dashboard_status_resource_slot_context_7a77bdac["Project only numeric llama.cpp /slots context and prompt counters; discard task IDs and prompt fields, and report KV-cache bytes unavailable"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -127,6 +128,8 @@ flowchart LR
   g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73 -->|Fixed allowlisted model API reads with bounded timeouts| g_rv_steward_dashboard_status_resource_model_source_6bb51838
   g_rv_steward_dashboard_status_resource_gpu_source_5155a557 -->|Redacted GPU readings and source timestamp| g_rv_steward_dashboard_status_resource_render_1188c907
   g_rv_steward_dashboard_status_resource_model_source_6bb51838 -->|Readiness/model/slot data; queue unavailable| g_rv_steward_dashboard_status_resource_render_1188c907
+  g_rv_steward_dashboard_status_resource_model_source_6bb51838 -->|Read bounded numeric context and prompt counters from fixed llama.cpp /slots responses| g_rv_steward_dashboard_status_resource_slot_context_7a77bdac
+  g_rv_steward_dashboard_status_resource_slot_context_7a77bdac -->|Return per-slot context projection with raw task and prompt fields removed| g_rv_steward_dashboard_status_resource_render_1188c907
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

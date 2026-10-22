@@ -2,15 +2,12 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.24",
-      "sha256": "d973d75aac47be59815137e250b6d5b4b2a973a57c2eb4061f69500ecb642093",
-      "size_bytes": 1266497
+      "revision": "1.0.25",
+      "sha256": "ce487c1e23dac13fcfafeed52ea47d0685ed20bd9b6593f52bf67f04b9f3af8f",
+      "size_bytes": 1327951
     },
     ".riverview-revisions.json": {
-      "path": ".riverview-revisions.json",
-      "revision": "1.1.299",
-      "sha256": "c6d1b9a00351f07229f2b0220e18542471b82b775dae9d4859d4fc547105133a",
-      "size_bytes": 20273
+      "revision": "1.1.301"
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -80,9 +77,9 @@
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.2.0",
-      "sha256": "50d550acda86014c541c4117f24217fbaa16a31e136cc279a237498a08456bf5",
-      "size_bytes": 22473
+      "revision": "1.2.1",
+      "sha256": "07339b9da2a4be2a76903ec5b1667f86630478aa84c259fc4e13e5de35bc200b",
+      "size_bytes": 24573
     },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
@@ -212,9 +209,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.206",
-      "sha256": "0abd243b937262aa4c50f68b02f7bb48a8443e8d601d625d349129d476fba76c",
-      "size_bytes": 690081
+      "revision": "1.0.207",
+      "sha256": "9cce3c091632dce3dc4fd2e57a0d11f988f3c0adeabe0da72560f56ea40ce4d2",
+      "size_bytes": 691556
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -296,9 +293,9 @@
     },
     "process_graphs/steward-dashboard/status.json": {
       "path": "process_graphs/steward-dashboard/status.json",
-      "revision": "1.1.20",
-      "sha256": "dd1d0fb1bbe36aac47f6f7983fe22aed5f10b9a3bae00c33346aea1fab6f3d2c",
-      "size_bytes": 45260
+      "revision": "1.1.21",
+      "sha256": "6290cd0e0adb97ec58a99f1011f85784809605d82f8c244eb4aae155dfdae0da",
+      "size_bytes": 46562
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
@@ -440,9 +437,9 @@
     },
     "src/riverview_core/status_dashboard/resource_telemetry.py": {
       "path": "src/riverview_core/status_dashboard/resource_telemetry.py",
-      "revision": "1.0.0",
-      "sha256": "d7f521bbe3a86f167952255032bd585c4229afe8bb6f1797f8621e80e0e8e550",
-      "size_bytes": 16238
+      "revision": "1.1.0",
+      "sha256": "db0eec39505114c0a05deb39136419ab49423cd203814a1d693d424ff828cd3f",
+      "size_bytes": 18355
     },
     "scripts/rv_gpu_telemetry_command.py": {
       "path": "scripts/rv_gpu_telemetry_command.py",
@@ -458,9 +455,9 @@
     },
     "tests/test_resource_telemetry.py": {
       "path": "tests/test_resource_telemetry.py",
-      "revision": "1.0.0",
-      "sha256": "1ed88540e35fa07e779d944e694cbcd2c240aca07189a907a2d41de8f99085b7",
-      "size_bytes": 5789
+      "revision": "1.1.1",
+      "sha256": "6177d4d309ba9b96ad5934f067ec2066abcf0521f46a9a578cf437ce261cfd6c",
+      "size_bytes": 8187
     },
     "tests/test_gpu_telemetry_command.py": {
       "path": "tests/test_gpu_telemetry_command.py",
@@ -476,23 +473,23 @@
     },
     "docs/components/STATUS_DASHBOARD.md": {
       "path": "docs/components/STATUS_DASHBOARD.md",
-      "revision": "1.1.11",
-      "sha256": "b102b3289f42a6d0a2d723a7325cdea14c303ed4b18a3d23656d521d60945f1b",
-      "size_bytes": 27869
+      "revision": "1.1.12",
+      "sha256": "c5e52e6459a92cdf8449f2b0f7b2cc4a62b7c01330bf7ea748324754642262c2",
+      "size_bytes": 28760
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-      "revision": "1.1.29",
-      "sha256": "85672f4fdf9a765570b849249ad7e27423475d1ac63f8c604e8052f191d842b1",
-      "size_bytes": 60285
+      "revision": "1.1.30",
+      "sha256": "e5c2e3c327448bc09025841c5779dd82c9d6390209086be700d3a16036fa36ee",
+      "size_bytes": 60744
     },
     "docs/components/STATUS_DASHBOARD_FLOW.md": {
       "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
-      "revision": "1.0.0",
-      "sha256": "d648d0808170d6b44d628e59d5fcc8cf381f2ce5a6f14c83943e73b29bb76b6b",
-      "size_bytes": 17303
+      "revision": "1.0.15",
+      "sha256": "13c9cd99ad6e70e07c59e6435649ae5298c777b35dfae76e31d072ca4320f419",
+      "size_bytes": 17999
     }
   },
-  "manifest_revision": "1.1.299",
+  "manifest_revision": "1.1.300",
   "updated_at": "2026-10-20T23:07:09Z"
 }
