@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.28
+File Revision: 1.0.29
 Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Connect authenticated Hardware view to host telemetry.
@@ -11,6 +11,7 @@ Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Add interactive OCTO1 topol
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Read a content-free trace from the authorized durable Grace conversation API
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Render supplied X12 Ultra manufacturer references with interactive, source-bounded selections
 Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Keep measured GPU cards mounted during five-second refresh; mark retained samples stale on source failure
+Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document VRAM bars, measured router response-rate traces, slot context, and bounded activity paging
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell
@@ -30,6 +31,16 @@ V2 has two intentionally different delivery routes. The optional Python preview 
 The V2 chat UI uses the existing Dashboard account API directly at the same HTTPS origin. It checks the current account session with `GET /api/v1/auth/session`; when absent, the user signs in via `POST /api/v1/auth/session`. Dashboard sets an HttpOnly account cookie and a SameSite CSRF cookie. V2 never reads or stores the account cookie/password/token. It sends the CSRF value in `X-Riverview-CSRF` for state-changing requests and establishes a conversation session using `POST /api/v1/resident/conversation-session`. The existing Dashboard server verifies the Steward account, current binding, and exact `resident.conversation.read` and `.send` grants. V2 then calls the existing list/history, streamed send, and response-status endpoints. Durable append-only Dashboard events are authoritative. Browser localStorage contains only the selected conversation ID; message bodies remain in Dashboard persistence and are rendered with text nodes. Failed or uncertain sends are never automatically repeated. Pending responses are inspected with read-only status requests and resume after reload by examining durable history.
 
 Theme selection (`Light`, `Dark`, `System`) is persisted under `rv.v2.theme`; resident selection and sidebar state remain in memory. Sidebars independently cycle through expanded, icon-only/compact, and hidden states. Controls expose keyboard-visible descriptions and focus outlines. ChatGPT remains a separate external link, while Comms5 remains **UNVERIFIED** because the live contract still has no independently recorded, correlated send/receive event projection. The enabled `Snapshot` button builds a local bounded ZIP from the active V2 view. Its communication metadata reports the observed Grace connection/history state without message content, IDs, identity, credentials, or error payloads; Comms5 counts remain null. The 2 MiB hard limit and SHA-256 manifest remain in force. Snapshot makes no API request of its own and does not claim GitHub archive success.
+
+## Hardware & AI telemetry enhancements (Issue #207)
+
+Each retained GPU card displays a visual VRAM bar only when both measured used and total bytes are valid. The adjacent summary shows used/total, percentage, and remaining capacity; missing, inconsistent, stale, or failed telemetry is never converted to zero. The five-second refresh updates keyed nodes in place and keeps the existing single-flight request guard.
+
+The model response-throughput charts use only successful durable Grace provider attempts that include output-token count, elapsed provider-call milliseconds, and an end timestamp. A point is output tokens divided by the router-recorded provider-call interval, so it includes endpoint and transport overhead; it is not server-only GPU throughput. The rolling window is five minutes, updated with the authenticated trace poll. Prompt-processing/generation split times are unavailable because the current llama.cpp servers return HTTP 501 for `/metrics` and `/slots` does not contain those timings. Missing 80B/30B samples remain explicitly unavailable.
+
+Selected 80B/30B details use only the Dashboard's authenticated, bounded numeric `slot_context` projection from fixed llama.cpp `/slots` endpoints. Configured context is reported per slot; the server-wide capacity is the sum of those per-slot limits and is labeled as such. Prompt counts and processed/cached counts appear only when numeric counters are present. KV-cache allocation bytes and queue depth are unavailable from these model-server builds. Raw task identifiers, prompts, and token data are not returned by the Dashboard projection.
+
+Recent Hardware Activity retains at most 60 browser-side samples and shows four per page. Previous/Next changes the visible page without resetting on telemetry refresh. The selected page and activity scroll offset are retained while visible items update; only the current page's four keyed records are mounted. Server-side diagnostic retention is unchanged.
 
 ## Grace center workspace (RV-WEB-V2-GRACE-WORKSPACE-003)
 

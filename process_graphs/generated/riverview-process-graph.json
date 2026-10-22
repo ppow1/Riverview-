@@ -3765,7 +3765,7 @@
     },
     {
       "graph_id": "rv:riverview-v2:workspace-shell",
-      "graph_revision": "1.0.20",
+      "graph_revision": "1.0.21",
       "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
       "workflow_id": "local-static-preview",
       "diagram_order": 80,
@@ -4878,9 +4878,9 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:resource-model-apis",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Read fixed model health, loaded identity, and active slots; leave unsupported queue depth unavailable",
+          "label": "Read fixed model health, loaded identity, active slots, and numeric per-slot context counters; leave queue and KV-cache bytes unavailable",
           "source_references": [],
           "documentation_references": [
             "docs/components/STATUS_DASHBOARD.md",
@@ -4893,9 +4893,9 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:resource-render-live",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "process",
-          "label": "Render measured GPU/model fields into stable keyed cards; retain the previous values while refreshing and mark them stale after failure or expiry",
+          "label": "Update keyed GPU cards in place with measured fields and valid VRAM bars; retain previous values during refresh and mark them stale after failure or expiry",
           "source_references": [
             "website/v2/assets/resource-monitor.js",
             "website/v2/index.html"
@@ -4911,9 +4911,9 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:octo1-topology-join",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Join allowlisted GPU service labels to live model endpoint projections; never infer physical slot positions",
+          "label": "Join allowlisted GPU service labels to live model endpoint projections and numeric slot context; never infer physical slot positions",
           "source_references": [
             "website/v2/assets/resource-monitor.js"
           ],
@@ -4962,9 +4962,9 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "measurement",
-          "label": "Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples without replacing mounted cards; retain at most twelve samples in browser memory",
+          "label": "Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples without replacing mounted cards; retain at most 60 samples and show four per page",
           "source_references": [
             "website/v2/assets/resource-monitor.js"
           ],
@@ -5029,9 +5029,9 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "measurement",
-          "label": "Read the current authorized Grace conversation and show request ID, provider call window, outcome, and durable response time without message content",
+          "label": "Read authorized durable Grace attempts without message content; derive response-rate points only from successful attempts with measured token count and elapsed duration",
           "source_references": [
             "website/v2/assets/grace-chat.js",
             "website/v2/assets/resource-monitor.js",
@@ -5137,6 +5137,75 @@
             "tests/test_v2_workspace_shell.py",
             "scripts/verify_v2_resource_monitor.cjs",
             "scripts/verify_v2_octo1_browser.cjs"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:octo1-vram-bars",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Render used/total, remaining, percentage, and a visual VRAM bar only when source byte counters are consistent",
+          "source_references": [
+            "website/v2/assets/resource-monitor.js",
+            "website/v2/assets/resource-monitor.css"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_resource_monitor.cjs"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:octo1-slot-context",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Show configured context per slot, server capacity as the sum of slot limits, and prompt counters only when numeric llama.cpp /slots fields exist; KV bytes remain unavailable",
+          "source_references": [
+            "website/v2/assets/resource-monitor.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_resource_monitor.cjs",
+            "tests/test_v2_workspace_shell.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:octo1-response-rate-chart",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Plot successful output-token counts over router-recorded provider-call elapsed time in a bounded rolling five-minute window; do not claim server-only GPU throughput",
+          "source_references": [
+            "website/v2/assets/grace-chat.js",
+            "website/v2/assets/resource-monitor.js"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_resource_monitor.cjs"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:octo1-activity-pages",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Keep at most 60 browser activity samples, mount four keyed records per page, and preserve page and scroll position during refresh",
+          "source_references": [
+            "website/v2/assets/resource-monitor.js",
+            "website/v2/assets/resource-monitor.css"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_resource_monitor.cjs"
           ]
         }
       ],
@@ -5813,6 +5882,48 @@
           "to": "rv:riverview-v2:workspace-shell:octo1-dynamic-model-highlights",
           "type": "runtime_transition",
           "label": "Highlight only current telemetry-derived GPU/model associations"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:resource-model-apis",
+          "to": "rv:riverview-v2:workspace-shell:octo1-slot-context",
+          "type": "runtime_transition",
+          "label": "Project bounded numeric /slots context counters to the authenticated Dashboard response"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:octo1-slot-context",
+          "to": "rv:riverview-v2:workspace-shell:octo1-select-details",
+          "type": "runtime_transition",
+          "label": "Render per-slot capacity and observed prompt counters; label unavailable KV bytes"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+          "to": "rv:riverview-v2:workspace-shell:octo1-vram-bars",
+          "type": "runtime_transition",
+          "label": "Compute visual fill from consistent measured memory used and total bytes only"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:octo1-vram-bars",
+          "to": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+          "type": "runtime_transition",
+          "label": "Refresh measurements in place without replacing GPU cards"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+          "to": "rv:riverview-v2:workspace-shell:octo1-response-rate-chart",
+          "type": "runtime_transition",
+          "label": "Accept successful trace attempts with completion tokens, elapsed time, and end timestamp"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:octo1-response-rate-chart",
+          "to": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+          "type": "runtime_transition",
+          "label": "Update measured rate points on the existing authenticated five-second poll"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+          "to": "rv:riverview-v2:workspace-shell:octo1-activity-pages",
+          "type": "runtime_transition",
+          "label": "Retain bounded samples and page four visible records without resetting scroll/page"
         }
       ]
     },
@@ -8141,6 +8252,7 @@
     "rv:riverview-v2:workspace-shell:integration-unavailable",
     "rv:riverview-v2:workspace-shell:issue-session",
     "rv:riverview-v2:workspace-shell:missing-hash",
+    "rv:riverview-v2:workspace-shell:octo1-activity-pages",
     "rv:riverview-v2:workspace-shell:octo1-controller-unavailable",
     "rv:riverview-v2:workspace-shell:octo1-device-bay-unavailable",
     "rv:riverview-v2:workspace-shell:octo1-dynamic-model-highlights",
@@ -8152,8 +8264,11 @@
     "rv:riverview-v2:workspace-shell:octo1-poll-sample",
     "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
     "rv:riverview-v2:workspace-shell:octo1-request-attribution-unavailable",
+    "rv:riverview-v2:workspace-shell:octo1-response-rate-chart",
     "rv:riverview-v2:workspace-shell:octo1-select-details",
+    "rv:riverview-v2:workspace-shell:octo1-slot-context",
     "rv:riverview-v2:workspace-shell:octo1-topology-join",
+    "rv:riverview-v2:workspace-shell:octo1-vram-bars",
     "rv:riverview-v2:workspace-shell:open-preview",
     "rv:riverview-v2:workspace-shell:open-v2-route",
     "rv:riverview-v2:workspace-shell:password-form",

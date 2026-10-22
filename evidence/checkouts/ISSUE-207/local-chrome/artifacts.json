@@ -1,0 +1,70 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-V2-HW-AI-ENHANCEMENTS-207",
+  "evidence_source": "isolated local Chrome fixture with synthetic data explicitly labelled in screenshots",
+  "artifacts": {
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "b4647cb3a00dfcb5204baef58f6e457d6efcf2b44a0c1456c0665633e988bf51",
+      "size_bytes": 9629,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    },
+    "gpu-cards-pending-refresh-fixture.png": {
+      "path": "gpu-cards-pending-refresh-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "31d943dbe889d8a9d258270577993a99cd06b4c87ca4ca64931370d3344bfb71",
+      "size_bytes": 398428,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    },
+    "gpu-cards-recovered-fixture.png": {
+      "path": "gpu-cards-recovered-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "95a044c159e87be093dba3f3c1f6e63840aa41b52c169ebb2b7e483a5611e600",
+      "size_bytes": 397865,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    },
+    "gpu-cards-stale-fixture.png": {
+      "path": "gpu-cards-stale-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1665ee07788a5ab7c2d299db4c22eb3e58d6a0a6e6c7fb61cde8dd1d6a6b2891",
+      "size_bytes": 398126,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    },
+    "octo1-80b-allocation-fixture.png": {
+      "path": "octo1-80b-allocation-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "897395ed70597e22b7c2e2d1954732102213401f8540132dd3592c1ba527b6c9",
+      "size_bytes": 420401,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    },
+    "octo1-chassis-front-fixture.png": {
+      "path": "octo1-chassis-front-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "855be2bbed2745b3e906ebc12e5207a34bd8a48e655b373609cdf5aa8ede961f",
+      "size_bytes": 352147,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    },
+    "octo1-chassis-open-fixture.png": {
+      "path": "octo1-chassis-open-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "68b426ba19ae19d283db664bca330addc0a368a4363c04e4e7cdce92878b8f70",
+      "size_bytes": 457061,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    },
+    "octo1-front-fan-detail-fixture.png": {
+      "path": "octo1-front-fan-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1816f92569b867da517d4d6fc466fe2bb3e1341833fa2e42bd7ec2be23bea1c8",
+      "size_bytes": 405856,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    },
+    "octo1-rtx4090-detail-fixture.png": {
+      "path": "octo1-rtx4090-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "ff51a51afa26c20df4aeaa1b838703492d87d972f6144f7c1b6871b8135db4eb",
+      "size_bytes": 413071,
+      "source": "isolated Chrome synthetic fixture; not production telemetry"
+    }
+  }
+}

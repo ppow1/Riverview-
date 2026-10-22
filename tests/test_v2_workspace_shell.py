@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.22
+# Revision: 1.0.23
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
 # Observability: unittest case names, counts, and exit status
@@ -13,6 +13,7 @@
 # Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Verify a content-free current-conversation trace contract
 # Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Verify original chassis assets, fan hotspots, and truthful device-to-bay boundaries
 # Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Verify authenticated read-only objective and assignment Work view
+# Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Verify context detail marks unsupported server timing unavailable
 # Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Require mounted GPU cards and retained telemetry during polling
 # Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 # Tests: tests/test_v2_workspace_shell.py
@@ -205,7 +206,7 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('requestTraceSnapshot', trace_chat)
         self.assertIn('response_persisted_at', trace_chat)
         self.assertIn('controller:"Manufacturer fan controller"', monitor)
-        self.assertIn('"Prompt vs generation phase"', monitor)
+        self.assertIn('addRow(metrics,"Prompt/generation timing"', monitor)
         self.assertNotIn("fan PWM", monitor)
         self.assertIn("hardware_ai_resource_monitor", snapshot)
         self.assertIn("worker counts, assignment states, hardware values, model identities and request details are excluded", snapshot)

@@ -1,0 +1,533 @@
+{
+  "files": {
+    ".riverview-backups/manifest.jsonl": {
+      "path": ".riverview-backups/manifest.jsonl",
+      "revision": "1.0.0",
+      "sha256": "0a2bca2e3f248c54daedbf07efa7b3f5cf3df43c27cfbbda4109565c4e3cc8b3",
+      "size_bytes": 419299
+    },
+    ".riverview-revisions.json": {
+      "revision": "1.1.116"
+    },
+    "dist/knowledge-provider-v1.0.0.zip": {
+      "path": "dist/knowledge-provider-v1.0.0.zip",
+      "revision": "1.0.0",
+      "sha256": "a5f35c86cfb649eb7259829879f3375bf832c482b4ec8db67bd160f35176fce3",
+      "size_bytes": 19479
+    },
+    "docs/components/CHATGPT_DOORBELL_STATUS.schema.json": {
+      "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
+      "revision": "1.0.0",
+      "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
+      "size_bytes": 6987
+    },
+    "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
+      "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
+      "revision": "1.0.0",
+      "sha256": "2e4d7446b1d64b13a76b3d0ce037465df182ca1c209b692c69cce881c5b28b7a",
+      "size_bytes": 2957
+    },
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md": {
+      "path": "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
+      "revision": "1.0.3",
+      "sha256": "9591bd1aca778eb8157872cbf461ca36e0973c3c16e3fe729bc25341bdd12fa4",
+      "size_bytes": 12135
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+      "revision": "1.0.28",
+      "sha256": "549004b08ed6d960d2ef8ba9e82bef14333a6a5054135ce716bbeb8eb12ad5c7",
+      "size_bytes": 47020
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+      "revision": "1.0.20",
+      "sha256": "a2bca4dfe3b92bea06b2ff7e3489eeea31d71bb61f24c9f6db78dfeab92bc4aa",
+      "size_bytes": 40111
+    },
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
+      "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
+      "revision": "1.0.19",
+      "sha256": "338f44f432db705e8f36d93b7ed46bedf43ace77bddeb23905b24b351e43f17b",
+      "size_bytes": 32989
+    },
+    "docs/components/STATUS_DASHBOARD_API.schema.json": {
+      "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
+      "revision": "1.0.4",
+      "sha256": "4267b8d917010e65424b06d96d1b0e32c3b547649724d39a57645cb50c1fc7e6",
+      "size_bytes": 12076
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1715Z-03f6d78/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "0f74190e28f0604cda6e4df8394f3cbacee0c3f7c9c7bd72bbe2de97fffd029a",
+      "size_bytes": 553
+    },
+    "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json": {
+      "path": "evidence/checkouts/ASSIGNMENT-SCHEDULER/20261010T1720Z-549bd08/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "9eb7c69d0aefaf2da23b24fda7c8e5d3614f6703fbbd1816cab398d46d194313",
+      "size_bytes": 724
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/artifacts.json": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/artifacts.json",
+      "revision": "1.0.0",
+      "sha256": "7795ac8ef3dc75d565a83ce2ba4f789ec4a0bbd73216706df28def8c9f66fb9d",
+      "size_bytes": 509
+    },
+    "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json": {
+      "path": "evidence/checkouts/CHATGPT-DOORBELL/20261017T233224Z/runtime-qualification.json",
+      "revision": "1.0.0",
+      "sha256": "18885bb27223d32c01ff7f92f20b7f2036fc9fe89379128aa204a6b369420479",
+      "size_bytes": 2014
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/ci_results.json",
+      "revision": "1.0.0",
+      "sha256": "104994ab8fb87720074406e662f59cb5f2353f9ef6ee87b90768e4f515b1c9fe",
+      "size_bytes": 402
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/package_verification.json",
+      "revision": "1.0.0",
+      "sha256": "18442844fb52bda3c838b208f993a2cb0875fd5533105441d4e7d41ca43946ce",
+      "size_bytes": 878
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/runtime_acceptance.json",
+      "revision": "1.0.2",
+      "sha256": "6f6e3ca0fab7eefcebe1fe3b35b2b8a568878154b216c6c93d83c57edd8e8458",
+      "size_bytes": 6034
+    },
+    "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json": {
+      "path": "evidence/checkouts/EVENT-PROCESSOR/20261010T1700Z-9ca7cb1/test_results.json",
+      "revision": "1.0.1",
+      "sha256": "6d6ef80a5252415c7113309ac64ed8d889e83ead00e89266081583926b0d04d5",
+      "size_bytes": 548
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/artifacts.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/artifacts.json",
+      "revision": "1.0.1",
+      "sha256": "f79ed285fd34cf5c1dde164f3d8f36e69ae7f78bd91f0d7e4fd08a59d6a189db",
+      "size_bytes": 1906
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/browser-report.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "66f7502420287e71b3c761b4c36cf0dc6e78da22abfb7c11be233018b6dc3e4a",
+      "size_bytes": 6236
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-80b-allocation-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-80b-allocation-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1dc9bc43a60ed3bbea4aeb1b8ea4f777d97e7a6126782e6a9ad72398958d0d1f",
+      "size_bytes": 413813
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-chassis-front-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-chassis-front-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "27d934fea952f7dc003633942cc855b7550f1e42555fb12419a817a2ff863e15",
+      "size_bytes": 409512
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-chassis-open-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-chassis-open-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "053638c11f63a0b74c1da941b207b4e654a4d2cc797d1264190844cd6501789c",
+      "size_bytes": 471783
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-front-fan-detail-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-front-fan-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1195b82c4f67d928b83113987fadd85489f0fceb149a493c4a4d3f3522ecedfd",
+      "size_bytes": 410922
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-rtx4090-detail-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/octo1-rtx4090-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "41bd42f60edf36509974bb149900db80672d41836d3128240c34e862354cb5c6",
+      "size_bytes": 413798
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/review-evidence.md": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/review-evidence.md",
+      "revision": "1.0.1",
+      "sha256": "c0253db59426e560e47354b7d9661048a82d8fd47ffb1a3070876710d98de660",
+      "size_bytes": 1842
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/test-results.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T194202Z-physical-twin-browser-review/test-results.json",
+      "revision": "1.0.0",
+      "sha256": "b21b76a225feac76435f7726aaf741aa2fdc32e8d3a238aff453a2392edfa696",
+      "size_bytes": 3208
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/artifacts.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/artifacts.json",
+      "revision": "1.0.0",
+      "sha256": "f9ec1b11c1b5507bf5c2e700aad90ddaecc8f985231db02cba734b5e02994854",
+      "size_bytes": 1591
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/browser-report.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "1c44760466067f73cbaaa769e12e2269d81e931275c719a4ff87909b677f26f2",
+      "size_bytes": 2375
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/octo1-console-desktop-fixture.png": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/octo1-console-desktop-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "5eedc342d87e5ed3c82bad41429b07c36874a9114677094ed034259f74a2cd2d",
+      "size_bytes": 325484
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/review-evidence.md": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/review-evidence.md",
+      "revision": "1.0.0",
+      "sha256": "e3700e6987963e85be6b3199d504282bdffc3fcfe63e1a25187895f6e12cb983",
+      "size_bytes": 1805
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/source-observation.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/source-observation.json",
+      "revision": "1.0.0",
+      "sha256": "581ebe8bd60e868f8933b817f12c943dd9af939145cce84b8f90068d1972b826",
+      "size_bytes": 4116
+    },
+    "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/test-results.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-OCTO1-DIGITAL-TWIN/20261021T2025Z-local-browser/test-results.json",
+      "revision": "1.0.0",
+      "sha256": "203557f3c0ec8c405cc70d6b975285a406e8afe237dec1de3bbc2e31dc2b0e98",
+      "size_bytes": 3527
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T180911Z-210cef1/acceptance.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T180911Z-210cef1/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "409e5d5deec35219fe42eae44266b8d1883e62e314d86e08a942f5e654057930",
+      "size_bytes": 10136
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T184548Z-2b4a6cd/acceptance.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T184548Z-2b4a6cd/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "9de5e7d3ccfef52555e5d6c395044eb2fa4685c8c0638282b166c029d5e15f74",
+      "size_bytes": 6738
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T190737Z-c015cd1/acceptance.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T190737Z-c015cd1/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "a8cfa43d8b0dcd37bcebdba6bc01b2ceacc20af923cc0637da661cbcd12951a7",
+      "size_bytes": 7439
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/acceptance.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "dd51c4bc2f6d8e3491a8a0f6d438820c8b755060b1b4e53d1f6adf655d3de010",
+      "size_bytes": 4815
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/artifacts.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/artifacts.json",
+      "revision": "1.0.0",
+      "sha256": "4828e0bc9c7965f4308de442a6450e0f1a289a567ec9a7f4335477eb0b3ec38e",
+      "size_bytes": 1886
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/browser-iteration-history.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/browser-iteration-history.json",
+      "revision": "1.0.0",
+      "sha256": "d788cc69761a6af51a996ede0fc05a1ee42a4d2eaed7625e09247b403ea0beea",
+      "size_bytes": 1167
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/chrome-mobile.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/chrome-mobile.json",
+      "revision": "1.0.0",
+      "sha256": "f9ab1010f2e51dc5782db3f50a691875dce3ad4e63f6df3557f86bcacc8c5d11",
+      "size_bytes": 482
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/firefox.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/firefox.json",
+      "revision": "1.0.0",
+      "sha256": "4ebcb84e536ba3d946361ac2a3f6973cb0bc996748a5dd626d6fcf3fae8a93d3",
+      "size_bytes": 1230
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/graph-check.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/graph-check.json",
+      "revision": "1.0.0",
+      "sha256": "7b5d9024a1538bf9f0cca297adebaafcc9ac0f68a6a681db21a37835230ae1fe",
+      "size_bytes": 55
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/graph-validate.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/graph-validate.json",
+      "revision": "1.0.0",
+      "sha256": "932b2c8c51e41ca21433be08e5bfed60024d8bf89fe96156a69f0ed46358edc6",
+      "size_bytes": 39
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/isolation.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/isolation.json",
+      "revision": "1.0.0",
+      "sha256": "e7779387e074865805e18ee3ff029473c10d8c9c051433b6062766d4f7d8264b",
+      "size_bytes": 597
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/node-check.log": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/node-check.log",
+      "revision": "1.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/unittest.log": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T202325Z-88b4064/unittest.log",
+      "revision": "1.0.0",
+      "sha256": "dc14b5996622457c0669c434a08909f832184d5aa8c3f929cbceb1775637869b",
+      "size_bytes": 2743
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/acceptance.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "79be4e793bedad5ed218e776759c72d07834f084ae889589632785dcf193bca9",
+      "size_bytes": 5051
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/artifacts.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/artifacts.json",
+      "revision": "1.0.0",
+      "sha256": "50bb2d66717c31d10a3d0990299bde660e316973d011fdc577d3ad608aed6ab7",
+      "size_bytes": 713
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/browser-prerequisite.json": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/browser-prerequisite.json",
+      "revision": "1.0.0",
+      "sha256": "057f50f269c6d2a89edcfe5fa5827f0a9616d471e0b4ec805d054c5e22070cc0",
+      "size_bytes": 822
+    },
+    "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/checkout.log": {
+      "path": "evidence/checkouts/RIVERVIEW-V2-WORKSPACE-SHELL/20261020T2234Z-grace-chat-002/checkout.log",
+      "revision": "1.0.0",
+      "sha256": "5d4e48c5aad5d93c72dff9ab116efce382cb659f3c48ad468c8389eafe5857b3",
+      "size_bytes": 6210
+    },
+    "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json": {
+      "path": "evidence/checkouts/WORKER-ADAPTER/20261010T1725Z-f27686a/test_results.json",
+      "revision": "1.0.0",
+      "sha256": "4be125b6c9cbc7c1a213effdd34fb4dd7ac586cd196f2c9b9d9e7cf1546ade03",
+      "size_bytes": 753
+    },
+    "process_graphs/assignment-scheduler/independent-claims.json": {
+      "path": "process_graphs/assignment-scheduler/independent-claims.json",
+      "revision": "1.0.4",
+      "sha256": "9f587540e540e056653239c0faf60e98108cc4c0d5d71546ae1e1a5d34e41144",
+      "size_bytes": 9993
+    },
+    "process_graphs/chatgpt-doorbell/browser-runtime.json": {
+      "path": "process_graphs/chatgpt-doorbell/browser-runtime.json",
+      "revision": "1.0.5",
+      "sha256": "8a3126b0cc9c88e5808cc34158aef21b63f629aeba5b6c8a19222c2101dc4873",
+      "size_bytes": 23651
+    },
+    "process_graphs/cme/progress-and-recovery.json": {
+      "path": "process_graphs/cme/progress-and-recovery.json",
+      "revision": "1.0.4",
+      "sha256": "14b3228cf25187960373551620cd4779bebe50bf70dbfe3c70ba32baf3bf87d2",
+      "size_bytes": 17159
+    },
+    "process_graphs/event-processor/assignment-progression.json": {
+      "path": "process_graphs/event-processor/assignment-progression.json",
+      "revision": "1.0.4",
+      "sha256": "aeeae994795fefdecabfcc6defb1b845450231ef073463547c4406c5ed734aa5",
+      "size_bytes": 13511
+    },
+    "process_graphs/generated/riverview-process-graph.json": {
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "revision": "1.0.60",
+      "sha256": "03e6212ab18ddb76220d81718cde13b12db46c4d1d97040d507835d2047c55aa",
+      "size_bytes": 338717
+    },
+    "process_graphs/grace/operational-integration.json": {
+      "path": "process_graphs/grace/operational-integration.json",
+      "revision": "1.0.1",
+      "sha256": "878a5c1d1377941f9f5d011f5e284e057c021951809028f6bf464623eb77941c",
+      "size_bytes": 8145
+    },
+    "process_graphs/institutional-authority/identity-and-grants.json": {
+      "path": "process_graphs/institutional-authority/identity-and-grants.json",
+      "revision": "1.0.5",
+      "sha256": "a2cfa08f3abbc2d6d4e873ea9e4125266f2afbb56edec2228ce5aacc56c94b01",
+      "size_bytes": 15802
+    },
+    "process_graphs/notification-delivery/visual-attention.json": {
+      "path": "process_graphs/notification-delivery/visual-attention.json",
+      "revision": "1.0.0",
+      "sha256": "dfe1f15fb91fd7450abfda77ce1976a64ed1d7d3a391011ae24e8f432f352bc7",
+      "size_bytes": 8560
+    },
+    "process_graphs/outcome-verifier/independent-result.json": {
+      "path": "process_graphs/outcome-verifier/independent-result.json",
+      "revision": "1.0.1",
+      "sha256": "bf19b95dab879205cc03e3042bda57ad363d98fc8946fe570fca771ded8ceeeb",
+      "size_bytes": 8028
+    },
+    "process_graphs/postgres-ledger/assignment-lifecycle.json": {
+      "path": "process_graphs/postgres-ledger/assignment-lifecycle.json",
+      "revision": "1.0.0",
+      "sha256": "3cf4993bd5a07c8ad99cfbf2179d33b0fd606174b795624897c4f146bdc7e9bd",
+      "size_bytes": 6599
+    },
+    "process_graphs/postgres-ledger/migration.json": {
+      "path": "process_graphs/postgres-ledger/migration.json",
+      "revision": "1.0.1",
+      "sha256": "4fe10b7583e6c6b2fdd01afee4da4f3b7ffd083a3c609ed36fc7fd015e215093",
+      "size_bytes": 13553
+    },
+    "process_graphs/riverview-v2/workspace-shell.json": {
+      "path": "process_graphs/riverview-v2/workspace-shell.json",
+      "revision": "1.0.20",
+      "sha256": "d05d3ab35d72a73ba3e37c75d7961da2eacf9cb55c8e9a912c6ea79857d616f8",
+      "size_bytes": 78349
+    },
+    "process_graphs/runtime-baseline/runtime-baseline.json": {
+      "path": "process_graphs/runtime-baseline/runtime-baseline.json",
+      "revision": "1.0.1",
+      "sha256": "29385a4a5958e7ba21248cd9b5ccdef4c990cb0b2a59ad36e7ca0f2f6522547c",
+      "size_bytes": 14418
+    },
+    "process_graphs/schema/riverview-process-graph.schema.json": {
+      "path": "process_graphs/schema/riverview-process-graph.schema.json",
+      "revision": "1.0.1",
+      "sha256": "0c03d29216d6d3cb08e58ab7bff12b545211f78fbdffb0767118553b52025da7",
+      "size_bytes": 3203
+    },
+    "process_graphs/steward-dashboard/status.json": {
+      "path": "process_graphs/steward-dashboard/status.json",
+      "revision": "1.0.7",
+      "sha256": "51b3e7932ac419c25aaa709c2fbad1f7785cb777d707315de5d4e58625ea71ce",
+      "size_bytes": 27724
+    },
+    "process_graphs/worker-adapter/deterministic-attempt.json": {
+      "path": "process_graphs/worker-adapter/deterministic-attempt.json",
+      "revision": "1.0.7",
+      "sha256": "f9576ede49fe6a9ce7ee20e9198f5c0ee52528d1ec23f02bc059817654d6e9fa",
+      "size_bytes": 30113
+    },
+    "scripts/verify_v2_octo1_browser.cjs": {
+      "path": "scripts/verify_v2_octo1_browser.cjs",
+      "revision": "1.1.0",
+      "sha256": "6af6e567b5f39ef0b3047b4d06c260dbcb0dd76a7a4cb9ba5f6dfc5f600f98cf",
+      "size_bytes": 27525
+    },
+    "scripts/verify_v2_resource_monitor.cjs": {
+      "path": "scripts/verify_v2_resource_monitor.cjs",
+      "revision": "1.3.0",
+      "sha256": "3ff7a16fe42b79e6767a341e366b1ca1040a7a62f2e31a75c9869bc6e725000a",
+      "size_bytes": 17904
+    },
+    "scripts/verify_v2_work_monitor.cjs": {
+      "path": "scripts/verify_v2_work_monitor.cjs",
+      "revision": "1.0.0",
+      "sha256": "c6d9c84cd0661c1768b036db1eab8b5fe1cd268940c834dc043ba36ad4fa2ab5",
+      "size_bytes": 7923
+    },
+    "scripts/verify_v2_workspace_mobile.cjs": {
+      "path": "scripts/verify_v2_workspace_mobile.cjs",
+      "revision": "1.0.10",
+      "sha256": "5635be654448af72c95b378a3c8dbe21d8f265d2d01aa3106839283a5e173676",
+      "size_bytes": 14929
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/assignment.schema.json",
+      "revision": "1.0.0",
+      "sha256": "6a5cb8ebb1aa4c996e88c9d4ebfa12a39eea9d58adcf64c780a46cb338596028",
+      "size_bytes": 665
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/manifest.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/manifest.json",
+      "revision": "1.0.2",
+      "sha256": "452ad26382b66e4666689117be51df86942461b7e0d9e6814358c137cfc93cba",
+      "size_bytes": 1561
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/outcome.schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/outcome.schema.json",
+      "revision": "1.0.0",
+      "sha256": "c31e979b148bd840e065636f93698a05c72796d47fce870cb578a58a272439f8",
+      "size_bytes": 332
+    },
+    "src/riverview_core/worker_adapter/knowledge_provider_v1/schema.json": {
+      "path": "src/riverview_core/worker_adapter/knowledge_provider_v1/schema.json",
+      "revision": "1.0.0",
+      "sha256": "792e20e7dc223ccf8afa3837588ef9a7238b3a6fec5f2ed827b4b47e398a4500",
+      "size_bytes": 1226
+    },
+    "tests/test_v2_workspace_shell.py": {
+      "path": "tests/test_v2_workspace_shell.py",
+      "revision": "1.0.22",
+      "sha256": "af52a354d83ea55fcccbf6d2394a162afb143a289ff2cfa4874ea0ae9c7a4a42",
+      "size_bytes": 30290
+    },
+    "website/v2/assets/grace-chat.js": {
+      "path": "website/v2/assets/grace-chat.js",
+      "revision": "1.0.5",
+      "sha256": "732b062fea714bf70d2f1a0d325650140735fe5710777c6b9fbe2fd36d456a0e",
+      "size_bytes": 17235
+    },
+    "website/v2/assets/octominer/controller-feature-reference.png": {
+      "copy_verified_byte_identical": true,
+      "original_filename": "image(20261020-202124).png",
+      "original_sha256": "1bb72f98c40228ef9ccaa35133e16adeac6e5c639da3ab82f54b35a2882177dc",
+      "path": "website/v2/assets/octominer/controller-feature-reference.png",
+      "revision": "1.0.0",
+      "sha256": "1bb72f98c40228ef9ccaa35133e16adeac6e5c639da3ab82f54b35a2882177dc",
+      "size_bytes": 739048
+    },
+    "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png": {
+      "copy_verified_byte_identical": true,
+      "original_filename": "image(20261020-202057).png",
+      "original_sha256": "d8e243a5fae87fd7d969033dc6b00476d3b5c5892852ac42b552441dac535299",
+      "path": "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
+      "revision": "1.0.0",
+      "sha256": "d8e243a5fae87fd7d969033dc6b00476d3b5c5892852ac42b552441dac535299",
+      "size_bytes": 1612974
+    },
+    "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png": {
+      "copy_verified_byte_identical": true,
+      "original_filename": "image(20261020-202004).png",
+      "original_sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
+      "path": "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
+      "revision": "1.0.0",
+      "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
+      "size_bytes": 2008940
+    },
+    "website/v2/assets/resource-monitor.css": {
+      "path": "website/v2/assets/resource-monitor.css",
+      "revision": "1.1.3",
+      "sha256": "5a9d8f909e5949cb40672113ac4c244a1fc6e9e8ccf354ba2d273f623b5a5640",
+      "size_bytes": 17620
+    },
+    "website/v2/assets/resource-monitor.js": {
+      "path": "website/v2/assets/resource-monitor.js",
+      "revision": "1.3.0",
+      "sha256": "d1d650f2c0316550c3163ac4fff47282a4a9c79fe41ed81b15bb9d0467995c3f",
+      "size_bytes": 43371
+    },
+    "website/v2/assets/snapshot.js": {
+      "path": "website/v2/assets/snapshot.js",
+      "revision": "1.0.9",
+      "sha256": "ff556e3ced320c829f04d2ae8bd79cad78aa6e30d9c88cbddba84d8fe1778c02",
+      "size_bytes": 15258
+    },
+    "website/v2/assets/work-monitor.css": {
+      "path": "website/v2/assets/work-monitor.css",
+      "revision": "1.0.0",
+      "sha256": "2230776d3683b77cfbb447836eafbf287aa0f48de658a2d732f04f3a32b2b436",
+      "size_bytes": 4039
+    },
+    "website/v2/assets/work-monitor.js": {
+      "path": "website/v2/assets/work-monitor.js",
+      "revision": "1.0.0",
+      "sha256": "b618d8ef3a450d6910f3951abc8cb473fbe51e5f2828f10b06bf20c4fe450876",
+      "size_bytes": 10017
+    },
+    "website/v2/assets/workspace.js": {
+      "path": "website/v2/assets/workspace.js",
+      "revision": "1.0.6",
+      "sha256": "d9fa1a0bdec0ce9c79c88263dab8657999edae1c9cff849c1670bbdf1d7dfab7",
+      "size_bytes": 9223
+    },
+    "website/v2/index.html": {
+      "path": "website/v2/index.html",
+      "revision": "1.0.14",
+      "sha256": "fe859413f8d73b70bff877ee0af0255fa99de5f867fe7fa99ee7eaf2db35ba53",
+      "size_bytes": 32072
+    }
+  },
+  "manifest_revision": "1.1.116"
+}
