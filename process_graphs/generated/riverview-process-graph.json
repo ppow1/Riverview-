@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.67",
+      "graph_revision": "1.0.68",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -2906,7 +2906,7 @@
         },
         {
           "id": "rv:grace:operational-integration:authority-check",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "verification",
           "label": "IMPLEMENTED — objective.submit and assignment.create use exact active grants; no proposal grants authority",
           "source_references": [
@@ -3004,9 +3004,9 @@
         },
         {
           "id": "rv:grace:operational-integration:evidence-review",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "measurement",
-          "label": "Grace receives the digest-verified artifact and immutable verifier evidence, then makes a durable substantive decision; verifier ACCEPTED alone does not complete a conversation-origin objective",
+          "label": "Grace receives digest-verified artifact and immutable verifier evidence to assess same-objective continuation or rework; this conversational assessment cannot veto terminal completion after every step has accepted independent verification",
           "source_references": [
             "src/riverview_core/resident_execution/verifier.py",
             "src/riverview_core/worker_adapter/adapter.py"
@@ -3036,9 +3036,9 @@
         },
         {
           "id": "rv:grace:operational-integration:objective-check",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "decision",
-          "label": "IMPLEMENTED — conversation-origin objective completes only after all persisted steps have ACCEPTED independent verification and Grace durably reports OBJECTIVE_COMPLETE for that cycle; other review decisions leave it open",
+          "label": "IMPLEMENTED — completion is derived from every persisted step's independently accepted verification; conversation responses are an outbox projection and cannot override objective state",
           "source_references": [
             "docs/standards/COMPONENT_DEFINITION_OF_DONE.md"
           ],
@@ -3083,9 +3083,9 @@
         },
         {
           "id": "rv:grace:operational-integration:objective-complete",
-          "node_revision": "1.0.4",
+          "node_revision": "1.0.5",
           "type": "exit",
-          "label": "All persisted steps require independent ACCEPTED verification; conversation-origin objectives additionally require a same-cycle durable Grace OBJECTIVE_COMPLETE decision before completion publication.",
+          "label": "All required steps must be durably verified with independent ACCEPTED decisions. The reconciler atomically records one objective.completed event and recovers after restart; later conversation results cannot veto or reverse completion.",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
             "src/riverview_core/resident_execution/service.py"
@@ -4264,13 +4264,13 @@
           "from": "rv:grace:operational-integration:objective-check",
           "to": "rv:grace:operational-integration:objective-complete",
           "type": "verification",
-          "label": "PLANNED — all criteria independently verified"
+          "label": "All persisted steps are verified with accepted independent evidence; conversation review is not a completion precondition"
         },
         {
           "from": "rv:grace:operational-integration:objective-check",
           "to": "rv:grace:operational-integration:replan",
           "type": "recovery_route",
-          "label": "PLANNED — unmet criteria or new evidence"
+          "label": "A required step remains incomplete or a valid same-objective correction is needed"
         },
         {
           "from": "rv:grace:operational-integration:objective-check",
@@ -4535,7 +4535,7 @@
           "from": "rv:grace:operational-integration:objective-complete",
           "to": "rv:grace:operational-integration:verified-result-chat-return",
           "type": "runtime_transition",
-          "label": "A durable independently accepted step enters the optional result outbox; objective completion still requires all persisted steps."
+          "label": "After all-step completion, a durable independently accepted result enters the retryable conversation outbox; its review decision cannot change objective state."
         },
         {
           "from": "rv:grace:operational-integration:verified-result-chat-return",

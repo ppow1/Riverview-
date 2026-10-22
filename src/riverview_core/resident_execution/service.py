@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.37
+# Revision: 1.0.38
+# Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Reconcile the latest verified step first so terminal evidence uses the final completion cycle after restart.
 # Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Correlate objective proposal persistence outcomes with the resident request
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Service ready dispatch, execution, verification, completion and conversation publication before potentially slow model planning
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Provide enough bounded completion tokens for full typed proposals with dynamic objective criteria
@@ -626,7 +627,7 @@ class GraceExecutionService:
                   AND EXISTS (SELECT 1 FROM verification_records vr
                       WHERE vr.assignment_id=a.id AND vr.decision='ACCEPTED')
                   AND (%s::text IS NULL OR o.objective_id=%s)
-                ORDER BY o.updated_at,s.step_order LIMIT %s""",
+                ORDER BY o.updated_at,s.step_order DESC LIMIT %s""",
                 (objective_id, objective_id, limit))
             rows = cur.fetchall()
         completed = 0
