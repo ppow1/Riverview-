@@ -7,7 +7,7 @@
       "size_bytes": 1374473
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.309"
+      "revision": "1.1.310"
     },
     "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
       "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
@@ -371,9 +371,9 @@
     },
     "src/riverview_core/resident_execution/conversation.py": {
       "path": "src/riverview_core/resident_execution/conversation.py",
-      "revision": "1.2.25",
-      "sha256": "55cd3300346b8d4e95aa3cabbf90beccb9a935fdf61e6154994b93aab0d9209b",
-      "size_bytes": 175053
+      "revision": "1.2.28",
+      "sha256": "eb3e0a5f77c25688795518ed15988aad430dad6d3b232dda7326505ddfe0d9e1",
+      "size_bytes": 171212
     },
     "src/riverview_core/resident_execution/pipeline.py": {
       "path": "src/riverview_core/resident_execution/pipeline.py",
@@ -488,8 +488,14 @@
       "revision": "1.0.8",
       "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
       "size_bytes": 26074
+    },
+    "src/riverview_core/resident_execution/verifier.py": {
+      "path": "src/riverview_core/resident_execution/verifier.py",
+      "revision": "1.0.3",
+      "sha256": "35860d0c7e1e007a5bb0b0b9f46aa23df58aeb3ad9a01e1a0c6a9d02a8f68f63",
+      "size_bytes": 23006
     }
   },
-  "manifest_revision": "1.1.309",
-  "updated_at": "2026-10-22T14:46:00Z"
+  "manifest_revision": "1.1.310",
+  "updated_at": "2026-10-22T18:58:42Z"
 }
