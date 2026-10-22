@@ -143,7 +143,7 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
                         self.sql.Identifier(self.schema)), (objective_id,))
         fixture = self.db.execute(self.sql.SQL("""INSERT INTO {}.grace_objective_events
             (objective_id,event_type,idempotency_key,actor_id,payload)
-            VALUES (%s,'objective.received',%s,'steward:test','{}'::jsonb)
+            VALUES (%s,'objective.received',%s,'steward:test','{{}}'::jsonb)
             RETURNING event_id""").format(self.sql.Identifier(self.schema)),
             (objective_id, "acl-fixture:" + uuid4().hex)).fetchone()
 
