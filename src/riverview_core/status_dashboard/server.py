@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.34
+# Revision: 1.3.35
+# Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Expose owner-authorized content-free Grace stream activity for measured V2 live text output.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Permit normal Grace derivation when work-order criteria are omitted.
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate knowledge source commit from dashboard code identity.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Accept typed artifact contracts in authenticated proposal submission
@@ -89,6 +90,8 @@ _OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-
 _OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
 _OBJECTIVE_REREVIEW = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/result-rereview$")
 _CONVERSATION_ID = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})$")
+_CONVERSATION_STREAM_ACTIVITY = re.compile(
+    r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/stream-activity$")
 _CONVERSATION_SESSION = "/api/v1/resident/conversation-session"
 _CONVERSATION_COOKIE = "rv_grace_authority"
 _CONVERSATION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
@@ -1688,6 +1691,25 @@ def make_handler():
                         self._conversation_error(exc, request_id)
                         return
                     self._json(200, result, request_id)
+                elif (conversation_match := _CONVERSATION_STREAM_ACTIVITY.fullmatch(parsed.path)):
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        raw_limit=query.get("limit",["12"])[0]
+                        if not raw_limit.isdigit() or len(raw_limit)>2:
+                            raise ValueError("invalid stream activity limit")
+                        limit=int(raw_limit)
+                        if not 1 <= limit <= 12:
+                            raise ValueError("invalid stream activity limit")
+                        result=service.stream_activity_snapshot(
+                            self._conversation_authority(),conversation_match.group(1),
+                            limit=limit)
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
+                        return
+                    self._json(200,result,request_id)
                 elif (conversation_match := _CONVERSATION_ID.fullmatch(parsed.path)):
                     service = self.server._conversation_service
                     if service is None:
