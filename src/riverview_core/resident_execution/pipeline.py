@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.25
-# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Enforce one-step proposal and one durable dispatch for exact-one work-order lifecycle criteria.
+# Revision: 1.1.26
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Permit artifact-specific step checks only when retained in the same artifact contract.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Add exact-objective audited removal of one misclassified structural heading.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Persist Grace-derived criteria as the objective's validated effective list.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Require artifact destinations to be named in the authorized objective scope
@@ -391,18 +391,26 @@ class GraceExecutionPipeline:
         elif criteria_source != "steward_supplied" or not requested_list:
             raise ObjectiveStateError("objective acceptance-criteria source is invalid")
         requested = set(requested_list)
+        artifact_criteria = {criterion for step in proposal.steps
+            for requirement in step.artifact_requirements
+            for criterion in requirement.acceptance_criteria}
+        supplemental_step_criteria = proposed - requested
+        formal_step_criteria = proposed & requested
         requires_one_dispatch = any(
             lifecycle_evidence_event(criterion) == "work_order.exactly_one_dispatched"
             for criterion in proposal.system_owned_criteria)
         if (proposed & lifecycle or
                 len(step_criteria) != len(proposed) or
+                not supplemental_step_criteria <= artifact_criteria or
+                any(lifecycle_evidence_event(criterion) is not None
+                    for criterion in supplemental_step_criteria) or
                 (requires_one_dispatch and len(proposal.steps) != 1) or
                 any(criterion not in requested or lifecycle_evidence_event(criterion) is None
                     for criterion in lifecycle) or
                 (not has_conversation_origin and any(
                     lifecycle_evidence_event(criterion) == "conversation.result_published"
                     for criterion in lifecycle)) or
-                proposed | lifecycle != requested):
+                formal_step_criteria | lifecycle != requested):
             raise ObjectiveStateError(
                 "proposal must bind every original criterion to an Engineering step or a supported lifecycle event")
         # A model cannot turn a general objective into filesystem authority.

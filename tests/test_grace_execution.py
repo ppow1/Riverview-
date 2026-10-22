@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.55
-# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify one-work-order lifecycle criteria require one proposal step and exactly one durable dispatch.
+# Revision: 1.0.57
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022-R1 | Align the database regression fixture with available repository grounding terms.
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Verify artifact checks remain separate from exact formal-criteria coverage.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-TRIGGER-PRIVILEGE-FIX | Verify the audited criteria guard reads only fields granted to the runtime role and takes no forbidden row lock.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Cover exact-scope audited heading removal, authorization, and revision conflicts.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Run derived-criteria persistence under the exact authorized Engineering intake scope.
@@ -790,6 +791,28 @@ class GraceExecutionTests(unittest.TestCase):
                 "Return the result", (PlanStep("report", "Create the report",
                     ("The bounded report exists.",)),), 0,
                 system_owned_criteria=("Grace returns the result to the Steward conversation.",)))
+
+    def test_artifact_specific_step_checks_do_not_expand_formal_criteria(self):
+        from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
+
+        objective_id = "objective:artifact-step-checks:" + uuid4().hex
+        formal = "The report documents the worker retry contract."
+        artifact_check = "The report includes the stated acceptance phrase."
+        self.pipeline.submit_objective(objective_id,
+            "Document the worker retry contract at reports/acceptance.txt and include the stated acceptance phrase.",
+            [formal], credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(objective_id)
+        proposal = PlanProposal("Create the requested report", (
+            PlanStep("report", "Create reports/acceptance.txt",
+                (formal, artifact_check), artifact_requirements=(ArtifactRequirement(
+                    "report", "reports/acceptance.txt", "text/plain",
+                    (artifact_check,)),)),), 0)
+        stored = self.pipeline.record_proposal(objective_id, proposal)
+        self.assertEqual(stored["acceptance_criteria"], [formal])
+        self.assertEqual(stored["proposal"]["steps"][0]["acceptance_criteria"],
+                         [formal, artifact_check])
+        self.assertEqual(stored["proposal"]["steps"][0]["artifact_requirements"][0][
+            "acceptance_criteria"], [artifact_check])
 
     def test_authorized_objective_executes_and_is_independently_verified(self):
         with self.assertRaises(ObjectiveNotAuthorized):
