@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.19
+# Revision: 1.0.20
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional structured output is forwarded through the capability-pinned reasoning stage.
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
 # Execution Model: Deterministic provider doubles; no database or model endpoint
 # Observability: Assert selected provider and served-model provenance
@@ -49,8 +50,11 @@ class _Provider:
     def readiness(self):
         return ProviderReadiness(self.state, self.model, self.state.lower())
 
-    def complete_chat(self, messages, *, max_tokens, expected_revision, timeout_seconds=120):
+    def complete_chat(self, messages, *, max_tokens, expected_revision, timeout_seconds=120,
+                      response_schema=None):
         self.calls.append((messages, expected_revision))
+        self.response_schemas = getattr(self, "response_schemas", [])
+        self.response_schemas.append(response_schema)
         self.timeout_values.append(timeout_seconds)
         self.token_limits.append(max_tokens)
         if self.failure:
@@ -90,6 +94,15 @@ class GraceModelRouterTests(unittest.TestCase):
         return ReasoningRequest("request:1", "office:grace", "objective:1", "1",
             9, revision or self.router.model_sha256, "persistent_resident_cycle", 64,
             {"id":"objective:1"}, (), None)
+
+    def test_structured_output_schema_is_forwarded_only_through_reasoning(self):
+        schema = {"type": "object", "required": ["decision"]}
+        self.router.complete_chat([{"role": "user", "content": "Review verified result."}],
+            max_tokens=128, expected_revision=self.router.model_sha256,
+            required_capability="grace.reasoning.80b", response_schema=schema)
+        self.assertEqual(self.reasoner.response_schemas, [schema])
+        self.assertEqual(self.vision.calls, [])
+        self.assertEqual(self.cpu.calls, [])
 
     def test_persistent_reasoner_proposal_uses_only_ready_80b_and_records_served_model(self):
         result = self.router.propose(self.proposal_request())

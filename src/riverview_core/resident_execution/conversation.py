@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.27
+# Revision: 1.2.28
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Request constrained JSON for the fail-closed review contract and clarify supplied authority/evidence boundaries.
 # Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Add sanitized parse metadata and one-shot expiring private capture for a target review response
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Carry assignment-defined artifact sets through review and continuation
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Validate and present all verifier-checked assignment artifacts to Grace
@@ -80,6 +81,48 @@ _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
 _CONTEXT_LIMIT = 32 * 1024
 _MESSAGE_LIMIT = 8 * 1024
 _MAX_VERIFIED_RESULT_REVIEW_GENERATIONS = 4
+_VERIFIED_RESULT_REVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "decision": {"type": "string", "enum": ["OBJECTIVE_COMPLETE",
+            "ADDITIONAL_EVIDENCE_REQUIRED", "ENGINEERING_STEP_PROPOSED",
+            "STEWARD_AUTHORIZATION_REQUIRED"]},
+        "rationale": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "additional_evidence": {"type": "array", "maxItems": 6,
+            "items": {"type": "string", "minLength": 1, "maxLength": 500}},
+        "proposed_step": {"oneOf": [
+            {"type": "null"},
+            {"type": "object", "required": ["step_id", "objective",
+                "acceptance_criteria", "depends_on"],
+             "properties": {
+                 "step_id": {"type": "string", "minLength": 1, "maxLength": 16},
+                 "objective": {"type": "string", "minLength": 1, "maxLength": 512},
+                 "acceptance_criteria": {"type": "array", "minItems": 1,
+                     "maxItems": 12, "items": {"type": "string", "minLength": 1,
+                         "maxLength": 512}},
+                 "depends_on": {"type": "array", "maxItems": 20,
+                     "items": {"type": "string"}},
+                 "execution_capability": {"type": "string"},
+                 "authorized_paths": {"type": "array", "items": {"type": "string"}},
+                 "test_targets": {"type": "array", "items": {"type": "string"}},
+                 "repository_reference": {"type": "string"},
+                 "repository_revision": {"type": "string"},
+                 "artifact_requirements": {"type": "array", "items": {
+                     "type": "object", "required": ["name", "path", "media_type",
+                         "acceptance_criteria"],
+                     "properties": {
+                         "name": {"type": "string"}, "path": {"type": "string"},
+                         "media_type": {"type": "string"},
+                         "acceptance_criteria": {"type": "array",
+                             "items": {"type": "string"}},
+                         "max_bytes": {"type": "integer", "minimum": 1}},
+                     "additionalProperties": False}},
+             }, "additionalProperties": False},
+        ]},
+    },
+    "required": ["decision", "rationale", "additional_evidence", "proposed_step"],
+    "additionalProperties": False,
+}
 _MAX_REVIEW_EVIDENCE_BYTES = 4096
 _HISTORY_CONTEXT_MESSAGES = 16
 _REVIEW_CAPTURE_RUNTIME_DIR = "/run/riverview-grace-execution-owner-session"
@@ -1688,7 +1731,12 @@ class ResidentConversationService:
             {"role": "system", "content": build_grace_role_context() +
                 "\nReview an Engineering result after independent integrity, provenance, scope and "
                 "structure verification. Separately assess substantive acceptance criteria against "
-                "artifact_for_grace_review when present. Return exactly "
+                "artifact_for_grace_review when present. The service has already authenticated "
+                "this review request and supplied persisted objective state and independently "
+                "verified evidence; do not request an external identity/status lookup or claim "
+                "authorization is missing unless the supplied records explicitly show that. "
+                "Review only the supplied evidence and preserve every decision/authorization "
+                "boundary. Return exactly "
                 "one JSON object with keys decision, rationale, additional_evidence, proposed_step. "
                 "decision must be OBJECTIVE_COMPLETE, ADDITIONAL_EVIDENCE_REQUIRED, "
                 "ENGINEERING_STEP_PROPOSED, or STEWARD_AUTHORIZATION_REQUIRED. rationale is "
@@ -1732,6 +1780,7 @@ class ResidentConversationService:
                   "expected_revision": binding.get("implementation_revision")}
         if router_capability:
             kwargs["required_capability"] = router_capability
+        kwargs["response_schema"] = _VERIFIED_RESULT_REVIEW_SCHEMA
         try:
             model_completion = provider.complete_chat(messages, **kwargs)
         except Exception as exc:
