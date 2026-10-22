@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.56
+# Revision: 1.0.57
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022-R1 | Align the database regression fixture with available repository grounding terms.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Verify artifact checks remain separate from exact formal-criteria coverage.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-TRIGGER-PRIVILEGE-FIX | Verify the audited criteria guard reads only fields granted to the runtime role and takes no forbidden row lock.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Cover exact-scope audited heading removal, authorization, and revision conflicts.
@@ -795,10 +796,10 @@ class GraceExecutionTests(unittest.TestCase):
         from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
 
         objective_id = "objective:artifact-step-checks:" + uuid4().hex
-        formal = "The report is delivered."
+        formal = "The report documents the worker retry contract."
         artifact_check = "The report includes the stated acceptance phrase."
         self.pipeline.submit_objective(objective_id,
-            "Create reports/acceptance.txt. The report includes the stated acceptance phrase.",
+            "Document the worker retry contract at reports/acceptance.txt and include the stated acceptance phrase.",
             [formal], credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(objective_id)
         proposal = PlanProposal("Create the requested report", (
