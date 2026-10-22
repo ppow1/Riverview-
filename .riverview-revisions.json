@@ -7,7 +7,7 @@
       "size_bytes": 1354475
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.304"
+      "revision": "1.1.306"
     },
     "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
       "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
@@ -233,9 +233,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.210",
-      "sha256": "c988566bc9a7217848f06d84009da2b4faeecbff221e83c72b02958020325c00",
-      "size_bytes": 691888
+      "revision": "1.0.211",
+      "sha256": "d250a174c56743db8bc428b46332d2a49511db19fbd7a36a387841db412044ce",
+      "size_bytes": 695806
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -293,9 +293,9 @@
     },
     "process_graphs/resident-conversation/browser-chat.json": {
       "path": "process_graphs/resident-conversation/browser-chat.json",
-      "revision": "1.0.23",
-      "sha256": "938e7c625d4d3421cf151cee5c830f9ca2061b821792a8fbd670443cb3360322",
-      "size_bytes": 56334
+      "revision": "1.0.24",
+      "sha256": "b60d29b61e51074e0f16c678b3aad851c9c1f2663deb81cfd0edfadfd90c6fe1",
+      "size_bytes": 59631
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
@@ -490,6 +490,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.305",
+  "manifest_revision": "1.1.306",
   "updated_at": "2026-10-22T02:55:05Z"
 }
