@@ -1,13 +1,15 @@
 """RIVERVIEW~ CONTROLLED SOURCE
 File: tests/test_gpu_telemetry_command.py
 Component: OCTOMINER1-RESTRICTED-GPU-TELEMETRY
-Revision: 1.0.0
+Revision: 1.1.1
 Purpose: Verify the forced read-only host collector and identifier redaction
 Execution Model: Isolated subprocess fixtures
-Observability: Assertions for NVIDIA CSV mapping and unsupported values
+Observability: Assertions for NVIDIA CSV mapping, mounted storage, and unsupported values
 Dependencies: scripts/rv_gpu_telemetry_command.py and Python unittest
 Authority: Disposable fixtures only; no production host access
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial collector tests
+Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Verify mounted storage is included without pseudo-filesystems or duplicate mounts.
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Verify optional mount enumeration failure does not suppress GPU measurements.
 Contracts: docs/components/STATUS_DASHBOARD.md
 Tests: python -m unittest tests.test_gpu_telemetry_command
 History: Git and .riverview-backups/manifest.jsonl
@@ -26,8 +28,9 @@ class CollectorTests(unittest.TestCase):
             collect()
 
     @patch.dict(os.environ, {"SSH_ORIGINAL_COMMAND": "resource-telemetry"}, clear=True)
+    @patch("scripts.rv_gpu_telemetry_command._storage_volumes", return_value=[])
     @patch("scripts.rv_gpu_telemetry_command._run")
-    def test_collects_measurements_and_only_allowlisted_service_labels(self, run):
+    def test_collects_measurements_and_only_allowlisted_service_labels(self, run, _storage):
         run.side_effect = [
             "Tesla P100-PCIE-16GB, 0, GPU-private-uuid, 40, 8192, 16384, 50, 70.1, N/A\n",
             "GPU-private-uuid, 321\n",
@@ -44,10 +47,24 @@ class CollectorTests(unittest.TestCase):
         self.assertNotIn("uuid", gpu)
         self.assertNotIn("pid", gpu)
         self.assertIsNone(gpu["fan_percent"])
+        self.assertEqual(result["storage_volumes"], [])
 
     @patch.dict(os.environ, {"SSH_ORIGINAL_COMMAND": "resource-telemetry"}, clear=True)
+    @patch("scripts.rv_gpu_telemetry_command._storage_volumes", side_effect=OSError("mount table unavailable"))
     @patch("scripts.rv_gpu_telemetry_command._run")
-    def test_nvidia_bracketed_na_fan_does_not_drop_a_gpu(self, run):
+    def test_storage_failure_does_not_hide_gpu_telemetry(self, run, _storage):
+        run.side_effect = [
+            "Tesla P100-PCIE-16GB, 0, GPU-private-uuid, 40, 8192, 16384, 50, 70.1, N/A\n",
+            "No running processes found\n", "0\n", "0\n",
+        ]
+        result=collect()
+        self.assertEqual(len(result["devices"]),1)
+        self.assertEqual(result["storage_volumes"],[])
+
+    @patch.dict(os.environ, {"SSH_ORIGINAL_COMMAND": "resource-telemetry"}, clear=True)
+    @patch("scripts.rv_gpu_telemetry_command._storage_volumes", return_value=[])
+    @patch("scripts.rv_gpu_telemetry_command._run")
+    def test_nvidia_bracketed_na_fan_does_not_drop_a_gpu(self, run, _storage):
         run.side_effect = [
             "Tesla P100-PCIE-16GB, 0, GPU-private-uuid, 17, 13286, 16384, 49, 59.97, [N/A]\n",
             "No running processes found\n", "0\n", "0\n",
@@ -56,6 +73,30 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(len(result["devices"]), 1)
         self.assertEqual(result["devices"][0]["name"], "Tesla P100-PCIE-16GB")
         self.assertIsNone(result["devices"][0]["fan_percent"])
+
+    def test_storage_collector_deduplicates_bind_mounts_and_skips_overlay(self):
+        from scripts.rv_gpu_telemetry_command import _storage_volumes
+        from tempfile import NamedTemporaryFile
+        mountinfo = """36 25 8:1 / / rw,relatime - ext4 /dev/sda1 rw
+37 36 8:1 /data /mnt/data rw,relatime - ext4 /dev/sda1 rw
+38 25 0:42 / /var/lib/container rw,relatime - overlay overlay rw
+"""
+        with NamedTemporaryFile(mode="w", encoding="utf-8") as file:
+            file.write(mountinfo)
+            file.flush()
+            with patch("scripts.rv_gpu_telemetry_command.os.statvfs") as statvfs:
+                statvfs.return_value.f_frsize = 4096
+                statvfs.return_value.f_bsize = 4096
+                statvfs.return_value.f_blocks = 100
+                statvfs.return_value.f_bfree = 40
+                statvfs.return_value.f_bavail = 30
+                result = _storage_volumes(file.name)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["mount_point"], "/")
+        self.assertEqual(result[0]["also_mounted_at"], ["/mnt/data"])
+        self.assertEqual(result[0]["total_bytes"], 409600)
+        self.assertEqual(result[0]["used_bytes"], 245760)
+        self.assertEqual(result[0]["available_bytes"], 122880)
 
 
 if __name__ == "__main__":

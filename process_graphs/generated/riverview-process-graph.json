@@ -11832,7 +11832,7 @@
     },
     {
       "graph_id": "rv:steward-dashboard:status",
-      "graph_revision": "1.1.21",
+      "graph_revision": "1.1.23",
       "component_id": "STEWARD-DASHBOARD",
       "workflow_id": "status-projection.v1",
       "diagram_order": 1,
@@ -11858,7 +11858,8 @@
         "tests/test_account_auth_http.py",
         "tests/test_gpu_telemetry_command.py",
         "tests/test_resource_telemetry.py",
-        "tests/test_status_dashboard.py"
+        "tests/test_status_dashboard.py",
+        "src/riverview_core/status_dashboard/storage_inventory.py"
       ],
       "documentation_references": [
         "docs/components/ACCOUNT_AUTHENTICATION.md",
@@ -12670,6 +12671,42 @@
             "tests/test_resource_telemetry.py",
             "tests/test_status_dashboard.py"
           ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:resource-storage-source",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Read Camrui mounted storage locally and OCTO1 storage through the fixed restricted telemetry command; keep Windows development and OCTO2 unavailable until approved collectors exist",
+          "source_references": [
+            "src/riverview_core/status_dashboard/storage_inventory.py",
+            "src/riverview_core/status_dashboard/resource_telemetry.py",
+            "scripts/rv_gpu_telemetry_command.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_storage_inventory.py",
+            "tests/test_resource_telemetry.py",
+            "tests/test_gpu_telemetry_command.py",
+            "evidence/v2-storage-20261022/camrui-mount-observation.json"
+          ]
+        },
+        {
+          "id": "rv:steward-dashboard:status:resource-storage-render",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Return unique mounted volume capacity with timestamps; exclude duplicate filesystem views and keep unavailable hosts out of totals",
+          "source_references": [
+            "src/riverview_core/status_dashboard/resource_telemetry.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md"
+          ],
+          "verification_evidence": [
+            "tests/test_resource_telemetry.py"
+          ]
         }
       ],
       "edges": [
@@ -13046,6 +13083,24 @@
           "to": "rv:steward-dashboard:status:resource-render",
           "type": "runtime_transition",
           "label": "Return per-slot context projection with raw task and prompt fields removed"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-telemetry-route",
+          "to": "rv:steward-dashboard:status:resource-storage-source",
+          "type": "runtime_transition",
+          "label": "Same bounded authenticated resource request collects storage"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-storage-source",
+          "to": "rv:steward-dashboard:status:resource-storage-render",
+          "type": "runtime_transition",
+          "label": "Read measured host volumes or preserve explicit unavailable state"
+        },
+        {
+          "from": "rv:steward-dashboard:status:resource-storage-render",
+          "to": "rv:steward-dashboard:status:resource-render",
+          "type": "runtime_transition",
+          "label": "Return unique measured totals and source timestamps"
         }
       ]
     },
@@ -15542,6 +15597,8 @@
     "rv:steward-dashboard:status:resource-model-source",
     "rv:steward-dashboard:status:resource-render",
     "rv:steward-dashboard:status:resource-slot-context",
+    "rv:steward-dashboard:status:resource-storage-render",
+    "rv:steward-dashboard:status:resource-storage-source",
     "rv:steward-dashboard:status:resource-telemetry-route",
     "rv:steward-dashboard:status:return-to-source-jump",
     "rv:steward-dashboard:status:select-cross-workflow-jump",

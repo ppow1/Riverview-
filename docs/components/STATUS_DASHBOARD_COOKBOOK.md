@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.33
+File Revision: 1.1.34
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document safe per-slot context projection and explicit KV-data limitation.
 Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Document the authorized post-deployment path for diagnosing historical Grace grounding failures.
 Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Document authorized Engineering Progress grounding diagnostics and same-objective recovery guidance.
@@ -9,6 +9,7 @@ Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Add dedicated telemetry credential, source and rollback runbook.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Add live Grace text-activity diagnostics and distinguish missing server token metrics.
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Document mounted-volume sources, host gaps, deduplication, and read-only validation.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
@@ -967,3 +968,7 @@ authoritative inference-server counter; production `/metrics` currently returns
 HTTP 501 and no model configuration should be changed to enable it under this task.
 
 If the dedicated telemetry key or host pin is absent or invalid, the API returns unavailable for the GPU source and continues to report other model sources independently. To disable host telemetry, remove only the Dashboard drop-in `riverview-status-dashboard.service.d/resource-telemetry.conf` from the deployment package, run `systemctl daemon-reload`, and restart only `riverview-status-dashboard.service`; the prior release reports GPU fields unavailable. Rollback restores the protected Dashboard `current` symlink and removes the telemetry-only drop-in/credentials, then restarts only the Dashboard service. Preserve the GPU host forced-command entry until the rollback is verified; then remove only its exact key line from the protected `authorized_keys` predecessor copy. Do not edit Comms4, Grace, CME, Comms5, or inference service configuration.
+
+## V2 mounted-storage projection checks
+
+After a controlled Dashboard release containing the storage collector, verify the authenticated `GET /api/v1/resources/telemetry` response has `storage_status` and a `storage` object on each configured host. On Camrui compare the projected mount rows to `findmnt -t ext2,ext3,ext4,xfs,btrfs,vfat,exfat,ntfs,ntfs3,fuseblk,zfs,nfs,nfs4,cifs,smb3` and `df -B1 -T`; on OCTO1 the same fields come from the fixed forced-command payload. Check the `observed_at` timestamps, ensure aliases of one filesystem are counted once, and confirm offline hosts show `state=unavailable` with an error code rather than byte counts of zero. This collection path is read-only. Windows development and OCTO2 require a separate authorized collector onboarding before their capacity can be reported. Do not infer host failure from a missing connection in this API.

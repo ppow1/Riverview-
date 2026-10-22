@@ -2,10 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.13
+File Revision: 1.1.15
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify numeric per-slot context counters and unavailable KV-cache bytes.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free live stream activity projection and metric limits.
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Define per-host read-only storage projection, unique filesystem aggregation, and unavailable host behavior.
+Changed: 2026-10-22 UTC | RV-V2-WEBSITE-INTEGRATION-20261022 | Record independent Camrui df/statvfs comparison evidence and uncommissioned host limits.
 Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate dashboard identity from the pinned Grace knowledge source.
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
@@ -303,3 +305,9 @@ Model readiness is sampled from the configured llama.cpp `/health`, `/v1/models`
 The projection schema is `rv.dashboard.resource-telemetry.v1`. Per-source state and source observation timestamps remain visible. Missing credentials, host-key mismatch, source timeout, invalid source data, and unavailable host APIs remain unavailable with sanitized error codes. The Dashboard does not cache prior observations. Operational credential installation and rollback are documented in `STATUS_DASHBOARD_COOKBOOK.md`.
 
 Grace activity is correlated through its durable conversation and response request IDs. Active streamed output is measured only from persisted provider text deltas with database timestamps and character counts; the dashboard may show received streamed characters/second after two timed deltas. This is not model-server token throughput, prompt processing, or GPU work. The current 0.6B/80B/30B `/metrics` endpoints return HTTP 501; `/slots` exposes occupancy and prompt/context fields but no output-token counter. Completed token throughput remains a separate router-call measurement.
+
+## Mounted storage capacity projection
+
+`GET /api/v1/resources/telemetry` adds `storage_status`, `storage_observed_at`, and per-host `storage` records in the same authenticated response. Camrui volumes are read with Linux mountinfo plus `statvfs`; OCTO1 volumes are supplied by the existing restricted `resource-telemetry` forced command. The collector admits only supported persistent filesystems, deduplicates bind aliases and shared network filesystems, and returns total/used/available bytes, percent used, mount point, filesystem/device identifier when available, and observation timestamp. Windows development and OCTO2 remain explicitly unavailable until an approved host collector exists. Unavailable measurements are not zero and are excluded from aggregate totals. Collection is request-driven and read-only; no capacity change, mount action, cleanup, or storage scheduling occurs.
+
+Read-only collection on Camrui was compared against `df -B1 -T / /boot/efi` on 2026-10-22; exact total/used/available byte values and timestamps are retained in `evidence/v2-storage-20261022/camrui-mount-observation.json`. This observation validates only Camrui. The current deployed OCTO1 forced-command does not yet emit mount capacity, and Windows development/OCTO2 remain unconnected.

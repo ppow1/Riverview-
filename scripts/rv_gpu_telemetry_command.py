@@ -3,14 +3,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/rv_gpu_telemetry_command.py
 # Component: OCTOMINER1-RESTRICTED-GPU-TELEMETRY
-# Revision: 1.0.1
-# Purpose: Return bounded NVIDIA readings through an SSH forced command
+# Revision: 1.1.0
+# Purpose: Return bounded NVIDIA and mounted-storage readings through an SSH forced command
 # Execution Model: Request-driven; invoked only by the restricted telemetry SSH identity
-# Observability: rv.gpu-host-telemetry.v1 JSON; stderr contains only stable failure codes
+# Observability: rv.gpu-host-telemetry.v1 JSON with optional storage_volumes; stable failure codes
 # Dependencies: Python standard library, nvidia-smi, systemctl read-only queries
-# Inputs/Outputs: No arguments/stdin; device metrics and allowlisted service labels only
+# Inputs/Outputs: No arguments/stdin; device metrics, allowlisted service labels, mounted-volume capacity
 # Authority: Read-only NVIDIA/systemd queries; no shell, model control, or arbitrary command path
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Accept NVIDIA bracketed N/A values without dropping P100 rows
+# Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Include deduplicated read-only mount capacity in existing telemetry response
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_resource_telemetry.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -24,6 +25,7 @@ from datetime import datetime, timezone
 import io
 import json
 import os
+from pathlib import Path
 import re
 import subprocess
 import sys
@@ -40,6 +42,61 @@ _SERVICE_LABELS = {
     "grace-vision.service": "grace-vision-30b",
 }
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9._+() -]{1,100}$")
+_VOLUME_FILESYSTEMS = frozenset({
+    "ext2", "ext3", "ext4", "xfs", "btrfs", "vfat", "exfat", "ntfs", "ntfs3",
+    "fuseblk", "zfs", "nfs", "nfs4", "cifs", "smb3",
+})
+
+
+def _unescape_mount(value: str) -> str:
+    return (value.replace("\\040", " ").replace("\\011", "\t")
+            .replace("\\012", "\n").replace("\\134", "\\"))
+
+
+def _storage_volumes(mountinfo_path: str = "/proc/self/mountinfo") -> list[dict]:
+    """Return mounted physical/network volumes; ignore pseudo filesystems and bind duplicates."""
+    lines = Path(mountinfo_path).read_text(encoding="utf-8").splitlines()
+    if len(lines) > 512:
+        raise ValueError("mount_inventory_too_large")
+    found = {}
+    aliases = {}
+    for line in lines:
+        before, sep, after = line.partition(" - ")
+        fields, tail = before.split(), after.split()
+        if not sep or len(fields) < 5 or len(tail) < 2:
+            continue
+        major_minor = fields[2]
+        if not re.fullmatch(r"\d{1,5}:\d{1,5}", major_minor):
+            continue
+        mount_point, fs_type, source = _unescape_mount(fields[4]), tail[0], _unescape_mount(tail[1])
+        if fs_type not in _VOLUME_FILESYSTEMS:
+            continue
+        try:
+            stats = os.statvfs(mount_point)
+            fragment = int(stats.f_frsize or stats.f_bsize)
+            blocks, free, available = int(stats.f_blocks), int(stats.f_bfree), int(stats.f_bavail)
+            if fragment <= 0 or blocks <= 0 or not 0 <= available <= free <= blocks:
+                continue
+        except (OSError, TypeError, ValueError, OverflowError):
+            continue
+        total, used, available_bytes = blocks * fragment, (blocks - free) * fragment, available * fragment
+        if total <= 0 or len(source) > 256 or any(ord(char) < 32 for char in source):
+            continue
+        network = fs_type in {"nfs", "nfs4", "cifs", "smb3"}
+        key = (major_minor, fs_type, source)
+        row = {"major_minor": major_minor, "filesystem_type": fs_type,
+               "source": source, "mount_point": mount_point,
+               "total_bytes": total, "used_bytes": used,
+               "available_bytes": available_bytes, "observed_at": None}
+        aliases.setdefault(key, set()).add(mount_point)
+        previous = found.get(key)
+        if previous is None or (len(mount_point), mount_point) < (len(previous["mount_point"]), previous["mount_point"]):
+            found[key] = row
+    result = []
+    for key, row in sorted(found.items(), key=lambda item: (item[1]["mount_point"], item[0])):
+        row["also_mounted_at"] = sorted(aliases[key] - {row["mount_point"]})[:16]
+        result.append(row)
+    return result
 
 
 def _run(command: list[str], *, timeout: float = 2.0) -> str:
@@ -133,9 +190,15 @@ def collect() -> dict:
             continue
     if not devices:
         raise ValueError("gpu_inventory_unavailable")
+    try:
+        storage_volumes = _storage_volumes()
+    except (OSError, ValueError, TypeError):
+        # Storage is optional; a mount-table error must not suppress healthy GPU telemetry.
+        storage_volumes = []
     return {"schema_version": SCHEMA_VERSION,
             "observed_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-            "devices": devices}
+            "devices": devices,
+            "storage_volumes": storage_volumes}
 
 
 def main() -> int:

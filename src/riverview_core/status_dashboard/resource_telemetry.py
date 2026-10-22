@@ -2,15 +2,16 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/resource_telemetry.py
 # Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-# Revision: 1.1.0
-# Purpose: Build a read-only, timestamped projection from the approved GPU host and model APIs
+# Revision: 1.2.0
+# Purpose: Build a read-only, timestamped projection from approved GPU, model, and storage sources
 # Execution Model: Request-driven; one bounded collection per authenticated GET
 # Observability: rv.dashboard.resource-telemetry.v1 with per-source state, timestamps, and safe error codes
 # Dependencies: Python standard library, systemd SSH credentials, restricted OCTOMINER1 telemetry key
-# Inputs/Outputs: NVIDIA CSV via forced-command SSH; model health/models/slots; redacted host projection
+# Inputs/Outputs: NVIDIA/storage JSON via forced-command SSH; local mountinfo; model APIs; redacted host projection
 # Authority: Dashboard authentication is enforced by the parent API; fixed host and endpoint allowlists only
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial read-only telemetry projection
 # Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Project bounded numeric per-slot context counters without task IDs or prompt data
+# Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Add local and OCTO1 mounted-volume measurements to the existing resource projection
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_resource_telemetry.py; tests/test_status_dashboard.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -37,6 +38,8 @@ import re
 import subprocess
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from .storage_inventory import collect_linux_storage, project_remote_volumes
 
 
 SCHEMA_VERSION = "rv.dashboard.resource-telemetry.v1"
@@ -110,10 +113,23 @@ def _credential_path(name: str) -> Path | None:
 class DashboardResourceTelemetry:
     """Collect safe GPU/model facts once per caller request."""
 
-    def __init__(self, *, runner=subprocess.run, http_open=urlopen, credential_directory=None):
+    def __init__(self, *, runner=subprocess.run, http_open=urlopen, credential_directory=None,
+                 local_storage_reader=collect_linux_storage):
         self._runner = runner
         self._http_open = http_open
         self._credential_directory = Path(credential_directory) if credential_directory else None
+        self._local_storage_reader = local_storage_reader
+
+    def _local_storage_source(self, host_id: str) -> dict:
+        try:
+            result = self._local_storage_reader(host_id)
+            if (not isinstance(result, dict) or result.get("state") not in {"healthy", "unavailable"}
+                    or not isinstance(result.get("volumes"), list)):
+                raise ValueError("storage_schema_invalid")
+            return result
+        except (OSError, TypeError, ValueError):
+            return {"state": "unavailable", "observed_at": None, "volumes": [],
+                    "error_code": "local_storage_source_unavailable"}
 
     def _credential(self, name: str) -> Path | None:
         if self._credential_directory is not None:
@@ -133,7 +149,9 @@ class DashboardResourceTelemetry:
         known_hosts = self._credential("resource-telemetry-known-hosts")
         if key is None or known_hosts is None:
             return {"state": "unavailable", "observed_at": None,
-                    "error_code": "telemetry_credentials_unavailable", "devices": []}
+                    "error_code": "telemetry_credentials_unavailable", "devices": [],
+                    "storage": {"state": "unavailable", "observed_at": None,
+                                "volumes": [], "error_code": "storage_credentials_unavailable"}}
         command = [
             "/usr/bin/ssh", "-T", "-p", _SSH_PORT,
             "-i", str(key),
@@ -155,13 +173,16 @@ class DashboardResourceTelemetry:
                                      text=True, timeout=5.0, env={"LC_ALL": "C"})
             if completed.returncode != 0 or len(completed.stdout.encode("utf-8")) > MAX_RESPONSE_BYTES:
                 return {"state": "unavailable", "observed_at": None,
-                        "error_code": "gpu_source_unreachable", "devices": []}
+                        "error_code": "gpu_source_unreachable", "devices": [],
+                        "storage": {"state": "unavailable", "observed_at": None,
+                                    "volumes": [], "error_code": "storage_source_unreachable"}}
             payload = json.loads(completed.stdout)
             if (not isinstance(payload, dict) or
                     payload.get("schema_version") != "rv.gpu-host-telemetry.v1" or
                     not isinstance(payload.get("devices"), list) or len(payload["devices"]) > 32):
                 return {"state": "unavailable", "observed_at": None,
-                        "error_code": "gpu_source_schema_invalid", "devices": []}
+                        "error_code": "gpu_source_schema_invalid", "devices": [],
+                        "storage": project_remote_volumes("octominer1", payload)}
             devices = []
             for raw in payload["devices"]:
                 if not isinstance(raw, dict):
@@ -213,10 +234,13 @@ class DashboardResourceTelemetry:
             return {"state": "healthy" if devices else "unavailable",
                     "observed_at": source_time,
                     "error_code": None if devices else "gpu_inventory_empty",
-                    "devices": devices}
+                    "devices": devices,
+                    "storage": project_remote_volumes("octominer1", payload)}
         except (OSError, subprocess.SubprocessError, ValueError, TypeError, json.JSONDecodeError):
             return {"state": "unavailable", "observed_at": None,
-                    "error_code": "gpu_source_unavailable", "devices": []}
+                    "error_code": "gpu_source_unavailable", "devices": [],
+                    "storage": {"state": "unavailable", "observed_at": None,
+                                "volumes": [], "error_code": "storage_source_unavailable"}}
 
     def _read_json(self, url: str) -> object:
         request = Request(url, headers={"Accept": "application/json"}, method="GET")
@@ -325,6 +349,11 @@ class DashboardResourceTelemetry:
                 tasks[source["service_id"]] = pool.submit(self._model_source, source)
             results = {name: future.result(timeout=7.0) for name, future in tasks.items()}
         gpu = results["gpu"]
+        camrui_storage = self._local_storage_source("camrui")
+        octominer2_storage = {"state": "unavailable", "observed_at": None,
+                              "volumes": [], "error_code": "host_telemetry_not_configured"}
+        windows_storage = {"state": "unavailable", "observed_at": None,
+                           "volumes": [], "error_code": "host_telemetry_not_configured"}
         hosts = [
             {
                 "host_id": "camrui",
@@ -335,6 +364,7 @@ class DashboardResourceTelemetry:
                 "gpu_inventory": {"state": "unavailable", "source": "not_configured",
                                   "observed_at": None, "devices": []},
                 "inference_servers": [results["grace-autonomic-0.6b"]],
+                "storage": camrui_storage,
             },
             {
                 "host_id": "octominer1",
@@ -346,6 +376,7 @@ class DashboardResourceTelemetry:
                                   "observed_at": gpu["observed_at"], "error_code": gpu["error_code"],
                                   "devices": gpu["devices"]},
                 "inference_servers": [results["grace-reasoning-80b"], results["grace-vision-30b"]],
+                "storage": gpu["storage"],
             },
             {
                 "host_id": "octominer2",
@@ -357,12 +388,29 @@ class DashboardResourceTelemetry:
                                   "observed_at": None, "devices": [],
                                   "error_code": "host_identity_or_telemetry_not_verified"},
                 "inference_servers": [],
+                "storage": octominer2_storage,
+            },
+            {
+                "host_id": "windows-development",
+                "display_name": "Windows development machine",
+                "identity_state": "documented_not_connected",
+                "state": "unavailable",
+                "observed_at": None,
+                "gpu_inventory": {"state": "unavailable", "source": "not_configured",
+                                  "observed_at": None, "devices": [],
+                                  "error_code": "host_telemetry_not_configured"},
+                "inference_servers": [],
+                "storage": windows_storage,
             },
         ]
         sources = [host["state"] for host in hosts]
         status = "healthy" if all(value == "healthy" for value in sources) else "partial"
         if all(host["state"] == "unavailable" for host in hosts):
             status = "unavailable"
+        storage_states = [host["storage"]["state"] for host in hosts]
+        storage_status = ("healthy" if all(value == "healthy" for value in storage_states)
+                          else "partial" if any(value == "healthy" for value in storage_states)
+                          else "unavailable")
         return {
             "schema_version": SCHEMA_VERSION,
             "component_id": "STEWARD-DASHBOARD-RESOURCE-TELEMETRY",
@@ -370,5 +418,7 @@ class DashboardResourceTelemetry:
             "observed_at": _utc_now(),
             "freshness_window_seconds": 30,
             "collection_model": "request_driven_no_cache",
+            "storage_status": storage_status,
+            "storage_observed_at": _utc_now(),
             "hosts": hosts,
         }
