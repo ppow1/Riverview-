@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.28
-# Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CLASSIFICATION-20261022 | Bind exact original non-lifecycle criteria to the sole engineering step and remove temporary capture.
+# Revision: 1.3.29
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Keep artifact-specific criteria in their artifact contract, not formal step binding.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Restore only stripped structural list markers from original lifecycle criteria and remove temporary capture.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CRITERION-CAPTURE-20261022 | Add one-shot protected capture for one rejected target lifecycle criterion.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Emit correlated schema rejection paths and safe type diagnostics.
@@ -60,6 +60,7 @@ import ipaddress
 import json
 import logging
 import os
+import re
 import threading
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
@@ -71,6 +72,13 @@ from .resident_reasoning import (ArtifactRequirement, ExternalEscalationIntent, 
 from .resident_execution.grace_role_context import build_grace_role_context
 
 LOG = logging.getLogger(__name__)
+
+
+def _criterion_without_list_marker(value):
+    if not isinstance(value, str):
+        return value
+    return re.sub(r"^(?:[-*+]\s+|\d{1,2}[.)]\s+)", "", value.lstrip())
+
 
 def _json_type(value):
     if value is _MISSING:
@@ -627,6 +635,22 @@ class LocalReasoningProvider:
                         "configured target provider ID", escalation.target_provider_id)
             lifecycle_criteria = tuple(plan.get("system_owned_criteria", []))
             original_criteria = request.assignment.get("acceptance_criteria", ())
+            formal_criteria = (set(original_criteria)
+                               if isinstance(original_criteria, (list, tuple)) else set())
+            formal_criterion_keys = {_criterion_without_list_marker(item)
+                for item in formal_criteria if isinstance(item, str)}
+            normalized_steps = []
+            for step in steps:
+                artifact_criteria = {criterion for requirement in step.artifact_requirements
+                                     for criterion in requirement.acceptance_criteria}
+                retained_criteria = tuple(criterion for criterion in step.acceptance_criteria
+                    if (not formal_criterion_keys
+                        or _criterion_without_list_marker(criterion) in formal_criterion_keys
+                        or criterion not in artifact_criteria))
+                if not retained_criteria:
+                    retained_criteria = step.acceptance_criteria
+                normalized_steps.append(replace(step, acceptance_criteria=retained_criteria))
+            steps = normalized_steps
             if isinstance(original_criteria, (list, tuple)):
                 canonicalized = []
                 for criterion in lifecycle_criteria:
