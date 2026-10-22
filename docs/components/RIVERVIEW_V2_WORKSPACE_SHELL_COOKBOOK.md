@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.20
+File Revision: 1.0.21
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated live GPU/model reads and source gaps.
@@ -11,6 +11,7 @@ Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Document five-second OCTO1 
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Clarify isolated desktop screenshot and historical controller references
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Document authenticated conversation traces and exact model-server evidence gap
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Record artwork provenance, interaction checks, mobile fix, and physical mapping limits
+Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Verify VRAM missing states, measured-rate provenance, context limits, and paged bounded activity
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -273,3 +274,12 @@ python3 scripts/process_graph.py check
 The Firefox utility starts and stops its own local geckodriver. The Chrome utility starts and stops its own headless Chrome profile and uses a 390×844 CSS-pixel emulated viewport. Both connect only to the loopback preview. LAN authentication tests use a disposable random password created in memory and a temporary hash; they never test with the Steward's real password. Required outputs include no browser errors, selected resident retained, `overflow=false`, unauthorized assets 401, successful login redirect 303, lockout 429, invalid Host/Origin and non-LAN rejection, null/absent Origin accepted only with a valid one-use CSRF token, replay/missing-token rejection, and session expiry. Final acceptance also requires Windows Chrome from the actual dev PC. A failed local check is evidence about the preview branch, not a reason to restart V1.
 
 The focused fixture browser checks exercise theme choices, sidebar states, keyboard descriptions, mobile width, Snapshot, truthful Comms5 `UNVERIFIED` state, and a real ZIP download. The separate Chrome Grace acceptance runner checks one actual durable send, Grace response, and reload; it requires Chrome trust of the LAN Root CA and an authorized Dashboard session. It reports only hashed identifiers and event metadata. To roll back the integrated route, restore the protected Nginx predecessor from `/var/lib/riverview/engineering-backups/RV-WEB-V2-GRACE-CHAT-002/`, verify the recorded SHA-256, run `nginx -t`, and reload Nginx. This removes only `/v2/`; it does not change the Dashboard release or credentials.
+
+## Issue #207 Hardware & AI checks
+
+- GPU VRAM summary must show measured used/total, percentage, remaining, and a visual bar. If either byte counter is missing, negative, or inconsistent, expect `Unavailable`; do not interpret it as 0%. On refresh failure, the previous card remains mounted and is labeled stale.
+- Model rate graphs accept only successful trace attempts with stage, completion token count, positive elapsed milliseconds, and an end timestamp. Values are output tokens per router-recorded provider-call second and include service/network time. They do not represent a GPU sample or llama.cpp server-only rate. No point in the five-minute window is shown as unavailable; `/metrics` HTTP 501 means stage timings remain unavailable.
+- Selected 80B/30B context values come from the sanitized `slot_context` API fields mapped from `/slots`: `n_ctx`, `n_prompt_tokens`, `n_prompt_tokens_processed`, and `n_prompt_tokens_cache`. Read each capacity per slot. Aggregate server context is a sum and is labeled separately. KV bytes and queue depth remain unavailable. Never inspect or expose raw slot payloads, task IDs, or prompt text.
+- Recent Hardware Activity stores at most 60 entries and mounts four visible samples per page. Previous/Next should show `Page N of M`; a five-second refresh must preserve the selected page, list scroll offset, and GPU-card node identity. `node scripts/verify_v2_resource_monitor.cjs` exercises 12 consecutive fixture refreshes and asserts four records per page, retained GPU nodes, and no overlap.
+
+If slot context is missing after deployment, check the Dashboard `/api/v1/resources/telemetry` response in the authenticated browser and compare only numeric projected counters with the fixed server `/slots` endpoint. Do not add direct model-server browser access or alter inference startup arguments. For stale telemetry, confirm Dashboard service health and source freshness; do not erase prior cards or replace values with fixture data.
