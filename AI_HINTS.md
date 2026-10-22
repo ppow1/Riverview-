@@ -1,11 +1,15 @@
 # Riverview~ AI Engineering Hints
 
-**Document Revision:** 1.0.6  
+**Document Revision:** 1.0.7  
 **Status:** Working agent guidance  
-**Date:** 2026-10-21  
+**Date:** 2026-10-22  
 **Component:** ENG-AGENT-GUIDANCE  
 **Purpose:** Startup instructions for any AI agent performing engineering work on Riverview~.  
 **Authority:** Guidance for work in this repository; subordinate to the user's explicit instructions and the governing engineering standards.
+
+## Steward working compass (2026-10-22)
+
+At work start or a material context change, read the short [Steward DO / DON'T compass](docs/operations/STEWARD_WORKING_COMPASS_2026-10-22.md). Consult the [detailed executive lessons](docs/operations/STEWARD_WORKING_LESSONS_2026-10-22.md) only when needed. These are memory aids, not new gates; keep current authorized work moving.
 
 ## Start here — every new engineering session
 
