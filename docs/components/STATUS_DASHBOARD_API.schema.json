@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://riverview.invalid/contracts/dashboard/status-v1.2.schema.json",
+  "description": "Authenticated read-only status, resource telemetry, canonical workflow projection, conversation-owner-scoped objective progress, persistent sanitized grounding diagnostics, and component documentation renderer.",
   "title": "Riverview Status Dashboard API v1.2",
-  "description": "Authenticated read-only status, resource telemetry, canonical workflow projection, conversation-owner-scoped objective progress, and component documentation renderer.",
   "$defs": {
     "timestamp": {
       "type": [
@@ -186,6 +186,7 @@
         "lifecycle_status",
         "lifecycle_stage",
         "steward_action_required",
+        "grounding_diagnostics",
         "created_at",
         "updated_at"
       ],
@@ -243,6 +244,13 @@
             "null"
           ]
         },
+        "grounding_diagnostics": {
+          "type": "array",
+          "maxItems": 25,
+          "items": {
+            "$ref": "#/$defs/groundingAttempt"
+          }
+        },
         "rework": {
           "type": "object"
         },
@@ -271,6 +279,80 @@
           "type": "string",
           "format": "date-time"
         }
+      },
+      "additionalProperties": false
+    },
+    "groundingDiagnostic": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "attempt_id",
+        "objective_id",
+        "objective_revision",
+        "previous_state",
+        "new_state",
+        "stage",
+        "attempted_operation",
+        "outcome",
+        "reason_code",
+        "explanation",
+        "evidence",
+        "responsible_component",
+        "retry",
+        "attempt_started_at"
+      ],
+      "properties": {
+        "event_id": {"type": "string", "format": "uuid"},
+        "attempt_id": {"type": "string", "format": "uuid"},
+        "objective_id": {"type": "string"},
+        "objective_revision": {"type": "integer", "minimum": 1},
+        "source": {"type": ["object", "null"]},
+        "previous_state": {"type": "string"},
+        "new_state": {"type": "string"},
+        "stage": {"type": "string"},
+        "attempted_operation": {"type": "string"},
+        "outcome": {"const": "blocked"},
+        "reason_code": {"type": "string", "pattern": "^[A-Z0-9_]{1,64}$"},
+        "explanation": {"type": "string", "maxLength": 256},
+        "evidence": {
+          "type": "object",
+          "required": ["status", "source_revision", "source_sha256_present", "retrieval_complete", "reference_count", "sha256"],
+          "properties": {
+            "status": {"type": "string"},
+            "source_revision": {"type": ["string", "null"]},
+            "source_sha256_present": {"type": "boolean"},
+            "retrieval_complete": {"type": "boolean"},
+            "reference_count": {"type": "integer", "minimum": 0},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          },
+          "additionalProperties": false
+        },
+        "responsible_component": {"type": "string"},
+        "retry": {
+          "type": "object",
+          "required": ["status", "retryable", "automatic", "next_retry_at", "required_actor", "next_permitted_action"],
+          "properties": {
+            "status": {"type": "string"},
+            "retryable": {"type": "boolean"},
+            "automatic": {"type": "boolean"},
+            "next_retry_at": {"$ref": "#/$defs/timestamp"},
+            "required_actor": {"type": "string"},
+            "next_permitted_action": {"type": "string", "maxLength": 256}
+          },
+          "additionalProperties": false
+        },
+        "attempt_started_at": {"type": "string", "format": "date-time"},
+        "failure_type": {"type": "string", "maxLength": 80}
+      },
+      "additionalProperties": false
+    },
+    "groundingAttempt": {
+      "type": "object",
+      "required": ["event_id", "occurred_at", "diagnostic"],
+      "properties": {
+        "event_id": {"type": "string", "format": "uuid"},
+        "occurred_at": {"type": "string", "format": "date-time"},
+        "diagnostic": {"$ref": "#/$defs/groundingDiagnostic"}
       },
       "additionalProperties": false
     },

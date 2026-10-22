@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.64
+# Revision: 1.0.65
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Verify durable grounding projection, authenticated scope, redaction, retry guidance, and UI rendering contract.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Align retry-copy assertion with immutable criteria-source semantics.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Cover blank/explicit intake and criteria-source visibility.
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify telemetry endpoint authentication, projection, and read-only methods.
@@ -128,6 +129,7 @@ class _FakeProjection:
             safe = {"objective_id", "status", "assignment_id", "assignment_state", "origin",
                     "lifecycle_status", "lifecycle_stage", "latest_event", "verification",
                     "rework", "steward_action_required", "dispatch_failures",
+                    "grounding_diagnostics",
                     "last_dispatch_failure_at", "verification_failures",
                     "last_verification_failure_at", "created_at", "updated_at"}
             items = [{key: value for key, value in item.items() if key in safe}
@@ -161,6 +163,15 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("/api/v1/objectives?limit=25&conversation_id=", app)
         self.assertIn("lifecycle_stage", app)
         self.assertIn("steward_action_required", app)
+        self.assertIn("grounding_diagnostics", app)
+        self.assertIn("Grounding blocker", app)
+        self.assertIn("Responsible component", app)
+        self.assertIn("Retry status", app)
+        self.assertIn("Next retry", app)
+        self.assertIn("Next permitted action", app)
+        self.assertIn("Grounding reason unavailable", app)
+        self.assertIn("esc(latestGrounding.reason_code", app)
+        self.assertIn("esc(retry.next_permitted_action", app)
         self.assertIn("refresh-engineering-progress", app)
         self.assertIn("loadConversationEngineeringProgress();", app)
 
@@ -170,6 +181,8 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertEqual(schema["$defs"]["objectiveProgressPage"]["properties"]
                          ["schema_version"]["const"], "rv.dashboard.objective_progress.v1")
         allowed = schema["$defs"]["objectiveProgressItem"]["properties"]
+        self.assertIn("grounding_diagnostics", allowed)
+        self.assertIn("groundingDiagnostic", schema["$defs"])
         for sensitive in ("request", "scope_ref", "submitter_id", "acceptance_criteria",
                           "artifact", "source_sha256"):
             self.assertNotIn(sensitive, allowed)
@@ -649,12 +662,25 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 403)
         self.assertEqual(json.loads(body)["error"], "steward_or_owned_conversation_required")
 
+        self.projection.objective_items = [{
+            "objective_id": "objective:grounding-owner-visible", "status": "WAITING_FOR_EVIDENCE",
+            "origin": {"conversation_id": conversation_id, "source_sequence": 4},
+            "grounding_diagnostics": [{"event_id": "event-id", "occurred_at": "2026-10-22T00:00:00Z",
+                "diagnostic": {"reason_code": "GROUNDING_NO_MATCH",
+                    "explanation": "No matching evidence.", "responsible_component": "KNOWLEDGE-PROVIDER",
+                    "retry": {"status": "same_objective_retry_available"}}}],
+        }]
+
         status, _, body = self.request("GET",
             "/api/v1/objectives?limit=7&conversation_id=" + conversation_id,
             token=self.token, cookie="rv_account_session=session")
         self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body)["status"], "available")
-        self.assertEqual(json.loads(body)["schema_version"], "rv.dashboard.objective_progress.v1")
+        response = json.loads(body)
+        self.assertEqual(response["status"], "available")
+        self.assertEqual(response["schema_version"], "rv.dashboard.objective_progress.v1")
+        self.assertEqual(response["items"][0]["grounding_diagnostics"][0]["diagnostic"]
+                         ["reason_code"], "GROUNDING_NO_MATCH")
+        self.assertNotIn("private request text", body.decode())
         self.assertEqual(self.projection.last_limit, 7)
         self.assertEqual(self.projection.last_conversation_id, conversation_id)
         self.assertEqual(self.projection.last_owner_principal_id, principal_id)
@@ -1332,6 +1358,30 @@ class DashboardPostgresTests(unittest.TestCase):
                     (objective_id, "receive:" + objective_id, principal_id,
                      json.dumps({"origin": {"conversation_id": conversation_id,
                                              "source_sequence": 6}})))
+                if objective_id == own_objective:
+                    event_id = str(uuid4())
+                    diagnostic = {"event_id": event_id, "attempt_id": str(uuid4()),
+                        "objective_id": objective_id, "objective_revision": 2,
+                        "previous_state": "RECEIVED", "new_state": "WAITING_FOR_EVIDENCE",
+                        "stage": "provider_result", "attempted_operation": "knowledge_provider.ground_assignment",
+                        "outcome": "blocked", "reason_code": "GROUNDING_NO_MATCH",
+                        "explanation": "The knowledge provider returned no matching evidence.",
+                        "evidence": {"status": "NO_MATCH", "source_revision": None,
+                            "source_sha256_present": False, "retrieval_complete": False,
+                            "reference_count": 0, "sha256": "a" * 64},
+                        "responsible_component": "KNOWLEDGE-PROVIDER",
+                        "retry": {"status": "authorized_same_objective_retry_available",
+                            "retryable": True, "automatic": False,
+                            "next_retry_at": None, "required_actor": "steward",
+                            "next_permitted_action": "Retry on the existing conversation."},
+                        "attempt_started_at": "2026-10-22T00:00:00Z"}
+                    cur.execute("UPDATE grace_objectives SET status='WAITING_FOR_EVIDENCE',revision=2 "
+                                "WHERE objective_id=%s", (objective_id,))
+                    cur.execute("""INSERT INTO grace_objective_events
+                        (event_id,objective_id,event_type,idempotency_key,actor_id,payload)
+                        VALUES (%s,%s,'objective.waiting_for_evidence',%s,'knowledge-provider',%s::jsonb)""",
+                        (event_id, objective_id, "wait:" + objective_id,
+                         json.dumps({"grounding_diagnostic": diagnostic})))
 
         page = self.projection.objectives(limit=10, conversation_id=own_conversation,
             owner_principal_id=owner, progress_only=True)
@@ -1344,6 +1394,14 @@ class DashboardPostgresTests(unittest.TestCase):
         self.assertNotIn("submitter_id", item)
         self.assertNotIn("acceptance_criteria", item)
         self.assertNotIn("source_sha256", item)
+        self.assertEqual(item["grounding_diagnostics"][0]["diagnostic"]["reason_code"],
+                         "GROUNDING_NO_MATCH")
+        self.assertNotIn("owner-private-request", json.dumps(item["grounding_diagnostics"]))
+        restarted_projection = DashboardProjection(DSN, schema=self.schema,
+            source_commit="a" * 40, deployment_id="test-m31-restarted")
+        restored = restarted_projection.objectives(limit=10, conversation_id=own_conversation,
+            owner_principal_id=owner, progress_only=True)["items"][0]
+        self.assertEqual(restored["grounding_diagnostics"], item["grounding_diagnostics"])
         self.assertEqual(self.projection.objectives(limit=10, conversation_id=other_conversation,
             owner_principal_id=owner, progress_only=True)["items"], [])
 
