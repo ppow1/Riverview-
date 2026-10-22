@@ -92,6 +92,14 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
         self.sql = sql
         self.schema = "rvtest_" + uuid4().hex
         self.db = psycopg.connect(DSN, autocommit=True)
+        self.created_runtime_role = False
+        role_exists = self.db.execute(
+            "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=%s)",
+            ("riverview_core",)).fetchone()[0]
+        if not role_exists:
+            self.db.execute("CREATE ROLE riverview_core NOLOGIN NOSUPERUSER NOCREATEDB "
+                            "NOCREATEROLE NOBYPASSRLS")
+            self.created_runtime_role = True
         self.db.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
         apply_migrations(DSN, schema=self.schema)
         apply_migrations(DSN, schema=self.schema,
@@ -103,14 +111,15 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
         self.assertEqual(applied[0], checksum)
 
     def tearDown(self):
-        self.db.execute(self.sql.SQL("DROP SCHEMA {} CASCADE").format(
-            self.sql.Identifier(self.schema)))
-        self.db.close()
+        try:
+            self.db.execute(self.sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                self.sql.Identifier(self.schema)))
+            if self.created_runtime_role:
+                self.db.execute("DROP ROLE IF EXISTS riverview_core")
+        finally:
+            self.db.close()
 
     def test_event_id_select_is_granted_without_table_or_write_privileges(self):
-        if not self.db.execute("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=%s)",
-                               ("riverview_core",)).fetchone()[0]:
-            self.skipTest("riverview_core role is absent in disposable PostgreSQL")
         qualified = f'{self.schema}.grace_objective_events'
         grants = self.db.execute("""SELECT
             has_column_privilege('riverview_core', %s, 'event_id', 'SELECT'),
@@ -119,6 +128,44 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
             has_table_privilege('riverview_core', %s, 'DELETE')""",
             (qualified, qualified, qualified, qualified)).fetchone()
         self.assertEqual(grants, (True, False, False, False))
+
+    def test_actual_event_history_select_returns_event_id_as_runtime_role(self):
+        from riverview_core.postgres_ledger import PostgresLedger
+        from riverview_core.resident_execution.pipeline import GraceExecutionPipeline
+
+        objective_id = "objective:acl-fixture:" + uuid4().hex
+        self.db.execute(self.sql.SQL("""INSERT INTO {}.grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status)
+            VALUES (%s,'controlled ACL fixture','work-order:engineering',
+                    'steward:test','[]'::jsonb,'RECEIVED')""").format(
+                        self.sql.Identifier(self.schema)), (objective_id,))
+        fixture = self.db.execute(self.sql.SQL("""INSERT INTO {}.grace_objective_events
+            (objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,'objective.received',%s,'steward:test','{}'::jsonb)
+            RETURNING event_id""").format(self.sql.Identifier(self.schema)),
+            (objective_id, "acl-fixture:" + uuid4().hex)).fetchone()
+
+        ledger = PostgresLedger(DSN, schema=self.schema)
+        try:
+            ledger.db.execute(self.sql.SQL("SET ROLE {}").format(
+                self.sql.Identifier("riverview_core")))
+            pipeline = GraceExecutionPipeline.__new__(GraceExecutionPipeline)
+            pipeline.ledger = ledger
+            rows = pipeline.objective_events(objective_id)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(str(rows[0]["event_id"]), str(fixture[0]))
+
+            qualified = f'{self.schema}.grace_objective_events'
+            privileges = self.db.execute("""SELECT
+                has_column_privilege('riverview_core', %s, 'event_id', 'SELECT'),
+                has_table_privilege('riverview_core', %s, 'SELECT'),
+                has_table_privilege('riverview_core', %s, 'INSERT'),
+                has_table_privilege('riverview_core', %s, 'UPDATE'),
+                has_table_privilege('riverview_core', %s, 'DELETE')""",
+                (qualified, qualified, qualified, qualified, qualified)).fetchone()
+            self.assertEqual(privileges, (True, False, False, False, False))
+        finally:
+            ledger.close()
 
 
 if __name__ == "__main__":

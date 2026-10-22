@@ -1144,6 +1144,9 @@ def make_handler():
                         origin = {"conversation_id": conversation_id,
                                   "source_sequence": sequence}
                         from riverview_core.resident_execution import ObjectiveStateError
+                        suffix = uuid5(NAMESPACE_URL,
+                            f"riverview:grace-conversation-objective:{conversation_id}:{sequence}")
+                        objective_id = "objective:grace-conversation:" + str(suffix)
                         failure_stage = "event_history"
                         existing = _find_conversation_objective(
                             pipeline, conversation_id, sequence)
