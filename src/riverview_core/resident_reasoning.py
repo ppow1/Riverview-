@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.28
+# Revision: 1.0.29
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Map structural list labels and exact single-dispatch lifecycle criteria.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Carry per-attempt correlation ID into provider validation diagnostics.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Correlate separate grounding provider outcomes without request content
 # Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Keep office-state writes within the database JSONB text bound and expose safe SQLSTATE diagnostics
@@ -199,6 +200,13 @@ def lifecycle_evidence_event(criterion: str) -> str | None:
     if not isinstance(criterion, str):
         return None
     value = " ".join(criterion.lower().split())
+    value = re.sub(r"^(?:[-*+]\s+|\d{1,2}[.)]\s+)", "", value)
+    if re.fullmatch(
+            r"(?:create|ensure there is) exactly one (?:approved )?(?:engineering )?"
+            r"(?:work order|assignment)(?: for [^.]+)?\.?|"
+            r"exactly one (?:approved )?(?:engineering )?(?:work order|assignment) "
+            r"(?:is )?(?:created|dispatched)\.?", value):
+        return "work_order.exactly_one_dispatched"
     if re.fullmatch(
             r"(?:grace )?(?:returns?|publishes?|reports?) (?:the )?(?:result|response) "
             r"to (?:the )?(?:steward )?conversation\.?|"

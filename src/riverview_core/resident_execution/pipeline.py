@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.24
+# Revision: 1.1.25
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Enforce one-step proposal and one durable dispatch for exact-one work-order lifecycle criteria.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Add exact-objective audited removal of one misclassified structural heading.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Persist Grace-derived criteria as the objective's validated effective list.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Require artifact destinations to be named in the authorized objective scope
@@ -390,8 +391,12 @@ class GraceExecutionPipeline:
         elif criteria_source != "steward_supplied" or not requested_list:
             raise ObjectiveStateError("objective acceptance-criteria source is invalid")
         requested = set(requested_list)
+        requires_one_dispatch = any(
+            lifecycle_evidence_event(criterion) == "work_order.exactly_one_dispatched"
+            for criterion in proposal.system_owned_criteria)
         if (proposed & lifecycle or
                 len(step_criteria) != len(proposed) or
+                (requires_one_dispatch and len(proposal.steps) != 1) or
                 any(criterion not in requested or lifecycle_evidence_event(criterion) is None
                     for criterion in lifecycle) or
                 (not has_conversation_origin and any(
@@ -576,6 +581,18 @@ class GraceExecutionPipeline:
                 keys = [f"grace-objective-completed:{objective_id}:{completion_cycle}"]
             elif event_type == "conversation.result_published":
                 keys = [f"grace-conversation-result-published:{objective_id}:{completion_cycle}"]
+            elif event_type == "work_order.exactly_one_dispatched":
+                cur.execute("""SELECT e.idempotency_key,e.payload->>'assignment_id' AS assignment_id
+                    FROM grace_objective_events e JOIN assignments a
+                      ON a.id=e.payload->>'assignment_id'
+                    WHERE e.objective_id=%s AND e.event_type='work_order.dispatched'
+                      AND a.objective_ref=%s ORDER BY e.sequence""",
+                    (objective_id, objective_id))
+                rows = cur.fetchall()
+                assignment_ids = {row["assignment_id"] for row in rows}
+                if len(rows) != 1 or len(assignment_ids) != 1:
+                    raise ObjectiveStateError("exactly one dispatched Engineering assignment is required")
+                keys = [rows[0]["idempotency_key"]]
             else:
                 acceptable_types = (("execution.step_verified", "objective.completed")
                     if event_type == "execution.step_verified" else (event_type,))

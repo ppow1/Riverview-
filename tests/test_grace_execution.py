@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.54
+# Revision: 1.0.55
+# Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify one-work-order lifecycle criteria require one proposal step and exactly one durable dispatch.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-TRIGGER-PRIVILEGE-FIX | Verify the audited criteria guard reads only fields granted to the runtime role and takes no forbidden row lock.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-RECONCILIATION | Cover exact-scope audited heading removal, authorization, and revision conflicts.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Run derived-criteria persistence under the exact authorized Engineering intake scope.
@@ -444,6 +445,71 @@ class GraceExecutionTests(unittest.TestCase):
             ["artifact contains the task and verified repository provenance"],
             credential=self.credentials["steward"], scope_ref=self.scope)
         return self.pipeline.ground_objective(row["objective_id"])
+
+    def test_single_work_order_lifecycle_criterion_requires_one_step_and_one_dispatch(self):
+        from riverview_core.resident_reasoning import ArtifactRequirement
+
+        objective_id = "objective:single-work-order-contract"
+        lifecycle = "- Create exactly one Engineering assignment for the report."
+        deliverables = ["The first report is produced.", "The second report is produced."]
+        self.pipeline.submit_objective(objective_id,
+            "Create reports/first.txt and reports/second.txt.",
+            [*deliverables, lifecycle], credential=self.credentials["steward"],
+            scope_ref=self.scope)
+        self.pipeline.ground_objective(objective_id)
+        multiple_steps = PlanProposal("Produce both requested reports", (
+            PlanStep("first", "Create the first report", (deliverables[0],),
+                artifact_requirements=(ArtifactRequirement(
+                    "first", "reports/first.txt", "text/plain", (deliverables[0],)),)),
+            PlanStep("second", "Create the second report", (deliverables[1],),
+                depends_on=("first",), artifact_requirements=(ArtifactRequirement(
+                    "second", "reports/second.txt", "text/plain", (deliverables[1],)),)),
+        ), 0, system_owned_criteria=(lifecycle,))
+        with self.assertRaisesRegex(ObjectiveStateError, "bind every original criterion"):
+            self.pipeline.record_proposal(objective_id, multiple_steps)
+
+        single_objective_id = "objective:single-work-order-contract-valid"
+        file_criterion = "reports/result.txt contains the requested text."
+        self.pipeline.submit_objective(single_objective_id,
+            "Create reports/result.txt with the requested text.",
+            [file_criterion, lifecycle], credential=self.credentials["steward"],
+            scope_ref=self.scope)
+        self.pipeline.ground_objective(single_objective_id)
+        single_step = PlanStep("report", "Create reports/result.txt", (file_criterion,),
+            artifact_requirements=(ArtifactRequirement(
+                "result", "reports/result.txt", "text/plain", (file_criterion,)),))
+        single_proposal = PlanProposal("Produce the requested report", (single_step,), 0,
+            system_owned_criteria=(lifecycle,))
+        self.pipeline.record_proposal(single_objective_id, single_proposal)
+        self.pipeline.authorize_and_dispatch(single_objective_id,
+            "assignment:single-work-order-contract", credential=self.credentials["steward"],
+            authority_ref=self.scope, idempotency_key="single-work-order-dispatch")
+        with self.ledger.db.cursor() as cursor:
+            self.ledger._set_search_path(cursor)
+            evidence = self.pipeline._system_criterion_evidence(cursor,
+                single_objective_id,
+                {"system_owned_criteria": [lifecycle]}, "cycle-1")
+        self.assertEqual(evidence[0]["event_keys"], [
+            f"grace-work-order-dispatched:{single_objective_id}:report"])
+
+        class Cursor:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def execute(self, query, params):
+                self.query = query
+                self.params = params
+
+            def fetchall(self):
+                return self.rows
+
+        self.assertEqual(evidence[0]["evidence_event_type"],
+                         "work_order.exactly_one_dispatched")
+        with self.assertRaisesRegex(ObjectiveStateError, "exactly one dispatched"):
+            self.pipeline._system_criterion_evidence(Cursor([
+                {"idempotency_key": "dispatch:one", "assignment_id": "assignment:one"},
+                {"idempotency_key": "dispatch:two", "assignment_id": "assignment:two"},
+            ]), objective_id, {"system_owned_criteria": [lifecycle]}, "cycle-1")
 
     def _reasoning_service(self, reasoner):
         from riverview_core.resident_execution.service import GraceExecutionService
