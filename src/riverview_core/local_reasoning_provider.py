@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.29
+# Revision: 1.3.30
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Support optional bounded JSON-Schema chat output for strict verified-result review.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Keep artifact-specific criteria in their artifact contract, not formal step binding.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Restore only stripped structural list markers from original lifecycle criteria and remove temporary capture.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-LIFECYCLE-CRITERION-CAPTURE-20261022 | Add one-shot protected capture for one rejected target lifecycle criterion.
@@ -705,14 +706,16 @@ class LocalReasoningProvider:
                 "typed_proposal_construction", "$", "valid PlanProposal", plan, exc)
 
     def complete_chat(self, messages, *, max_tokens: int,
-                      expected_revision: str, timeout_seconds: float = 120) -> ChatCompletion:
+                      expected_revision: str, timeout_seconds: float = 120,
+                      response_schema=None) -> ChatCompletion:
         if not self._capacity.acquire(blocking=False):
             raise LocalReasoningUnavailable("endpoint_busy")
         with self._capacity_lock:
             self._in_flight += 1
         try:
             return self._complete_chat(messages, max_tokens=max_tokens,
-                expected_revision=expected_revision, timeout_seconds=timeout_seconds)
+                expected_revision=expected_revision, timeout_seconds=timeout_seconds,
+                response_schema=response_schema)
         finally:
             with self._capacity_lock:
                 self._in_flight -= 1
@@ -865,7 +868,8 @@ class LocalReasoningProvider:
                               reasoning_stage="primary")
 
     def _complete_chat(self, messages, *, max_tokens: int,
-                       expected_revision: str, timeout_seconds: float) -> ChatCompletion:
+                       expected_revision: str, timeout_seconds: float,
+                       response_schema=None) -> ChatCompletion:
         """Generate ordinary conversation text; this method has no tool or work-order API."""
         if (expected_revision != self.model_sha256 or type(max_tokens) is not int
                 or not 1 <= max_tokens <= 512 or not isinstance(messages, list)
@@ -889,9 +893,16 @@ class LocalReasoningProvider:
                                        separators=(",", ":")).encode("utf-8")
             if len(content_bytes) > self.MAX_PROMPT_BYTES:
                 raise LocalReasoningUnavailable("prompt_too_large")
-            body = json.dumps({"model": self.model, "messages": request_messages,
-                "temperature": 0.2, "max_tokens": max_tokens, "stream": False},
-                ensure_ascii=False).encode("utf-8")
+            request_body = {"model": self.model, "messages": request_messages,
+                "temperature": 0.2, "max_tokens": max_tokens, "stream": False}
+            if response_schema is not None:
+                if (not isinstance(response_schema, dict) or len(json.dumps(
+                        response_schema, ensure_ascii=False).encode("utf-8")) > 16384):
+                    raise LocalReasoningUnavailable("request_contract_invalid")
+                request_body["response_format"] = {"type": "json_schema",
+                    "json_schema": {"name": "verified_result_review",
+                                    "schema": response_schema}}
+            body = json.dumps(request_body, ensure_ascii=False).encode("utf-8")
         except (TypeError, ValueError):
             raise LocalReasoningUnavailable("request_contract_invalid") from None
         request = Request(self.endpoint, data=body,

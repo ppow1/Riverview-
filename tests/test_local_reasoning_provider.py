@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.32
+# Revision: 1.1.33
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional JSON-schema chat mode is sent only when requested and bounded.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Verify artifact checks stay in the artifact contract without becoming extra formal criteria.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify lifecycle criterion binding restores only a stripped structural bullet.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Verify actionable value-free diagnostics for proposal rejection stages.
@@ -798,6 +799,27 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertEqual(self.requests[0]["max_tokens"], 64)
         self.assertEqual(self.request_calls[0][1], 120)
         self.assertFalse(self.requests[0]["stream"])
+
+    def test_chat_sends_optional_bounded_json_schema_format(self):
+        self.response_body = json.dumps({"model":"fixture-model","choices":[{
+            "message":{"content":"{}"}, "finish_reason":"stop"}],
+            "usage":{"prompt_tokens":4,"completion_tokens":1}}).encode()
+        schema = {"type": "object", "properties": {"decision": {"type": "string"}},
+            "required": ["decision"], "additionalProperties": False}
+        self.provider.complete_chat([{"role":"user","content":"review"}],
+            max_tokens=64, expected_revision=MODEL_SHA, response_schema=schema)
+        self.assertEqual(self.requests[0]["response_format"], {
+            "type": "json_schema", "json_schema": {
+                "name": "verified_result_review", "schema": schema}})
+
+    def test_chat_rejects_oversized_or_non_object_response_schema(self):
+        messages = [{"role":"user","content":"review"}]
+        for schema in ([], {"x": "y" * 16385}):
+            with self.subTest(schema_type=type(schema).__name__), self.assertRaises(
+                    LocalReasoningUnavailable) as caught:
+                self.provider.complete_chat(messages, max_tokens=64,
+                    expected_revision=MODEL_SHA, response_schema=schema)
+            self.assertEqual(caught.exception.code, "request_contract_invalid")
 
     def test_chat_rejects_binding_mismatch_wrong_model_and_incomplete_output(self):
         messages = [{"role":"user","content":"hello"}]

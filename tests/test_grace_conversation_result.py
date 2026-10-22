@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.15
+# Revision: 1.0.16
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Assert strict structured-output request and supplied-authority clarification for final reviews.
 # Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Test sanitized review parse metadata and one-shot private response capture
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
@@ -91,8 +92,10 @@ class FakeRouter:
     def supports_capability(self, capability):
         return capability == "grace.reasoning.80b"
 
-    def complete_chat(self, messages, *, max_tokens, expected_revision, required_capability):
-        self.calls.append((messages, max_tokens, expected_revision, required_capability))
+    def complete_chat(self, messages, *, max_tokens, expected_revision, required_capability,
+                      response_schema=None):
+        self.calls.append((messages, max_tokens, expected_revision, required_capability,
+                           response_schema))
         if self.failure is not None:
             raise self.failure
         if self.on_complete is not None:
@@ -149,6 +152,11 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(result["served_model"], "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf")
         self.assertEqual(self.actions, [("resident-credential", "resident.conversation.send")])
         self.assertEqual(self.router.calls[0][3], "grace.reasoning.80b")
+        self.assertEqual(self.router.calls[0][4]["required"], ["decision", "rationale",
+            "additional_evidence", "proposed_step"])
+        review_instructions = self.router.calls[0][0][0]["content"]
+        self.assertIn("already authenticated this review request", review_instructions)
+        self.assertIn("preserve every decision/authorization boundary", review_instructions)
         request_id = result["request_id"]
         row = self.store.responses[request_id]
         self.assertEqual(row["conversation_id"], context["origin"]["conversation_id"])
