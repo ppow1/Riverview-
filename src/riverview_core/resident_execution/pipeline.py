@@ -984,7 +984,7 @@ class GraceExecutionPipeline:
         objective = self.get_objective(objective_id)
         assignment = self.ledger.get(assignment_id)
         if (objective is None or objective["status"] != "WORK_ORDER_CREATED" or
-                objective["assignment_id"] != assignment_id or not assignment or
+                not assignment or assignment.get("objective_ref") != objective_id or
                 assignment["state"] != "completed"):
             raise ObjectiveStateError("completed assignment is not independently verified")
         with self.ledger.db.cursor() as cur:
@@ -1005,6 +1005,11 @@ class GraceExecutionPipeline:
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
+                cur.execute("SELECT status FROM grace_objectives WHERE objective_id=%s FOR UPDATE",
+                            (objective_id,))
+                locked_objective = cur.fetchone()
+                if not locked_objective or locked_objective["status"] != "WORK_ORDER_CREATED":
+                    raise ObjectiveStateError("objective changed before step verification")
                 cur.execute("""SELECT step_id,step_order,status FROM grace_objective_steps
                     WHERE objective_id=%s AND assignment_id=%s FOR UPDATE""",
                     (objective_id, assignment_id))
@@ -1073,10 +1078,9 @@ class GraceExecutionPipeline:
                 self.ledger._set_search_path(cur)
                 cur.execute("""UPDATE grace_objectives SET status=%s,revision=revision+1,
                     updated_at=clock_timestamp() WHERE objective_id=%s
-                    AND status='WORK_ORDER_CREATED' AND assignment_id=%s""",
+                    AND status='WORK_ORDER_CREATED'""",
                     ("COMPLETED" if all_steps and not await_grace_acceptance
-                     else "WORK_ORDER_CREATED",
-                     objective_id, assignment_id))
+                     else "WORK_ORDER_CREATED", objective_id))
                 if cur.rowcount != 1:
                     raise ObjectiveStateError("objective completion raced with another update")
                 if all_steps and not await_grace_acceptance:

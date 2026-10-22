@@ -1275,7 +1275,7 @@ class GraceExecutionTests(unittest.TestCase):
                          "WORK_ORDER_CREATED")
         self.assertEqual(service.publish_conversation_results(), 1,
                          "the final output is delivered for Grace's substantive review")
-        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 2)
         self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "WORK_ORDER_CREATED",
                          "additional evidence is not accepted as objective completion")
         self.assertEqual(self.pipeline.pending_conversation_results(), [])
@@ -1287,7 +1287,7 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(revision["review_generation"], 2)
         publisher.decisions[2] = "OBJECTIVE_COMPLETE"
         self.assertEqual(service.publish_conversation_results(), 1)
-        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 2)
         self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED")
         pending = self.pipeline.pending_conversation_results()
         self.assertEqual(pending, [])
@@ -2006,6 +2006,93 @@ class GraceExecutionTests(unittest.TestCase):
         final_event = next(event for event in events if event["event_type"] == "objective.completed")
         self.assertEqual(final_event["payload"]["artifact"]["repository_reference"], repo_ref)
         self.assertEqual(final_event["payload"]["artifact"]["repository_revision"], pinned)
+
+    def test_reconciliation_verifies_earlier_step_after_objective_pointer_advances(self):
+        """A later dispatch must not hide an earlier completed step from reconciliation."""
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        objective_id = "objective:step-reconcile-pointer:" + uuid4().hex
+        criteria = ("Step one artifact records the baseline.",
+                    "Step two artifact records the analysis.",
+                    "Step three artifact records the risks.")
+        self.pipeline.submit_objective(objective_id,
+            "Create baseline, analysis, and risks artifacts at s1.json, s2.json, and s3.json for this execution test.",
+            criteria, credential=self.credentials["steward"], scope_ref=self.scope,
+            origin={"conversation_id": str(uuid4()), "source_sequence": 1})
+        self.pipeline.ground_objective(objective_id)
+        steps = tuple(PlanStep(step_id, task, (criterion,),
+            artifact_requirements=(ArtifactRequirement(name, path, "application/json",
+                (criterion,)),)) for step_id, task, criterion, name, path in (
+                    ("s1", "Create the baseline artifact", criteria[0], "baseline", "s1.json"),
+                    ("s2", "Create the analysis artifact", criteria[1], "analysis", "s2.json"),
+                    ("s3", "Create the risks artifact", criteria[2], "risks", "s3.json")))
+        self.pipeline.record_proposal(objective_id,
+            PlanProposal("Create three verified artifacts", steps, 0))
+
+        class ResultPublisher:
+            def __call__(self, context):
+                cycle = context["completion_cycle"]
+                return {"status": "published", "request_id": f"step-reconcile:{cycle}",
+                    "provider_id": "provider:test", "served_model": "model:test",
+                    "implementation_id": "implementation:test",
+                    "review_decision": ("OBJECTIVE_COMPLETE" if cycle == 3 else
+                                        "ENGINEERING_STEP_PROPOSED")}
+
+        artifact_root = self.root / "step-reconcile-artifacts"
+        worker = ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"],
+            knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
+            action=BoundedLocalCodingWorker(self.pipeline, artifact_root),
+            action_effect_class="retry_safe", action_capability="engineering.bounded-artifact.v1")
+        service = GraceExecutionService(self.pipeline, self.adapter, worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=artifact_root, conversation_result_publisher=ResultPublisher())
+
+        def execute_and_verify(assignment_id):
+            self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+                "step-reconcile-ready:" + assignment_id, actor_id="event-processor")
+            outcome = worker.run_once(assignment_id=assignment_id)
+            self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
+            self.assertTrue(service.verify_one(assignment_id))
+            self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        s1 = self.pipeline.get_objective(objective_id)["assignment_id"]
+        execute_and_verify(s1)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(service.publish_conversation_results(), 1)
+
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        s2 = self.pipeline.get_objective(objective_id)["assignment_id"]
+        execute_and_verify(s2)
+        # Dispatching a later eligible step advances the objective's single
+        # assignment pointer before S2's accepted verification is reconciled.
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        s3 = self.pipeline.get_objective(objective_id)["assignment_id"]
+        self.assertNotEqual(s2, s3)
+        execute_and_verify(s3)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["assignment_id"], s3)
+        self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".verification_records '
+            "WHERE assignment_id=ANY(%s) AND decision='ACCEPTED'", ([s2, s3],)).fetchone()[0], 2)
+
+        service.reconcile_completions(objective_id=objective_id)
+        steps_after_reconcile = self.admin.execute(f'SELECT step_id,status FROM "{self.schema}".grace_objective_steps '
+            "WHERE objective_id=%s ORDER BY step_order", (objective_id,)).fetchall()
+        self.assertEqual(steps_after_reconcile, [("s1", "verified"),
+            ("s2", "verified"), ("s3", "verified")])
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "WORK_ORDER_CREATED")
+        self.assertEqual(service.publish_conversation_results(), 1)
+        service.reconcile_completions(objective_id=objective_id)
+
+        completed = self.pipeline.get_objective(objective_id)
+        self.assertEqual(completed["status"], "COMPLETED")
+        events = self.pipeline.objective_events(objective_id)
+        step_events = [event for event in events if event["event_type"] == "execution.step_verified"]
+        self.assertEqual({event["payload"]["step_id"] for event in step_events}, {"s1", "s2", "s3"})
+        completion = next(event for event in events if event["event_type"] == "objective.completed")
+        self.assertEqual(completion["payload"]["decision"], "ACCEPTED")
+        self.assertIn(completion["payload"]["assignment_id"], {s1, s2, s3})
+        self.assertTrue(completion["payload"]["artifact"]["artifact_sha256"])
 
 
     def test_rereview_key_collision_across_objectives_fails_closed(self):
