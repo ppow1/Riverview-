@@ -21,6 +21,14 @@ class GraceEventHistoryMigrationContractTests(unittest.TestCase):
         self.assertNotRegex(source, r"GRANT\s+(?:UPDATE|DELETE|ALL)")
         self.assertEqual(len(hashlib.sha256(migration.read_bytes()).hexdigest()), 64)
 
+    def test_forward_migration_grants_only_event_id_insert(self):
+        migration = CORE / "resident_execution/migrations/0018_grace_objective_event_id_insert.sql"
+        source = migration.read_text(encoding="utf-8")
+        self.assertRegex(source, r"GRANT\s+INSERT\s*\(event_id\)\s+ON")
+        self.assertNotRegex(source, r"GRANT\s+INSERT\s+ON")
+        self.assertNotRegex(source, r"GRANT\s+(?:UPDATE|DELETE|ALL)")
+        self.assertEqual(len(hashlib.sha256(migration.read_bytes()).hexdigest()), 64)
+
     def test_event_history_query_includes_event_id(self):
         source = (CORE / "resident_execution/pipeline.py").read_text(encoding="utf-8")
         method = source.split("    def objective_events(", 1)[1].split("    def ", 1)[0]
@@ -106,12 +114,12 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
         apply_migrations(DSN, schema=self.schema)
         apply_migrations(DSN, schema=self.schema,
                          migrations_dir=CORE / "resident_execution/migrations")
-        migration = CORE / "resident_execution/migrations/0017_grace_objective_event_id_select.sql"
+        migration = CORE / "resident_execution/migrations/0018_grace_objective_event_id_insert.sql"
         checksum = hashlib.sha256(migration.read_bytes()).hexdigest()
         applied = self.db.execute(self.sql.SQL(
             "SELECT checksum FROM {}.schema_migrations WHERE version=%s").format(
                 self.sql.Identifier(self.schema)),
-            ("0017_grace_objective_event_id_select",)).fetchone()
+            ("0018_grace_objective_event_id_insert",)).fetchone()
         self.assertEqual(applied[0], checksum)
 
     def tearDown(self):
@@ -123,15 +131,17 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
         finally:
             self.db.close()
 
-    def test_event_id_select_is_granted_without_table_or_write_privileges(self):
+    def test_event_id_select_and_insert_are_narrow_column_grants(self):
         qualified = f'{self.schema}.grace_objective_events'
         grants = self.db.execute("""SELECT
             has_column_privilege('riverview_core', %s, 'event_id', 'SELECT'),
+            has_column_privilege('riverview_core', %s, 'event_id', 'INSERT'),
             has_table_privilege('riverview_core', %s, 'SELECT'),
+            has_table_privilege('riverview_core', %s, 'INSERT'),
             has_table_privilege('riverview_core', %s, 'UPDATE'),
             has_table_privilege('riverview_core', %s, 'DELETE')""",
-            (qualified, qualified, qualified, qualified)).fetchone()
-        self.assertEqual(grants, (True, False, False, False))
+            (qualified, qualified, qualified, qualified, qualified, qualified)).fetchone()
+        self.assertEqual(grants, (True, True, False, False, False, False))
 
     def test_actual_event_history_select_returns_event_id_as_runtime_role(self):
         from riverview_core.postgres_ledger import PostgresLedger
@@ -159,15 +169,26 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
             self.assertEqual(len(rows), 1)
             self.assertEqual(str(rows[0]["event_id"]), str(fixture[0]))
 
+            inserted_id = uuid4()
+            inserted = ledger.db.execute(self.sql.SQL("""INSERT INTO {}.grace_objective_events
+                (event_id,objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,%s,'objective.waiting_for_evidence',%s,
+                    'knowledge-provider','{{}}'::jsonb)
+                ON CONFLICT (idempotency_key) DO NOTHING RETURNING event_id""").format(
+                    self.sql.Identifier(self.schema)),
+                (inserted_id, objective_id, "grounding-fixture:" + uuid4().hex)).fetchone()
+            self.assertEqual(str(inserted["event_id"]), str(inserted_id))
+
             qualified = f'{self.schema}.grace_objective_events'
             privileges = self.db.execute("""SELECT
                 has_column_privilege('riverview_core', %s, 'event_id', 'SELECT'),
+                has_column_privilege('riverview_core', %s, 'event_id', 'INSERT'),
                 has_table_privilege('riverview_core', %s, 'SELECT'),
                 has_table_privilege('riverview_core', %s, 'INSERT'),
                 has_table_privilege('riverview_core', %s, 'UPDATE'),
                 has_table_privilege('riverview_core', %s, 'DELETE')""",
-                (qualified, qualified, qualified, qualified, qualified)).fetchone()
-            self.assertEqual(privileges, (True, False, False, False, False))
+                (qualified, qualified, qualified, qualified, qualified, qualified)).fetchone()
+            self.assertEqual(privileges, (True, True, False, False, False, False))
         finally:
             ledger.close()
 
