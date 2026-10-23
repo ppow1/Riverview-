@@ -254,6 +254,12 @@
         "rework": {
           "type": "object"
         },
+        "cancellation": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/objectiveCancellation"}
+          ]
+        },
         "steward_action_required": {
           "type": "boolean"
         },
@@ -279,6 +285,16 @@
           "type": "string",
           "format": "date-time"
         }
+      },
+      "additionalProperties": false
+    },
+    "objectiveCancellation": {
+      "type": "object",
+      "required": ["reason", "cancelled_at", "actor_id"],
+      "properties": {
+        "reason": {"type": "string", "maxLength": 500},
+        "cancelled_at": {"$ref": "#/$defs/timestamp"},
+        "actor_id": {"type": ["string", "null"], "maxLength": 256}
       },
       "additionalProperties": false
     },

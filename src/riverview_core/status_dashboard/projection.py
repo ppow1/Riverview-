@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.17
+# Revision: 1.0.18
+# Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Add owner-scoped cancellation reason/time to the objective progress projection.
 # Changed: 2026-10-23 UTC | RV-GRACE-CANCELLED-PROGRESS-20261023 | Keep CANCELLED authoritative over historical failure and blocked activity.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Require active engineering-scope registry and matching capability for live worker health.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Project accepted image downloads beside their assignment verification record.
@@ -712,6 +713,10 @@ class DashboardProjection:
                     vr.verification_id,vr.verifier_revision,vr.summary AS verification_summary,
                     received.payload AS received_payload,
                     activity.event_type AS latest_event_type,activity.activity_at AS latest_event_at,
+                    cancellation.event_type AS cancellation_event_type,
+                    cancellation.occurred_at AS cancellation_at,
+                    cancellation.actor_id AS cancellation_actor,
+                    cancellation.payload AS cancellation_payload,
                     attempt_count.attempt_count,rejections.rejection_count,
                     rework.payload AS latest_rework,rework.occurred_at AS rework_at,
                     grounding.events AS grounding_diagnostics,
@@ -760,6 +765,11 @@ class DashboardProjection:
                         ORDER BY e.sequence DESC LIMIT 25
                     ) history
                 ) grounding ON true
+                LEFT JOIN LATERAL (SELECT e.event_type,e.occurred_at,e.actor_id,e.payload
+                    FROM grace_objective_events e
+                    WHERE e.objective_id=o.objective_id
+                      AND e.event_type IN ('objective.cancelled','work_order.cancelled')
+                    ORDER BY e.sequence DESC LIMIT 1) cancellation ON true
                 LEFT JOIN LATERAL (SELECT count(*) AS failure_count,max(occurred_at) AS last_failure_at
                     FROM grace_objective_events e WHERE e.objective_id=o.objective_id
                       AND e.event_type='execution.dispatch_failed') de ON true
@@ -857,11 +867,18 @@ class DashboardProjection:
                     "source_sha256": row["source_sha256"], "revision": row["revision"],
                     "created_at": self._iso(row["created_at"]),
                     "updated_at": self._iso(row["updated_at"])}
+                cancellation_payload = (row["cancellation_payload"]
+                    if isinstance(row["cancellation_payload"], dict) else {})
+                item["cancellation"] = ({
+                    "reason": str(cancellation_payload.get("reason", ""))[:500],
+                    "cancelled_at": self._iso(row["cancellation_at"]),
+                    "actor_id": str(row["cancellation_actor"] or "")[:256] or None,
+                } if row["status"] == "CANCELLED" and row["cancellation_event_type"] else None)
                 if progress_only:
                     item = {key: item[key] for key in (
                         "objective_id", "status", "assignment_id", "assignment_state",
                         "origin", "lifecycle_status", "lifecycle_stage", "latest_event",
-                        "verification", "rework", "steward_action_required",
+                        "verification", "rework", "cancellation", "steward_action_required",
                         "grounding_diagnostics",
                         "dispatch_failures", "last_dispatch_failure_at",
                         "verification_failures", "last_verification_failure_at",

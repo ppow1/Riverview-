@@ -1,7 +1,8 @@
 # ======================================================================# RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.63
+# Revision: 1.0.64
+# Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Verify principal-based Steward cancellation against the real AuthorityRegistry in PostgreSQL fixtures.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify Grace persists the exact configured worker capability set.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve cancellation authorization, audit, idempotency, queue exclusion, and active-work protection tests.
@@ -2668,6 +2669,30 @@ class GraceExecutionTests(unittest.TestCase):
             objective_id, credential=self.credentials["steward"], authority_ref=self.scope)
         self.assertEqual(cancelled["status"], "CANCELLED")
         self.assertEqual(self.ledger.get(assignment_id)["state"], "cancelled")
+
+    def test_authenticated_institutional_principal_cancellation_uses_real_exact_grant(self):
+        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+        objective_id = "objective:account-principal-cancel"
+        grounded = self._create_grounded_reasoning_objective(objective_id)
+        with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            actor = self.pipeline.authorizer.require(
+                cur, self.credentials["steward"], "assignment.cancel", self.scope)
+        principal = InstitutionalPrincipal(actor["principal_id"])
+        with self.assertRaises(ObjectiveNotAuthorized):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=InstitutionalPrincipal("resident:ungranted"),
+                authority_ref=self.scope, reason="Unauthorized account principal")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["revision"], grounded["revision"])
+        cancelled = self.pipeline.cancel_work_order(objective_id, credential=principal,
+            authority_ref=self.scope, reason="Authorized linked account principal")
+        self.assertEqual(cancelled["status"], "CANCELLED")
+        events = [event for event in self.pipeline.objective_events(objective_id)
+                  if event["event_type"] == "objective.cancelled"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["actor_id"], actor["principal_id"])
+        self.assertEqual(events[0]["payload"]["authorized_principal"], actor["principal_id"])
+        self.assertEqual(events[0]["payload"]["reason"], "Authorized linked account principal")
 
     def test_authorized_grounded_objective_cancellation_is_audited_and_leaves_queue(self):
         objective_id = "objective:grounded-cancel"

@@ -2,7 +2,8 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.9
+Revision: 1.0.10
+Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Show live conversation-linked objectives with safe cancellation and preserve a single panel across responsive sidebar transitions.
 Purpose: Connect V2 Grace chat and expose a content-free trace of its durable request lifecycle
 Execution Model: Interactive browser; request-driven reads/sends with durable response polling
 Observability: Visible auth/status plus request IDs, provider attempts, timestamps, and persistence state
@@ -23,11 +24,19 @@ History: Git and revision/backup manifest
   const $ = (id) => document.getElementById(id);
   const root = $("grace-chat-root");
   if (!root) return;
-  const state = {connected: false, historyLoaded: false, conversationId: "", pending: new Set(), history: [], identity: null, workOrderSequence: null, historyInFlight: false};
+  const state = {connected: false, historyLoaded: false, conversationId: "", pending: new Set(), history: [], identity: null, workOrderSequence: null, historyInFlight: false, engineeringProgressLoading: false, engineeringProgressItems: null, engineeringProgressStatus: "not_checked", engineeringProgressConversationId: "", engineeringProgressObservedAt: null, engineeringProgressError: "", engineeringProgressTimer: null, cancelObjective: null, cancelInFlight: false};
   const HISTORY_KEY = "rv.grace.conversation";
   const errorNode = $("grace-chat-error");
   const statusNode = $("grace-chat-state");
   const historyNode = $("grace-chat-history");
+  const engineeringProgress = $("engineering-progress-panel");
+  const engineeringProgressFallback = $("engineering-progress-fallback");
+  const engineeringProgressList = $("engineering-progress-list");
+  const engineeringProgressState = $("engineering-progress-state");
+  const workspaceShell = document.querySelector(".app-shell");
+  const rightSidebar = $("right-sidebar");
+  const graceWorkspace = $("grace-workspace");
+  const desktopContext = window.matchMedia("(min-width: 761px)");
   const safeError = (value) => String(value || "request_failed").replace(/[^a-z0-9_.-]/gi, "_").slice(0, 64);
 
   function csrfToken() {
@@ -56,6 +65,218 @@ History: Git and revision/backup manifest
       throw error;
     }
     return result;
+  }
+
+  function appendProgressField(grid, label, value) {
+    const term = document.createElement("dt"); term.textContent = label;
+    const detail = document.createElement("dd"); detail.textContent = value || "Unavailable";
+    grid.append(term, detail);
+  }
+
+  function canCancelObjective(item) {
+    if (!item || !state.identity?.roles?.includes("steward")) return false;
+    if (item.status === "GROUNDED") return !item.assignment_id;
+    return item.status === "WORK_ORDER_CREATED" && Boolean(item.assignment_id) &&
+      ["queued", "ready"].includes(String(item.assignment_state || "").toLowerCase());
+  }
+
+  function createEngineeringProgressCard() {
+    const card = document.createElement("article"); card.className = "engineering-progress-item";
+    const title = document.createElement("div"); title.className = "engineering-progress-title";
+    const identity = document.createElement("strong");
+    const badge = document.createElement("span"); badge.className = "engineering-progress-status";
+    title.append(identity, badge);
+    const grid = document.createElement("dl"); grid.className = "engineering-progress-grid";
+    const activeNote = document.createElement("p"); activeNote.className = "engineering-progress-note";
+    activeNote.textContent = "An active worker is running. This safe-stop operation is not available while execution is active.";
+    const cancel = document.createElement("button"); cancel.type = "button";
+    cancel.className = "engineering-cancel-button"; cancel.textContent = "Cancel…";
+    card.append(title, grid, activeNote, cancel);
+    return card;
+  }
+
+  function updateEngineeringProgressCard(card, item) {
+    card.dataset.objectiveId = String(item.objective_id || "");
+    const identity = card.querySelector(".engineering-progress-title strong");
+    const badge = card.querySelector(".engineering-progress-status");
+    identity.textContent = `Objective ${item.objective_id || "identity unavailable"}`;
+    badge.textContent = item.lifecycle_status || item.status || "status unavailable";
+    const fields = [
+      ["Lifecycle", item.lifecycle_stage || item.status],
+      ["Current assignment", item.assignment_id
+        ? `${item.assignment_id} · ${item.assignment_state || "state unavailable"}` : "No assignment created"],
+      ["Latest activity", item.latest_event
+        ? `${item.latest_event.event_type || "Event"} · ${item.latest_event.occurred_at ? timeLabel(item.latest_event.occurred_at) : "time unavailable"}`
+        : "No lifecycle event recorded"]
+    ];
+    if (item.verification?.decision) fields.push(["Independent verification",
+      `${item.verification.decision}${item.verification.summary ? ` · ${item.verification.summary}` : ""}`]);
+    if (item.cancellation && item.status === "CANCELLED") {
+      fields.push(["Cancellation reason", item.cancellation.reason || "Reason not recorded"]);
+      fields.push(["Cancelled", item.cancellation.cancelled_at ? timeLabel(item.cancellation.cancelled_at) : "Time unavailable"]);
+      if (item.cancellation.actor_id) fields.push(["Recorded by", item.cancellation.actor_id]);
+    }
+    const grid = card.querySelector(".engineering-progress-grid");
+    grid.replaceChildren();
+    fields.forEach(([label, value]) => appendProgressField(grid, label, value));
+    const activeNote = card.querySelector(".engineering-progress-note");
+    activeNote.hidden = !(item.status === "WORK_ORDER_CREATED" && item.assignment_state === "running");
+    const cancel = card.querySelector(".engineering-cancel-button");
+    cancel.hidden = !canCancelObjective(item);
+    cancel.dataset.cancelObjective = String(item.objective_id || "");
+    cancel.setAttribute("aria-label", `Cancel ${item.objective_id}, currently ${item.status}`);
+  }
+
+  function renderEngineeringProgress() {
+    const items = Array.isArray(state.engineeringProgressItems) ? state.engineeringProgressItems : null;
+    if (state.engineeringProgressStatus === "not_checked") {
+      engineeringProgressState.textContent = state.connected
+        ? "Waiting for a saved conversation to load." : "Sign in with an authorized Steward account to inspect Engineering Progress.";
+      engineeringProgressList.replaceChildren();
+      return;
+    }
+    if (state.engineeringProgressStatus === "not_initialized") {
+      engineeringProgressState.textContent = "Objective progress storage is not initialized.";
+      engineeringProgressList.replaceChildren();
+      const message = document.createElement("p"); message.className = "engineering-progress-empty";
+      message.textContent = "No authoritative Engineering status is available."; engineeringProgressList.append(message);
+      return;
+    }
+    if (!items) {
+      engineeringProgressState.textContent = state.engineeringProgressError
+        ? `Engineering progress unavailable (${state.engineeringProgressError}).`
+        : "Loading authoritative Engineering progress…";
+      engineeringProgressList.replaceChildren();
+      const message = document.createElement("p"); message.className = state.engineeringProgressError
+        ? "engineering-progress-error" : "engineering-progress-empty";
+      message.textContent = state.engineeringProgressError
+        ? "The request failed before an authoritative observation was received. Refresh to retry."
+        : "Loading progress linked to the current Grace conversation.";
+      engineeringProgressList.append(message);
+      return;
+    }
+    const observed = state.engineeringProgressObservedAt ? timeLabel(state.engineeringProgressObservedAt) : "Observation time unavailable";
+    const stale = Boolean(state.engineeringProgressError);
+    const refreshText = stale ? ` · STALE · ${state.engineeringProgressError}` : "";
+    engineeringProgressState.textContent = `${items.length} linked objective${items.length === 1 ? "" : "s"} · observed ${observed}${refreshText}`;
+    if (!items.length) {
+      engineeringProgressList.replaceChildren();
+      const message = document.createElement("p"); message.className = "engineering-progress-empty";
+      message.textContent = "No objectives are linked to this conversation."; engineeringProgressList.append(message);
+      return;
+    }
+    const focusedCancel = document.activeElement?.closest?.("button[data-cancel-objective]")?.dataset.cancelObjective;
+    const existing = new Map(Array.from(engineeringProgressList.children)
+      .map((card) => [card.dataset.objectiveId, card]));
+    const cards = new Map();
+    for (const item of items) {
+      const id = String(item.objective_id || "");
+      const card = existing.get(id) || createEngineeringProgressCard();
+      updateEngineeringProgressCard(card, item);
+      cards.set(id, card);
+    }
+    for (const [id, card] of existing) if (!cards.has(id)) card.remove();
+    const currentOrder = Array.from(engineeringProgressList.children).map((card) => card.dataset.objectiveId);
+    const desiredOrder = items.map((item) => String(item.objective_id || ""));
+    if (currentOrder.join("\u0000") !== desiredOrder.join("\u0000")) {
+      desiredOrder.forEach((id, index) => {
+        const card = cards.get(id), before = engineeringProgressList.children[index] || null;
+        if (card && card !== before) engineeringProgressList.insertBefore(card, before);
+      });
+    }
+    if (focusedCancel) engineeringProgressList.querySelector(`button[data-cancel-objective="${CSS.escape(focusedCancel)}"]`)?.focus({preventScroll: true});
+  }
+
+  async function loadEngineeringProgress() {
+    if (state.engineeringProgressLoading) return;
+    if (!state.connected || !state.conversationId || !state.identity?.roles?.includes("steward")) {
+      state.engineeringProgressItems = null;
+      state.engineeringProgressStatus = "not_checked";
+      state.engineeringProgressError = "";
+      renderEngineeringProgress();
+      return;
+    }
+    const conversationId = state.conversationId;
+    if (state.engineeringProgressConversationId !== conversationId) {
+      state.engineeringProgressItems = null;
+      state.engineeringProgressStatus = "not_checked";
+      state.engineeringProgressObservedAt = null;
+      state.engineeringProgressError = "";
+      renderEngineeringProgress();
+    }
+    state.engineeringProgressLoading = true;
+    try {
+      const page = await api(`/api/v1/objectives?limit=25&conversation_id=${encodeURIComponent(conversationId)}`);
+      if (conversationId !== state.conversationId) return;
+      if (!page || !["available", "not_initialized"].includes(page.status) || !Array.isArray(page.items || [])) {
+        throw new Error("objective_progress_contract_invalid");
+      }
+      state.engineeringProgressItems = page.items || [];
+      state.engineeringProgressStatus = page.status;
+      state.engineeringProgressConversationId = conversationId;
+      state.engineeringProgressObservedAt = page.observed_at || null;
+      state.engineeringProgressError = "";
+    } catch (error) {
+      if (conversationId !== state.conversationId) return;
+      state.engineeringProgressError = safeError(error.payload?.error || error.message);
+      if (!state.engineeringProgressItems) state.engineeringProgressStatus = "unavailable";
+    } finally {
+      state.engineeringProgressLoading = false;
+      if (conversationId === state.conversationId) renderEngineeringProgress();
+    }
+  }
+
+  function syncEngineeringProgressPlacement() {
+    if (!engineeringProgress || !engineeringProgressFallback || !rightSidebar) return;
+    const isGrace = document.getElementById("workspace-main")?.dataset.currentView === "grace";
+    const sidebarExpanded = desktopContext.matches && workspaceShell?.dataset.rightState === "expanded";
+    const destination = sidebarExpanded ? rightSidebar : engineeringProgressFallback;
+    if (engineeringProgress.parentElement !== destination) {
+      const historyScrollTop = historyNode.scrollTop;
+      const pageX = window.scrollX, pageY = window.scrollY;
+      const focused = document.activeElement;
+      const focusInsidePanel = engineeringProgress.contains(focused);
+      const composer = $("grace-message");
+      const composerFocused = document.activeElement === composer;
+      const selection = composerFocused ? {start: composer.selectionStart, end: composer.selectionEnd, direction: composer.selectionDirection} : null;
+      destination.append(engineeringProgress);
+      requestAnimationFrame(() => {
+        historyNode.scrollTop = historyScrollTop;
+        if (composerFocused && composer.isConnected) {
+          composer.focus({preventScroll: true});
+          if (selection) composer.setSelectionRange(selection.start, selection.end, selection.direction);
+        } else if (focusInsidePanel && focused?.isConnected) focused.focus({preventScroll: true});
+        window.scrollTo(pageX, pageY);
+      });
+    }
+    engineeringProgress.hidden = !isGrace;
+    engineeringProgressFallback.hidden = sidebarExpanded;
+  }
+
+  function startEngineeringProgressPolling() {
+    if (state.engineeringProgressTimer) return;
+    state.engineeringProgressTimer = window.setInterval(() => {
+      if (state.connected && document.visibilityState === "visible" &&
+          document.getElementById("workspace-main")?.dataset.currentView === "grace") {
+        loadEngineeringProgress();
+      }
+    }, 5000);
+  }
+
+  function openCancellationDialog(objectiveId) {
+    const item = (state.engineeringProgressItems || []).find((row) => row.objective_id === objectiveId);
+    if (!canCancelObjective(item)) {
+      $("grace-chat-action-status").textContent = "This objective is no longer in a safely cancellable state. Refreshing authoritative progress.";
+      loadEngineeringProgress();
+      return;
+    }
+    state.cancelObjective = {objective_id: item.objective_id, status: item.status,
+      assignment_id: item.assignment_id || null, assignment_state: item.assignment_state || null};
+    $("engineering-cancel-target").textContent = `Target ${item.objective_id} · state ${item.status} · assignment ${item.assignment_id || "none"} (${item.assignment_state || "not created"}).`;
+    $("engineering-cancel-reason").value = "";
+    $("engineering-cancel-status").textContent = "The authoritative service rechecks current state and authorization on submission.";
+    $("engineering-cancel-dialog").showModal();
+    $("engineering-cancel-reason").focus();
   }
 
   function setStatus(text, code) {
@@ -166,7 +387,11 @@ History: Git and revision/backup manifest
     $("grace-work-order-dialog").showModal(); closeMenus();
   });
   historyNode.addEventListener("toggle", event => { if (event.target.matches("details[open]")) historyNode.querySelectorAll("details[open]").forEach(menu => { if (menu !== event.target) menu.open = false; }); }, true);
-  document.addEventListener("rvv2:view", event => { if (event.detail?.view !== "grace") closeMenus(); });
+  document.addEventListener("rvv2:view", event => {
+    if (event.detail?.view !== "grace") closeMenus();
+    syncEngineeringProgressPlacement();
+    if (event.detail?.view === "grace") loadEngineeringProgress();
+  });
 
   $("grace-work-order-form").addEventListener("submit", async event => {
     event.preventDefault();
@@ -182,6 +407,41 @@ History: Git and revision/backup manifest
     finally { submit.disabled = false; }
   });
   document.querySelector("[data-close-work-order]").addEventListener("click", () => $("grace-work-order-dialog").close());
+
+  engineeringProgressList.addEventListener("click", event => {
+    const button = event.target.closest("button[data-cancel-objective]");
+    if (button) openCancellationDialog(button.dataset.cancelObjective);
+  });
+  $("engineering-progress-refresh").addEventListener("click", loadEngineeringProgress);
+  $("engineering-cancel-dismiss").addEventListener("click", () => $("engineering-cancel-dialog").close());
+  $("engineering-cancel-dialog").addEventListener("close", () => { state.cancelObjective = null; state.cancelInFlight = false; });
+  $("engineering-cancel-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!state.connected || !state.cancelObjective || state.cancelInFlight) return;
+    const reason = $("engineering-cancel-reason").value.trim();
+    if (!reason) { $("engineering-cancel-reason").focus(); return; }
+    const target = state.cancelObjective;
+    const submit = $("engineering-cancel-submit");
+    state.cancelInFlight = true; submit.disabled = true;
+    $("engineering-cancel-status").textContent = "Submitting the confirmed request; authorization and current lifecycle state are rechecked by Riverview…";
+    try {
+      const result = await api(`/api/v1/objectives/${encodeURIComponent(target.objective_id)}/cancel`,
+        {method: "POST", body: {reason}});
+      $("engineering-cancel-dialog").close();
+      $("grace-chat-action-status").textContent = `Cancellation recorded for ${result.objective_id || target.objective_id}: ${result.status || "authoritative status returned"}.`;
+      await loadEngineeringProgress();
+    } catch (error) {
+      $("engineering-cancel-status").textContent = `Cancellation was not confirmed (${safeError(error.payload?.error || error.message)}). The objective remains unchanged in this view until the authoritative refresh completes.`;
+      await loadEngineeringProgress();
+    } finally {
+      state.cancelInFlight = false; submit.disabled = false;
+    }
+  });
+  const placementObserver = new MutationObserver(syncEngineeringProgressPlacement);
+  if (workspaceShell) placementObserver.observe(workspaceShell, {attributes: true, attributeFilter: ["data-right-state"]});
+  window.addEventListener("resize", syncEngineeringProgressPlacement, {passive: true});
+  desktopContext.addEventListener?.("change", syncEngineeringProgressPlacement);
+  syncEngineeringProgressPlacement();
 
   function requestTraceFromEvents(events, observedAt) {
     const requests = new Map();
@@ -273,7 +533,20 @@ History: Git and revision/backup manifest
       render([], {scrollToBottom, reset: previousConversationId !== ""});
       state.historyLoaded = true;
       setStatus("Connected · no saved conversation yet", "connected");
+      state.engineeringProgressItems = [];
+      state.engineeringProgressStatus = "available";
+      state.engineeringProgressConversationId = "";
+      state.engineeringProgressObservedAt = new Date().toISOString();
+      state.engineeringProgressError = "";
+      renderEngineeringProgress();
       return;
+    }
+    if (previousConversationId !== state.conversationId && state.engineeringProgressConversationId !== state.conversationId) {
+      state.engineeringProgressItems = null;
+      state.engineeringProgressStatus = "not_checked";
+      state.engineeringProgressObservedAt = null;
+      state.engineeringProgressError = "";
+      renderEngineeringProgress();
     }
     const record = await api(`/api/v1/resident/conversations/${encodeURIComponent(state.conversationId)}`);
     if (record.conversation_id !== state.conversationId) throw new Error("conversation_identity_mismatch");
@@ -281,6 +554,7 @@ History: Git and revision/backup manifest
     state.historyLoaded = true;
     setStatus(`Connected · ${state.history.length} durable events loaded`, "connected");
     resumePending(record.events || []);
+    await loadEngineeringProgress();
     } finally { state.historyInFlight = false; }
   }
 
@@ -345,6 +619,7 @@ History: Git and revision/backup manifest
       $("grace-login-form").hidden = true;
       $("grace-chat-connected").hidden = false;
       $("grace-account-label").textContent = "Dashboard Steward session · exact grants checked by server";
+      startEngineeringProgressPolling();
       await loadHistory();
     } catch (error) {
       state.connected = false;

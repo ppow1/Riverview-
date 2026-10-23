@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.74
+# Revision: 1.0.75
+# Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Verify account-session cancellation preserves exact institutional principal and server-resolved scope.
 # Changed: 2026-10-23 UTC | RV-GRACE-CANCELLED-PROGRESS-20261023 | Cover terminal cancellation with stale reasoning and blocked activity.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify idle worker health requires matching active engineering registration.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-C4-MERGE-20261023 | Preserve ComfyUI artifact, telemetry, cancellation and Snapshot archive acceptance.
@@ -82,7 +83,7 @@ class _FakeProjection:
         if progress_only:
             safe = {"objective_id", "status", "assignment_id", "assignment_state", "origin",
                     "lifecycle_status", "lifecycle_stage", "latest_event", "verification",
-                    "rework", "steward_action_required", "dispatch_failures",
+                    "rework", "cancellation", "steward_action_required", "dispatch_failures",
                     "grounding_diagnostics",
                     "last_dispatch_failure_at", "verification_failures",
                     "last_verification_failure_at", "created_at", "updated_at"}
@@ -131,6 +132,30 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("esc(retry.next_permitted_action", app)
         self.assertIn("refresh-engineering-progress", app)
         self.assertIn("loadConversationEngineeringProgress();", app)
+
+    def test_v2_engineering_progress_has_sidebar_and_below_chat_mount_points(self):
+        html = (ROOT / "website/v2/deployed/index.html").read_text(encoding="utf-8")
+        chat = (ROOT / "website/v2/deployed/assets/grace-chat.js").read_text(encoding="utf-8")
+        self.assertIn('id="engineering-progress-panel"', html)
+        self.assertIn('id="engineering-progress-fallback"', html)
+        self.assertIn('id="engineering-cancel-dialog"', html)
+        self.assertIn('dataset.rightState === "expanded"', chat)
+        self.assertIn('sidebarExpanded ? rightSidebar : engineeringProgressFallback', chat)
+        self.assertIn('setInterval(() =>', chat)
+        self.assertIn('assignment.cancel', html)
+        self.assertIn('body: {reason}', chat)
+
+    def test_objective_progress_schema_keeps_cancellation_audit_minimized(self):
+        schema = json.loads((ROOT / "docs/components/STATUS_DASHBOARD_API.schema.json")
+                            .read_text(encoding="utf-8"))
+        properties = schema["$defs"]["objectiveProgressItem"]["properties"]
+        self.assertIn("cancellation", properties)
+        self.assertNotIn("scope_ref", properties)
+        cancellation = properties["cancellation"]
+        self.assertEqual(cancellation["oneOf"][0]["type"], "null")
+        self.assertEqual(cancellation["oneOf"][1]["$ref"], "#/$defs/objectiveCancellation")
+        self.assertEqual(schema["$defs"]["objectiveCancellation"]["properties"]
+                         ["reason"]["maxLength"], 500)
 
     def test_objective_progress_contract_is_versioned_and_role_scoped(self):
         schema = json.loads((ROOT / "docs/components/STATUS_DASHBOARD_API.schema.json")
@@ -552,6 +577,10 @@ class DashboardHTTPTests(unittest.TestCase):
             def __init__(self):
                 self.calls = []
 
+            def get_objective(self, requested_objective):
+                return {"objective_id": requested_objective, "scope_ref": scope_ref,
+                        "status": "WORK_ORDER_CREATED"}
+
             def cancel_work_order(self, requested_objective, *, credential,
                                   authority_ref, reason=None):
                 self.calls.append((requested_objective, credential, authority_ref, reason))
@@ -589,14 +618,60 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(pipeline.calls[-1], (objective_id,
             "assignment-cancel-credential", scope_ref, "Obsolete grounded objective"))
 
-        status, _ = post({"scope_ref": scope_ref}, token=self.token,
-                         authority="assignment-cancel-credential")
-        self.assertEqual(status, 200)
-        self.assertIsNone(pipeline.calls[-1][-1])
+    def test_authenticated_steward_account_cancel_resolves_principal_and_scope_server_side(self):
+        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+        objective_id = "objective:account-cancel"
+        scope_ref = "work-order:account-cancel"
 
-        status, _ = post({"scope_ref": scope_ref, "reason": "x" * 1001},
-                         token=self.token, authority="assignment-cancel-credential")
-        self.assertEqual(status, 400)
+        class AccountAuth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                if credential not in {"account-session", "account-nonsteward"} or (state_changing and csrf_token != "csrf-token"):
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied("session denied")
+                return {"account_id": "acct-steward" if credential == "account-session" else "acct-viewer",
+                        "roles": ["steward"] if credential == "account-session" else ["viewer"],
+                        "authority_principal_id": "steward:linked-account"}
+            def require_role(self, identity, *roles):
+                if not any(role in identity.get("roles", ()) for role in roles):
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied("role denied")
+
+        class Pipeline:
+            def __init__(self): self.calls = []
+            def get_objective(self, requested):
+                return {"objective_id": requested, "scope_ref": scope_ref, "status": "GROUNDED"}
+            def cancel_work_order(self, requested, *, credential, authority_ref, reason=None):
+                self.calls.append((requested, credential, authority_ref, reason))
+                if not isinstance(credential, InstitutionalPrincipal) or credential.principal_id != "steward:linked-account":
+                    from riverview_core.resident_execution import ObjectiveNotAuthorized
+                    raise ObjectiveNotAuthorized("linked principal required")
+                if authority_ref != scope_ref:
+                    from riverview_core.resident_execution import ObjectiveNotAuthorized
+                    raise ObjectiveNotAuthorized("exact objective scope required")
+                return {"objective_id": requested, "status": "CANCELLED"}
+
+        self.server._account_auth_service = AccountAuth()
+        pipeline = Pipeline(); self.server._objective_pipeline = pipeline
+        body = json.dumps({"reason": "Duplicate request; no longer needed"}).encode()
+        status, _, payload = self.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
+            token=self.token, cookie="rv_account_session=account-session", csrf="csrf-token",
+            body=body, content_type="application/json")
+        self.assertEqual(status, 200, payload)
+        self.assertEqual(json.loads(payload)["status"], "CANCELLED")
+        self.assertEqual(pipeline.calls, [(objective_id,
+            InstitutionalPrincipal("steward:linked-account"), scope_ref,
+            "Duplicate request; no longer needed")])
+        status, _, denied = self.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
+            token=self.token, cookie="rv_account_session=account-nonsteward", csrf="csrf-token",
+            body=body, content_type="application/json")
+        self.assertEqual(status, 403, denied)
+        self.assertEqual(len(pipeline.calls), 1)
+        status, _, missing_csrf = self.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
+            token=self.token, cookie="rv_account_session=account-session",
+            body=body, content_type="application/json")
+        self.assertEqual(status, 403, missing_csrf)
+        self.assertEqual(len(pipeline.calls), 2)
+        self.assertEqual(pipeline.calls[-1][1], "")
 
     def test_resource_telemetry_route_uses_dashboard_auth_and_is_read_only(self):
         projection = {"schema_version": "rv.dashboard.resource-telemetry.v1",

@@ -11667,16 +11667,15 @@
         },
         {
           "id": "rv:riverview-v2:workspace-shell:integration-unavailable",
-          "node_revision": "1.0.1",
+          "node_revision": "1.0.2",
           "type": "measurement",
-          "label": "Keep V2 chat disconnected and expose the authenticated Dashboard handoff plus unverified Comms5 state",
+          "label": "Keep Comms5 traffic explicitly unverified and represent unavailable counts as unknown",
           "source_references": [
-            "website/v2/assets/workspace.js",
-            "website/v2/index.html"
+            "website/v2/deployed/assets/workspace.js",
+            "website/v2/deployed/index.html"
           ],
           "documentation_references": [
-            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
-            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
           ],
           "verification_evidence": [
             "scripts/verify_v2_workspace_browser.py",
@@ -12052,6 +12051,130 @@
             "tests/test_manual_image_generation.py",
             "tests/test_manual_image_generation_http.py"
           ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:grace-session-auth",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Authenticate V2 Grace workspace through the existing Steward account and conversation-session APIs",
+          "source_references": [
+            "website/v2/deployed/assets/grace-chat.js",
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "scripts/verify_v2_engineering_progress_browser.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:engineering-progress-read",
+          "node_revision": "1.0.0",
+          "type": "measurement",
+          "label": "Read conversation-linked objectives and assignment lifecycle from the authoritative Dashboard projection",
+          "source_references": [
+            "website/v2/deployed/assets/grace-chat.js",
+            "src/riverview_core/status_dashboard/projection.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_API.schema.json",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "scripts/verify_v2_engineering_progress_browser.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:engineering-progress-placement",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Keep one Engineering Progress panel in the expanded desktop sidebar or below the complete chat composer otherwise",
+          "source_references": [
+            "website/v2/deployed/index.html",
+            "website/v2/deployed/assets/grace-chat.js",
+            "website/v2/deployed/assets/workspace.css"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "scripts/verify_v2_engineering_progress_browser.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-eligibility",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Show Cancel only for an authorized Steward and a safely cancellable grounded or queued objective",
+          "source_references": [
+            "website/v2/deployed/assets/grace-chat.js",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-request",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Submit a reasoned cancellation request through the authenticated Dashboard and exact assignment.cancel grant",
+          "source_references": [
+            "website/v2/deployed/assets/grace-chat.js",
+            "src/riverview_core/status_dashboard/server.py",
+            "src/riverview_core/resident_execution/pipeline.py"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-refresh",
+          "node_revision": "1.0.0",
+          "type": "verification",
+          "label": "Refresh authoritative lifecycle and show persisted cancellation actor, time, and reason without optimistic state",
+          "source_references": [
+            "website/v2/deployed/assets/grace-chat.js",
+            "src/riverview_core/status_dashboard/projection.py"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD_API.schema.json",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_status_dashboard.py",
+            "scripts/verify_v2_engineering_progress_browser.py"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:engineering-progress-stale",
+          "node_revision": "1.0.0",
+          "type": "failure",
+          "label": "Keep the last successful objective projection and mark it stale when refresh fails",
+          "source_references": [
+            "website/v2/deployed/assets/grace-chat.js"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_engineering_progress_browser.py"
+          ]
         }
       ],
       "edges": [
@@ -12244,7 +12367,7 @@
           "from": "rv:riverview-v2:workspace-shell:choose-presentation",
           "to": "rv:riverview-v2:workspace-shell:integration-unavailable",
           "type": "runtime_transition",
-          "label": "V2 has no shared Dashboard identity; show the separate secure handoff"
+          "label": "Preserve the same-origin account integration; Comms5 traffic remains independently unverified"
         },
         {
           "from": "rv:riverview-v2:workspace-shell:choose-presentation",
@@ -12434,6 +12557,66 @@
           "to": "rv:riverview-v2:workspace-shell:choose-view",
           "type": "runtime_transition",
           "label": "Return to V2 workspace"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:choose-view",
+          "to": "rv:riverview-v2:workspace-shell:grace-session-auth",
+          "type": "runtime_transition",
+          "label": "Open the native V2 Grace conversation"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:grace-session-auth",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-read",
+          "type": "runtime_transition",
+          "label": "Steward session and conversation grant are verified"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:engineering-progress-read",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-placement",
+          "type": "runtime_transition",
+          "label": "Render the single authoritative panel from the returned projection"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:engineering-progress-placement",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-eligibility",
+          "type": "runtime_transition",
+          "label": "Steward may inspect an eligible cancellation action"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-eligibility",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-request",
+          "type": "runtime_transition",
+          "label": "Current status is eligible and Steward confirms with a reason"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-request",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-refresh",
+          "type": "runtime_transition",
+          "label": "Backend records an authorized lifecycle transition"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:engineering-progress-cancel-request",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-read",
+          "type": "recovery_route",
+          "label": "Denied or stale request refreshes authoritative state; no optimistic cancellation"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:engineering-progress-read",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-stale",
+          "type": "diagnostic_branch",
+          "label": "Authenticated read fails after a prior successful observation"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:engineering-progress-stale",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-read",
+          "type": "recovery_route",
+          "label": "Retry on the next bounded refresh; preserve the last result"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:engineering-progress-placement",
+          "to": "rv:riverview-v2:workspace-shell:engineering-progress-placement",
+          "type": "runtime_transition",
+          "label": "Sidebar state or viewport changes; move the same panel and restore chat scroll/focus/draft"
         }
       ]
     },
@@ -17413,7 +17596,14 @@
     "rv:riverview-v2:workspace-shell:comms5-unverified",
     "rv:riverview-v2:workspace-shell:configure-password",
     "rv:riverview-v2:workspace-shell:cycle-sidebars",
+    "rv:riverview-v2:workspace-shell:engineering-progress-cancel-eligibility",
+    "rv:riverview-v2:workspace-shell:engineering-progress-cancel-refresh",
+    "rv:riverview-v2:workspace-shell:engineering-progress-cancel-request",
+    "rv:riverview-v2:workspace-shell:engineering-progress-placement",
+    "rv:riverview-v2:workspace-shell:engineering-progress-read",
+    "rv:riverview-v2:workspace-shell:engineering-progress-stale",
     "rv:riverview-v2:workspace-shell:grace-chat-handoff",
+    "rv:riverview-v2:workspace-shell:grace-session-auth",
     "rv:riverview-v2:workspace-shell:integration-unavailable",
     "rv:riverview-v2:workspace-shell:issue-session",
     "rv:riverview-v2:workspace-shell:manual-image-auth",

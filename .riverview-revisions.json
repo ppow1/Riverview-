@@ -25,7 +25,7 @@
       "size_bytes": 1504905
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.324"
+      "revision": "1.1.325"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -683,9 +683,9 @@
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.4.1",
-      "sha256": "e7645f68411f928cea909d4f9d29096fd5368a6c4e2a5dd79762fbba19943c87",
-      "size_bytes": 37960
+      "revision": "1.4.2",
+      "sha256": "220509337e5b8ea61b314e6f068b57e46f7120d6e1e92e3e12718fc139b6f75c",
+      "size_bytes": 38479
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
@@ -7847,9 +7847,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.33",
-      "sha256": "d0ab1fdf2a8f36c2cb3c246d969c7d30aa354ac0d909c89eec7e57ecb601447c",
-      "size_bytes": 780947
+      "revision": "1.1.34",
+      "sha256": "59cb17c9578320f2d71c5629651e5137f0434e06be4ccbce00ebe5bf8eb73f48",
+      "size_bytes": 789825
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7919,9 +7919,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.13",
-      "sha256": "4a9fdad5074360d70f0e35e61f3a51288f49cf6e4e013f895c17bbef970c7d5a",
-      "size_bytes": 42490
+      "revision": "1.0.14",
+      "sha256": "4a1069af189f28d46ec39d23a8c6791fd2c01b813abe99e942ca288bb0e9945e",
+      "size_bytes": 50148
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -9566,8 +9566,26 @@
       "revision": "1.0.0",
       "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
       "size_bytes": 2008940
+    },
+    "scripts/verify_v2_engineering_progress_browser.py": {
+      "path": "scripts/verify_v2_engineering_progress_browser.py",
+      "revision": "1.0.0",
+      "sha256": "3b5c69fe7813cc02bfd4993144de9ccc04e9dfab7b418b44049fc5a582d5c41b",
+      "size_bytes": 19996
+    },
+    "docs/evidence/issue253/engineering-progress-desktop.png": {
+      "path": "docs/evidence/issue253/engineering-progress-desktop.png",
+      "revision": "1.0.0",
+      "sha256": "f34bc058dcd4f8ab11371141bc33a4fe82a4cbd4207e2938d6954e380255cc06",
+      "size_bytes": 181843
+    },
+    "docs/evidence/issue253/engineering-progress-mobile.png": {
+      "path": "docs/evidence/issue253/engineering-progress-mobile.png",
+      "revision": "1.0.0",
+      "sha256": "98079e1d0fbdc61f26df258e6bd8255ce4676ee41bbb93e69cef31e5e6af12e2",
+      "size_bytes": 61272
     }
   },
-  "manifest_revision": "1.1.324",
-  "updated_at": "2026-10-23T12:08:59Z"
+  "manifest_revision": "1.1.326",
+  "updated_at": "2026-10-23T17:37:05Z"
 }

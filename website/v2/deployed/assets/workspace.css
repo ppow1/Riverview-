@@ -2,7 +2,8 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/workspace.css
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.11
+Revision: 1.0.12
+Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Style authoritative objective progress for the sidebar and below-chat responsive placements.
 Purpose: Style the responsive V2 workspace and full-size authenticated Grace conversation
 Execution Model: Browser presentation stylesheet
 Observability: Responsive layout is checked by browser viewport tests
@@ -39,6 +40,36 @@ body,.topbar,.context-panel,.metric-card,.list-card,.conversation-card,.fixture-
 :focus-visible{outline:3px solid #e4a747!important;outline-offset:2px}.rail,.context-panel{transition:width .16s,padding .16s,background-color .16s}.app-shell[data-left-state="hidden"] .left-restore,.app-shell[data-right-state="hidden"] .right-restore{display:grid;place-items:center}
 @media(max-width:760px){.app-shell{display:block}.rail[data-state="compact"] .brand>span:last-child,.rail[data-state="compact"] .nav-label,.rail[data-state="compact"] .rail-bottom>span:last-child{display:none}.workspace-grid{display:flex;flex-direction:column}.app-shell[data-right-state="hidden"] .context-panel,.app-shell[data-right-state="compact"] .context-panel{display:none}.top-actions{gap:5px}.theme-control{font-size:0}.theme-control select{font-size:10px;max-width:74px}.top-actions .status-pill,#help-button{display:none}.top-actions #left-state,.top-actions #right-state{display:grid}.sidebar-restore{top:42px}.integration-note{margin-top:-10px}.app-shell[data-left-state="hidden"] .rail{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
+
+/* RV-ISSUE-253-V2-ENGINEERING-PROGRESS: persistent authoritative status panel. */
+.engineering-progress{min-width:0;margin:14px 0;padding:13px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink)}
+.engineering-progress[hidden],.engineering-progress-fallback[hidden]{display:none!important}
+.engineering-progress-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.engineering-progress-heading h3{margin:5px 0 0;font:500 17px Georgia,"Times New Roman",serif}
+.engineering-progress-heading button,.engineering-cancel-actions button,.engineering-cancel-button{border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);padding:6px 9px;font:inherit;font-size:11px;cursor:pointer}
+.engineering-progress-state{min-height:1.4em;margin:9px 0;color:var(--muted);font-size:10px;line-height:1.4}
+.engineering-progress-list{display:grid;gap:8px;min-width:0}
+.engineering-progress-item{min-width:0;padding:10px;border:1px solid var(--line);border-radius:7px;background:var(--surface-soft);overflow-wrap:anywhere}
+.engineering-progress-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:11px}
+.engineering-progress-title strong{min-width:0;overflow-wrap:anywhere}
+.engineering-progress-status{flex:none;padding:3px 6px;border-radius:10px;background:var(--pale);color:var(--teal);font-size:9px;font-weight:700;text-transform:uppercase}
+.engineering-progress-grid{display:grid;grid-template-columns:minmax(78px,.35fr) minmax(0,1fr);gap:4px 8px;margin:9px 0;font-size:10px;line-height:1.4}
+.engineering-progress-grid dt{color:var(--muted)}.engineering-progress-grid dd{margin:0;overflow-wrap:anywhere}
+.engineering-progress-note{margin:10px 0 0;color:var(--muted);font-size:9px;line-height:1.4}
+.engineering-progress-empty,.engineering-progress-error{margin:0;padding:10px;border-radius:6px;background:var(--surface-soft);color:var(--muted);font-size:11px;line-height:1.45}
+.engineering-progress-error{border-left:3px solid #b8463e}
+.engineering-cancel-button{padding:5px 8px;color:#953b36;border-color:#e4c5c2;font-weight:650}
+.engineering-cancel-button:disabled,.engineering-progress button:disabled,.engineering-cancel-actions button:disabled{opacity:.55;cursor:wait}
+.engineering-cancel-dialog{width:min(440px,calc(100vw - 28px));border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.engineering-cancel-dialog::backdrop{background:rgba(12,20,28,.55)}
+.engineering-cancel-dialog form{display:grid;gap:9px}.engineering-cancel-dialog h3{margin:0;font:500 20px Georgia,"Times New Roman",serif}
+.engineering-cancel-dialog label{font-size:11px;font-weight:650}.engineering-cancel-dialog textarea{width:100%;resize:vertical;border:1px solid var(--line);border-radius:6px;background:var(--surface-soft);color:var(--ink);padding:9px;font:inherit;font-size:12px}
+.engineering-cancel-warning{margin:0;color:var(--muted);font-size:10px;line-height:1.45}.engineering-cancel-actions{display:flex;justify-content:flex-end;gap:8px}.engineering-cancel-actions button[type="submit"]{background:var(--teal);color:#fff}
+.engineering-cancel-actions button[type="submit"]:disabled{opacity:.55}
+.engineering-progress-fallback{margin-top:18px;scroll-margin-top:16px}
+@media(max-width:760px){.engineering-progress{margin:18px 0 0;padding:12px}.engineering-progress-grid{grid-template-columns:minmax(74px,.4fr) minmax(0,1fr)}.engineering-cancel-dialog{padding:17px}}
+@media(max-width:370px){.engineering-progress-grid{grid-template-columns:1fr;gap:1px}.engineering-progress-grid dd{margin-bottom:5px}}
+@media(prefers-reduced-motion:reduce){.engineering-progress *,.engineering-cancel-dialog *{scroll-behavior:auto!important}}
 /* Task RV-WEB-V2-GRACE-CHAT-002: secure authenticated conversation UI. */
 .grace-chat[hidden],[hidden]{display:none!important}
 .grace-chat{padding:13px;min-width:0}
