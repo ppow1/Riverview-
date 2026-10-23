@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.24
+File Revision: 1.0.25
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
@@ -107,6 +107,7 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_grace_keyed_history_actions_7e358756["Reconcile durable conversation events by sequence key; preserve open menu, scroll, input and focus during background refresh"]
     g_rv_riverview_v2_workspace_shell_grace_authorized_work_order_action_1366e2ec["Submit a selected persisted Steward event through the existing grant-checked conversation work-order API; objective intake does not approve execution"]
     g_rv_riverview_v2_workspace_shell_resource_storage_summary_56f51fdf["Render unique measured host storage and truthful unavailable states from the authenticated telemetry projection"]
+    g_rv_riverview_v2_workspace_shell_bambu_read_only_panel_1ec63d39["Render optional sanitized Bambu P2S and AMS measurements from the authenticated OCTO1 resource projection; no printer calls or controls"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -235,6 +236,8 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Grace view reconciles authenticated durable history without replacing stable message nodes| g_rv_riverview_v2_workspace_shell_grace_keyed_history_actions_7e358756
   g_rv_riverview_v2_workspace_shell_grace_keyed_history_actions_7e358756 -->|Steward selects a saved source event; existing Dashboard authorization remains authoritative| g_rv_riverview_v2_workspace_shell_grace_authorized_work_order_action_1366e2ec
   g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|Render host volumes and aggregate distinct filesystem identifiers| g_rv_riverview_v2_workspace_shell_resource_storage_summary_56f51fdf
+  g_rv_riverview_v2_workspace_shell_resource_dashboard_status_e9c526f3 -->|Same-origin authenticated telemetry contains optional OCTO1 Bambu projection| g_rv_riverview_v2_workspace_shell_bambu_read_only_panel_1ec63d39
+  g_rv_riverview_v2_workspace_shell_bambu_read_only_panel_1ec63d39 -->|Render live, stale, offline, or unavailable values without changing telemetry source state| g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

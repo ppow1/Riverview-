@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.24",
+  "graph_revision": "1.0.26",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -1544,6 +1544,24 @@
         "scripts/verify_v2_resource_monitor.cjs",
         "evidence/v2-grace-menu-20261022/live-model-slot-observation.json"
       ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:bambu-read-only-panel",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Render optional sanitized Bambu P2S and AMS measurements from the authenticated OCTO1 resource projection; no printer calls or controls",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/resource-monitor.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_octo1_browser.cjs",
+        "evidence/checkouts/RV-V2-BAMBU-READONLY-230/browser-acceptance.json"
+      ]
     }
   ],
   "edges": [
@@ -2297,6 +2315,18 @@
       "to": "rv:riverview-v2:workspace-shell:resource-storage-summary",
       "type": "runtime_transition",
       "label": "Render host volumes and aggregate distinct filesystem identifiers"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "to": "rv:riverview-v2:workspace-shell:bambu-read-only-panel",
+      "type": "runtime_transition",
+      "label": "Same-origin authenticated telemetry contains optional OCTO1 Bambu projection"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:bambu-read-only-panel",
+      "to": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "type": "runtime_transition",
+      "label": "Render live, stale, offline, or unavailable values without changing telemetry source state"
     }
   ]
 }
