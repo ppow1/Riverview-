@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_comfyui_adapter.py
 # Component: ENGINEERING-COMFYUI-ADAPTER
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-23 UTC | RV-ISSUE-252 | Reproduce the systemd private-umask mode mismatch and retain unsafe path rejection coverage.
 # Changed: 2026-10-23 UTC | RIVERVIEW-COMFYUI-REGISTRY-PERMISSION | Assert worker registry config uses a root-readable immutable release path.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Exercise canonical colon-delimited assignment IDs used by Grace.
 # Changed: 2026-10-23 UTC | RV-ISSUE-250 | Match actual ComfyUI history tuple and reject mismatched/stale prompt identity.
@@ -15,6 +16,7 @@ import hashlib
 import base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
@@ -147,7 +149,8 @@ class ComfyUIAdapterTests(unittest.TestCase):
     def make_action(self, **kwargs):
         return ComfyUIAction(self.mock.endpoint, registry(), self.artifacts, self.state,
             timeout_seconds=kwargs.get("timeout_seconds", 5), poll_interval=kwargs.get("poll_interval", 0.1),
-            request_timeout_seconds=kwargs.get("request_timeout_seconds", 0.5))
+            request_timeout_seconds=kwargs.get("request_timeout_seconds", 0.5),
+            artifact_group_gid=kwargs.get("artifact_group_gid"))
 
     def test_success_submits_registered_workflow_and_verifier_reopens_image(self):
         result = self.action(self.assignment, self.grounded)
@@ -164,6 +167,76 @@ class ComfyUIAdapterTests(unittest.TestCase):
         rejected = ComfyUIOutputVerifier(self.artifacts).verify(self.assignment,
             {"status": "succeeded", "capability": CAPABILITY, "attempt_id": "attempt-1", "result_sha256": result_sha}, result)
         self.assertEqual(rejected.status.value, "REJECTED")
+
+    def test_shared_assignment_directory_is_finalized_under_private_umask(self):
+        gid = self.artifacts.stat().st_gid
+        os.chmod(self.artifacts, 0o2750)
+        action = self.make_action(artifact_group_gid=gid)
+        previous_umask = os.umask(0o077)
+        try:
+            result = action(self.assignment, self.grounded)
+        finally:
+            os.umask(previous_umask)
+        assignment_dir = self.artifacts / hashlib.sha256(
+            self.assignment["id"].encode()).hexdigest()
+        self.assertEqual(assignment_dir.stat().st_gid, gid)
+        self.assertEqual(assignment_dir.stat().st_mode & 0o7777, 0o2750)
+        first = result["artifacts"][0]
+        image_path = self.artifacts / first["storage_name"]
+        self.assertEqual(image_path.stat().st_mode & 0o777, 0o640)
+        encoded = json.dumps(result, sort_keys=True, separators=(",", ":"),
+                             ensure_ascii=False).encode()
+        verified = ComfyUIOutputVerifier(
+            self.artifacts, artifact_group_gid=gid).verify(self.assignment,
+                {"status": "succeeded", "capability": CAPABILITY,
+                 "attempt_id": "attempt-umask", "result_sha256": hashlib.sha256(encoded).hexdigest()},
+                result)
+        self.assertEqual(verified.status.value, "ACCEPTED")
+
+    def test_shared_assignment_directory_rejects_symlink(self):
+        gid = self.artifacts.stat().st_gid
+        os.chmod(self.artifacts, 0o2750)
+        assignment_dir = self.artifacts / hashlib.sha256(
+            self.assignment["id"].encode()).hexdigest()
+        outside = Path(self.temp.name) / "outside"
+        outside.mkdir(mode=0o700)
+        assignment_dir.symlink_to(outside, target_is_directory=True)
+        action = self.make_action(artifact_group_gid=gid)
+        with self.assertRaises(ComfyUIError) as caught:
+            action(self.assignment, self.grounded)
+        self.assertEqual(caught.exception.code, "artifact_assignment_directory_unsafe")
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_shared_assignment_directory_rejects_unexpected_permissions(self):
+        gid = self.artifacts.stat().st_gid
+        os.chmod(self.artifacts, 0o2750)
+        assignment_dir = self.artifacts / hashlib.sha256(
+            self.assignment["id"].encode()).hexdigest()
+        assignment_dir.mkdir(mode=0o2777)
+        os.chmod(assignment_dir, 0o2777)
+        action = self.make_action(artifact_group_gid=gid)
+        with self.assertRaises(ComfyUIError) as caught:
+            action(self.assignment, self.grounded)
+        self.assertEqual(caught.exception.code, "artifact_assignment_directory_unsafe")
+
+    def test_assignment_identity_rejects_path_traversal(self):
+        unsafe = {"id": "assignment:../../foreign"}
+        with self.assertRaises(ComfyUITemplateError) as caught:
+            self.action(unsafe, self.grounded)
+        self.assertEqual(str(caught.exception), "assignment_id_invalid")
+        self.assertEqual(self.mock.posts, 0)
+
+    def test_output_verifier_rejects_foreign_assignment_artifact(self):
+        result = self.action(self.assignment, self.grounded)
+        forged = dict(result)
+        forged["assignment_id"] = "assignment:foreign"
+        encoded = json.dumps(forged, sort_keys=True, separators=(",", ":"),
+                             ensure_ascii=False).encode()
+        verified = ComfyUIOutputVerifier(self.artifacts).verify(self.assignment,
+            {"status": "succeeded", "capability": CAPABILITY,
+             "attempt_id": "attempt-foreign", "result_sha256": hashlib.sha256(encoded).hexdigest()},
+            forged)
+        self.assertEqual(verified.status.value, "REJECTED")
 
     def test_capability_is_registered_under_existing_exact_execute_boundary(self):
         from riverview_core.worker_adapter.adapter import PostgresWorkerAdapter

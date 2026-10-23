@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/comfyui.py
 # Component: ENGINEERING-COMFYUI-ADAPTER
-# Revision: 1.0.5
+# Revision: 1.0.6
+# Changed: 2026-10-23 UTC | RV-ISSUE-252 | Safely finalize shared assignment directories and artifact files despite the service's private umask.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept canonical colon-delimited Riverview assignment IDs in durable artifact storage.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Restrict dashboard artifact sharing to group read and traversal.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Keep execution journals private while sharing accepted image artifacts with the dashboard group.
@@ -459,18 +460,60 @@ class ComfyUIAction:
         storage_key = hashlib.sha256(output_name.encode()).hexdigest()[:12]
         assignment_dir = self.artifact_root / assignment_key
         assignment_mode = 0o2750 if self.artifact_group_gid is not None else 0o700
-        assignment_dir.mkdir(mode=assignment_mode, exist_ok=True)
-        dir_info = assignment_dir.lstat()
-        if (not stat.S_ISDIR(dir_info.st_mode) or dir_info.st_uid != os.geteuid() or
-                stat.S_IMODE(dir_info.st_mode) != assignment_mode or
-                (self.artifact_group_gid is not None and dir_info.st_gid != self.artifact_group_gid)):
-            raise ComfyUIError("artifact_assignment_directory_unsafe", execution_started=True)
+        self._prepare_assignment_directory(assignment_dir, assignment_mode)
         destination = assignment_dir / storage_key
         self._atomic_bytes(destination, raw,
                            mode=0o640 if self.artifact_group_gid is not None else 0o600)
         return {"name": output_name, "storage_name": f"{assignment_key}/{storage_key}",
                 "media_type": self._image_type(raw), "bytes": len(raw),
                 "sha256": hashlib.sha256(raw).hexdigest()}
+
+    def _prepare_assignment_directory(self, directory, expected_mode):
+        """Create an assignment directory and apply its exact safe mode.
+
+        systemd's UMask=0077 masks group read/traverse bits requested by mkdir,
+        even beneath the already validated setgid artifact root. Repair only the
+        resulting restrictive 02700 mode, and only after validating the owned
+        directory through an O_NOFOLLOW descriptor. All other mismatches fail
+        closed.
+        """
+        try:
+            directory.mkdir(mode=expected_mode, exist_ok=False)
+        except FileExistsError:
+            pass
+        except OSError:
+            raise ComfyUIError("artifact_assignment_directory_unsafe", execution_started=True) from None
+
+        try:
+            path_info = directory.lstat()
+            if (not stat.S_ISDIR(path_info.st_mode) or path_info.st_uid != os.geteuid() or
+                    (self.artifact_group_gid is not None and
+                     path_info.st_gid != self.artifact_group_gid)):
+                raise ComfyUIError("artifact_assignment_directory_unsafe", execution_started=True)
+            mode = stat.S_IMODE(path_info.st_mode)
+            if mode == expected_mode:
+                return
+            if expected_mode != 0o2750 or mode != 0o2700:
+                raise ComfyUIError("artifact_assignment_directory_unsafe", execution_started=True)
+
+            flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(directory, flags)
+            try:
+                opened_info = os.fstat(fd)
+                if (not stat.S_ISDIR(opened_info.st_mode) or
+                        (opened_info.st_dev, opened_info.st_ino) !=
+                        (path_info.st_dev, path_info.st_ino) or
+                        opened_info.st_uid != os.geteuid() or
+                        opened_info.st_gid != self.artifact_group_gid or
+                        stat.S_IMODE(opened_info.st_mode) != 0o2700):
+                    raise ComfyUIError("artifact_assignment_directory_unsafe", execution_started=True)
+                os.fchmod(fd, expected_mode)
+            finally:
+                os.close(fd)
+        except ComfyUIError:
+            raise
+        except OSError:
+            raise ComfyUIError("artifact_assignment_directory_unsafe", execution_started=True) from None
 
     @staticmethod
     def _image_type(raw):
@@ -579,6 +622,10 @@ class ComfyUIAction:
         fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                      getattr(os, "O_NOFOLLOW", 0), mode)
         try:
+            # The file is a new O_EXCL|O_NOFOLLOW inode inside the validated
+            # assignment directory. Honor the caller's exact bounded mode even
+            # when systemd's restrictive umask removed its group-read bit.
+            os.fchmod(fd, mode)
             with os.fdopen(fd, "wb") as stream:
                 stream.write(data)
                 stream.flush()
