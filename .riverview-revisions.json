@@ -7,7 +7,13 @@
       "size_bytes": 1382705
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.312"
+      "revision": "1.1.313"
+    },
+    "deploy/comfyui/workflows.json": {
+      "path": "deploy/comfyui/workflows.json",
+      "revision": "1.0.0",
+      "sha256": "142940816aa04b7a0fc60d87191509865bda992d6756091b88524691321e5fa1",
+      "size_bytes": 1228
     },
     "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
       "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
@@ -233,9 +239,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.212",
-      "sha256": "f36c6db53bc9ac53c4a035f85a85e62e04bba23a70847d41e51ed3db5b33365b",
-      "size_bytes": 695991
+      "revision": "1.0.213",
+      "sha256": "378ea6f1eb50d7dbcf148a6f690bfe84fc7e13e80366238a06b3165e0a02744b",
+      "size_bytes": 709649
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -321,6 +327,12 @@
       "sha256": "6290cd0e0adb97ec58a99f1011f85784809605d82f8c244eb4aae155dfdae0da",
       "size_bytes": 46562
     },
+    "process_graphs/worker-adapter/comfyui-execution.json": {
+      "path": "process_graphs/worker-adapter/comfyui-execution.json",
+      "revision": "1.0.0",
+      "sha256": "f0ff517e2896ebe0027e529068480c72bb560398ab88789ae0538b71c27dfd1e",
+      "size_bytes": 11661
+    },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
       "revision": "1.0.18",
@@ -386,6 +398,12 @@
       "revision": "1.0.30",
       "sha256": "f7f0c64392ddb5109cfcf039125852565a70a22554dd24ce201a79db974b4ab7",
       "size_bytes": 69094
+    },
+    "src/riverview_core/resident_execution/verifier.py": {
+      "path": "src/riverview_core/resident_execution/verifier.py",
+      "revision": "1.0.3",
+      "sha256": "35860d0c7e1e007a5bb0b0b9f46aa23df58aeb3ad9a01e1a0c6a9d02a8f68f63",
+      "size_bytes": 23006
     },
     "src/riverview_core/status_dashboard/projection.py": {
       "path": "src/riverview_core/status_dashboard/projection.py",
@@ -488,14 +506,8 @@
       "revision": "1.0.8",
       "sha256": "0936a13d5f1b454f5b60fef71b8c257ad335a268da36b6783e673bf9be4d02cf",
       "size_bytes": 26074
-    },
-    "src/riverview_core/resident_execution/verifier.py": {
-      "path": "src/riverview_core/resident_execution/verifier.py",
-      "revision": "1.0.3",
-      "sha256": "35860d0c7e1e007a5bb0b0b9f46aa23df58aeb3ad9a01e1a0c6a9d02a8f68f63",
-      "size_bytes": 23006
     }
   },
-  "manifest_revision": "1.1.312",
+  "manifest_revision": "1.1.313",
   "updated_at": "2026-10-22T18:58:42Z"
 }

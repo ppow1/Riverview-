@@ -1,0 +1,15 @@
+# Riverview~ controlled OCTOMINER1 source restriction for the unauthenticated ComfyUI API.
+# Revision: 1.0.1
+# The OCTOMINER1 kernel does not support the iptables-nft backend; use the working legacy filter backend.
+[Unit]
+Description=Restrict ComfyUI API to the Camrui Riverview controller
+Before=riverview-comfyui.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -ec '/usr/sbin/iptables-legacy -C INPUT -p tcp -d 192.168.1.160 --dport 8188 ! -s 192.168.1.155 -j DROP || /usr/sbin/iptables-legacy -I INPUT 1 -p tcp -d 192.168.1.160 --dport 8188 ! -s 192.168.1.155 -j DROP'
+ExecStop=/bin/sh -ec '/usr/sbin/iptables-legacy -D INPUT -p tcp -d 192.168.1.160 --dport 8188 ! -s 192.168.1.155 -j DROP || true'
+
+[Install]
+WantedBy=multi-user.target

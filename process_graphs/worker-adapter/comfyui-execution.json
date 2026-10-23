@@ -1,0 +1,312 @@
+{
+  "graph_id": "rv:worker-adapter:comfyui-execution",
+  "graph_revision": "1.0.0",
+  "component_id": "ENGINEERING-COMFYUI-ADAPTER",
+  "workflow_id": "comfyui-engineering-execution.v1",
+  "diagram_order": 19,
+  "source_references": [
+    "deploy/comfyui/riverview-comfyui.service",
+    "deploy/comfyui/riverview-comfyui-firewall.service",
+    "deploy/comfyui/workflows.json",
+    "deploy/systemd/riverview-grace-comfyui.conf",
+    "deploy/riverview-status-dashboard-comfyui-artifacts.conf",
+    "scripts/run_grace_execution_service.py",
+    "src/riverview_core/worker_adapter/comfyui.py",
+    "src/riverview_core/worker_adapter/adapter.py",
+    "src/riverview_core/resident_execution/pipeline.py",
+    "src/riverview_core/status_dashboard/projection.py",
+    "src/riverview_core/status_dashboard/server.py",
+    "tests/test_comfyui_adapter.py",
+    "tests/test_status_dashboard.py"
+  ],
+  "documentation_references": [
+    "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+    "docs/components/WORKER_ADAPTER.md",
+    "docs/components/STATUS_DASHBOARD.md"
+  ],
+  "verification_evidence": [],
+  "nodes": [
+    {
+      "id": "rv:worker-adapter:comfyui-execution:service-start",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "start dedicated ComfyUI API with UUID-pinned GPU and source allowlist",
+      "source_references": [
+        "deploy/comfyui/riverview-comfyui.service",
+        "deploy/comfyui/riverview-comfyui-firewall.service"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:service-ready",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "verify endpoint, model registry, RTX 4090 execution device, and service health",
+      "source_references": [
+        "deploy/comfyui/riverview-comfyui.service",
+        "deploy/comfyui/workflows.json"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:service-failed",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "keep capability unavailable if ComfyUI endpoint or required model is unhealthy",
+      "source_references": [
+        "scripts/run_grace_execution_service.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:existing-worker",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "claim only a normally authorized durable Engineering assignment",
+      "source_references": [
+        "scripts/run_grace_execution_service.py",
+        "src/riverview_core/worker_adapter/adapter.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:typed-binding",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "resolve the proposal-bound workflow and parameters from the durable dispatch event",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "scripts/run_grace_execution_service.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:input-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "registered immutable workflow and bounded parameters validate?",
+      "source_references": [
+        "src/riverview_core/worker_adapter/comfyui.py",
+        "deploy/comfyui/workflows.json"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:submit",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "persist idempotency journal and submit one prompt to ComfyUI",
+      "source_references": [
+        "src/riverview_core/worker_adapter/comfyui.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:progress",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "poll exact prompt history and queue with bounded timeout and restart recovery",
+      "source_references": [
+        "src/riverview_core/worker_adapter/comfyui.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:execution-failed",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "record timeout, explicit workflow failure, cancellation, or indeterminate submission without duplicate replay",
+      "source_references": [
+        "src/riverview_core/worker_adapter/comfyui.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:artifact-capture",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "retrieve registered image outputs into assignment-bound shared binary storage",
+      "source_references": [
+        "src/riverview_core/worker_adapter/comfyui.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:independent-verification",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "reopen images and verify bytes, digest, provenance, and assignment identity",
+      "source_references": [
+        "src/riverview_core/worker_adapter/comfyui.py",
+        "scripts/run_grace_execution_service.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:authorized-download",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "serve only accepted binary output after dashboard authentication and digest recheck",
+      "source_references": [
+        "src/riverview_core/status_dashboard/projection.py",
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    },
+    {
+      "id": "rv:worker-adapter:comfyui-execution:complete",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "return verified artifact metadata through existing Engineering objective lifecycle",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "verification_evidence": [],
+      "documentation_references": [
+        "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
+        "docs/components/WORKER_ADAPTER.md"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:worker-adapter:comfyui-execution:service-start",
+      "to": "rv:worker-adapter:comfyui-execution:service-ready",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:service-start",
+      "to": "rv:worker-adapter:comfyui-execution:service-failed",
+      "type": "diagnostic_branch",
+      "label": "endpoint start or model readiness fails"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:service-ready",
+      "to": "rv:worker-adapter:comfyui-execution:existing-worker",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:existing-worker",
+      "to": "rv:worker-adapter:comfyui-execution:typed-binding",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:typed-binding",
+      "to": "rv:worker-adapter:comfyui-execution:input-check",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:input-check",
+      "to": "rv:worker-adapter:comfyui-execution:submit",
+      "type": "diagnostic_branch",
+      "label": "workflow and parameters valid"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:input-check",
+      "to": "rv:worker-adapter:comfyui-execution:execution-failed",
+      "type": "diagnostic_branch",
+      "label": "unknown workflow or invalid parameter; no prompt submitted"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:submit",
+      "to": "rv:worker-adapter:comfyui-execution:progress",
+      "type": "runtime_transition",
+      "label": "prompt id durably recorded"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:submit",
+      "to": "rv:worker-adapter:comfyui-execution:execution-failed",
+      "type": "diagnostic_branch",
+      "label": "lost POST response is indeterminate and is never blindly resubmitted"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:progress",
+      "to": "rv:worker-adapter:comfyui-execution:artifact-capture",
+      "type": "runtime_transition",
+      "label": "registered output appears in exact prompt history"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:progress",
+      "to": "rv:worker-adapter:comfyui-execution:execution-failed",
+      "type": "diagnostic_branch",
+      "label": "timeout, cancellation, or workflow error"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:artifact-capture",
+      "to": "rv:worker-adapter:comfyui-execution:independent-verification",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:independent-verification",
+      "to": "rv:worker-adapter:comfyui-execution:authorized-download",
+      "type": "diagnostic_branch",
+      "label": "independent verification accepted"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:independent-verification",
+      "to": "rv:worker-adapter:comfyui-execution:execution-failed",
+      "type": "diagnostic_branch",
+      "label": "artifact bytes or provenance rejected"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:authorized-download",
+      "to": "rv:worker-adapter:comfyui-execution:complete",
+      "type": "runtime_transition",
+      "label": "authenticated browser fetch returns same verified bytes"
+    },
+    {
+      "from": "rv:worker-adapter:comfyui-execution:execution-failed",
+      "to": "rv:worker-adapter:comfyui-execution:existing-worker",
+      "type": "recovery_route",
+      "label": "existing durable worker reconciles the assignment under retry policy"
+    }
+  ]
+}

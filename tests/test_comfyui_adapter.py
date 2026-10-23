@@ -1,3 +1,13 @@
+# =============================================================================
+# RIVERVIEW~ CONTROLLED TEST
+# File: tests/test_comfyui_adapter.py
+# Component: ENGINEERING-COMFYUI-ADAPTER
+# Revision: 1.0.1
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Exercise canonical colon-delimited assignment IDs used by Grace.
+# Purpose: Mock ComfyUI transport, durable execution, recovery, artifact and verifier contracts
+# Tests: This file
+# History: Git and .riverview-backups/manifest.jsonl
+# =============================================================================
 """Mock-server acceptance for the bounded ComfyUI Engineering action."""
 import hashlib
 import base64
@@ -110,7 +120,7 @@ class ComfyUIAdapterTests(unittest.TestCase):
         self.artifacts = root / "artifacts"; self.artifacts.mkdir(mode=0o700)
         self.state = root / "state"; self.state.mkdir(mode=0o700)
         self.mock = MockComfy()
-        self.assignment = {"id": "assignment-001"}
+        self.assignment = {"id": "assignment:grace:0000000000000000000000000000000000000001"}
         self.grounded = SimpleNamespace(value={"workflow_id": "test-txt2img", "parameters": {"steps": 12}})
         self.action = self.make_action()
     def tearDown(self):

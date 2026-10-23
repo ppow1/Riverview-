@@ -1,0 +1,42 @@
+# Riverview~ controlled OCTOMINER1 unit.
+# Revision: 1.0.2
+# GPU placement is configured by the UUID in the local environment file.
+[Unit]
+Description=Riverview local ComfyUI execution API
+After=network-online.target riverview-comfyui-firewall.service
+Requires=riverview-comfyui-firewall.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=comfyui
+Group=comfyui
+SupplementaryGroups=render
+WorkingDirectory=/mnt/model-storage/riverview-comfyui/ComfyUI
+EnvironmentFile=/etc/riverview/comfyui.env
+Environment=HOME=/var/lib/comfyui
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+ExecStart=/mnt/model-storage/riverview-comfyui/venv/bin/python main.py --listen 192.168.1.160 --port 8188 --output-directory /mnt/model-storage/riverview-comfyui/output --temp-directory /var/lib/comfyui/temp --user-directory /var/lib/comfyui/user --database-url sqlite:////var/lib/comfyui/comfyui.db
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=false
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_UNIX
+ReadWritePaths=/var/lib/comfyui /mnt/model-storage/riverview-comfyui/output
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=false
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

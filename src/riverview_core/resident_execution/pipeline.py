@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.29
+# Revision: 1.1.30
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Complete from durable accepted step state and make duplicate completion calls idempotent; conversation reviews are post-completion delivery only.
 # Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Serialize grounding failure event persistence and make attempt replay idempotent.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Persist sanitized, correlated grounding failure details in durable objective events.
@@ -800,16 +801,29 @@ class GraceExecutionPipeline:
         declared_contract = raw_step.get("artifact_requirements", [])
         if (not isinstance(artifact_contract, list) or artifact_contract != declared_contract):
             return None
+        capability = raw_step.get("execution_capability", "engineering.codex-cli-artifact.v1")
+        comfyui_binding = dispatch_payload.get("comfyui_request_binding")
+        if capability == "engineering.comfyui-image.v1":
+            expected = {"version": "grace.comfyui-request-binding.v1",
+                "objective_id": objective_id, "assignment_id": assignment_id,
+                "step_id": row["step_id"], "capability": capability,
+                "workflow_id": raw_step.get("comfyui_workflow_id"),
+                "parameters": raw_step.get("comfyui_parameters"),
+                "proposal_step_sha256": hashlib.sha256(_json(raw_step).encode("utf-8")).hexdigest()}
+            if not isinstance(comfyui_binding, dict) or comfyui_binding != expected:
+                return None
+        elif comfyui_binding is not None:
+            return None
         return {"step_id": row["step_id"], "objective": row["step_objective"],
                 "acceptance_criteria": row["acceptance_criteria"],
                 "depends_on": row["depends_on"],
                 "artifact_requirements": artifact_contract,
-                "execution_capability": raw_step.get(
-                    "execution_capability", "engineering.codex-cli-artifact.v1"),
+                "execution_capability": capability,
                 "authorized_paths": raw_step.get("authorized_paths", []),
                 "test_targets": raw_step.get("test_targets", []),
                 "repository_reference": raw_step.get("repository_reference"),
                 "repository_revision": raw_step.get("repository_revision"),
+                "comfyui_request_binding": comfyui_binding,
                 "source_target_binding": (row["dispatch_payload"].get("source_target_binding")
                     if isinstance(row["dispatch_payload"], dict) else None)}
 
@@ -849,6 +863,35 @@ class GraceExecutionPipeline:
             "proposal_step_sha256": hashlib.sha256(
                 _json(raw_step).encode("utf-8")).hexdigest(),
         }}
+
+    @staticmethod
+    def _comfyui_request_binding(objective, step, assignment_id):
+        """Snapshot a typed registered-workflow request in the durable dispatch event."""
+        proposal = objective.get("proposal") if isinstance(objective, dict) else None
+        raw_steps = proposal.get("steps", []) if isinstance(proposal, dict) else []
+        raw_step = next((item for item in raw_steps if isinstance(item, dict) and
+                         item.get("step_id") == step["step_id"]), None)
+        if not isinstance(raw_step, dict):
+            raise ObjectiveStateError("persisted proposal step is unavailable at dispatch")
+        if raw_step.get("execution_capability") != "engineering.comfyui-image.v1":
+            return {}
+        if (raw_step.get("step_id") != step["step_id"] or
+                raw_step.get("objective") != step.get("step_objective") or
+                tuple(raw_step.get("acceptance_criteria", ())) != tuple(
+                    step.get("acceptance_criteria", ())) or
+                not isinstance(raw_step.get("comfyui_workflow_id"), str) or
+                not isinstance(raw_step.get("comfyui_parameters"), dict)):
+            raise ObjectiveStateError("ComfyUI request changed or is incomplete before dispatch")
+        return {"comfyui_request_binding": {
+            "version": "grace.comfyui-request-binding.v1",
+            "objective_id": objective["objective_id"],
+            "assignment_id": assignment_id,
+            "step_id": step["step_id"],
+            "capability": raw_step["execution_capability"],
+            "workflow_id": raw_step["comfyui_workflow_id"],
+            "parameters": raw_step["comfyui_parameters"],
+            "proposal_step_sha256": hashlib.sha256(
+                _json(raw_step).encode("utf-8")).hexdigest()}}
 
     def verified_source_change_predecessor(self, objective_id, step):
         """Return the latest independently verified patch and scope for a linear dependent step."""
@@ -976,7 +1019,8 @@ class GraceExecutionPipeline:
                         {"assignment_id": assignment_id,
                          "workflow_step": step["step_id"],
                          "artifact_contract": artifact_contract,
-                         **self._source_target_binding(binding_objective, step, assignment_id)})
+                         **self._source_target_binding(binding_objective, step, assignment_id),
+                         **self._comfyui_request_binding(binding_objective, step, assignment_id)})
         except AssignmentIntakeDenied:
             raise ObjectiveNotAuthorized("assignment.create is not authorized") from None
         return assignment
@@ -1865,6 +1909,8 @@ class GraceExecutionPipeline:
                 tuple(raw.get("test_targets", ())) == tuple(step.test_targets) and
                 raw.get("repository_reference") == step.repository_reference and
                 raw.get("repository_revision") == step.repository_revision and
+                raw.get("comfyui_workflow_id") == step.comfyui_workflow_id and
+                raw.get("comfyui_parameters") == step.comfyui_parameters and
                 raw.get("artifact_requirements", []) == [
                     {"name": item.name, "path": item.path, "media_type": item.media_type,
                      "acceptance_criteria": list(item.acceptance_criteria),
@@ -1943,7 +1989,8 @@ class GraceExecutionPipeline:
                                 tuple(step.depends_on), step.execution_capability,
                                 tuple(step.authorized_paths), tuple(step.test_targets),
                 step.repository_reference, step.repository_revision,
-                tuple(step.artifact_requirements))
+                tuple(step.artifact_requirements), step.comfyui_workflow_id,
+                step.comfyui_parameters)
         merged = dict(objective["proposal"])
         merged["steps"] = [*prior_steps, asdict(continuation)]
         # Reuse the public typed contract to validate unique IDs and acyclic
@@ -1958,7 +2005,8 @@ class GraceExecutionPipeline:
                      tuple(ArtifactRequirement(requirement["name"], requirement["path"],
                          requirement["media_type"], tuple(requirement["acceptance_criteria"]),
                          requirement.get("max_bytes", 32768))
-                         for requirement in item.get("artifact_requirements", [])))
+                         for requirement in item.get("artifact_requirements", [])),
+                     item.get("comfyui_workflow_id"), item.get("comfyui_parameters"))
             for item in merged["steps"]), 0)
         step_order = len(prior_steps) + 1
         with self.ledger.db.transaction():

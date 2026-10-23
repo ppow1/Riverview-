@@ -2,7 +2,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/comfyui.py
 # Component: ENGINEERING-COMFYUI-ADAPTER
-# Revision: 1.0.0
+# Revision: 1.0.4
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept canonical colon-delimited Riverview assignment IDs in durable artifact storage.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Restrict dashboard artifact sharing to group read and traversal.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Keep execution journals private while sharing accepted image artifacts with the dashboard group.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Support an explicitly shared read-only artifact group for the authenticated dashboard download path.
 # Purpose: Execute immutable registered ComfyUI workflows as bounded Engineering work
 # Execution Model: Durable local journal, bounded HTTP polling, assignment-bound image files
 # Observability: Prompt, workflow, progress, artifact size and SHA-256; no image body logs
@@ -244,7 +248,8 @@ class ComfyUIAction:
     def __init__(self, endpoint: str, registry: ComfyUIWorkflowRegistry,
                  artifact_root: str | Path, state_root: str | Path, *,
                  timeout_seconds: float = 900, poll_interval: float = 1.0,
-                 request_timeout_seconds: float = 5.0, progress_callback=None):
+                 request_timeout_seconds: float = 5.0, progress_callback=None,
+                 artifact_group_gid: int | None = None):
         if not 5 <= timeout_seconds <= 3600 or not 0.1 <= poll_interval <= 10:
             raise ValueError("execution bounds are invalid")
         self.transport = ComfyUITransport(endpoint, timeout_seconds=request_timeout_seconds)
@@ -256,13 +261,21 @@ class ComfyUIAction:
         if progress_callback is not None and not callable(progress_callback):
             raise ValueError("progress_callback must be callable")
         self.progress_callback = progress_callback
+        if artifact_group_gid is not None and (type(artifact_group_gid) is not int or artifact_group_gid <= 0):
+            raise ValueError("artifact group ID must be a positive integer")
+        self.artifact_group_gid = artifact_group_gid
         self._lock = threading.RLock()
 
-    def _prepare_root(self, root):
-        root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    def _prepare_root(self, root, *, shared=False):
+        group_gid = self.artifact_group_gid if shared else None
+        root.mkdir(mode=0o2750 if group_gid is not None else 0o700,
+                   parents=True, exist_ok=True)
         info = root.lstat()
+        expected_mode = 0o2750 if group_gid is not None else 0o700
         if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid() or
-                stat.S_IMODE(info.st_mode) != 0o700 or root.resolve() != root.absolute()):
+                stat.S_IMODE(info.st_mode) != expected_mode or
+                (group_gid is not None and info.st_gid != group_gid) or
+                root.resolve() != root.absolute()):
             raise ComfyUIError("artifact_directory_unsafe")
 
     def __call__(self, assignment, grounded):
@@ -271,9 +284,9 @@ class ComfyUIAction:
             raise ComfyUITemplateError("grounded_workflow_request_invalid")
         graph, template, template_digest = self.registry.render(value["workflow_id"], value["parameters"])
         assignment_id = str(assignment.get("id", ""))
-        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", assignment_id):
+        if not re.fullmatch(r"[A-Za-z0-9:._-]{1,128}", assignment_id):
             raise ComfyUITemplateError("assignment_id_invalid")
-        self._prepare_root(self.artifact_root)
+        self._prepare_root(self.artifact_root, shared=True)
         self._prepare_root(self.state_root)
         key = hashlib.sha256(assignment_id.encode()).hexdigest()
         journal = self.state_root / (key + ".json")
@@ -440,13 +453,16 @@ class ComfyUIAction:
         output_name = f"comfyui-output-{index + 1}.{ext}"
         storage_key = hashlib.sha256(output_name.encode()).hexdigest()[:12]
         assignment_dir = self.artifact_root / assignment_key
-        assignment_dir.mkdir(mode=0o700, exist_ok=True)
+        assignment_mode = 0o2750 if self.artifact_group_gid is not None else 0o700
+        assignment_dir.mkdir(mode=assignment_mode, exist_ok=True)
         dir_info = assignment_dir.lstat()
         if (not stat.S_ISDIR(dir_info.st_mode) or dir_info.st_uid != os.geteuid() or
-                stat.S_IMODE(dir_info.st_mode) != 0o700):
+                stat.S_IMODE(dir_info.st_mode) != assignment_mode or
+                (self.artifact_group_gid is not None and dir_info.st_gid != self.artifact_group_gid)):
             raise ComfyUIError("artifact_assignment_directory_unsafe", execution_started=True)
         destination = assignment_dir / storage_key
-        self._atomic_bytes(destination, raw)
+        self._atomic_bytes(destination, raw,
+                           mode=0o640 if self.artifact_group_gid is not None else 0o600)
         return {"name": output_name, "storage_name": f"{assignment_key}/{storage_key}",
                 "media_type": self._image_type(raw), "bytes": len(raw),
                 "sha256": hashlib.sha256(raw).hexdigest()}
@@ -553,10 +569,10 @@ class ComfyUIAction:
             temp.unlink(missing_ok=True)
 
     @staticmethod
-    def _atomic_bytes(destination, data):
+    def _atomic_bytes(destination, data, *, mode=0o600):
         temp = destination.with_suffix(destination.suffix + ".tmp")
         fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
-                     getattr(os, "O_NOFOLLOW", 0), 0o600)
+                     getattr(os, "O_NOFOLLOW", 0), mode)
         try:
             with os.fdopen(fd, "wb") as stream:
                 stream.write(data)
@@ -570,10 +586,13 @@ class ComfyUIAction:
 
 class ComfyUIOutputVerifier:
     """Reopen files and independently verify attempt, provenance, sizes and hashes."""
-    REVISION = "1.0.0"
+    REVISION = "1.0.1"
     CAPABILITY = CAPABILITY
-    def __init__(self, artifact_root: str | Path):
+    def __init__(self, artifact_root: str | Path, *, artifact_group_gid: int | None = None):
         self.artifact_root = Path(artifact_root)
+        if artifact_group_gid is not None and (type(artifact_group_gid) is not int or artifact_group_gid <= 0):
+            raise ValueError("artifact group ID must be a positive integer")
+        self.artifact_group_gid = artifact_group_gid
 
     def verify(self, assignment, attempt, result):
         criteria = {"attempt_succeeded": attempt.get("status") == "succeeded",
@@ -598,8 +617,12 @@ class ComfyUIOutputVerifier:
             valid = isinstance(records, list) and 1 <= len(records) <= MAX_OUTPUTS
             total = 0
             root_info = self.artifact_root.lstat()
+            root_mode = 0o2750 if self.artifact_group_gid is not None else 0o700
+            directory_mode = 0o2750 if self.artifact_group_gid is not None else 0o700
+            file_mode = 0o640 if self.artifact_group_gid is not None else 0o600
             valid = bool(valid and stat.S_ISDIR(root_info.st_mode) and
-                         root_info.st_uid == os.geteuid() and stat.S_IMODE(root_info.st_mode) == 0o700 and
+                         root_info.st_uid == os.geteuid() and stat.S_IMODE(root_info.st_mode) == root_mode and
+                         (self.artifact_group_gid is None or root_info.st_gid == self.artifact_group_gid) and
                          self.artifact_root.resolve() == self.artifact_root.absolute())
             expected_dir = hashlib.sha256(str(assignment["id"]).encode()).hexdigest()
             for index, item in enumerate(records if isinstance(records, list) else []):
@@ -629,8 +652,11 @@ class ComfyUIOutputVerifier:
                 total += len(data)
                 valid = bool(valid and stat.S_ISREG(info.st_mode) and info.st_uid == os.geteuid() and
                              stat.S_ISDIR(parent_stat.st_mode) and parent_stat.st_uid == os.geteuid() and
-                             stat.S_IMODE(parent_stat.st_mode) == 0o700 and
-                             stat.S_IMODE(info.st_mode) == 0o600 and 0 < len(data) <= MAX_IMAGE_BYTES and
+                             stat.S_IMODE(parent_stat.st_mode) == directory_mode and
+                             stat.S_IMODE(info.st_mode) == file_mode and
+                             (self.artifact_group_gid is None or
+                              (parent_stat.st_gid == self.artifact_group_gid and info.st_gid == self.artifact_group_gid)) and
+                             0 < len(data) <= MAX_IMAGE_BYTES and
                              media == item.get("media_type") and len(data) == item.get("bytes") and
                              hashlib.sha256(data).hexdigest() == item.get("sha256"))
                 evidence.append(path.resolve().as_uri())

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.38
+# Revision: 1.0.39
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Route only explicitly configured typed ComfyUI proposal steps to the existing capability worker.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Reconcile the latest verified step first so terminal evidence uses the final completion cycle after restart.
 # Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Correlate objective proposal persistence outcomes with the resident request
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Service ready dispatch, execution, verification, completion and conversation publication before potentially slow model planning
@@ -175,6 +176,9 @@ class GraceExecutionService:
         source = "engineering.codex-cli-source-change.v1"
         if requested == source:
             return source if source in self.execution_workers else None
+        comfyui = "engineering.comfyui-image.v1"
+        if requested == comfyui:
+            return comfyui if comfyui in self.execution_workers else None
         artifact_caps = {"engineering.codex-cli-artifact.v1",
                          "engineering.bounded-artifact.v1"}
         if requested not in artifact_caps:

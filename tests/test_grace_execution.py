@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.60
+# Revision: 1.0.61
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Prove four-step verified completion recovers after restart and ignores conversational review disagreement.
 # Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Verify concurrent grounding failures serialize into distinct durable attempts and duplicate attempt replay is a no-op.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Cover durable sanitized grounding failure codes, persistence, exception redaction, and retry history.
@@ -316,6 +317,28 @@ class CodingWorkOrderContractTests(unittest.TestCase):
         self.assertEqual(result["status"], "FAILED")
         self.assertEqual(result["capabilities"][artifact]["status"], "FAILED")
         self.assertEqual(result["capabilities"][source]["status"], "IDLE")
+
+    def test_comfyui_proposal_requires_an_explicitly_configured_capability_worker(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        class Worker:
+            def run_once(self, **_kwargs): return {"status": "IDLE"}
+        class Verifier:
+            REVISION = "fixture-v1"
+            def verify(self, *_args): return None
+        comfy = "engineering.comfyui-image.v1"
+        artifact = "engineering.codex-cli-artifact.v1"
+        workers = {artifact: Worker(), comfy: Worker()}
+        service = GraceExecutionService(None, None, workers[artifact],
+            dispatch_credential="dispatch", authority_ref="work-order:test",
+            verifier_id="verifier", verifier_credential="verify", artifact_root="/tmp/unused",
+            execution_capability=artifact, execution_workers=workers,
+            verifiers={artifact: Verifier(), comfy: Verifier()})
+        self.assertEqual(service._proposal_worker_capability({"execution_capability": comfy}), comfy)
+        service_without_comfy = GraceExecutionService(None, None, workers[artifact],
+            dispatch_credential="dispatch", authority_ref="work-order:test",
+            verifier_id="verifier", verifier_credential="verify", artifact_root="/tmp/unused")
+        self.assertIsNone(service_without_comfy._proposal_worker_capability(
+            {"execution_capability": comfy}))
 
     def test_artifact_only_worker_configuration_remains_supported(self):
         from riverview_core.resident_execution.service import GraceExecutionService

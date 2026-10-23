@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.22
+# Revision: 1.0.23
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Add ComfyUI capability to an existing worker only after rechecking its exact registration grant.
 # Purpose: Authenticate fixed engineering-test work under exact assignment grants
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest
@@ -104,6 +105,35 @@ class PostgresWorkerAdapter:
                     VALUES (%s,%s,%s,%s)""",
                     (worker_id, digest, json.dumps(caps), scope_ref))
         return credential
+
+    def register_comfyui_capability(self, worker_id, credential, scope_ref):
+        """Add the one ComfyUI capability to an existing worker under worker.register.
+
+        This does not create an identity, change its scope, reactivate a worker, or
+        widen the operation-to-grant mapping. Assignment claims still require the
+        same credential's exact ``assignment.execute`` grant.
+        """
+        capability = self.COMFYUI_CAPABILITY
+        if not worker_id or not scope_ref or not isinstance(credential, str) or len(credential) < 32:
+            raise WorkerAuthorizationError("ComfyUI worker registration input is invalid")
+        candidate = hashlib.sha256(credential.encode("utf-8")).digest()
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT credential_sha256,capabilities,scope_ref,active FROM worker_registry "
+                            "WHERE worker_id=%s FOR UPDATE", (worker_id,))
+                row = cur.fetchone()
+                if (row is None or not hmac.compare_digest(bytes(row["credential_sha256"]), candidate) or
+                        not row["active"] or row["scope_ref"] != scope_ref):
+                    raise WorkerAuthorizationError("worker registration identity mismatch")
+                self._require_grant(cur, credential, "worker.register", scope_ref)
+                capabilities = row["capabilities"]
+                if not isinstance(capabilities, list) or any(not isinstance(item, str) for item in capabilities):
+                    raise WorkerAdapterError("worker capability registry is invalid")
+                if capability not in capabilities:
+                    cur.execute("UPDATE worker_registry SET capabilities=%s WHERE worker_id=%s",
+                                (json.dumps(sorted(set(capabilities) | {capability})), worker_id))
+        return capability in capabilities or capability == self.COMFYUI_CAPABILITY
 
     def _require_grant(self, cur, credential, action, scope_ref):
         try:

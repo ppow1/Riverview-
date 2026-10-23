@@ -2,11 +2,14 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.35
+# Revision: 1.3.38
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify artifact ownership and group-read layout at the authorized download boundary.
 # Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Expose owner-authorized content-free Grace stream activity for measured V2 live text output.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Permit normal Grace derivation when work-order criteria are omitted.
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate knowledge source commit from dashboard code identity.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Accept typed artifact contracts in authenticated proposal submission
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Preserve typed ComfyUI workflow requests through authenticated proposal intake.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
 # Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Add authenticated exact-objective rereview request route through the existing pipeline.
@@ -87,6 +90,7 @@ _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
 _MAX_THREADS = 16
 _MAX_PAGE = 100
 _DOC_NAME = re.compile(r"^[A-Za-z0-9_-]+\.md$")
+_COMFYUI_ARTIFACT = re.compile(r"^/api/v1/assignments/([A-Za-z0-9:._-]{1,128})/artifacts/([1-8])$")
 _NOTICE_WRITE = re.compile(
     r"^/api/v1/notifications/([0-9a-fA-F-]{36})/(delivered|acknowledge)$")
 _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
@@ -1611,7 +1615,8 @@ def make_handler():
                                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
                                 allowed = required | {"execution_capability", "authorized_paths", "test_targets",
                                                      "repository_reference", "repository_revision",
-                                                     "artifact_requirements"}
+                                                     "artifact_requirements", "comfyui_workflow_id",
+                                                     "comfyui_parameters"}
                                 if (not isinstance(step, dict) or not required <= set(step) or
                                         not set(step) <= allowed):
                                     raise ValueError("invalid proposal step")
@@ -1626,7 +1631,8 @@ def make_handler():
                                     tuple(step.get("authorized_paths", ())),
                                     tuple(step.get("test_targets", ())),
                                     step.get("repository_reference"),
-                                    step.get("repository_revision"), artifact_requirements))
+                                    step.get("repository_revision"), artifact_requirements,
+                                    step.get("comfyui_workflow_id"), step.get("comfyui_parameters")))
                             proposal = PlanProposal(data["summary"], tuple(steps), data["tokens_used"])
                             objective = pipeline.get_objective(objective_id)
                             if objective is None:
@@ -1884,6 +1890,89 @@ def make_handler():
                     self._json(200, {"schema_version": "rv.dashboard.graph.v1",
                                      "status": "available", "graph": selected}, request_id)
                 elif parsed.path.startswith("/api/v1/assignments/"):
+                    artifact_match = _COMFYUI_ARTIFACT.fullmatch(parsed.path)
+                    if artifact_match:
+                        if query:
+                            self._error(400, "invalid_query", request_id)
+                            return
+                        if self._account_cookie_authenticated:
+                            try:
+                                self.server._account_auth_service.require_role(
+                                    self._account_identity, "operator", "steward")
+                            except Exception:
+                                self._error(403, "artifact_download_not_authorized", request_id)
+                                return
+                        try:
+                            metadata = self.server._projection.comfyui_artifact(
+                                artifact_match.group(1), int(artifact_match.group(2)))
+                            if not metadata:
+                                self._error(404, "verified_artifact_not_found", request_id)
+                                return
+                            configured_root = os.environ.get("RIVERVIEW_COMFYUI_ARTIFACT_ROOT", "")
+                            if not configured_root:
+                                self._error(503, "artifact_store_unavailable", request_id)
+                                return
+                            storage = metadata["storage_name"].split("/")
+                            if (len(storage) != 2 or
+                                    not re.fullmatch(r"[0-9a-f]{64}", storage[0]) or
+                                    not re.fullmatch(r"[0-9a-f]{12}", storage[1])):
+                                self._error(503, "artifact_reference_invalid", request_id)
+                                return
+                            root_fd = os.open(configured_root,
+                                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                            try:
+                                root_info = os.fstat(root_fd)
+                                if (not stat.S_ISDIR(root_info.st_mode) or
+                                        stat.S_IMODE(root_info.st_mode) != 0o2750 or
+                                        root_info.st_gid != os.getegid()):
+                                    raise OSError("artifact root permissions invalid")
+                                directory_fd = os.open(storage[0],
+                                    os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root_fd)
+                                try:
+                                    directory_info = os.fstat(directory_fd)
+                                    if (not stat.S_ISDIR(directory_info.st_mode) or
+                                            directory_info.st_uid != root_info.st_uid or
+                                            directory_info.st_gid != os.getegid() or
+                                            stat.S_IMODE(directory_info.st_mode) != 0o2750):
+                                        raise OSError("artifact directory permissions invalid")
+                                    fd = os.open(storage[1], os.O_RDONLY | os.O_NOFOLLOW,
+                                                 dir_fd=directory_fd)
+                                    try:
+                                        info = os.fstat(fd)
+                                        if (not stat.S_ISREG(info.st_mode) or
+                                                info.st_uid != root_info.st_uid or
+                                                info.st_gid != os.getegid() or
+                                                info.st_size != metadata["bytes"] or
+                                                info.st_size > 16 * 1024 * 1024 or
+                                                stat.S_IMODE(info.st_mode) != 0o640):
+                                            raise OSError("artifact metadata mismatch")
+                                        chunks = []
+                                        remaining = info.st_size
+                                        while remaining:
+                                            block = os.read(fd, min(65536, remaining))
+                                            if not block:
+                                                raise OSError("short artifact read")
+                                            chunks.append(block)
+                                            remaining -= len(block)
+                                        payload = b"".join(chunks)
+                                    finally:
+                                        os.close(fd)
+                                finally:
+                                    os.close(directory_fd)
+                            finally:
+                                os.close(root_fd)
+                            import hashlib
+                            if hashlib.sha256(payload).hexdigest() != metadata["sha256"]:
+                                self._error(503, "artifact_digest_mismatch", request_id)
+                                return
+                            self._send(200, payload, metadata["media_type"], request_id,
+                                extra_headers=(("Content-Disposition",
+                                    f'attachment; filename="{metadata["name"]}"'),))
+                        except FileNotFoundError:
+                            self._error(404, "verified_artifact_not_found", request_id)
+                        except (OSError, KeyError, TypeError, ValueError):
+                            self._error(503, "artifact_store_unavailable", request_id)
+                        return
                     assignment_id = unquote(parsed.path.removeprefix("/api/v1/assignments/"), errors="strict")
                     result = self.server._projection.assignment_detail(assignment_id)
                     self._json(200, result, request_id) if result else self._error(404, "assignment_not_found", request_id)

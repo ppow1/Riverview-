@@ -2,7 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.65
+# Revision: 1.0.67
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify accepted ComfyUI images are presented in assignment detail.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Exercise authenticated ComfyUI work-order proposal intake through the dashboard API.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify authenticated verified-binary delivery and reject tampered artifact bytes.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Verify durable grounding projection, authenticated scope, redaction, retry guidance, and UI rendering contract.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Align retry-copy assertion with immutable criteria-source semantics.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Cover blank/explicit intake and criteria-source visibility.
@@ -58,6 +61,7 @@
 """Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
 import json
+import hashlib
 import os
 import re
 import tempfile
@@ -88,6 +92,7 @@ class _FakeProjection:
         self.last_progress_only = None
         self.objective_items = []
         self.execution_position = {"status": "unknown", "reason": "No recorded node."}
+        self.comfyui_metadata = None
 
     def graph_execution_position(self, graph_id):
         return self.execution_position
@@ -143,6 +148,9 @@ class _FakeProjection:
 
     def assignment_detail(self, assignment_id):
         return None
+
+    def comfyui_artifact(self, assignment_id, index):
+        return self.comfyui_metadata if assignment_id == "assignment-test" and index == 1 else None
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
@@ -228,6 +236,13 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("process liveness not reported", app)
         self.assertIn("an idle worker may have no lease heartbeat", html)
         self.assertIn("Process state is not reported by this view", html)
+
+    def test_assignment_detail_renders_only_verified_comfyui_download_links(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        self.assertIn("Array.isArray(detail.comfyui_artifacts)", app)
+        self.assertIn('Verified ComfyUI images', app)
+        self.assertIn('href="${esc(x.download_url)}" download', app)
+        self.assertIn('SHA-256 ${esc(x.sha256)}', app)
 
     def test_grace_execution_and_chat_readiness_are_distinct_and_explained(self):
         html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
@@ -516,6 +531,63 @@ class DashboardHTTPTests(unittest.TestCase):
         conn.close()
         return result
 
+    def test_comfyui_work_order_proposal_preserves_typed_workflow_binding(self):
+        from contextlib import nullcontext
+
+        class Cursor:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+
+        class DB:
+            db = None
+            def transaction(self): return nullcontext()
+            def cursor(self): return Cursor()
+            def _set_search_path(self, cur): pass
+
+        class Authorizer:
+            def require(self, cur, credential, action, scope):
+                self.assertion = (credential, action, scope)
+                return {"principal_id": "steward:test"}
+
+        class Pipeline:
+            def __init__(self):
+                self.ledger = DB()
+                self.authorizer = Authorizer()
+                self.recorded = None
+
+            def get_objective(self, objective_id):
+                return {"scope_ref": "work-order:engineering"}
+
+            def record_proposal(self, objective_id, proposal, *, actor_id):
+                self.recorded = (objective_id, proposal, actor_id)
+                return {"status": "recorded", "assignment_id": "assignment-comfy"}
+
+        pipeline = Pipeline()
+        pipeline.ledger.db = pipeline.ledger
+        self.server._objective_pipeline = pipeline
+        body = json.dumps({"summary": "Generate a bounded test image", "tokens_used": 12,
+            "steps": [{"step_id": "image", "objective": "Generate one test image",
+                "acceptance_criteria": ["one verified PNG"], "depends_on": [],
+                "execution_capability": "engineering.comfyui-image.v1",
+                "comfyui_workflow_id": "sd-turbo-512", "comfyui_parameters": {
+                    "prompt": "a small blue cube", "seed": 42}}]}).encode()
+        conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        conn.request("POST", "/api/v1/objectives/objective:test/proposal", body=body,
+            headers={"Authorization": "Bearer " + self.token,
+                "X-Riverview-Authority": "D" * 43,
+                "Content-Type": "application/json", "Content-Length": str(len(body))})
+        response = conn.getresponse()
+        payload = json.loads(response.read())
+        conn.close()
+        self.assertEqual(response.status, 202, payload)
+        step = pipeline.recorded[1].steps[0]
+        self.assertEqual(step.execution_capability, "engineering.comfyui-image.v1")
+        self.assertEqual(step.comfyui_workflow_id, "sd-turbo-512")
+        self.assertEqual(step.comfyui_parameters, {"prompt": "a small blue cube", "seed": 42})
+        self.assertEqual(pipeline.authorizer.assertion[1:],
+                         ("assignment.create", "work-order:engineering"))
+        self.assertEqual(payload["assignment_id"], "assignment-comfy")
+
     def test_resource_telemetry_route_uses_dashboard_auth_and_is_read_only(self):
         projection = {"schema_version": "rv.dashboard.resource-telemetry.v1",
                       "status": "partial", "hosts": []}
@@ -531,6 +603,36 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _, body = self.request("POST", "/api/v1/resources/telemetry", token=self.token)
         self.assertEqual(status, 405)
         self.assertEqual(json.loads(body)["error"], "read_only_method")
+
+    def test_comfyui_binary_download_requires_auth_and_returns_verified_artifact_bytes(self):
+        assignment_hash = hashlib.sha256(b"assignment-test").hexdigest()
+        name = "comfyui-output-1.png"
+        storage_leaf = hashlib.sha256(name.encode()).hexdigest()[:12]
+        payload = b"PNG synthetic test bytes"
+        with tempfile.TemporaryDirectory() as root:
+            os.chmod(root, 0o2750)
+            directory = Path(root) / assignment_hash
+            directory.mkdir(mode=0o2750)
+            path = directory / storage_leaf
+            path.write_bytes(payload)
+            path.chmod(0o640)
+            self.projection.comfyui_metadata = {
+                "status": "available", "assignment_id": "assignment-test", "index": 1,
+                "verification": "ACCEPTED", "name": name,
+                "storage_name": assignment_hash + "/" + storage_leaf,
+                "bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest(),
+                "media_type": "image/png"}
+            route = "/api/v1/assignments/assignment-test/artifacts/1"
+            self.assertEqual(self.request("GET", route)[0], 401)
+            with mock.patch.dict(os.environ, {"RIVERVIEW_COMFYUI_ARTIFACT_ROOT": root}):
+                status, headers, body = self.request("GET", route, token=self.token)
+                self.assertEqual(status, 200)
+                self.assertEqual(body, payload)
+                self.assertIn(("Content-Type", "image/png"), headers)
+                self.assertIn(("Content-Disposition", 'attachment; filename="comfyui-output-1.png"'), headers)
+                path.write_bytes(b"tampered")
+                status, _, _ = self.request("GET", route, token=self.token)
+                self.assertEqual(status, 503)
 
     def test_authenticated_result_rereview_route_is_exact_scoped_bounded_and_request_only(self):
         from riverview_core.resident_execution import ObjectiveNotAuthorized
