@@ -63,6 +63,8 @@ heartbeat older than 15 seconds is `stale`, and a fresh successful heartbeat is
 
 See `NOTIFICATION_DELIVERY_API.schema.json` for bounded response schemas and
 `NOTIFICATION_DELIVERY_COOKBOOK.md` for diagnosis/recovery steps.
+The self-hosted ntfy iPhone background relay and its phone-side acceptance
+limits are documented in `NOTIFICATION_IPHONE_UPSTREAM_RELAY.md`.
 
 ## Routes and security
 
