@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/resource_telemetry.py
 # Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Build a read-only, timestamped projection from approved GPU, model, and storage sources
 # Execution Model: Request-driven; one bounded collection per authenticated GET
 # Observability: rv.dashboard.resource-telemetry.v1 with per-source state, timestamps, and safe error codes
@@ -11,6 +11,7 @@
 # Authority: Dashboard authentication is enforced by the parent API; fixed host and endpoint allowlists only
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial read-only telemetry projection
 # Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Project bounded numeric per-slot context counters without task IDs or prompt data
+# Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Project stable GPU identity, architecture, process allocation, and reservation observability
 # Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Add local and OCTO1 mounted-volume measurements to the existing resource projection
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_resource_telemetry.py; tests/test_status_dashboard.py
@@ -46,6 +47,8 @@ SCHEMA_VERSION = "rv.dashboard.resource-telemetry.v1"
 MAX_RESPONSE_BYTES = 64 * 1024
 _MODEL_ID = re.compile(r"^[A-Za-z0-9._+() -]{1,128}$")
 _GPU_NAME = re.compile(r"^[A-Za-z0-9._+() -]{1,100}$")
+_GPU_UUID = re.compile(r"^GPU-(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})$")
+_COMPUTE_CAPABILITY = re.compile(r"^[1-9][0-9]?\.[0-9]{1,2}$")
 _SSH_HOST = "192.168.1.160"
 _SSH_USER = "root"
 _SSH_PORT = "22"
@@ -189,8 +192,14 @@ class DashboardResourceTelemetry:
                     continue
                 index = _safe_integer(raw.get("index"))
                 name = _bounded_text(raw.get("name"), _GPU_NAME, "Unknown GPU")
+                uuid_raw = raw.get("uuid")
+                gpu_uuid = uuid_raw if isinstance(uuid_raw, str) and _GPU_UUID.fullmatch(uuid_raw) else None
+                compute_raw = raw.get("compute_capability")
+                compute_capability = (compute_raw if isinstance(compute_raw, str) and
+                                      _COMPUTE_CAPABILITY.fullmatch(compute_raw) else None)
                 memory_used = _safe_integer(raw.get("memory_used_bytes"))
                 memory_total = _safe_integer(raw.get("memory_total_bytes"))
+                active_process_count = _safe_integer(raw.get("active_compute_process_count"))
                 utilization = _safe_integer(raw.get("utilization_percent"))
                 temperature = _safe_integer(raw.get("temperature_celsius"))
                 if utilization is not None and utilization > 100:
@@ -211,16 +220,28 @@ class DashboardResourceTelemetry:
                 if not isinstance(services, list):
                     services = []
                 services = sorted({item for item in services if item in {
-                    "grace-reasoning-80b", "grace-vision-30b", "other"}})
+                    "grace-reasoning-80b", "grace-vision-30b", "riverview-comfyui", "other"}})
                 if index is None:
                     continue
                 devices.append({
-                    "device_id": f"gpu-{index}",
+                    # Keep the legacy display identifier when UUID telemetry is
+                    # not yet installed. Schedulers must use gpu_uuid, never index.
+                    "device_id": gpu_uuid or f"gpu-{index}",
+                    "identity_state": "verified" if gpu_uuid else "unavailable",
+                    "gpu_uuid": gpu_uuid,
                     "index": index,
                     "name": name,
+                    "compute_capability": compute_capability,
                     "utilization_percent": utilization,
                     "memory_used_bytes": memory_used,
                     "memory_total_bytes": memory_total,
+                    "active_compute_process_count": active_process_count,
+                    "allocation_state": ("occupied" if active_process_count and active_process_count > 0
+                                         else "no_compute_processes_observed" if active_process_count == 0
+                                         else "unknown"),
+                    # The current telemetry source has no durable reservation API.
+                    # Empty active-services data is not proof of availability.
+                    "reservation_state": "known_owner" if services else "unreported",
                     "temperature_celsius": temperature,
                     "power_watts": power,
                     "fan_percent": fan,

@@ -3,7 +3,8 @@ Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the s
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.17
+File Revision: 1.1.18
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Define UUID, compute architecture, process, and explicit unknown-reservation telemetry
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify per-slot context counters and unavailable KV-cache bytes.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free stream activity projection.
@@ -345,7 +346,7 @@ The model projection includes a bounded numeric `slot_context` view from each fi
 
 Model readiness is sampled from the configured llama.cpp `/health`, `/v1/models`, and `/slots` endpoints. Only safe model basenames and the count of processing slots are projected. The current servers do not expose request queue depth or metrics; queue state therefore remains `unavailable`, never zero. OctoMiner2 has a documented inventory row but its identity/source is not independently verified; its projection remains unavailable. Camrui's GPU inventory is unavailable, while its local 0.6B model endpoint may report readiness and model identity. No inference controls, prompt data, slot details, PIDs, GPU UUIDs, or host credential data are exposed.
 
-The projection schema is `rv.dashboard.resource-telemetry.v1`. Per-source state and source observation timestamps remain visible. Missing credentials, host-key mismatch, source timeout, invalid source data, and unavailable host APIs remain unavailable with sanitized error codes. The Dashboard does not cache prior observations. Operational credential installation and rollback are documented in `STATUS_DASHBOARD_COOKBOOK.md`.
+The projection schema is `rv.dashboard.resource-telemetry.v1`. Per-source state and source observation timestamps remain visible. GPU inventory includes a stable UUID and compute capability only when supplied by the host collector and validated by the Dashboard; the transient NVIDIA index remains informational. Active compute-process counts are reported without process IDs, alongside allowlisted service owners. Missing UUID or reservation data is explicitly unavailable/unreported and must not be interpreted as an available GPU. The current host collector has no durable reservation API; scheduler selection must fail closed unless a separate authorized reservation/ownership source confirms eligibility. Missing credentials, host-key mismatch, source timeout, invalid source data, and unavailable host APIs remain unavailable with sanitized error codes. The Dashboard does not cache prior observations. Operational credential installation and rollback are documented in `STATUS_DASHBOARD_COOKBOOK.md`.
 
 Grace activity is correlated through its durable conversation and response request IDs. Active streamed output is measured only from persisted provider text deltas with database timestamps and character counts; the dashboard may show received streamed characters/second after two timed deltas. This is not model-server token throughput, prompt processing, or GPU work. The current 0.6B/80B/30B `/metrics` endpoints return HTTP 501; `/slots` exposes occupancy and prompt/context fields but no output-token counter. Completed token throughput remains a separate router-call measurement.
 

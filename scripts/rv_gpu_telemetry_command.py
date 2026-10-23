@@ -3,7 +3,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/rv_gpu_telemetry_command.py
 # Component: OCTOMINER1-RESTRICTED-GPU-TELEMETRY
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Return bounded NVIDIA and mounted-storage readings through an SSH forced command
 # Execution Model: Request-driven; invoked only by the restricted telemetry SSH identity
 # Observability: rv.gpu-host-telemetry.v1 JSON with optional storage_volumes; stable failure codes
@@ -11,6 +11,7 @@
 # Inputs/Outputs: No arguments/stdin; device metrics, allowlisted service labels, mounted-volume capacity
 # Authority: Read-only NVIDIA/systemd queries; no shell, model control, or arbitrary command path
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Accept NVIDIA bracketed N/A values without dropping P100 rows
+# Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Expose stable GPU UUID, compute capability, and active compute-process count without PIDs
 # Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Include deduplicated read-only mount capacity in existing telemetry response
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_resource_telemetry.py
@@ -34,13 +35,16 @@ import sys
 SCHEMA_VERSION = "rv.gpu-host-telemetry.v1"
 MAX_OUTPUT_BYTES = 64 * 1024
 _DEVICE_FIELDS = (
-    "name,index,uuid,utilization.gpu,memory.used,memory.total,"
+    "name,index,uuid,compute_cap,utilization.gpu,memory.used,memory.total,"
     "temperature.gpu,power.draw,fan.speed"
 )
 _SERVICE_LABELS = {
     "llama-server.service": "grace-reasoning-80b",
     "grace-vision.service": "grace-vision-30b",
+    "riverview-comfyui.service": "riverview-comfyui",
 }
+_GPU_UUID = re.compile(r"^GPU-(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})$")
+_COMPUTE_CAPABILITY = re.compile(r"^[1-9][0-9]?\.[0-9]{1,2}$")
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9._+() -]{1,100}$")
 _VOLUME_FILESYSTEMS = frozenset({
     "ext2", "ext3", "ext4", "xfs", "btrfs", "vfat", "exfat", "ntfs", "ntfs3",
@@ -136,11 +140,16 @@ def collect() -> dict:
     ]))))
     service_pids: dict[int, str] = {}
     for unit, label in _SERVICE_LABELS.items():
-        output = _run(["/usr/bin/systemctl", "show", "--property=MainPID", "--value", unit])
+        try:
+            output = _run(["/usr/bin/systemctl", "show", "--property=MainPID", "--value", unit])
+        except (OSError, subprocess.SubprocessError):
+            # Optional service labels must not suppress otherwise valid GPU telemetry.
+            continue
         match = re.fullmatch(r"\s*(\d+)\s*", output)
         if match and int(match.group(1)) > 0:
             service_pids[int(match.group(1))] = label
     services_by_uuid: dict[str, set[str]] = {}
+    process_count_by_uuid: dict[str, int] = {}
     for row in app_rows:
         if len(row) < 2:
             continue
@@ -149,16 +158,20 @@ def collect() -> dict:
             pid = int(pid_text)
         except ValueError:
             continue
+        process_count_by_uuid[gpu_uuid] = process_count_by_uuid.get(gpu_uuid, 0) + 1
         label = service_pids.get(pid)
         if label:
             services_by_uuid.setdefault(gpu_uuid, set()).add(label)
     devices = []
     for row in gpu_rows:
-        if len(row) != 9:
+        if len(row) != 10:
             continue
-        name, index, uuid, utilization, used, total, temperature, power, fan = (x.strip() for x in row)
+        name, index, uuid, compute_cap, utilization, used, total, temperature, power, fan = (x.strip() for x in row)
         try:
             device_index = int(index)
+            if not _GPU_UUID.fullmatch(uuid):
+                continue
+            compute_capability = compute_cap if _COMPUTE_CAPABILITY.fullmatch(compute_cap) else None
             memory_used = _integer(used)
             memory_total = _integer(total)
             utilization_value = _integer(utilization)
@@ -177,7 +190,9 @@ def collect() -> dict:
                 fan_value = None
             devices.append({
                 "index": device_index,
+                "uuid": uuid,
                 "name": name_value,
+                "compute_capability": compute_capability,
                 "memory_used_bytes": memory_used,
                 "memory_total_bytes": memory_total,
                 "utilization_percent": utilization_value,
@@ -185,6 +200,7 @@ def collect() -> dict:
                 "power_watts": _number(power),
                 "fan_percent": fan_value,
                 "active_services": sorted(services_by_uuid.get(uuid, set())),
+                "active_compute_process_count": process_count_by_uuid.get(uuid, 0),
             })
         except (ValueError, OverflowError):
             continue

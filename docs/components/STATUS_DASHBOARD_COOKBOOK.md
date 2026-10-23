@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.35
+File Revision: 1.1.36
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Record UUID/process telemetry and fail-closed host rollout boundary.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document safe per-slot context projection and explicit KV-data limitation.
 Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Document the authorized post-deployment path for diagnosing historical Grace grounding failures.
 Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Document authorized Engineering Progress grounding diagnostics and same-objective recovery guidance.
@@ -1052,7 +1053,7 @@ freshness metadata and test-coverage outcomes. Isolated Firefox evidence:
 
 ## V2 GPU and model telemetry
 
-The authenticated V2 Hardware page reads `GET /api/v1/resources/telemetry` only after `/api/v1/auth/session` succeeds. Dashboard-to-host access uses a dedicated Ed25519 key provisioned at `/etc/riverview/resource-telemetry/telemetry_ed25519`, supplied to the dashboard via systemd credentials, and a pinned `known_hosts` file at `/etc/riverview/resource-telemetry/known_hosts`. The OCTOMINER1 root `authorized_keys` entry must restrict source to Camrui and force `/usr/local/libexec/rv-gpu-telemetry`; never reuse the operator SSH identity or permit general shell access. The service collector returns no GPU UUIDs or process identifiers.
+The authenticated V2 Hardware telemetry API reads `GET /api/v1/resources/telemetry` only after dashboard authentication. Dashboard-to-host access uses a dedicated Ed25519 key provisioned at `/etc/riverview/resource-telemetry/telemetry_ed25519`, supplied to the dashboard via systemd credentials, and a pinned `known_hosts` file at `/etc/riverview/resource-telemetry/known_hosts`. The OCTOMINER1 root `authorized_keys` entry restricts source to Camrui and forces `/usr/local/libexec/rv-gpu-telemetry`; never reuse the operator SSH identity or permit general shell access. The checked-in collector now requests GPU UUID, compute capability, and per-GPU compute-process count, and emits allowlisted active service labels without PIDs. The currently installed production forced command predates that payload and returns none of those stable identity/architecture/process-count fields. It must be updated only through the authorized OCTOMINER1 management/deployment path; the read-only telemetry key cannot install or modify it. Until host rollout and a durable reservation source are verified, missing identity/reservation data must remain unavailable and must not be used to schedule work.
 
 Preflight/health checks (run from Camrui; outputs contain only public host identity and source status):
 
