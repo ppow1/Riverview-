@@ -1,0 +1,11 @@
+{
+  "task_id": "ISSUE-231-WINDOWS-OCTO2",
+  "predecessors": [
+    {"path":"docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md","revision":"1.0.32","source":"HEAD","restore":"copy this backup to the original path"},
+    {"path":"scripts/verify_v2_octo1_browser.cjs","revision":"1.2.2","source":"HEAD","restore":"copy this backup to the original path"},
+    {"path":"scripts/verify_v2_resource_monitor.cjs","revision":"1.4.2","source":"HEAD","restore":"copy this backup to the original path"},
+    {"path":"website/v2/assets/resource-monitor.js","revision":"1.4.2","source":"HEAD","restore":"copy this backup to the original path"},
+    {"path":"src/riverview_core/status_dashboard/storage_inventory.py","revision":"1.0.0","source":"codex/dashboard-storage-telemetry-20261022","restore":"copy this backup to the original path"},
+    {"path":"tests/test_storage_inventory.py","revision":"1.0.0","source":"codex/dashboard-storage-telemetry-20261022","restore":"copy this backup to the original path"}
+  ]
+}
