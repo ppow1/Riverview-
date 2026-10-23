@@ -3,7 +3,8 @@ Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the s
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.17
+File Revision: 1.1.19
+Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Distinguish live registered engineering capabilities from assignment-lease activity.
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify per-slot context counters and unavailable KV-cache bytes.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free stream activity projection.
@@ -170,7 +171,7 @@ reuse `RIVERVIEW_SOURCE_COMMIT` as the knowledge pin. The provider resolves the
 configured root when the Dashboard process starts, so restart only the Dashboard
 after changing the knowledge package pointer or pin.
 
-The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. The worker summary counts active registry rows with recent, stale, absent, or future-dated assignment-lease heartbeats. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. These fields describe lease activity only; they do not establish whether a worker process is running, idle, disconnected, blocked, or failed. A worker polling while idle may have no assignment lease and therefore an unknown lease heartbeat. Process liveness is unavailable from this projection. The overview labels lease health and lease counts explicitly. List/detail
+The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. Active workers configured in Grace are matched to the capability snapshot written with Grace's heartbeat and to their active `work-order:engineering` registration; an idle capability can therefore be healthy without an active assignment lease. Workers not present in that live capability snapshot continue to use their latest assignment-lease heartbeat and remain unknown or stale when there is no fresh lease evidence. `GET /api/v1/workers` exposes the telemetry source, live registered capabilities, last Grace heartbeat, last lease heartbeat, scope, and active lease count separately. This is process/configuration readiness evidence, not proof that every remote worker dependency is reachable or that a specific assignment is authorized. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database
 unavailability returns a status projection whose `projection_status` is
 `unavailable`; HTTP query failures return 503. A reachable PostgreSQL instance
@@ -179,9 +180,11 @@ this is a valid domain state, not a transport failure. The browser skips the
 optional attention query while its relation is absent and displays that state.
 CME values are
 `healthy`, `degraded`, `stale`, `unavailable`, or `not_initialized`; a missing
-heartbeat is unknown/not initialized, never healthy. Worker status is derived
-only from recorded assignment-lease heartbeats; no lease means `unknown`. A
-future-dated heartbeat is `unverified`. Event time/correlation is retained as
+heartbeat is unknown/not initialized, never healthy. A configured Grace worker
+capability is healthy only while present in the persisted runtime capability
+snapshot and the Grace service heartbeat is fresh and healthy. Other worker
+status is derived from recorded assignment-lease heartbeats; no lease means
+`unknown`. A future-dated heartbeat is `unverified`. Event time/correlation is retained as
 recorded, not inferred from browser refresh time.
 
 Machine-readable route schema: `docs/components/STATUS_DASHBOARD_API.schema.json`.

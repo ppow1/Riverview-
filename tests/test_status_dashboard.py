@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.70
+# Revision: 1.0.73
+# Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify idle worker health requires matching active engineering registration.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-C4-MERGE-20261023 | Preserve ComfyUI artifact, telemetry, cancellation and Snapshot archive acceptance.
 # Purpose: Verify authenticated dashboard projections, Engineering artifacts, and archive routes.
 # =============================================================================
@@ -1727,6 +1728,79 @@ class DashboardPostgresTests(unittest.TestCase):
         self.assertEqual(sum(w["active_leases"] for p in pages for w in p["items"]),2)
         self.assertEqual(len(self.projection.snapshot()["workers"]["items"]),4)
 
+    def test_idle_grace_worker_uses_capability_heartbeat_without_lease(self):
+        worker_id = "worker:grace-engineering"
+        capability = "engineering.comfyui-image.v1"
+        now = datetime.now(timezone.utc)
+        with self.admin.cursor() as cur:
+            cur.execute("""CREATE TABLE grace_execution_health (
+                service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
+                worker_capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
+                last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
+                last_error_type TEXT, cycles_completed BIGINT NOT NULL)""")
+            cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
+                "VALUES (%s,%s,%s::jsonb,'work-order:engineering')",
+                (worker_id, b"g" * 32, json.dumps([capability])))
+            cur.execute("""INSERT INTO grace_execution_health
+                (service_id,instance_id,status,worker_capabilities,last_heartbeat_at,last_cycle_at,
+                 last_error_type,cycles_completed)
+                VALUES ('grace.execution.v1',%s,'healthy',%s::jsonb,%s,%s,NULL,1)""",
+                (uuid4(), json.dumps([{"worker_id": worker_id, "capability": capability}]), now, now))
+
+        page = self.projection.workers(limit=100)
+        worker = next(item for item in page["items"] if item["worker_id"] == worker_id)
+        self.assertEqual(worker["status"], "healthy")
+        self.assertEqual(worker["active_leases"], 0)
+        self.assertEqual(worker["source"], "grace_execution_health")
+        self.assertEqual(worker["live_registered_capabilities"], [capability])
+        self.assertEqual(worker["scope_ref"], "work-order:engineering")
+        summary = self.projection.status()["workers"]
+        self.assertEqual(summary["healthy_workers"], 1)
+        self.assertEqual(summary["active_leases"], 0)
+
+        with self.admin.cursor() as cur:
+            cur.execute("UPDATE grace_execution_health SET last_heartbeat_at=%s "
+                        "WHERE service_id='grace.execution.v1'", (now-timedelta(minutes=2),))
+        worker = next(item for item in self.projection.workers(limit=100)["items"]
+                      if item["worker_id"] == worker_id)
+        self.assertEqual(worker["status"], "stale")
+
+    def test_grace_health_does_not_override_missing_capability_or_engineering_scope(self):
+        capability = "engineering.comfyui-image.v1"
+        now = datetime.now(timezone.utc)
+        cases = (
+            ("worker:capability-mismatch", ["engineering.codex-cli-artifact.v1"],
+             "work-order:engineering"),
+            ("worker:scope-mismatch", [capability], "work-order:other"),
+        )
+        runtime_capabilities = []
+        with self.admin.cursor() as cur:
+            cur.execute("""CREATE TABLE grace_execution_health (
+                service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
+                worker_capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
+                last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
+                last_error_type TEXT, cycles_completed BIGINT NOT NULL)""")
+            for worker_id, registered, scope in cases:
+                cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
+                    "VALUES (%s,%s,%s::jsonb,%s)",
+                    (worker_id, b"m" * 32, json.dumps(registered), scope))
+                runtime_capabilities.append({"worker_id": worker_id, "capability": capability})
+            cur.execute("""INSERT INTO grace_execution_health
+                (service_id,instance_id,status,worker_capabilities,last_heartbeat_at,last_cycle_at,
+                 last_error_type,cycles_completed)
+                VALUES ('grace.execution.v1',%s,'healthy',%s::jsonb,%s,%s,NULL,1)
+                ON CONFLICT (service_id) DO UPDATE SET status=EXCLUDED.status,
+                  worker_capabilities=EXCLUDED.worker_capabilities,
+                  last_heartbeat_at=EXCLUDED.last_heartbeat_at,last_cycle_at=EXCLUDED.last_cycle_at""",
+                (uuid4(), json.dumps(runtime_capabilities), now, now))
+
+        page = self.projection.workers(limit=100)
+        for worker_id, _registered, _scope in cases:
+            worker = next(item for item in page["items"] if item["worker_id"] == worker_id)
+            self.assertEqual(worker["status"], "unknown")
+            self.assertEqual(worker["live_registered_capabilities"], [])
+        self.assertEqual(self.projection.status()["workers"]["healthy_workers"], 0)
+
     def test_inactive_retired_registration_is_excluded_from_active_health_counts(self):
         with self.admin.cursor() as cur:
             cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref,active) "
@@ -1768,6 +1842,7 @@ class DashboardPostgresTests(unittest.TestCase):
                 self.skipTest("test database identity cannot exercise the dashboard runtime role")
             cur.execute(sql.SQL("""CREATE TABLE {}.grace_execution_health (
                 service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
+                worker_capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
                 last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
                 last_error_type TEXT, cycles_completed BIGINT NOT NULL)""").format(
                     sql.Identifier(self.schema)))

@@ -1,7 +1,8 @@
 # ======================================================================# RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.62
+# Revision: 1.0.63
+# Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify Grace persists the exact configured worker capability set.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve cancellation authorization, audit, idempotency, queue exclusion, and active-work protection tests.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Prove four-step verified completion recovers after restart and ignores conversational review disagreement.
@@ -464,6 +465,38 @@ class GraceExecutionTests(unittest.TestCase):
         self.admin.execute("DROP SCHEMA IF EXISTS " + self.schema + " CASCADE")
         self.admin.close()
         self.temp.cleanup()
+
+    def test_grace_health_heartbeat_persists_live_worker_capabilities(self):
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        class Verifier:
+            def verify(self, *_args, **_kwargs):
+                return None
+
+        repository_worker = SimpleNamespace(worker_id=self.worker_id, run_once=lambda **_kwargs: {})
+        comfy_worker = SimpleNamespace(worker_id=self.worker_id, run_once=lambda **_kwargs: {})
+        verifier = Verifier()
+        capabilities = {
+            "engineering.codex-cli-artifact.v1": repository_worker,
+            "engineering.comfyui-image.v1": comfy_worker,
+        }
+        service = GraceExecutionService(self.pipeline, self.adapter, repository_worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root / "health-artifacts", execution_workers=capabilities,
+            verifiers={key: verifier for key in capabilities})
+        service._heartbeat("healthy")
+
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT worker_capabilities FROM grace_execution_health "
+                        "WHERE service_id='grace.execution.v1'")
+            observed = cur.fetchone()["worker_capabilities"]
+        self.assertEqual(observed, [
+            {"worker_id": self.worker_id, "capability": "engineering.codex-cli-artifact.v1"},
+            {"worker_id": self.worker_id, "capability": "engineering.comfyui-image.v1"},
+        ])
 
     def _create_grounded_reasoning_objective(self, objective_id):
         row = self.pipeline.submit_objective(
