@@ -1,0 +1,69 @@
+{
+  "artifacts": {
+    "browser-report.json": {
+      "path": "browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "bca2d168a65b00667cd7e095cbfe928f4ae40734f1114243ab6e5bedc6d5c6ff",
+      "size_bytes": 10551
+    },
+    "gpu-cards-pending-refresh-fixture.png": {
+      "path": "gpu-cards-pending-refresh-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "787d91037b7ef9226ff14eb1fe965aae85a0caefc59c47ce08ca7c39d73efa25",
+      "size_bytes": 388858
+    },
+    "gpu-cards-recovered-fixture.png": {
+      "path": "gpu-cards-recovered-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "a54fd70ff0518ad28326121db0ae9a0ca67e0ab053d8079cf5a1d3d724673988",
+      "size_bytes": 389403
+    },
+    "gpu-cards-stale-fixture.png": {
+      "path": "gpu-cards-stale-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "414aaf9f531a2c6336f21f3d4d6a60097247d09288a123854525811775735270",
+      "size_bytes": 389745
+    },
+    "hardware-ai-view-fixture.png": {
+      "path": "hardware-ai-view-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "a26e38cb1f13c86fa70d483e9b96e3cb02442bec31a0e0f80cf41a068b839aa5",
+      "size_bytes": 403225
+    },
+    "octo1-80b-allocation-fixture.png": {
+      "path": "octo1-80b-allocation-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "56e73c3e310b16091485887877f76656d2b9c867210b1010515caa998fd16259",
+      "size_bytes": 412169
+    },
+    "octo1-chassis-front-fixture.png": {
+      "path": "octo1-chassis-front-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "8bb732da052cda17864dd57f1d9c20647dd4a4b302f5b11780a6d58764d0e15c",
+      "size_bytes": 395835
+    },
+    "octo1-chassis-open-fixture.png": {
+      "path": "octo1-chassis-open-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "e993de6af152f4d991ac458adbe43db5a23b76e422f366a7e1e9706557af1bad",
+      "size_bytes": 453776
+    },
+    "octo1-front-fan-detail-fixture.png": {
+      "path": "octo1-front-fan-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "6fdd96db7fe806792ef596fc39b5fcd26d9549ee2588c3ea0b50c53b60647aba",
+      "size_bytes": 396895
+    },
+    "octo1-rtx4090-detail-fixture.png": {
+      "path": "octo1-rtx4090-detail-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "eb438ac983784972f5aa9cebd1fdd0582f5cff459cc24e16a436cb47be4d2742",
+      "size_bytes": 399907
+    }
+  },
+  "component_id": "RIVERVIEW-V2-HARDWARE-AI",
+  "deployment_id": null,
+  "manifest_revision": "1.0.0",
+  "source_commit": "189a83d1f5d1a21998507518c2c526d1b7f8f174",
+  "task_id": "RV-V2-WINDOWS-OCTO2-TELEMETRY-231"
+}
