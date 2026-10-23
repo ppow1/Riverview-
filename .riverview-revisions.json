@@ -25,7 +25,7 @@
       "size_bytes": 1504905
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.319"
+      "revision": "1.1.323"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -7847,9 +7847,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.30",
-      "sha256": "f8f3fe7cd6aae0996b8d0a475a1be679655479630d8a2486bb8eaa2db816d27d",
-      "size_bytes": 766537
+      "revision": "1.1.32",
+      "sha256": "6cc2b3e1ea2350dc0954f82cd9aadadfa2b727ad1e02bb22f58a79107cfa5293",
+      "size_bytes": 780872
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7919,9 +7919,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.10",
-      "sha256": "31b10c71744786d4c02de58b690f6d31dc9cfc3620c788760d42136e5abd8b0f",
-      "size_bytes": 30062
+      "revision": "1.0.12",
+      "sha256": "a727123b5853ada0e57b5d6e2636fa92265d488f65434a22940cfff1dbc47913",
+      "size_bytes": 42415
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -9548,8 +9548,26 @@
       "revision": "1.0.1",
       "sha256": "75da3b47937776addb01912e1de1f11dd1b5cf859a4df55850958172cfa3e5c3",
       "size_bytes": 15190
+    },
+    "website/v2/deployed/assets/octominer/controller-feature-reference.png": {
+      "path": "website/v2/deployed/assets/octominer/controller-feature-reference.png",
+      "revision": "1.0.0",
+      "sha256": "1bb72f98c40228ef9ccaa35133e16adeac6e5c639da3ab82f54b35a2882177dc",
+      "size_bytes": 739048
+    },
+    "website/v2/deployed/assets/octominer/smart-watchdog-fan-controller-reference.png": {
+      "path": "website/v2/deployed/assets/octominer/smart-watchdog-fan-controller-reference.png",
+      "revision": "1.0.0",
+      "sha256": "d8e243a5fae87fd7d969033dc6b00476d3b5c5892852ac42b552441dac535299",
+      "size_bytes": 1612974
+    },
+    "website/v2/deployed/assets/octominer/x12ultra-front-open-chassis-reference.png": {
+      "path": "website/v2/deployed/assets/octominer/x12ultra-front-open-chassis-reference.png",
+      "revision": "1.0.0",
+      "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
+      "size_bytes": 2008940
     }
   },
-  "manifest_revision": "1.1.320",
+  "manifest_revision": "1.1.323",
   "updated_at": "2026-10-23T12:08:59Z"
 }

@@ -1,0 +1,43 @@
+/*
+Riverview~ Controlled Source
+File: website/v2/deployed/assets/communications.css
+Component: RIVERVIEW-V2-WORKSPACE-SHELL
+Revision: 1.0.1
+Purpose: Style the V2 Communications Activity monitor and explicit unavailable-source state
+Execution Model: Static browser presentation
+Observability: Accessible status, filters, ledger, and source notice
+Dependencies: website/v2/assets/workspace.css design tokens
+Inputs/Outputs: Communications Activity markup
+Authority: Presentation only
+Changed: 2026-10-21 UTC | RV-WEB-V2-COMMS-ACTIVITY-001 | Initial activity monitor styles
+Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deployed V2 source under its explicit production bundle path.
+Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
+Tests: tests/test_v2_workspace_shell.py
+History: Git and revision/backup manifest
+*/
+.communications-workspace{display:grid;gap:18px;padding:3px 0 16px}
+.communications-heading,.activity-ledger-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.communications-heading h2{margin:7px 0 8px;font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:400;letter-spacing:-.02em}
+.communications-heading .muted{max-width:640px;line-height:1.55}
+.activity-state{flex:none;padding:7px 10px;border:1px solid #e6d9b9;border-radius:20px;background:#fbf7ec;color:#82692f;font-size:9px;font-weight:700;letter-spacing:.08em}
+.activity-source-alert{padding:15px 17px;border:1px solid #e8d9b8;border-left:3px solid #bd9650;border-radius:8px;background:#fffaf0;color:#514a3d}
+.activity-source-alert b{font-size:12px}.activity-source-alert p{margin:7px 0;color:#716956;font-size:11px;line-height:1.55}.activity-source-alert small{color:#847b68;font-size:9px}
+.activity-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.activity-summary article{min-width:0;padding:13px;border:1px solid var(--line);border-radius:8px;background:var(--surface,#fff)}
+.activity-summary span,.activity-summary small{display:block;color:var(--muted);font-size:9px}.activity-summary strong{display:block;margin:8px 0 5px;font-size:14px;font-weight:600}.activity-summary small{font-size:8px;line-height:1.4}
+.activity-ledger{padding:17px;border:1px solid var(--line);border-radius:9px;background:var(--surface,#fff)}
+.activity-ledger-heading h3{margin:0 0 5px;font-family:Georgia,"Times New Roman",serif;font-size:18px;font-weight:500}.activity-ledger-heading .muted{font-size:10px;line-height:1.5}
+.activity-ledger-heading button{flex:none;padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px;cursor:pointer}
+.activity-ledger-heading button:hover{border-color:#90b9b4}.refresh-status{margin:10px 0;color:var(--muted);font-size:9px;line-height:1.45}
+.activity-filters{display:grid;grid-template-columns:minmax(190px,2fr) repeat(3,minmax(120px,1fr));gap:10px;margin:15px 0}
+.activity-filters label{display:grid;gap:6px;color:#737f88;font-size:9px;font-weight:650}
+.activity-filters input,.activity-filters select{width:100%;min-height:35px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px}
+.activity-table-wrap{width:100%;overflow:auto;border:1px solid var(--line);border-radius:7px}
+.activity-table-wrap table{width:100%;border-collapse:collapse;text-align:left;font-size:9px}
+.activity-table-wrap th{padding:10px 9px;background:#f5f7f7;color:#71808a;font-weight:650;white-space:nowrap}
+.activity-table-wrap td{padding:10px 9px;border-top:1px solid var(--line);color:var(--ink)}
+.activity-empty{margin:0;padding:20px 12px;text-align:center;color:var(--muted);font-size:10px;line-height:1.5}
+.activity-detail{margin-top:12px;padding:10px 0;border-top:1px solid var(--line);color:#65727b;font-size:10px}.activity-detail p{margin:8px 0 0;color:var(--muted);line-height:1.5}
+@media(max-width:900px){.activity-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.activity-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.communications-heading,.activity-ledger-heading{align-items:flex-start;flex-direction:column}.communications-heading h2{font-size:24px}.activity-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.activity-filters{grid-template-columns:1fr}.activity-ledger{padding:12px}.activity-table-wrap table{min-width:640px}}
+:root[data-theme="dark"] .activity-source-alert{background:#29261f;border-color:#5f5032;color:#e4d9c0}:root[data-theme="dark"] .activity-source-alert p,:root[data-theme="dark"] .activity-source-alert small{color:#c2b799}:root[data-theme="dark"] .activity-state{background:#302b20;color:#e0c985;border-color:#675834}:root[data-theme="dark"] .activity-table-wrap th{background:#293238}
