@@ -136,6 +136,12 @@
         "unknown"
       ]
     },
+    "recovery_action": {
+      "oneOf": [
+        { "type": "null" },
+        { "const": "LOGIN_REQUIRED" }
+      ]
+    },
     "target_resolution": {
       "enum": [
         "exact_match",

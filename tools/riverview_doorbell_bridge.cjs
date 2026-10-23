@@ -198,6 +198,8 @@ async function statusSnapshot(runtime = {}) {
     authentication_status: !readiness.exact_target_resolvable ? 'unknown' :
       (!readiness.authenticated_session ? 'login_required' :
         (readiness.composer_ready === false ? 'authenticated_composer_unavailable' : 'composer_ready')),
+    recovery_action: readiness.exact_target_resolvable && readiness.cdp_available &&
+      !readiness.authenticated_session ? 'LOGIN_REQUIRED' : null,
     target_resolution: readiness.exact_target_resolvable ? 'exact_match' : 'unresolved',
     fixed_action_available: readiness.fixed_action_available,
     last_trigger: lastTrigger,

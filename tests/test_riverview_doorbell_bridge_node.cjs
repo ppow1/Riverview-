@@ -74,6 +74,7 @@ test('status contract reports local readiness, external blockers and freshness w
   assert.equal(status.status, 'blocked');
   assert.equal(status.ready, false);
   assert.equal(status.authentication_status, 'login_required');
+  assert.equal(status.recovery_action, 'LOGIN_REQUIRED');
   assert.equal(status.cdp.address, '127.0.0.1');
   assert.equal(status.freshness.stale_after_seconds, 60);
   assert.equal(status.workflow_position, null);
@@ -87,6 +88,7 @@ test('authenticated conversation without a recognized composer is not reported a
     designated_target_configured: true, exact_target_resolvable: true,
     fixed_action_available: true, ready: false, failure_class: null } });
   assert.equal(status.authentication_status, 'authenticated_composer_unavailable');
+  assert.equal(status.recovery_action, null);
   assert.ok(status.blockers.some(item => item.code === 'CHATGPT_COMPOSER_UNAVAILABLE'));
   assert.equal(status.blockers.some(item => item.code === 'CHATGPT_AUTHENTICATION_REQUIRED'), false);
 });
