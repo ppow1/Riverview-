@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.73
+# Revision: 1.0.74
+# Changed: 2026-10-23 UTC | RV-GRACE-CANCELLED-PROGRESS-20261023 | Cover terminal cancellation with stale reasoning and blocked activity.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify idle worker health requires matching active engineering registration.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-C4-MERGE-20261023 | Preserve ComfyUI artifact, telemetry, cancellation and Snapshot archive acceptance.
 # Purpose: Verify authenticated dashboard projections, Engineering artifacts, and archive routes.
@@ -1675,6 +1676,74 @@ class DashboardPostgresTests(unittest.TestCase):
         self.assertEqual(restored["grounding_diagnostics"], item["grounding_diagnostics"])
         self.assertEqual(self.projection.objectives(limit=10, conversation_id=other_conversation,
             owner_principal_id=owner, progress_only=True)["items"], [])
+
+    def test_cancelled_objective_without_assignment_keeps_terminal_status_and_activity(self):
+        self.admin.execute((self.core / "resident_execution/migrations/0001_grace_objectives.sql")
+                           .read_text(encoding="utf-8"))
+        self.admin.execute((self.core / "resident_execution/migrations/0003_resident_conversation.sql")
+                           .read_text(encoding="utf-8"))
+        owner = "principal:cancelled-objective-owner"
+        conversation_id = str(uuid4())
+        objective_id = "objective:" + uuid4().hex
+        now = datetime.now(timezone.utc)
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO resident_conversations
+                (conversation_id,office_id,owner_principal_id)
+                VALUES (%s,'grace',%s)""", (conversation_id, owner))
+            cur.execute("""INSERT INTO grace_objectives
+                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,revision)
+                VALUES (%s,'retired request','work-order:engineering',%s,'[]'::jsonb,'CANCELLED',3)""",
+                (objective_id, owner))
+            history = (
+                ("objective.received", now - timedelta(seconds=4),
+                 {"origin": {"conversation_id": conversation_id, "source_sequence": 4}}),
+                ("execution.reasoning_failed", now - timedelta(seconds=3),
+                 {"reason_code": "provider_unavailable"}),
+                ("objective.cancelled", now - timedelta(seconds=2),
+                 {"reason": "obsolete test objective"}),
+                ("execution.reasoning_failed", now - timedelta(seconds=1),
+                 {"reason_code": "inflight_reasoning_failed"}),
+            )
+            for index, (event_type, occurred_at, payload) in enumerate(history):
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload,occurred_at)
+                    VALUES (%s,%s,%s,'test',%s::jsonb,%s)""",
+                    (objective_id, event_type, f"history:{objective_id}:{index}",
+                     json.dumps(payload), occurred_at))
+
+        item = self.projection.objectives(limit=10, conversation_id=conversation_id,
+            owner_principal_id=owner, progress_only=True)["items"][0]
+        self.assertEqual(item["objective_id"], objective_id)
+        self.assertEqual(item["status"], "CANCELLED")
+        self.assertEqual(item["lifecycle_status"], "cancelled")
+        self.assertEqual(item["lifecycle_stage"], "Objective cancelled")
+        self.assertIsNone(item["assignment_id"])
+        self.assertIsNone(item["assignment_state"])
+        self.assertEqual(item["latest_event"]["event_type"], "execution.reasoning_failed")
+        with self.admin.cursor() as cur:
+            cur.execute("SELECT count(*) AS count FROM grace_objective_events WHERE objective_id=%s",
+                        (objective_id,))
+            self.assertEqual(cur.fetchone()["count"], len(history))
+
+    def test_cancelled_objective_outweighs_blocked_assignment_activity(self):
+        self.admin.execute((self.core / "resident_execution/migrations/0001_grace_objectives.sql")
+                           .read_text(encoding="utf-8"))
+        assignment_id = self.create("cancelled-with-blocked-assignment")
+        self.ledger.transition(assignment_id, "blocked", "test_block",
+            f"blocked:{assignment_id}", actor_id="test-monitor")
+        objective_id = "objective:" + uuid4().hex
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO grace_objectives
+                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+                 assignment_id,revision)
+                VALUES (%s,'retired request','work-order:engineering','steward:test',
+                        '[]'::jsonb,'CANCELLED',%s,3)""", (objective_id, assignment_id))
+
+        item = self.projection.objectives(limit=10, objective_id=objective_id)["items"][0]
+        self.assertEqual(item["status"], "CANCELLED")
+        self.assertEqual(item["assignment_state"], "blocked")
+        self.assertEqual(item["lifecycle_status"], "cancelled")
+        self.assertEqual(item["lifecycle_stage"], "Objective cancelled")
 
     def test_stale_and_future_cme_heartbeat_are_never_healthy(self):
         self.create("stale")

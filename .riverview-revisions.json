@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.24",
-      "sha256": "fd17dfc24a9884af12acff2a5c68b6472e97ff9f5f4cce198449855ad9d61463",
-      "size_bytes": 1296735
+      "revision": "1.0.25",
+      "sha256": "c32eba699d815d41bce8e48d9a45e637e4c64adcc4cce45efc244cee1b3c6b02",
+      "size_bytes": 1504905
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.318"
+      "revision": "1.1.319"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -677,9 +677,9 @@
     },
     "docs/components/STATUS_DASHBOARD.md": {
       "path": "docs/components/STATUS_DASHBOARD.md",
-      "revision": "1.1.20",
-      "sha256": "aedcccfa176536ebed475d3b68b19755a55d5bf1bbba014943a721393380b75e",
-      "size_bytes": 37856
+      "revision": "1.1.21",
+      "sha256": "59b766faa279ea6e63dae9dcf02aaeade5c89ad71abaa01b7b184d7491669789",
+      "size_bytes": 38403
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
@@ -8825,9 +8825,9 @@
     },
     "src/riverview_core/status_dashboard/projection.py": {
       "path": "src/riverview_core/status_dashboard/projection.py",
-      "revision": "1.0.14",
-      "sha256": "279cf7025bbb75b7a8da5c0c9e78e0b210a6587c3cea01224dd79989eac1e00f",
-      "size_bytes": 52257
+      "revision": "1.0.17",
+      "sha256": "5266373c2eadf8448ed6ad3ce9a0402a59c41c26ff8115bc51830a7c9ca5d517",
+      "size_bytes": 60248
     },
     "src/riverview_core/status_dashboard/resource_telemetry.py": {
       "path": "src/riverview_core/status_dashboard/resource_telemetry.py",
@@ -9491,9 +9491,9 @@
     },
     "tests/test_status_dashboard.py": {
       "path": "tests/test_status_dashboard.py",
-      "revision": "1.0.68",
-      "sha256": "ab4b84c99cd98ed976d8838469ee8a7daf9c402fbdc625c80297d187c44a4827",
-      "size_bytes": 114454
+      "revision": "1.0.74",
+      "sha256": "9455e640bab927bc43c804b0406d7b334c452184848d055a95c550b31a21c336",
+      "size_bytes": 122102
     },
     "tests/test_storage_inventory.py": {
       "path": "tests/test_storage_inventory.py",

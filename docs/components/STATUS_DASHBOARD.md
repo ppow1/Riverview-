@@ -3,7 +3,8 @@ Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the s
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.20
+File Revision: 1.1.21
+Changed: 2026-10-23 UTC | RV-GRACE-CANCELLED-PROGRESS-20261023 | Define terminal cancellation precedence over historical activity in objective progress.
 Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Define stable GPU identity and fail-closed allocation/reservation telemetry.
 Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Distinguish live registered engineering capabilities from assignment-lease activity.
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
@@ -99,6 +100,12 @@ omitted. Event payloads, authority grants, artifact content, credentials and
 private conversation content are not projected. Objective summaries show at
 most 512 characters of the authorized human request, lifecycle, artifact digest,
 verification decision and pinned source revision.
+
+Objective progress derives terminal `COMPLETED` and `CANCELLED` presentation from
+the authoritative objective status before interpreting assignment, rework, or
+failure activity. A later or historical reasoning/assignment failure remains
+visible as latest activity but cannot change a `CANCELLED` objective's displayed
+status or stage. Progress is read-only and does not alter objective state.
 
 | Route | Purpose | Parameters and limit |
 | --- | --- | --- |
