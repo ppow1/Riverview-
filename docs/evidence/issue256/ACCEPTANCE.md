@@ -1,7 +1,7 @@
 # Issue #256 photoreal workflow acceptance
 
-**Document Revision:** 1.0.0  
-**Task:** RV-ISSUE-256-PHOTOREAL-WORKFLOW  
+**Document Revision:** 1.0.1
+**Task:** RV-ISSUE-256-PHOTOREAL-WORKFLOW
 **Date:** 2026-10-23 UTC
 
 ## Selection and host capacity
