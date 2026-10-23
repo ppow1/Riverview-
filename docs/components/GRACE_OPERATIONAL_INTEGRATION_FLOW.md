@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.67
+**Document Revision:** 1.0.68
 Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Complete only from persisted accepted verification for every required step; recover after restart and publish conversation results afterward.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -107,6 +107,7 @@ flowchart LR
     g_rv_grace_operational_integration_independent_artifact_check_2502f001["Independent artifact verification checks assignment-bound integrity, scope, provenance, required structure, explicit deliverable literals, and rejects negative JSON decisions without treating envelope validity as substantive completion"]
     g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — evidence failures remain pending; incomplete typed proposals remain GROUNDED with a sanitized detail code and resume through the persistent reasoning cycle after the prior plan is explicitly corrected; never bypass proposal or assignment authorization"]]
     g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated exact-grant request persists one receipt; VERIFIED grounding advances RECEIVED or WAITING_FOR_EVIDENCE to GROUNDED atomically, while incomplete evidence stays pending"]
+    g_rv_grace_operational_integration_grounded_objective_cancellation_141266af["Authorized assignment.cancel may transition GROUNDED to CANCELLED only with an explicit reason and no objective assignment, ledger assignment, dispatch event, or active step; actor, reason, resulting revision, timestamp, and append-only event are retained. Existing WORK_ORDER_CREATED cancellation remains queued/ready-only."]
     g_rv_grace_operational_integration_typed_proposal_api_9e97178a["Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority"]
     g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8["Persistent loop advances existing dispatch, leased worker execution, verification, completion reconciliation, and result publication before potentially slow grounded/external reasoning; it uses the existing CME fair scheduler and persists heartbeat through the narrow runtime ACL"]
     g_rv_grace_operational_integration_dispatch_retry_limit_3d51ab17{"Persist authorization/dispatch failures; stop automatic dispatch after three attempts and expose the proposal for operator attention"}
@@ -189,6 +190,7 @@ flowchart LR
   g_rv_grace_operational_integration_independent_artifact_check_2502f001 -->|diagnostic_branch| g_rv_grace_operational_integration_waiting_and_failure_0a7985d4
   g_rv_grace_operational_integration_evidence_review_600fe7b4 --> g_rv_grace_operational_integration_independent_artifact_check_2502f001
   g_rv_grace_operational_integration_governed_objective_api_39b3aa23 --> g_rv_grace_operational_integration_objective_intake_55567c14
+  g_rv_grace_operational_integration_governed_objective_api_39b3aa23 -->|recovery_route: Steward-authorized exact assignment.cancel retires eligible grounded objectives without Engineering assignment or dispatch| g_rv_grace_operational_integration_grounded_objective_cancellation_141266af
   g_rv_grace_operational_integration_objective_intake_55567c14 --> g_rv_grace_operational_integration_bounded_evidence_selection_eb29b3f5
   g_rv_grace_operational_integration_objective_intake_55567c14 -->|recovery_route: Retry the same authenticated source without changing original objective acceptance criteria| g_rv_grace_operational_integration_objective_intake_retry_fdc5836e
   g_rv_grace_operational_integration_objective_intake_retry_fdc5836e -->|Reground the same objective; verified evidence advances it once to normal proposal processing| g_rv_grace_operational_integration_typed_proposal_api_9e97178a

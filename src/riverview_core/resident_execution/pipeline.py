@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.29
+# Revision: 1.1.30
+# Changed: 2026-10-23 UTC | RV-GRACE-GROUNDED-OBJECTIVE-CANCEL-001 | Permit exact-grant cancellation of assignment-free grounded objectives with durable reason and revision evidence.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Complete from durable accepted step state and make duplicate completion calls idempotent; conversation reviews are post-completion delivery only.
 # Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Serialize grounding failure event persistence and make attempt replay idempotent.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Persist sanitized, correlated grounding failure details in durable objective events.
@@ -1138,34 +1139,108 @@ class GraceExecutionPipeline:
                                 payload)
         return self.get_objective(objective_id)
 
-    def cancel_work_order(self, objective_id, *, credential, authority_ref):
-        """Cancel only work that has not started, using an exact assignment.cancel grant."""
+    def cancel_work_order(self, objective_id, *, credential, authority_ref, reason=None):
+        """Cancel grounded or not-yet-started work under the exact assignment.cancel grant."""
+        if reason is not None and (not isinstance(reason, str) or
+                                   not reason.strip() or len(reason.strip()) > 1000):
+            raise ValueError("a bounded cancellation reason is required")
+        supplied_reason = reason is not None
+        reason = reason.strip() if supplied_reason else "Authorized work-order cancellation"
         objective = self.get_objective(objective_id)
-        if (objective is None or objective["status"] != "WORK_ORDER_CREATED" or
-                objective["scope_ref"] != authority_ref or not objective["assignment_id"]):
-            raise ObjectiveStateError("a dispatched objective in the exact scope is required")
+        if (objective is None or objective["scope_ref"] != authority_ref or
+                objective["status"] not in {"GROUNDED", "WORK_ORDER_CREATED", "CANCELLED"}):
+            raise ObjectiveStateError("a cancellable objective in the exact scope is required")
+        if objective["status"] == "GROUNDED" and not supplied_reason:
+            raise ValueError("grounded objective cancellation requires an explicit reason")
+
         try:
             with self.ledger.db.transaction():
                 with self.ledger.db.cursor() as cur:
                     self.ledger._set_search_path(cur)
+                    cur.execute("""SELECT status,scope_ref,assignment_id,revision
+                        FROM grace_objectives WHERE objective_id=%s FOR UPDATE""",
+                        (objective_id,))
+                    locked = cur.fetchone()
+                    if (locked is None or locked["scope_ref"] != authority_ref or
+                            locked["status"] not in {
+                                "GROUNDED", "WORK_ORDER_CREATED", "CANCELLED"}):
+                        raise ObjectiveStateError("objective changed before cancellation")
                     actor = self.authorizer.require(
                         cur, credential, "assignment.cancel", authority_ref)
-                    assignment = self.ledger.get(objective["assignment_id"])
-                    if not assignment or assignment["state"] not in {"queued", "ready"}:
-                        raise ObjectiveStateError("only queued or ready work can be cancelled safely")
-                    self.ledger.transition(
-                        assignment["id"], "cancelled", "authorized_work_order_cancellation",
-                        f"grace-work-order-cancel:{objective_id}", actor_id=actor["principal_id"])
-                    cur.execute("""UPDATE grace_objectives SET status='CANCELLED',
-                        revision=revision+1,updated_at=clock_timestamp()
-                        WHERE objective_id=%s AND status='WORK_ORDER_CREATED'""",
-                        (objective_id,))
-                    if cur.rowcount != 1:
-                        raise ObjectiveStateError("objective cancellation raced with another update")
-                    self._event(cur, objective_id, "work_order.cancelled",
-                                f"grace-work-order-cancelled:{objective_id}",
-                                actor["principal_id"],
-                                {"assignment_id": assignment["id"]})
+                    if locked["status"] == "CANCELLED":
+                        cur.execute("""SELECT event_type,payload FROM grace_objective_events
+                            WHERE objective_id=%s AND idempotency_key IN (%s,%s)
+                            ORDER BY sequence DESC LIMIT 1""",
+                            (objective_id,
+                             f"grace-objective-cancelled:{objective_id}",
+                             f"grace-work-order-cancelled:{objective_id}"))
+                        prior = cur.fetchone()
+                        if (prior is None or
+                                prior["payload"].get("reason", reason) != reason):
+                            raise ObjectiveStateError(
+                                "objective was already cancelled for a different reason")
+                    elif locked["status"] == "GROUNDED":
+                        if locked["assignment_id"] is not None:
+                            raise ObjectiveStateError(
+                                "grounded objective already has an Engineering assignment")
+                        cur.execute("""SELECT
+                            EXISTS (SELECT 1 FROM assignments WHERE objective_ref=%s) AS has_assignment,
+                            EXISTS (SELECT 1 FROM grace_objective_events
+                                WHERE objective_id=%s AND event_type='work_order.dispatched') AS has_dispatch,
+                            EXISTS (SELECT 1 FROM grace_objective_steps
+                                WHERE objective_id=%s AND
+                                  (assignment_id IS NOT NULL OR status<>'pending' OR dispatch_count>0))
+                                AS has_step_activity""",
+                            (objective_id, objective_id, objective_id))
+                        activity = cur.fetchone()
+                        if any(activity.values()):
+                            raise ObjectiveStateError(
+                                "grounded objective has Engineering assignment or dispatch history")
+                        cur.execute("""UPDATE grace_objectives SET status='CANCELLED',
+                            revision=revision+1,updated_at=clock_timestamp()
+                            WHERE objective_id=%s AND status='GROUNDED'
+                              AND assignment_id IS NULL AND revision=%s
+                            RETURNING revision,updated_at""",
+                            (objective_id, locked["revision"]))
+                        cancelled = cur.fetchone()
+                        if cancelled is None:
+                            raise ObjectiveStateError(
+                                "objective cancellation raced with another update")
+                        self._event(cur, objective_id, "objective.cancelled",
+                            f"grace-objective-cancelled:{objective_id}",
+                            actor["principal_id"], {
+                                "reason": reason,
+                                "authorized_principal": actor["principal_id"],
+                                "objective_revision": cancelled["revision"],
+                                "cancelled_at": cancelled["updated_at"].isoformat(),
+                            })
+                    else:
+                        assignment = self.ledger.get(locked["assignment_id"])
+                        if not assignment or assignment["state"] not in {"queued", "ready"}:
+                            raise ObjectiveStateError(
+                                "only queued or ready work can be cancelled safely")
+                        self.ledger.transition(
+                            assignment["id"], "cancelled", "authorized_work_order_cancellation",
+                            f"grace-work-order-cancel:{objective_id}",
+                            actor_id=actor["principal_id"])
+                        cur.execute("""UPDATE grace_objectives SET status='CANCELLED',
+                            revision=revision+1,updated_at=clock_timestamp()
+                            WHERE objective_id=%s AND status='WORK_ORDER_CREATED'
+                              AND revision=%s RETURNING revision,updated_at""",
+                            (objective_id, locked["revision"]))
+                        cancelled = cur.fetchone()
+                        if cancelled is None:
+                            raise ObjectiveStateError(
+                                "objective cancellation raced with another update")
+                        self._event(cur, objective_id, "work_order.cancelled",
+                            f"grace-work-order-cancelled:{objective_id}",
+                            actor["principal_id"], {
+                                "assignment_id": assignment["id"],
+                                "reason": reason,
+                                "authorized_principal": actor["principal_id"],
+                                "objective_revision": cancelled["revision"],
+                                "cancelled_at": cancelled["updated_at"].isoformat(),
+                            })
         except AssignmentIntakeDenied:
             raise ObjectiveNotAuthorized("assignment.cancel is not authorized") from None
         except Exception as exc:

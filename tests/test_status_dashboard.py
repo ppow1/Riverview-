@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.65
+# Revision: 1.0.66
+# Changed: 2026-10-23 UTC | RV-GRACE-GROUNDED-OBJECTIVE-CANCEL-001 | Verify authenticated objective cancellation forwards exact scope and reason.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Verify durable grounding projection, authenticated scope, redaction, retry guidance, and UI rendering contract.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Align retry-copy assertion with immutable criteria-source semantics.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Cover blank/explicit intake and criteria-source visibility.
@@ -602,6 +603,58 @@ class DashboardHTTPTests(unittest.TestCase):
                          ["new bounded evidence"], "objective-submit-credential",
                          "rereview:cycle-1:rev-2"))
         self.assertFalse(hasattr(pipeline, "dispatch_proposed"))
+
+    def test_authenticated_objective_cancel_route_preserves_exact_grant_and_reason(self):
+        from riverview_core.resident_execution import ObjectiveNotAuthorized
+
+        objective_id = "objective:dashboard-cancel"
+        scope_ref = "work-order:cancel-test"
+
+        class Pipeline:
+            def __init__(self):
+                self.calls = []
+
+            def cancel_work_order(self, requested_objective, *, credential,
+                                  authority_ref, reason=None):
+                self.calls.append((requested_objective, credential, authority_ref, reason))
+                if credential != "assignment-cancel-credential":
+                    raise ObjectiveNotAuthorized("exact cancellation grant required")
+                return {"status": "CANCELLED"}
+
+        pipeline = Pipeline()
+        self.server._objective_pipeline = pipeline
+
+        def post(data, *, token=None, authority=None):
+            body = json.dumps(data, separators=(",", ":")).encode()
+            headers = {"Content-Type": "application/json", "Content-Length": str(len(body))}
+            if token is not None:
+                headers["Authorization"] = "Bearer " + token
+            if authority is not None:
+                headers["X-Riverview-Authority"] = authority
+            conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+            conn.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
+                         body=body, headers=headers)
+            response = conn.getresponse()
+            status, payload = response.status, json.loads(response.read() or b"{}")
+            conn.close()
+            return status, payload
+
+        request = {"scope_ref": scope_ref, "reason": "Obsolete grounded objective"}
+        self.assertEqual(post(request)[0], 401)
+        self.assertEqual(post(request, token=self.token)[0], 403)
+        self.assertEqual(post(request, token=self.token,
+                              authority="wrong-scope-credential")[0], 403)
+        status, payload = post(request, token=self.token,
+                               authority="assignment-cancel-credential")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "CANCELLED")
+        self.assertEqual(pipeline.calls[-1], (objective_id,
+            "assignment-cancel-credential", scope_ref, "Obsolete grounded objective"))
+
+        status, _ = post({"scope_ref": scope_ref}, token=self.token,
+                         authority="assignment-cancel-credential")
+        self.assertEqual(status, 200)
+        self.assertIsNone(pipeline.calls[-1][-1])
 
     def test_public_shell_is_local_but_projection_requires_bearer(self):
         status, headers, body = self.request("GET", "/")
