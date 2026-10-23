@@ -20,7 +20,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 const OPERATION = 'ring_riverview_doorbell';
 const WAKE_TEXT = 'Riverview doorbell v1: inspect the Riverview MCP mailbox.';
 const CONFIG = process.env.RIVERVIEW_DOORBELL_CONFIG || path.join(os.homedir(), '.config', 'riverview', 'doorbell.json');
@@ -84,8 +84,10 @@ function connect(target, timeout) {
   return { socket, opened, call };
 }
 
-const READINESS = `(()=>{const route=location.hostname==='chatgpt.com'&&location.pathname.includes('/c/');const blocked=/\/auth\//i.test(location.pathname)||!!document.querySelector('input[type="password"],input[name="username"],[data-testid*="captcha"],iframe[src*="recaptcha"]');const e=document.querySelector('#prompt-textarea[contenteditable="true"],div[contenteditable="true"][aria-label="Chat with ChatGPT"]');const r=e?.getBoundingClientRect?.();return {authenticated:route&&!blocked,composer:!!e&&!!r&&r.width>0&&r.height>0&&!e.disabled};})()`;
-const FIXED_ACTION = `(async()=>{const e=document.querySelector('#prompt-textarea[contenteditable="true"],div[contenteditable="true"][aria-label="Chat with ChatGPT"]');if(!e)return {failure_class:'RIV-PLY-0007'};e.focus();e.replaceChildren();const p=document.createElement('p');p.textContent=${JSON.stringify(WAKE_TEXT)};e.appendChild(p);e.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:${JSON.stringify(WAKE_TEXT)}}));const b=document.querySelector('button[data-testid="send-button"],button[aria-label="Send prompt"],button[aria-label="Send message"]');const enabled=!!b&&!b.disabled&&b.getAttribute('aria-disabled')!=='true';if(!enabled)return {failure_class:'RIV-PLY-0008',composer_populated:true,send_control_found:!!b,send_control_enabled:false};b.click();await new Promise(resolve=>setTimeout(resolve,750));const remaining=(e.innerText||e.textContent||'').trim().length;return {submitted:true,composer_populated:true,send_control_found:true,send_control_enabled:true,click_invoked:true,composer_cleared:remaining===0};})()`;
+const COMPOSER_SELECTOR = '[role="textbox"][aria-label="Ask ChatGPT"],#prompt-textarea[contenteditable="true"],div[contenteditable="true"][aria-label="Chat with ChatGPT"],div[contenteditable="true"][aria-label="Ask ChatGPT"]';
+const SEND_SELECTOR = 'button[data-testid="send-button"],button[aria-label="Send"],button[aria-label="Send prompt"],button[aria-label="Send message"]';
+const READINESS = `(()=>{const route=location.hostname==='chatgpt.com'&&/^\\/c\\/[0-9a-f-]+\\/?$/i.test(location.pathname);const blocked=/\\/auth\\//i.test(location.pathname)||!!document.querySelector('input[type="password"],input[name="username"],[data-testid*="captcha"],iframe[src*="recaptcha"]');const e=document.querySelector(${JSON.stringify(COMPOSER_SELECTOR)});const r=e?.getBoundingClientRect?.();return {authenticated:route&&!blocked,composer:!!e&&!!r&&r.width>0&&r.height>0&&!e.disabled&&e.getAttribute('aria-disabled')!=='true'};})()`;
+const FIXED_ACTION = `(async()=>{const e=document.querySelector(${JSON.stringify(COMPOSER_SELECTOR)});if(!e)return {failure_class:'RIV-PLY-0007'};const existing=(e.innerText||e.textContent||'').trim();if(existing)return {failure_class:'RIV-PLY-0016',composer_populated:false,composer_empty_before_send:false};e.focus();e.replaceChildren();const p=document.createElement('p');p.textContent=${JSON.stringify(WAKE_TEXT)};e.appendChild(p);e.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:${JSON.stringify(WAKE_TEXT)}}));const b=document.querySelector(${JSON.stringify(SEND_SELECTOR)});const enabled=!!b&&!b.disabled&&b.getAttribute('aria-disabled')!=='true';if(!enabled)return {failure_class:'RIV-PLY-0008',composer_populated:true,composer_empty_before_send:true,send_control_found:!!b,send_control_enabled:false};b.click();await new Promise(resolve=>setTimeout(resolve,750));const remaining=(e.innerText||e.textContent||'').trim().length;return {submitted:true,composer_populated:true,composer_empty_before_send:true,send_control_found:true,send_control_enabled:true,click_invoked:true,composer_cleared:remaining===0};})()`;
 function readJournal() { try { return JSON.parse(fs.readFileSync(JOURNAL, 'utf8')); } catch { return {}; } }
 function writeJournal(value) {
   fs.mkdirSync(path.dirname(JOURNAL), { recursive: true, mode: 0o700 });
@@ -110,7 +112,7 @@ function validate(input) {
 }
 async function preflight() {
   const out = { bridge_version: VERSION, browser_runtime: false, cdp_available: false,
-    authenticated_session: false, designated_target_configured: false, exact_target_resolvable: false,
+    authenticated_session: false, composer_ready: false, designated_target_configured: false, exact_target_resolvable: false,
     fixed_action_available: true, ready: false, failure_class: null };
   let connection;
   try {
@@ -126,13 +128,14 @@ async function preflight() {
     connection = connect(target, 5000);
     await connection.opened;
     const probe = await connection.call('Runtime.evaluate', { returnByValue: true, expression: READINESS });
-    out.authenticated_session = probe?.result?.value?.authenticated === true && probe?.result?.value?.composer === true;
+    out.authenticated_session = probe?.result?.value?.authenticated === true;
+    out.composer_ready = probe?.result?.value?.composer === true;
   } catch (error) {
     out.failure_class = failureClass(error);
   } finally {
     try { connection?.socket.close(); } catch { /* best-effort local socket close */ }
   }
-  out.ready = out.browser_runtime && out.cdp_available && out.authenticated_session &&
+  out.ready = out.browser_runtime && out.cdp_available && out.authenticated_session && out.composer_ready &&
     out.designated_target_configured && out.exact_target_resolvable;
   return out;
 }
@@ -166,13 +169,17 @@ async function statusSnapshot(runtime = {}) {
   const blockers = [];
   if (!readiness.browser_runtime) blockers.push({ code: 'BROWSER_BINARY_UNAVAILABLE', owner: 'Codex3' });
   if (!readiness.cdp_available) blockers.push({ code: 'CDP_UNAVAILABLE', owner: 'Codex3' });
-  if (readiness.cdp_available && !readiness.authenticated_session)
+  if (readiness.cdp_available && readiness.exact_target_resolvable && !readiness.authenticated_session)
     blockers.push({ code: 'CHATGPT_AUTHENTICATION_REQUIRED', owner: 'Steward' });
+  if (readiness.cdp_available && readiness.exact_target_resolvable && readiness.authenticated_session &&
+      readiness.composer_ready === false)
+    blockers.push({ code: 'CHATGPT_COMPOSER_UNAVAILABLE', owner: 'Codex3' });
   if (readiness.cdp_available && !readiness.exact_target_resolvable)
     blockers.push({ code: 'DESIGNATED_CONVERSATION_UNRESOLVED', owner: 'Steward' });
   blockers.push({ code: 'COMMS5_MAILBOX_CONTRACT_NOT_INTEGRATED', owner: 'Codex1', reference: 'issue:96' });
   blockers.push({ code: 'GRACE_RESULT_CONSUMER_NOT_INTEGRATED', owner: 'Codex2', reference: 'issue:96' });
   const localReady = readiness.browser_runtime && readiness.cdp_available && readiness.authenticated_session &&
+    readiness.composer_ready !== false &&
     readiness.designated_target_configured && readiness.exact_target_resolvable;
   const localUnavailable = !readiness.browser_runtime || !readiness.cdp_available;
   return {
@@ -188,7 +195,9 @@ async function statusSnapshot(runtime = {}) {
     browser_runtime: runtime.browser_runtime || readiness.browser_runtime,
     browser_session: readiness.cdp_available ? 'running' : 'not_running',
     cdp: { status: readiness.cdp_available ? 'connected' : 'unavailable', address: '127.0.0.1', port: runtime.cdp_port || null },
-    authentication_status: readiness.exact_target_resolvable ? (readiness.authenticated_session ? 'composer_ready' : 'login_required') : 'unknown',
+    authentication_status: !readiness.exact_target_resolvable ? 'unknown' :
+      (!readiness.authenticated_session ? 'login_required' :
+        (readiness.composer_ready === false ? 'authenticated_composer_unavailable' : 'composer_ready')),
     target_resolution: readiness.exact_target_resolvable ? 'exact_match' : 'unresolved',
     fixed_action_available: readiness.fixed_action_available,
     last_trigger: lastTrigger,
@@ -259,4 +268,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = { FIXED_ACTION, OPERATION, READINESS, WAKE_TEXT, loadConfig, selectExactTarget, statusSnapshot, validate, verified };
+module.exports = { COMPOSER_SELECTOR, FIXED_ACTION, OPERATION, READINESS, SEND_SELECTOR, WAKE_TEXT, loadConfig, selectExactTarget, statusSnapshot, validate, verified };

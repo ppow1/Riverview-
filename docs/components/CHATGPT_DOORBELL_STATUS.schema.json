@@ -131,6 +131,7 @@
     "authentication_status": {
       "enum": [
         "composer_ready",
+        "authenticated_composer_unavailable",
         "login_required",
         "unknown"
       ]

@@ -23,7 +23,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rv-doorbell-test-'));
 process.env.RIVERVIEW_RUNTIME_ROOT = tempRoot;
-const { FIXED_ACTION, OPERATION, READINESS, WAKE_TEXT, selectExactTarget, statusSnapshot, validate, verified } = require('../tools/riverview_doorbell_bridge.cjs');
+const { COMPOSER_SELECTOR, FIXED_ACTION, OPERATION, READINESS, SEND_SELECTOR, WAKE_TEXT, selectExactTarget, statusSnapshot, validate, verified } = require('../tools/riverview_doorbell_bridge.cjs');
 
 const id = '00000000-0000-4000-8000-000000000000';
 const page = value => ({ type: 'page', url: `https://chatgpt.com/c/${value}`, webSocketDebuggerUrl: 'ws://127.0.0.1:9225/devtools/page/test' });
@@ -43,7 +43,13 @@ test('the operation and wake remain fixed, and only a composer transition proves
   assert.equal(WAKE_TEXT, 'Riverview doorbell v1: inspect the Riverview MCP mailbox.');
   assert.equal(verified({ submitted: true, click_invoked: true, composer_cleared: true }), true);
   assert.equal(verified({ submitted: true, click_invoked: true, composer_cleared: false }), false);
-  assert.match(FIXED_ACTION, /data-testid="send-button"/);
+  assert.match(COMPOSER_SELECTOR, /role=\\?"textbox/);
+  assert.match(COMPOSER_SELECTOR, /Ask ChatGPT/);
+  assert.match(SEND_SELECTOR, /aria-label/);
+  assert.match(SEND_SELECTOR, /Send/);
+  assert.match(FIXED_ACTION, /RIV-PLY-0016/);
+  assert.match(FIXED_ACTION, /composer_empty_before_send/);
+  assert.match(FIXED_ACTION, /aria-label/);
   assert.match(FIXED_ACTION, /composer_cleared/);
   assert.doesNotMatch(READINESS, /innerText|document\.body|textContent/);
   assert.doesNotMatch(FIXED_ACTION, /KeyboardEvent|fetch\(|XMLHttpRequest|responseText/);
@@ -72,6 +78,16 @@ test('status contract reports local readiness, external blockers and freshness w
   assert.equal(status.workflow_position, null);
   assert.ok(status.blockers.some(item => item.code === 'COMMS5_MAILBOX_CONTRACT_NOT_INTEGRATED'));
   assert.equal(JSON.stringify(status).includes(WAKE_TEXT), false);
+});
+
+test('authenticated conversation without a recognized composer is not reported as login required', async () => {
+  const status = await statusSnapshot({ readiness: { bridge_version: '1.0.3', browser_runtime: true,
+    cdp_available: true, authenticated_session: true, composer_ready: false,
+    designated_target_configured: true, exact_target_resolvable: true,
+    fixed_action_available: true, ready: false, failure_class: null } });
+  assert.equal(status.authentication_status, 'authenticated_composer_unavailable');
+  assert.ok(status.blockers.some(item => item.code === 'CHATGPT_COMPOSER_UNAVAILABLE'));
+  assert.equal(status.blockers.some(item => item.code === 'CHATGPT_AUTHENTICATION_REQUIRED'), false);
 });
 
 test('failed request persists only its identity and stable error class', () => {
