@@ -1,0 +1,2302 @@
+{
+  "graph_id": "rv:riverview-v2:workspace-shell",
+  "graph_revision": "1.0.24",
+  "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
+  "workflow_id": "local-static-preview",
+  "diagram_order": 80,
+  "source_references": [
+    "deploy/nginx/riverview-v2.location.conf",
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
+    "scripts/serve_v2_workspace_preview.py",
+    "scripts/setup_v2_workspace_preview_auth.py",
+    "scripts/verify_v2_work_monitor.cjs",
+    "website/v2/assets/communications.css",
+    "website/v2/assets/communications.js",
+    "website/v2/assets/fixtures.js",
+    "website/v2/assets/grace-chat.js",
+    "website/v2/assets/resource-monitor.css",
+    "website/v2/assets/resource-monitor.js",
+    "website/v2/assets/snapshot.js",
+    "website/v2/assets/work-monitor.css",
+    "website/v2/assets/work-monitor.js",
+    "website/v2/assets/workspace.css",
+    "website/v2/assets/workspace.js",
+    "website/v2/index.html",
+    "scripts/verify_v2_octo1_browser.cjs",
+    "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
+    "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
+    "website/v2/assets/octominer/controller-feature-reference.png",
+    "src/riverview_core/status_dashboard/server.py",
+    "scripts/verify_v2_grace_menu_chrome.cjs"
+  ],
+  "documentation_references": [
+    "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
+    "docs/components/STATUS_DASHBOARD.md",
+    "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+  ],
+  "verification_evidence": [
+    "tests/test_v2_workspace_shell.py",
+    "scripts/verify_v2_workspace_browser.py",
+    "scripts/verify_v2_workspace_mobile.cjs",
+    "scripts/verify_v2_workspace_snapshot_chrome.py",
+    "scripts/verify_v2_grace_chat_chrome.py",
+    "scripts/verify_v2_resource_monitor.cjs",
+    "scripts/verify_v2_work_monitor.cjs",
+    "scripts/verify_v2_octo1_browser.cjs",
+    "tests/test_status_dashboard.py"
+  ],
+  "nodes": [
+    {
+      "id": "rv:riverview-v2:workspace-shell:open-preview",
+      "node_revision": "1.0.1",
+      "type": "entry",
+      "label": "Start loopback or authenticated LAN preview",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:serve-static",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Apply Host, client subnet, and password session checks before serving assets",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render clearly labeled local preview fixtures",
+      "source_references": [
+        "website/v2/assets/fixtures.js",
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:choose-view",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Choose Overview, fixture view, or a resident workspace",
+      "source_references": [
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:retain-context",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Retain selected resident in browser memory across views",
+      "source_references": [
+        "website/v2/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject mutating preview methods and out-of-root paths",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:restart-preview",
+      "node_revision": "1.0.1",
+      "type": "recovery",
+      "label": "Restart preview, revoke sessions, and reset in-memory UI state",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:stop-preview",
+      "node_revision": "1.0.0",
+      "type": "exit",
+      "label": "Stop preview process without affecting V1",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:configure-password",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Steward chooses password locally; write salted hash only",
+      "source_references": [
+        "scripts/setup_v2_workspace_preview_auth.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:missing-hash",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Refuse LAN startup without protected password hash",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:check-client",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Validate explicit Host and trusted LAN source subnet",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:reject-client",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject wrong Host or client outside trusted subnet",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:check-session",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Check eight-hour signed session cookie",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:password-form",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Serve uncached password form with trusted-LAN warning",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:verify-password",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Validate exact Origin or consume a one-use CSRF token, then verify salted password hash",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject foreign Origin or missing, expired, replayed, or wrong-client CSRF token",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:rate-limited",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "After five failures, return 429 and 15-minute Retry-After",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:issue-session",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Issue HttpOnly SameSite cookie signed by in-memory key",
+      "source_references": [
+        "scripts/serve_v2_workspace_preview.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Choose theme or independent sidebar state",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:apply-theme",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Apply Light, Dark, or System theme; persist display preference only",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html",
+        "website/v2/assets/workspace.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:cycle-sidebars",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Cycle left and right sidebars independently through expanded, compact, and hidden",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html",
+        "website/v2/assets/workspace.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:restore-sidebars",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Restore a hidden sidebar using its accessible floating control",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html",
+        "website/v2/assets/workspace.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:integration-unavailable",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "Historical cross-origin chat barrier before authorized same-origin integration; not a current runtime state",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_browser.py",
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "node_revision": "1.0.1",
+      "type": "entry",
+      "label": "Click Snapshot in the active V2 view",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Capture the selected view and safe connection metadata without message contents",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_workspace_mobile.cjs",
+        "scripts/verify_v2_workspace_snapshot_chrome.py",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Hash structured members and build bounded ZIP manifest",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Download local ZIP; no network upload",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Inspect ZIP members and hashes against active V2 state",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "node_revision": "1.0.1",
+      "type": "failure",
+      "label": "Show local capture or package-bound failure without upload",
+      "source_references": [
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-chat-handoff",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "Retired cross-origin Dashboard handoff; the current V2 route uses same-origin authentication",
+      "source_references": [
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_browser.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:comms5-unverified",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "Keep Comms5 transport counts and inspectable message ledger UNVERIFIED when the authoritative event feed is absent",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_snapshot_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:open-v2-route",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Open LAN-only same-origin HTTPS /v2/ while V1 root continues serving Dashboard",
+      "source_references": [
+        "website/v2/index.html",
+        "deploy/nginx/riverview-v2.location.conf"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:serve-v2-static",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Nginx serves versioned static V2 assets under inherited LAN, Host, TLS, and Origin controls",
+      "source_references": [
+        "deploy/nginx/riverview-v2.location.conf",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:dashboard-session",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Check the existing Dashboard account session; request sign-in only when absent",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:dashboard-login",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Submit Dashboard credentials directly to the same-origin HTTPS login API; retain only server-issued cookies",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-grants",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Dashboard verifies Steward identity and exact resident.conversation.read/send grants",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-access-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Show authentication, CSRF, grant, or conversation-service denial without retrying a send",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-load-history",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read authorized conversation index and durable selected history; store only selected conversation ID",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-send-message",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Submit one typed message with a unique client message ID through the existing streamed conversation endpoint",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-response-state",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Check durable response status and matched assistant event without inferring completion from acceptance",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-reply-persisted",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Render real persisted Grace response, event sequence, timestamp, and durable history after reload",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Refresh durable history and resume read-only status checks; never automatically repeat uncertain send",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_grace_chat_chrome.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:route-resident-selection",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Choose selected resident: Grace or a synthetic preview record",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/assets/fixtures.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_mobile.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:render-grace-center",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render authenticated Grace conversation in the center workspace; keep right panel contextual",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/workspace.js",
+        "website/v2/assets/workspace.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_workspace_mobile.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:communications-view",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render Communications Activity controls and safe summary in V2",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/workspace.js",
+        "website/v2/assets/communications.js",
+        "website/v2/assets/communications.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:communications-source-check",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Check whether an authorized redacted read-only Comms5 activity source is configured",
+      "source_references": [
+        "website/v2/assets/communications.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:communications-unverified",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Keep source UNVERIFIED, counts unavailable, and ledger empty without implying zero traffic",
+      "source_references": [
+        "website/v2/assets/communications.js",
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:communications-local-refresh",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Refresh local source configuration state without sending an unauthenticated request",
+      "source_references": [
+        "website/v2/assets/communications.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-monitor-view",
+      "type": "process",
+      "label": "Render V2 Hardware & AI Resource Monitor with per-source provenance"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
+      "type": "decision",
+      "label": "Check existing same-origin Dashboard account session before reading status and host telemetry"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "type": "process",
+      "label": "Read rv.dashboard.status.v1 and rv.dashboard.resource-telemetry.v1 through authenticated same-origin GETs"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "src/riverview_core/status_dashboard/projection.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-operational-projection",
+      "type": "process",
+      "label": "Render timestamped Dashboard worker leases and assignments separately from GPU and model telemetry"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "type": "decision",
+      "label": "Collect allowlisted GPU and model-server readings through Dashboard backend sources"
+    },
+    {
+      "node_revision": "1.0.1",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "type": "process",
+      "label": "Keep unsupported, stale, unverified, or unavailable sources explicit; preserve last successful GPU values with a stale marker after refresh failure"
+    },
+    {
+      "node_revision": "1.0.1",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/resource-monitor.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-filter-refresh",
+      "type": "process",
+      "label": "Keep five-second visible-view polling active; update keyed cards in place and reject overlapping refresh requests"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "website/v2/assets/snapshot.js",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-snapshot-redaction",
+      "type": "process",
+      "label": "Capture only source availability metadata in Snapshot; omit hardware values and work counts"
+    },
+    {
+      "node_revision": "1.0.0",
+      "source_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "id": "rv:riverview-v2:workspace-shell:resource-telemetry-contract",
+      "type": "process",
+      "label": "Preserve queue depth and unverified-host measurements as unavailable until authoritative sources exist"
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-read-view",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Open Work and request persisted objective and assignment summaries",
+      "source_references": [
+        "website/v2/assets/workspace.js",
+        "website/v2/assets/work-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-auth-session",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Require the existing authenticated Dashboard account session before requesting projections",
+      "source_references": [
+        "website/v2/assets/work-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-read-projections",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Fetch bounded read-only objective and assignment projections from the same origin",
+      "source_references": [
+        "website/v2/assets/work-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-render-summary",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render only lifecycle and persisted progress fields; keep fixture examples separate",
+      "source_references": [
+        "website/v2/assets/work-monitor.js",
+        "website/v2/index.html",
+        "website/v2/assets/work-monitor.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs",
+        "scripts/verify_v2_workspace_mobile.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:work-unavailable",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Show sign-in, partial, empty, or unavailable states without polling or writes",
+      "source_references": [
+        "website/v2/assets/work-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_work_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read OCTOMINER1 NVIDIA data through the dedicated host-restricted telemetry command",
+      "source_references": [],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:resource-model-apis",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Read fixed model health, loaded identity, active slots, and numeric per-slot context counters; leave queue and KV-cache bytes unavailable",
+      "source_references": [],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "node_revision": "1.0.2",
+      "type": "process",
+      "label": "Update keyed GPU cards in place with measured fields and valid VRAM bars; retain previous values during refresh and mark them stale after failure or expiry",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Join allowlisted GPU service labels to live model endpoint projections and numeric slot context; never infer physical slot positions",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-select-details",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Selecting a GPU, model, or chassis category reveals source-backed detail and explicit unavailable fields",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Resources selected and document visible? Start a single-flight five-second telemetry refresh only in this state",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "node_revision": "1.0.2",
+      "type": "measurement",
+      "label": "Capture timestamped GPU utilization, temperature, GPU fan, and model slot samples without replacing mounted cards; retain at most 60 samples and show four per page",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-poll-pause",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Stop the polling timer when Resources closes or the browser tab is hidden",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-controller-unavailable",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Keep OCTO1 chassis fan, sensor, PSU, and watchdog readings unavailable until an OCTO1 source is verified",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-request-attribution-unavailable",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "Keep model-server receipt, generation phase, and GPU-to-request attribution unavailable until server-side correlation is exposed",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "Read authorized durable Grace attempts without message content; derive response-rate points only from successful attempts with measured token count and elapsed duration",
+      "source_references": [
+        "website/v2/assets/grace-chat.js",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/index.html"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Render original X12 Ultra manufacturer front/open-chassis reference as read-only geometry",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.css",
+        "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-front-hotspots",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Select manufacturer-view fan visual positions or front panel; channel values stay unavailable",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Switch to open-chassis reference without asserting live GPU bay positions",
+      "source_references": [
+        "website/v2/index.html",
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/octominer/x12ultra-front-open-chassis-reference.png"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-dynamic-model-highlights",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Highlight GPUs from current process-to-device telemetry when an 80B or 30B model is selected",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-device-bay-unavailable",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Keep physical GPU bay and controller mappings unavailable unless OCTO1 source evidence verifies them",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_v2_workspace_shell.py",
+        "scripts/verify_v2_resource_monitor.cjs",
+        "scripts/verify_v2_octo1_browser.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-vram-bars",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Render used/total, remaining, percentage, and a visual VRAM bar only when source byte counters are consistent",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/resource-monitor.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-slot-context",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Show configured context per slot, server capacity as the sum of slot limits, and prompt counters only when numeric llama.cpp /slots fields exist; KV bytes remain unavailable",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-response-rate-chart",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Plot successful output-token counts over router-recorded provider-call elapsed time in a bounded rolling five-minute window; do not claim server-only GPU throughput",
+      "source_references": [
+        "website/v2/assets/grace-chat.js",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:octo1-activity-pages",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Keep at most 60 browser activity samples, mount four keyed records per page, and preserve page and scroll position during refresh",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "website/v2/assets/resource-monitor.css"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:authorized-stream-activity",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Read bounded stream metadata through owner-authorized conversation projection",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "tests/test_status_dashboard.py",
+        "tests/test_v2_workspace_shell.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:live-stream-character-cadence",
+      "node_revision": "1.0.1",
+      "type": "measurement",
+      "label": "Graph timestamped received text characters per second separately from completed token rates",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js",
+        "scripts/verify_v2_resource_monitor.cjs"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:native-live-output-counter-unavailable",
+      "node_revision": "1.0.1",
+      "type": "failure",
+      "label": "Report native live generated-token counters unavailable from current inference-server interfaces",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-keyed-history-actions",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Reconcile durable conversation events by sequence key; preserve open menu, scroll, input and focus during background refresh",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_grace_menu_chrome.cjs",
+        "evidence/v2-grace-menu-20261022/grace-menu-browser-report.json"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:grace-authorized-work-order-action",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Submit a selected persisted Steward event through the existing grant-checked conversation work-order API; objective intake does not approve execution",
+      "source_references": [
+        "website/v2/assets/grace-chat.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_grace_menu_chrome.cjs"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:resource-storage-summary",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Render unique measured host storage and truthful unavailable states from the authenticated telemetry projection",
+      "source_references": [
+        "website/v2/assets/resource-monitor.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+        "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_v2_resource_monitor.cjs",
+        "evidence/v2-grace-menu-20261022/live-model-slot-observation.json"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-preview",
+      "to": "rv:riverview-v2:workspace-shell:serve-static",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:serve-static",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "to": "rv:riverview-v2:workspace-shell:choose-view",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:retain-context",
+      "type": "runtime_transition",
+      "label": "Select resident; context remains across views"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "type": "diagnostic_branch",
+      "label": "Unsafe method or path is attempted"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:unsafe-method",
+      "to": "rv:riverview-v2:workspace-shell:restart-preview",
+      "type": "recovery_route",
+      "label": "Resume by restarting local preview if needed"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:retain-context",
+      "to": "rv:riverview-v2:workspace-shell:choose-view",
+      "type": "runtime_transition",
+      "label": "Navigate while selected resident remains in memory"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:stop-preview",
+      "type": "runtime_transition",
+      "label": "Stop foreground preview"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:configure-password",
+      "to": "rv:riverview-v2:workspace-shell:open-preview",
+      "type": "prerequisite",
+      "label": "Required before non-loopback startup"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-preview",
+      "to": "rv:riverview-v2:workspace-shell:missing-hash",
+      "type": "diagnostic_branch",
+      "label": "LAN mode requested without a protected password hash"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:missing-hash",
+      "to": "rv:riverview-v2:workspace-shell:stop-preview",
+      "type": "recovery_route",
+      "label": "Create hash locally; restart after verification"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-preview",
+      "to": "rv:riverview-v2:workspace-shell:serve-static",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:serve-static",
+      "to": "rv:riverview-v2:workspace-shell:check-client",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:check-client",
+      "to": "rv:riverview-v2:workspace-shell:reject-client",
+      "type": "diagnostic_branch",
+      "label": "Host or source subnet is outside policy"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:reject-client",
+      "to": "rv:riverview-v2:workspace-shell:stop-preview",
+      "type": "recovery_route",
+      "label": "Correct URL/network or stop the preview"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:check-client",
+      "to": "rv:riverview-v2:workspace-shell:check-session",
+      "type": "runtime_transition",
+      "label": "Host and source address accepted"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:check-session",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition",
+      "label": "Valid signed cookie"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:check-session",
+      "to": "rv:riverview-v2:workspace-shell:password-form",
+      "type": "diagnostic_branch",
+      "label": "No valid session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:password-form",
+      "to": "rv:riverview-v2:workspace-shell:verify-password",
+      "type": "runtime_transition",
+      "label": "Steward submits password"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:verify-password",
+      "to": "rv:riverview-v2:workspace-shell:issue-session",
+      "type": "runtime_transition",
+      "label": "Hash matches and Origin/CSRF checks pass"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:verify-password",
+      "to": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "type": "diagnostic_branch",
+      "label": "Origin mismatches or one-use CSRF token is invalid"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:reject-login-csrf",
+      "to": "rv:riverview-v2:workspace-shell:password-form",
+      "type": "recovery_route",
+      "label": "Reload login page for a fresh token; retain strict Host check"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:issue-session",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:verify-password",
+      "to": "rv:riverview-v2:workspace-shell:rate-limited",
+      "type": "diagnostic_branch",
+      "label": "Bad password; fifth failure in 15 minutes"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:rate-limited",
+      "to": "rv:riverview-v2:workspace-shell:password-form",
+      "type": "recovery_route",
+      "label": "Wait Retry-After before trying again"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "to": "rv:riverview-v2:workspace-shell:restart-preview",
+      "type": "recovery_route",
+      "label": "Restart invalidates signed cookies and in-memory lockout"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition",
+      "label": "Change appearance or sidebar layout"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "to": "rv:riverview-v2:workspace-shell:apply-theme",
+      "type": "runtime_transition",
+      "label": "Light, Dark, or System selection"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:apply-theme",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition",
+      "label": "Preference survives reload; system follows OS preference"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "to": "rv:riverview-v2:workspace-shell:cycle-sidebars",
+      "type": "runtime_transition",
+      "label": "Cycle either sidebar without changing the other"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:cycle-sidebars",
+      "to": "rv:riverview-v2:workspace-shell:restore-sidebars",
+      "type": "runtime_transition",
+      "label": "Hidden state exposes a keyboard-accessible restore button"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:restore-sidebars",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "type": "runtime_transition",
+      "label": "User requests a V2-specific local ZIP"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-click",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "type": "runtime_transition",
+      "label": "Allowlisted state is captured in memory"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "type": "diagnostic_branch",
+      "label": "State capture or hashing fails"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "type": "runtime_transition",
+      "label": "Members fit the 2 MiB hard bound"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-manifest",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "type": "diagnostic_branch",
+      "label": "Package exceeds the hard bound"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-download",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "type": "verification",
+      "label": "Chrome ZIP contents match selected view and hashes"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-verify",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:snapshot-failure",
+      "to": "rv:riverview-v2:workspace-shell:choose-presentation",
+      "type": "recovery_route",
+      "label": "Retry locally; no upload or service recovery is needed"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:integration-unavailable",
+      "to": "rv:riverview-v2:workspace-shell:comms5-unverified",
+      "type": "runtime_transition",
+      "label": "No authorized V2 Comms5 event feed is connected"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:comms5-unverified",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "type": "runtime_transition",
+      "label": "Snapshot includes status and null counts only; no messages, credentials, or fabricated zeros"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-v2-route",
+      "to": "rv:riverview-v2:workspace-shell:serve-v2-static",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:serve-v2-static",
+      "to": "rv:riverview-v2:workspace-shell:dashboard-session",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:dashboard-session",
+      "to": "rv:riverview-v2:workspace-shell:grace-grants",
+      "type": "runtime_transition",
+      "label": "Existing Dashboard account cookie is valid"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:dashboard-session",
+      "to": "rv:riverview-v2:workspace-shell:dashboard-login",
+      "type": "diagnostic_branch",
+      "label": "No valid current account session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:dashboard-login",
+      "to": "rv:riverview-v2:workspace-shell:grace-grants",
+      "type": "runtime_transition",
+      "label": "Dashboard issued secure account and CSRF cookies"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:dashboard-session",
+      "to": "rv:riverview-v2:workspace-shell:grace-access-denied",
+      "type": "diagnostic_branch",
+      "label": "Invalid or unavailable account session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:dashboard-login",
+      "to": "rv:riverview-v2:workspace-shell:grace-access-denied",
+      "type": "diagnostic_branch",
+      "label": "Login rejected or cross-origin request denied"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-grants",
+      "to": "rv:riverview-v2:workspace-shell:grace-load-history",
+      "type": "runtime_transition",
+      "label": "Exact current read and send grants pass"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-grants",
+      "to": "rv:riverview-v2:workspace-shell:grace-access-denied",
+      "type": "diagnostic_branch",
+      "label": "Steward role, binding, or exact grant check fails"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-load-history",
+      "to": "rv:riverview-v2:workspace-shell:grace-send-message",
+      "type": "runtime_transition",
+      "label": "History loaded or no prior conversation exists"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-send-message",
+      "to": "rv:riverview-v2:workspace-shell:grace-response-state",
+      "type": "runtime_transition",
+      "label": "Server returns conversation and request IDs"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-response-state",
+      "to": "rv:riverview-v2:workspace-shell:grace-response-state",
+      "type": "runtime_transition",
+      "label": "Pending or deferred; resume read-only polling after reload"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-response-state",
+      "to": "rv:riverview-v2:workspace-shell:grace-reply-persisted",
+      "type": "verification",
+      "label": "Durable assistant event is present in authorized history"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-response-state",
+      "to": "rv:riverview-v2:workspace-shell:grace-access-denied",
+      "type": "diagnostic_branch",
+      "label": "Grant revoked or service reports a terminal failure"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-send-message",
+      "to": "rv:riverview-v2:workspace-shell:grace-recovery",
+      "type": "diagnostic_branch",
+      "label": "Send result is uncertain; inspect history before any user retry"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-access-denied",
+      "to": "rv:riverview-v2:workspace-shell:grace-recovery",
+      "type": "recovery_route",
+      "label": "Correct session/service state; never bypass grants or retry send"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-recovery",
+      "to": "rv:riverview-v2:workspace-shell:grace-load-history",
+      "type": "recovery_route",
+      "label": "Resume from authoritative persisted conversation events"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-reply-persisted",
+      "to": "rv:riverview-v2:workspace-shell:grace-load-history",
+      "type": "verification",
+      "label": "Reload re-reads the same durable event IDs and timestamps"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-chat-handoff",
+      "to": "rv:riverview-v2:workspace-shell:open-v2-route",
+      "type": "documentation",
+      "label": "Superseded by same-origin V2 route"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:integration-unavailable",
+      "to": "rv:riverview-v2:workspace-shell:open-v2-route",
+      "type": "documentation",
+      "label": "Historical blocker resolved by Steward GO"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:open-v2-route",
+      "to": "rv:riverview-v2:workspace-shell:comms5-unverified",
+      "type": "runtime_transition",
+      "label": "Grace API is integrated; Comms5 event ledger remains unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:route-resident-selection",
+      "type": "runtime_transition",
+      "label": "Select a resident from Overview or Residents"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:route-resident-selection",
+      "to": "rv:riverview-v2:workspace-shell:render-grace-center",
+      "type": "runtime_transition",
+      "label": "Grace selected"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:route-resident-selection",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition",
+      "label": "Synthetic resident selected; retain fixture-only directory"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:render-grace-center",
+      "to": "rv:riverview-v2:workspace-shell:dashboard-session",
+      "type": "runtime_transition",
+      "label": "Existing authenticated conversation client checks Dashboard session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:render-fixtures",
+      "type": "runtime_transition",
+      "label": "Overview or fixture view selected"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:communications-view",
+      "type": "runtime_transition",
+      "label": "Select Communications Activity"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:communications-view",
+      "to": "rv:riverview-v2:workspace-shell:communications-source-check",
+      "type": "runtime_transition",
+      "label": "Render current source configuration"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:communications-source-check",
+      "to": "rv:riverview-v2:workspace-shell:communications-unverified",
+      "type": "diagnostic_branch",
+      "label": "No authorized read-only activity feed is configured"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:communications-unverified",
+      "to": "rv:riverview-v2:workspace-shell:communications-local-refresh",
+      "type": "runtime_transition",
+      "label": "User requests a local configuration check; no network request is sent"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:communications-local-refresh",
+      "to": "rv:riverview-v2:workspace-shell:communications-unverified",
+      "type": "recovery_route",
+      "label": "Remain UNVERIFIED and retain unknown counts as unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:communications-unverified",
+      "to": "rv:riverview-v2:workspace-shell:snapshot-capture",
+      "type": "runtime_transition",
+      "label": "Snapshot records safe status and null counters only"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:resource-monitor-view",
+      "type": "runtime_transition",
+      "label": "Select Hardware & AI resources"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-monitor-view",
+      "to": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
+      "type": "runtime_transition",
+      "label": "First view or explicit refresh on LAN HTTPS"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
+      "to": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "type": "runtime_transition",
+      "label": "Authenticated session; fetch bounded status and live telemetry"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "type": "diagnostic_branch",
+      "label": "Session absent or local fixture origin; do not call protected API"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "to": "rv:riverview-v2:workspace-shell:resource-operational-projection",
+      "type": "runtime_transition",
+      "label": "Validate status-v1 schema and retain allowed timestamped aggregates"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-model-apis",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "type": "diagnostic_branch",
+      "label": "Unavailable host, queue, or endpoint remains explicit"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-monitor-view",
+      "to": "rv:riverview-v2:workspace-shell:resource-filter-refresh",
+      "type": "runtime_transition",
+      "label": "Use local search/filter/details or explicit refresh"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-operational-projection",
+      "to": "rv:riverview-v2:workspace-shell:resource-snapshot-redaction",
+      "type": "runtime_transition",
+      "label": "Snapshot captures source metadata only, not counts or metric values"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "to": "rv:riverview-v2:workspace-shell:resource-telemetry-contract",
+      "type": "documentation",
+      "label": "Record the future read-only integration seam and blocker"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:work-read-view",
+      "type": "runtime_transition",
+      "label": "Select Work status view"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-read-view",
+      "to": "rv:riverview-v2:workspace-shell:work-auth-session",
+      "type": "runtime_transition",
+      "label": "Check existing Dashboard session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-auth-session",
+      "to": "rv:riverview-v2:workspace-shell:work-read-projections",
+      "type": "runtime_transition",
+      "label": "Authenticated; request bounded objective and assignment summaries"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-auth-session",
+      "to": "rv:riverview-v2:workspace-shell:work-unavailable",
+      "type": "diagnostic_branch",
+      "label": "No authenticated session; do not request work projections"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-read-projections",
+      "to": "rv:riverview-v2:workspace-shell:work-render-summary",
+      "type": "runtime_transition",
+      "label": "Render sanitized persisted fields and separate fixture cards"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-read-projections",
+      "to": "rv:riverview-v2:workspace-shell:work-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Projection absent, partial, or unavailable; show truthful state"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:work-unavailable",
+      "to": "rv:riverview-v2:workspace-shell:work-read-view",
+      "type": "recovery_route",
+      "label": "User requests refresh; bounded read only, no background polling"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+      "to": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "type": "runtime_transition",
+      "label": "Backend returns redacted measurements and timestamps"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-model-apis",
+      "to": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "type": "runtime_transition",
+      "label": "Backend returns model readiness and measured active slots"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:resource-filter-refresh",
+      "type": "runtime_transition",
+      "label": "Steward reviews live values, freshness, and unsupported queue depth"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-dashboard-status",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "type": "runtime_transition",
+      "label": "Authenticated status read also requests the live resource projection"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "to": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+      "type": "runtime_transition",
+      "label": "Collect approved GPU inventory from the verified host"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-unavailable-metrics",
+      "to": "rv:riverview-v2:workspace-shell:resource-model-apis",
+      "type": "runtime_transition",
+      "label": "Collect fixed model health, identity, and slot sources"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+      "to": "rv:riverview-v2:workspace-shell:resource-unavailable-state",
+      "type": "diagnostic_branch",
+      "label": "GPU host source failed or credentials/host pin unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:resource-snapshot-redaction",
+      "type": "runtime_transition",
+      "label": "Snapshot records only safe availability metadata"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "type": "runtime_transition",
+      "label": "Build the interactive OCTO1 view from current GPU and model source projections"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-select-details",
+      "type": "runtime_transition",
+      "label": "Steward selects a logical device/model/system; no chassis position is assigned"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-controller-unavailable",
+      "type": "runtime_transition",
+      "label": "Controller-only fields remain unavailable because no OCTO1 projection exists"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "type": "runtime_transition",
+      "label": "When current Grace conversation authorization is active, read durable lifecycle metadata without message content"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "to": "rv:riverview-v2:workspace-shell:octo1-request-attribution-unavailable",
+      "type": "runtime_transition",
+      "label": "Show persisted app-side attempts; leave model-server receipt, generation timing, and GPU correlation unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "type": "runtime_transition",
+      "label": "While the Resources view is open, evaluate view and document visibility"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "type": "runtime_transition",
+      "label": "Resources selected and tab visible; request a fresh authenticated projection at five-second cadence"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "to": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "type": "runtime_transition",
+      "label": "Render new measured values, states, timestamps, and timeline sample"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-pause",
+      "type": "diagnostic_branch",
+      "label": "View is closed or document hidden; do not schedule another sample"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-pause",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-visibility",
+      "type": "recovery_route",
+      "label": "Resources reopens or tab becomes visible; request a fresh observation"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-topology-join",
+      "to": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "type": "runtime_transition",
+      "label": "Render the original X12 Ultra manufacturer geometry with read-only component selectors"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "to": "rv:riverview-v2:workspace-shell:octo1-front-hotspots",
+      "type": "runtime_transition",
+      "label": "Select front-view fan visual indexes or the right-side panel"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-manufacturer-chassis",
+      "to": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "type": "runtime_transition",
+      "label": "Switch to the manufacturer open-chassis reference"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-open-reference",
+      "to": "rv:riverview-v2:workspace-shell:octo1-device-bay-unavailable",
+      "type": "runtime_transition",
+      "label": "Explain that live device IDs have no verified physical riser mapping"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-select-details",
+      "to": "rv:riverview-v2:workspace-shell:octo1-dynamic-model-highlights",
+      "type": "runtime_transition",
+      "label": "Highlight only current telemetry-derived GPU/model associations"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-model-apis",
+      "to": "rv:riverview-v2:workspace-shell:octo1-slot-context",
+      "type": "runtime_transition",
+      "label": "Project bounded numeric /slots context counters to the authenticated Dashboard response"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-slot-context",
+      "to": "rv:riverview-v2:workspace-shell:octo1-select-details",
+      "type": "runtime_transition",
+      "label": "Render per-slot capacity and observed prompt counters; label unavailable KV bytes"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:octo1-vram-bars",
+      "type": "runtime_transition",
+      "label": "Compute visual fill from consistent measured memory used and total bytes only"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-vram-bars",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "type": "runtime_transition",
+      "label": "Refresh measurements in place without replacing GPU cards"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "to": "rv:riverview-v2:workspace-shell:octo1-response-rate-chart",
+      "type": "runtime_transition",
+      "label": "Accept successful trace attempts with completion tokens, elapsed time, and end timestamp"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-response-rate-chart",
+      "to": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "type": "runtime_transition",
+      "label": "Update measured rate points on the existing authenticated five-second poll"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+      "to": "rv:riverview-v2:workspace-shell:octo1-activity-pages",
+      "type": "runtime_transition",
+      "label": "Retain bounded samples and page four visible records without resetting scroll/page"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:octo1-grace-request-trace",
+      "to": "rv:riverview-v2:workspace-shell:authorized-stream-activity",
+      "type": "runtime_transition",
+      "label": "Join same-conversation stream metadata under exact owner read authorization"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:authorized-stream-activity",
+      "to": "rv:riverview-v2:workspace-shell:live-stream-character-cadence",
+      "type": "runtime_transition",
+      "label": "Calculate received characters per second only from timestamped positive text deltas"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:live-stream-character-cadence",
+      "to": "rv:riverview-v2:workspace-shell:native-live-output-counter-unavailable",
+      "type": "diagnostic_branch",
+      "label": "Keep native generated tokens per second unavailable because model server exposes no output counter"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:grace-keyed-history-actions",
+      "type": "runtime_transition",
+      "label": "Grace view reconciles authenticated durable history without replacing stable message nodes"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:grace-keyed-history-actions",
+      "to": "rv:riverview-v2:workspace-shell:grace-authorized-work-order-action",
+      "type": "runtime_transition",
+      "label": "Steward selects a saved source event; existing Dashboard authorization remains authoritative"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:resource-render-live",
+      "to": "rv:riverview-v2:workspace-shell:resource-storage-summary",
+      "type": "runtime_transition",
+      "label": "Render host volumes and aggregate distinct filesystem identifiers"
+    }
+  ]
+}
