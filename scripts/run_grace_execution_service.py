@@ -3,7 +3,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.12
+# Revision: 1.2.13
+# Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Include the enabled ComfyUI capability in the worker's exact persisted startup identity.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Store binary outputs in a dedicated group-readable artifact root while keeping journals private.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Compose ComfyUI as an optional existing ContinuousWorker capability with durable typed dispatch and independent verification.
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Give the provider a bounded 120-second request and the caller a 135-second deadline
@@ -81,7 +82,8 @@ from riverview_core.worker_adapter.recovery import PostgresRecoveryCoordinator
 from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowledgeProvider
 from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
 from riverview_core.worker_adapter.service import (WorkerServiceConfigurationError,
-    ensure_registered, load_runtime_config, read_worker_credential)
+    configured_worker_capabilities, ensure_registered, load_runtime_config,
+    read_worker_credential)
 from riverview_core.worker_adapter.comfyui import (ComfyUIAction, ComfyUIKnowledgeProvider,
     ComfyUIWorkflowRegistry, ComfyUIOutputVerifier)
 from riverview_core.resident_reasoning import ResidentReasoner
@@ -366,6 +368,7 @@ def main() -> int:
         adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
+        comfyui_enabled = os.environ.get("RIVERVIEW_COMFYUI_ENABLED", "0") == "1"
         outcome_verifier = None
         if codex_auth_mode not in {"service", "supervised-chatgpt", "chatgpt-owner-session"}:
             raise WorkerServiceConfigurationError("codex_auth_mode_invalid")
@@ -454,7 +457,8 @@ def main() -> int:
         elif adapter_mode != "bounded-artifact":
             raise WorkerServiceConfigurationError("engineering_adapter_not_registered")
         ensure_registered(adapter, worker_id, worker_token,
-            (execution_capability,), scope_ref)
+            configured_worker_capabilities(execution_capability,
+                comfyui_enabled=comfyui_enabled), scope_ref)
         ensure_registered(adapter, verifier_id, verifier_token,
             ("assignment.verify.v1",), scope_ref)
         if isinstance(execution_action, (CodexWorkAction, CodexSourceChangeWorkAction)):
@@ -484,7 +488,7 @@ def main() -> int:
         execution_workers = {execution_capability: engine}
         outcome_verifiers = {execution_capability: outcome_verifier or
                              BoundedArtifactVerifier(artifact_root, pipeline)}
-        if os.environ.get("RIVERVIEW_COMFYUI_ENABLED", "0") == "1":
+        if comfyui_enabled:
             try:
                 comfy_endpoint = os.environ.get("RIVERVIEW_COMFYUI_ENDPOINT", "")
                 comfy_registry_path = Path(os.environ.get(
