@@ -3,7 +3,8 @@ Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the s
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.19
+File Revision: 1.1.20
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Define stable GPU identity and fail-closed allocation/reservation telemetry.
 Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Distinguish live registered engineering capabilities from assignment-lease activity.
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify per-slot context counters and unavailable KV-cache bytes.
@@ -342,7 +343,7 @@ document does not claim those future obligations complete.
 
 ### Authenticated hardware and inference telemetry
 
-`GET /api/v1/resources/telemetry` is protected by the same `_authorized()` account-session or Dashboard bearer gate as every other projection. It is a request-driven, uncached read; writes return `405`. The collector has fixed Camrui and OCTOMINER1 model endpoint allowlists and one OCTOMINER1 GPU source using `nvidia-smi` over a dedicated SSH identity. That identity is delivered with systemd `LoadCredential`, requires strict host-key checking, and is forced on the GPU host to `/usr/local/libexec/rv-gpu-telemetry` with no PTY, forwarding, or arbitrary command. The remote command exposes only GPU name/index, utilization, memory, temperature, power, fan when supported, and allowlisted Grace service labels; UUIDs and PIDs are discarded before returning to the Dashboard.
+`GET /api/v1/resources/telemetry` is protected by the same `_authorized()` account-session or Dashboard bearer gate as every other projection. It is a request-driven, uncached read; writes return `405`. The collector has fixed Camrui and OCTOMINER1 model endpoint allowlists and one OCTOMINER1 GPU source using `nvidia-smi` over a dedicated SSH identity. That identity is delivered with systemd `LoadCredential`, requires strict host-key checking, and is forced on the GPU host to `/usr/local/libexec/rv-gpu-telemetry` with no PTY, forwarding, or arbitrary command. The checked-in collector requests GPU UUID and compute capability, counts observed compute processes per GPU, and returns allowlisted service owners without PIDs. The Dashboard uses UUID as the stable identity when valid; an index is retained only as a display fallback and is never proof of identity or availability. Missing process data yields an unknown allocation state, while zero observed compute processes is explicitly not proof that the GPU is unreserved. The current production forced command predates these fields, so they remain unavailable until the authorized host collector rollout and reservation source are verified. No scheduler may assign a GPU from absent or stale telemetry.
 
 The model projection includes a bounded numeric `slot_context` view from each fixed llama.cpp `/slots` endpoint: slot index, processing boolean, configured context tokens, prompt-token count, processed prompt-token count, and cached prompt-token count when present. Raw task IDs, prompt text, token data, and arbitrary slot fields are discarded. Context counts are per slot; server capacity is the sum of measured per-slot capacities and must not be presented as one slot's limit. Current server builds expose no KV-cache allocation bytes and `/metrics` returns not-supported, so `kv_cache_bytes` is explicitly unavailable. Queue depth remains unavailable. This extension does not alter model startup parameters or inference behavior.
 

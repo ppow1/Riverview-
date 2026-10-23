@@ -677,21 +677,21 @@
     },
     "docs/components/STATUS_DASHBOARD.md": {
       "path": "docs/components/STATUS_DASHBOARD.md",
-      "revision": "1.1.15",
-      "sha256": "42691c36b59fae97249e73df2c78cff5398322ae4ed87d3aa47932992e697b0a",
-      "size_bytes": 31466
+      "revision": "1.1.20",
+      "sha256": "aedcccfa176536ebed475d3b68b19755a55d5bf1bbba014943a721393380b75e",
+      "size_bytes": 37856
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.4.0",
-      "sha256": "eca75b0050a4a81a3c92073803fa718f525c9ce9f4b0a993068d9831c1944a79",
-      "size_bytes": 36914
+      "revision": "1.4.1",
+      "sha256": "e7645f68411f928cea909d4f9d29096fd5368a6c4e2a5dd79762fbba19943c87",
+      "size_bytes": 37960
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-      "revision": "1.1.34",
-      "sha256": "bd482941da5a8c41a07c709cd5b1bbc4a14d5955a06b94381fac48548ac9aa7f",
-      "size_bytes": 66200
+      "revision": "1.1.36",
+      "sha256": "93c26f8f436ec8344ef12adde2743ed48bc4e3310d9ffe41c2be177891ba99cf",
+      "size_bytes": 76182
     },
     "docs/components/STATUS_DASHBOARD_FLOW.md": {
       "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
@@ -8189,9 +8189,9 @@
     },
     "scripts/rv_gpu_telemetry_command.py": {
       "path": "scripts/rv_gpu_telemetry_command.py",
-      "revision": "1.1.0",
-      "sha256": "ae6fb2f7f1ae78dab4ec20b49ce9204c35d80f99b561c3ba30208ef379802079",
-      "size_bytes": 9417
+      "revision": "1.1.1",
+      "sha256": "fe17c1c33fefd7cbbfc54bba0972dd2bb189f830e38723eeb57e39c8e5e15e52",
+      "size_bytes": 10470
     },
     "scripts/test_stackmail_mailbox.py": {
       "path": "scripts/test_stackmail_mailbox.py",
@@ -8831,9 +8831,9 @@
     },
     "src/riverview_core/status_dashboard/resource_telemetry.py": {
       "path": "src/riverview_core/status_dashboard/resource_telemetry.py",
-      "revision": "1.2.0",
-      "sha256": "ce4d6ed301c888964b3f07889789365bbcbce031d970cb7669d2a1c81fc51ed9",
-      "size_bytes": 21496
+      "revision": "1.2.1",
+      "sha256": "678aeaf8711e6ec922f7a8dd89fe119b07a58a8ae01fdd24c05a3d943c701852",
+      "size_bytes": 23275
     },
     "src/riverview_core/status_dashboard/server.py": {
       "path": "src/riverview_core/status_dashboard/server.py",
@@ -9233,9 +9233,9 @@
     },
     "tests/test_gpu_telemetry_command.py": {
       "path": "tests/test_gpu_telemetry_command.py",
-      "revision": "1.1.1",
-      "sha256": "a09984fadddc0bdba140d9688cffc63c7d28c5e696a8a920f698c3ffda5eb686",
-      "size_bytes": 5184
+      "revision": "1.1.2",
+      "sha256": "3acb57d62adf69be804fa63e6eb6f1dc08b509a79f000afecc64ddecfe53e0e8",
+      "size_bytes": 6161
     },
     "tests/test_grace_conversation_result.py": {
       "path": "tests/test_grace_conversation_result.py",
@@ -9455,9 +9455,9 @@
     },
     "tests/test_resource_telemetry.py": {
       "path": "tests/test_resource_telemetry.py",
-      "revision": "1.2.1",
-      "sha256": "4865da438079e8d6a37598615795e36ddc12e309d787f6528d9a7ae1c62f9e28",
-      "size_bytes": 12258
+      "revision": "1.2.2",
+      "sha256": "9e3672039edc6d78d5f9080993d126a9701b26db2614171e6aa23c4d7d83095e",
+      "size_bytes": 13964
     },
     "tests/test_revision_control.py": {
       "path": "tests/test_revision_control.py",
@@ -9550,6 +9550,6 @@
       "size_bytes": 15190
     }
   },
-  "manifest_revision": "1.1.318",
-  "updated_at": "2026-10-23T02:19:41Z"
+  "manifest_revision": "1.1.320",
+  "updated_at": "2026-10-23T12:08:59Z"
 }

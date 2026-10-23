@@ -1,7 +1,7 @@
 """RIVERVIEW~ CONTROLLED SOURCE
 File: tests/test_gpu_telemetry_command.py
 Component: OCTOMINER1-RESTRICTED-GPU-TELEMETRY
-Revision: 1.1.1
+Revision: 1.1.2
 Purpose: Verify the forced read-only host collector and identifier redaction
 Execution Model: Isolated subprocess fixtures
 Observability: Assertions for NVIDIA CSV mapping, mounted storage, and unsupported values
@@ -10,6 +10,7 @@ Authority: Disposable fixtures only; no production host access
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial collector tests
 Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Verify mounted storage is included without pseudo-filesystems or duplicate mounts.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Verify optional mount enumeration failure does not suppress GPU measurements.
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Verify UUID, compute capability and process counts while redacting PIDs
 Contracts: docs/components/STATUS_DASHBOARD.md
 Tests: python -m unittest tests.test_gpu_telemetry_command
 History: Git and .riverview-backups/manifest.jsonl
@@ -31,9 +32,10 @@ class CollectorTests(unittest.TestCase):
     @patch("scripts.rv_gpu_telemetry_command._storage_volumes", return_value=[])
     @patch("scripts.rv_gpu_telemetry_command._run")
     def test_collects_measurements_and_only_allowlisted_service_labels(self, run, _storage):
+        gpu_uuid = "GPU-01234567-89ab-cdef-0123-456789abcdef"
         run.side_effect = [
-            "Tesla P100-PCIE-16GB, 0, GPU-private-uuid, 40, 8192, 16384, 50, 70.1, N/A\n",
-            "GPU-private-uuid, 321\n",
+            f"Tesla P100-PCIE-16GB, 0, {gpu_uuid}, 6.0, 40, 8192, 16384, 50, 70.1, N/A\n",
+            f"{gpu_uuid}, 321\n",
             "321\n", "0\n",
         ]
         with patch("scripts.rv_gpu_telemetry_command._SERVICE_LABELS", {
@@ -44,7 +46,9 @@ class CollectorTests(unittest.TestCase):
         gpu = result["devices"][0]
         self.assertEqual(gpu["memory_used_bytes"], 8192 * 1024 * 1024)
         self.assertEqual(gpu["active_services"], ["grace-reasoning-80b"])
-        self.assertNotIn("uuid", gpu)
+        self.assertEqual(gpu["uuid"], gpu_uuid)
+        self.assertEqual(gpu["compute_capability"], "6.0")
+        self.assertEqual(gpu["active_compute_process_count"], 1)
         self.assertNotIn("pid", gpu)
         self.assertIsNone(gpu["fan_percent"])
         self.assertEqual(result["storage_volumes"], [])
@@ -54,8 +58,8 @@ class CollectorTests(unittest.TestCase):
     @patch("scripts.rv_gpu_telemetry_command._run")
     def test_storage_failure_does_not_hide_gpu_telemetry(self, run, _storage):
         run.side_effect = [
-            "Tesla P100-PCIE-16GB, 0, GPU-private-uuid, 40, 8192, 16384, 50, 70.1, N/A\n",
-            "No running processes found\n", "0\n", "0\n",
+            "Tesla P100-PCIE-16GB, 0, GPU-01234567-89ab-cdef-0123-456789abcdef, 6.0, 40, 8192, 16384, 50, 70.1, N/A\n",
+            "No running processes found\n", "0\n", "0\n", "0\n",
         ]
         result=collect()
         self.assertEqual(len(result["devices"]),1)
@@ -66,13 +70,24 @@ class CollectorTests(unittest.TestCase):
     @patch("scripts.rv_gpu_telemetry_command._run")
     def test_nvidia_bracketed_na_fan_does_not_drop_a_gpu(self, run, _storage):
         run.side_effect = [
-            "Tesla P100-PCIE-16GB, 0, GPU-private-uuid, 17, 13286, 16384, 49, 59.97, [N/A]\n",
-            "No running processes found\n", "0\n", "0\n",
+            "Tesla P100-PCIE-16GB, 0, GPU-01234567-89ab-cdef-0123-456789abcdef, 6.0, 17, 13286, 16384, 49, 59.97, [N/A]\n",
+            "No running processes found\n", "0\n", "0\n", "0\n",
         ]
         result = collect()
         self.assertEqual(len(result["devices"]), 1)
         self.assertEqual(result["devices"][0]["name"], "Tesla P100-PCIE-16GB")
         self.assertIsNone(result["devices"][0]["fan_percent"])
+
+    @patch.dict(os.environ, {"SSH_ORIGINAL_COMMAND": "resource-telemetry"}, clear=True)
+    @patch("scripts.rv_gpu_telemetry_command._storage_volumes", return_value=[])
+    @patch("scripts.rv_gpu_telemetry_command._run")
+    def test_rejects_malformed_gpu_uuid(self, run, _storage):
+        run.side_effect = [
+            "Tesla P100-PCIE-16GB, 0, malformed-uuid, 6.0, 17, 13286, 16384, 49, 59.97, [N/A]\n",
+            "No running processes found\n", "0\n", "0\n", "0\n",
+        ]
+        with self.assertRaisesRegex(ValueError, "gpu_inventory_unavailable"):
+            collect()
 
     def test_storage_collector_deduplicates_bind_mounts_and_skips_overlay(self):
         from scripts.rv_gpu_telemetry_command import _storage_volumes

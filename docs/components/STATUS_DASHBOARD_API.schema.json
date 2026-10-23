@@ -960,12 +960,33 @@
                         "device_id": {
                           "type": "string"
                         },
+                        "identity_state": {
+                          "enum": ["verified", "unavailable"]
+                        },
+                        "gpu_uuid": {
+                          "type": ["string", "null"],
+                          "pattern": "^GPU-(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})$"
+                        },
                         "index": {
                           "type": "integer",
                           "minimum": 0
                         },
                         "name": {
                           "type": "string"
+                        },
+                        "compute_capability": {
+                          "type": ["string", "null"],
+                          "pattern": "^[1-9][0-9]?\\.[0-9]{1,2}$"
+                        },
+                        "active_compute_process_count": {
+                          "type": ["integer", "null"],
+                          "minimum": 0
+                        },
+                        "allocation_state": {
+                          "enum": ["occupied", "no_compute_processes_observed", "unknown"]
+                        },
+                        "reservation_state": {
+                          "enum": ["known_owner", "unreported"]
                         },
                         "utilization_percent": {
                           "type": [

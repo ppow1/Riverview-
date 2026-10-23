@@ -1,7 +1,7 @@
 """RIVERVIEW~ CONTROLLED SOURCE
 File: tests/test_resource_telemetry.py
 Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-Revision: 1.2.1
+Revision: 1.2.2
 Purpose: Verify bounded authenticated hardware, inference, and storage projections
 Execution Model: Isolated unittest fixtures
 Observability: Assertions for source status, redaction, readiness and unavailable data
@@ -11,6 +11,7 @@ Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial telemetry project
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Verify safe numeric slot context projection and raw task/prompt redaction
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Keep context telemetry unavailable when slots contain no numeric context measurements
 Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Verify host-scoped volume projection and unavailable states.
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Verify UUID/architecture projection, allocation counts, reservation unknown states, and PID redaction
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Validate complete storage telemetry projection against the versioned API schema.
 Contracts: docs/components/STATUS_DASHBOARD.md
 Tests: python -m unittest tests.test_resource_telemetry
@@ -38,7 +39,7 @@ class ResourceTelemetryTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_gpu_projection_uses_strict_fixed_ssh_and_redacts_host_identifiers(self):
+    def test_gpu_projection_uses_stable_uuid_and_redacts_process_identifiers(self):
         payload = {
             "schema_version": "rv.gpu-host-telemetry.v1",
             "observed_at": "2026-10-21T17:10:00Z",
@@ -48,7 +49,9 @@ class ResourceTelemetryTests(unittest.TestCase):
                                  "available_bytes": 500}],
             "devices": [{
                 "index": 0, "name": "Tesla P100-PCIE-16GB",
-                "uuid": "GPU-secret-uuid", "pid": 12345,
+                "uuid": "GPU-01234567-89ab-cdef-0123-456789abcdef",
+                "compute_capability": "6.0", "active_compute_process_count": 2,
+                "pid": 99887766,
                 "utilization_percent": 82, "memory_used_bytes": 10,
                 "memory_total_bytes": 20, "temperature_celsius": 49,
                 "power_watts": 60.0, "fan_percent": None,
@@ -66,14 +69,36 @@ class ResourceTelemetryTests(unittest.TestCase):
         result = telemetry._gpu_source()
         self.assertEqual(result["state"], "healthy")
         device = result["devices"][0]
+        self.assertEqual(device["device_id"], "GPU-01234567-89ab-cdef-0123-456789abcdef")
+        self.assertEqual(device["gpu_uuid"], "GPU-01234567-89ab-cdef-0123-456789abcdef")
+        self.assertEqual(device["identity_state"], "verified")
         self.assertEqual(device["name"], "Tesla P100-PCIE-16GB")
+        self.assertEqual(device["compute_capability"], "6.0")
+        self.assertEqual(device["active_compute_process_count"], 2)
+        self.assertEqual(device["allocation_state"], "occupied")
+        self.assertEqual(device["reservation_state"], "known_owner")
         self.assertEqual(device["active_services"], ["grace-reasoning-80b"])
         self.assertEqual(result["storage"]["state"], "healthy")
         self.assertEqual(result["storage"]["volumes"][0]["percent_used"], 40.0)
         self.assertEqual(result["storage"]["volumes"][0]["mount_point"], "/data")
         serialized = json.dumps(result)
-        for forbidden in ("GPU-secret-uuid", "12345"):
+        self.assertIn("GPU-01234567-89ab-cdef-0123-456789abcdef", serialized)
+        for forbidden in ('"99887766"', '"pid"'):
             self.assertNotIn(forbidden, serialized)
+
+    def test_legacy_gpu_inventory_does_not_claim_free_or_stable_identity(self):
+        payload = {"schema_version": "rv.gpu-host-telemetry.v1", "devices": [{
+            "index": 1, "name": "NVIDIA GeForce RTX 4090", "memory_used_bytes": 1,
+            "memory_total_bytes": 24, "active_services": [],
+        }]}
+        telemetry = DashboardResourceTelemetry(
+            runner=lambda *_a, **_k: subprocess.CompletedProcess([], 0, json.dumps(payload), ""),
+            credential_directory=self.credentials, http_open=lambda *_a, **_k: None)
+        device = telemetry._gpu_source()["devices"][0]
+        self.assertIsNone(device["gpu_uuid"])
+        self.assertEqual(device["identity_state"], "unavailable")
+        self.assertEqual(device["allocation_state"], "unknown")
+        self.assertEqual(device["reservation_state"], "unreported")
 
     def test_missing_credentials_fails_closed_without_running_ssh(self):
         with tempfile.TemporaryDirectory() as empty:
