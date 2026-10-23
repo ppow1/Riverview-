@@ -3,7 +3,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.10
+# Revision: 1.2.12
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Store binary outputs in a dedicated group-readable artifact root while keeping journals private.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Compose ComfyUI as an optional existing ContinuousWorker capability with durable typed dispatch and independent verification.
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Give the provider a bounded 120-second request and the caller a 135-second deadline
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Raise the default structured proposal completion budget to 2048 tokens
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Bind bounded verifier to the persisted objective pipeline
@@ -52,6 +54,7 @@ import re
 import signal
 import sys
 import threading
+import grp
 from pathlib import Path
 
 from riverview_core.assignment_intake import AuthorizedAssignmentIntake
@@ -79,6 +82,8 @@ from riverview_core.worker_adapter.repository_knowledge import RepositoryKnowled
 from riverview_core.worker_adapter.resident_knowledge import TaskRelevantRepositoryKnowledgeProvider
 from riverview_core.worker_adapter.service import (WorkerServiceConfigurationError,
     ensure_registered, load_runtime_config, read_worker_credential)
+from riverview_core.worker_adapter.comfyui import (ComfyUIAction, ComfyUIKnowledgeProvider,
+    ComfyUIWorkflowRegistry, ComfyUIOutputVerifier)
 from riverview_core.resident_reasoning import ResidentReasoner
 from riverview_core.local_reasoning_provider import LocalReasoningProvider
 from riverview_core.resident_execution.model_router import GraceModelRouter
@@ -479,6 +484,65 @@ def main() -> int:
         execution_workers = {execution_capability: engine}
         outcome_verifiers = {execution_capability: outcome_verifier or
                              BoundedArtifactVerifier(artifact_root, pipeline)}
+        if os.environ.get("RIVERVIEW_COMFYUI_ENABLED", "0") == "1":
+            try:
+                comfy_endpoint = os.environ.get("RIVERVIEW_COMFYUI_ENDPOINT", "")
+                comfy_registry_path = Path(os.environ.get(
+                    "RIVERVIEW_COMFYUI_WORKFLOW_REGISTRY", "/etc/riverview/comfyui/workflows.json"))
+                comfy_state_root = Path(os.environ.get(
+                    "RIVERVIEW_COMFYUI_STATE_DIR", "/var/lib/riverview-grace-owner-session/comfyui-state"))
+                comfy_artifact_root = Path(os.environ.get(
+                    "RIVERVIEW_COMFYUI_ARTIFACT_DIR", "/var/lib/riverview-comfyui/artifacts"))
+                if (not comfy_registry_path.is_absolute() or not comfy_state_root.is_absolute() or
+                        not comfy_artifact_root.is_absolute()):
+                    raise WorkerServiceConfigurationError("comfyui_paths_must_be_absolute")
+                templates = json.loads(comfy_registry_path.read_text(encoding="utf-8"))
+                comfy_registry = ComfyUIWorkflowRegistry(templates)
+                comfy_group_name = os.environ.get("RIVERVIEW_COMFYUI_ARTIFACT_GROUP", "riverview")
+                comfy_group_gid = grp.getgrnam(comfy_group_name).gr_gid
+                adapter.register_comfyui_capability(worker_id, worker_token, scope_ref)
+                ensure_registered(adapter, worker_id, worker_token,
+                    (execution_capability, ComfyUIAction.CAPABILITY), scope_ref)
+
+                def resolve_comfyui_request(assignment):
+                    objective_ref = assignment.get("objective_ref")
+                    assignment_id = assignment.get("id")
+                    step = pipeline.proposal_step_for_assignment(objective_ref, assignment_id)
+                    if (not isinstance(step, dict) or
+                            step.get("execution_capability") != ComfyUIAction.CAPABILITY):
+                        raise ValueError("persisted_comfyui_step_unavailable")
+                    binding = step.get("comfyui_request_binding")
+                    if (not isinstance(binding, dict) or
+                            binding.get("version") != "grace.comfyui-request-binding.v1" or
+                            binding.get("objective_id") != objective_ref or
+                            binding.get("assignment_id") != assignment_id or
+                            binding.get("step_id") != step.get("step_id") or
+                            binding.get("capability") != ComfyUIAction.CAPABILITY):
+                        raise ValueError("persisted_comfyui_binding_invalid")
+                    return {"workflow_id": binding.get("workflow_id"),
+                            "parameters": binding.get("parameters")}
+
+                comfy_action = ComfyUIAction(comfy_endpoint, comfy_registry,
+                    artifact_root=comfy_artifact_root, state_root=comfy_state_root,
+                    timeout_seconds=float(os.environ.get("RIVERVIEW_COMFYUI_TIMEOUT_SECONDS", "900")),
+                    poll_interval=float(os.environ.get("RIVERVIEW_COMFYUI_POLL_SECONDS", "1")),
+                    artifact_group_gid=comfy_group_gid)
+                comfy_engine = ContinuousWorker(adapter, worker_id, worker_token,
+                    knowledge=ComfyUIKnowledgeProvider(
+                        RepositoryKnowledgeProvider(repo_root, commit), resolve_comfyui_request),
+                    action=comfy_action, action_effect_class="retry_safe",
+                    action_capability=ComfyUIAction.CAPABILITY,
+                    recovery_max_retries=int(os.environ.get(
+                        "RIVERVIEW_GRACE_MAX_WORKER_RECOVERIES", "3")))
+                execution_workers[ComfyUIAction.CAPABILITY] = comfy_engine
+                outcome_verifiers[ComfyUIAction.CAPABILITY] = ComfyUIOutputVerifier(
+                    comfy_artifact_root, artifact_group_gid=comfy_group_gid)
+                logging.info(json.dumps({"event": "grace_comfyui_worker_ready",
+                    "capability": ComfyUIAction.CAPABILITY,
+                    "workflow_count": len(templates)}, sort_keys=True))
+            except Exception as exc:
+                logging.warning(json.dumps({"event": "grace_comfyui_worker_unavailable",
+                    "failure_type": type(exc).__name__}, sort_keys=True))
         if (os.environ.get("RIVERVIEW_SOURCE_WORKER_ENABLED", "0") == "1" and
                 adapter_mode == "codex-cli"):
             try:

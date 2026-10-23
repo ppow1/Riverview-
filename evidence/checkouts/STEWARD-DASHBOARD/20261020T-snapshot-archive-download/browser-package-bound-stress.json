@@ -1,0 +1,674 @@
+{
+  "schema_version": "rv.website.snapshot-browser-verification.v1",
+  "synthetic_fixture_only": true,
+  "dashboard_source": "repository_static_dashboard",
+  "production_data_accessed": false,
+  "production_mutations": false,
+  "api_requests": [
+    {
+      "path": "/api/v1/capabilities",
+      "cookie_present": false
+    },
+    {
+      "path": "/signin",
+      "cookie_present": false
+    },
+    {
+      "path": "/favicon.ico",
+      "cookie_present": false
+    },
+    {
+      "path": "/",
+      "cookie_present": true
+    },
+    {
+      "path": "/assets/app.css",
+      "cookie_present": true
+    },
+    {
+      "path": "/assets/snapshot-stress.js",
+      "cookie_present": true
+    },
+    {
+      "path": "/assets/diagnostic-snapshot.js",
+      "cookie_present": true
+    },
+    {
+      "path": "/assets/resident-permissions.js",
+      "cookie_present": true
+    },
+    {
+      "path": "/assets/app.js",
+      "cookie_present": true
+    },
+    {
+      "path": "/assets/institutional-proposals.js",
+      "cookie_present": true
+    },
+    {
+      "path": "/assets/workflow.js",
+      "cookie_present": true
+    },
+    {
+      "path": "/favicon.ico",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/auth/session",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/capabilities",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/assignments?limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/objectives?limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Awebsite-account-auth%3Aaccount-lifecycle",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/assignments?limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/capabilities",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/snapshot",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/snapshot/workflow-index",
+      "cookie_present": true
+    },
+    {
+      "path": "/assets/app.css",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Awebsite-account-auth%3Aaccount-lifecycle",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aassignment-intake%3Agoverned-request",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aassignment-scheduler%3Aindependent-claims",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Acme%3Aprogress-and-recovery",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Acomms5%3Acamrui-adapter",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aevent-processor%3Aassignment-progression",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Agrace%3Ainstitutional-proposal-lifecycle",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Agrace%3Aoperational-integration",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Ainstitutional-authority%3Aidentity-and-grants",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Ainstitutional-authority%3Aresident-permission-profiles",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Arepository-knowledge-provider%3Apinned-worker-contracts",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Anotification-delivery%3Avisual-attention",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aoutcome-verifier%3Aindependent-result",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Apostgres-ledger%3Aassignment-lifecycle",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Apostgres-ledger%3Amigration",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aresident-conversation%3Abrowser-chat",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aresident-reasoning%3Aruntime",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aruntime-baseline%3Acommissioning",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Asteward-dashboard%3Astatus",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aworker-adapter%3Adeterministic-attempt",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aworker-adapter%3Aregistration-retirement",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aworker-adapter%3Asupervised-services",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/assignments?limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/objectives?limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/resident/conversation-session",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/resident/conversations",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/notifications?limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Awebsite-account-auth%3Aaccount-lifecycle",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aassignment-intake%3Agoverned-request",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aassignment-scheduler%3Aindependent-claims",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Acme%3Aprogress-and-recovery",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Acomms5%3Acamrui-adapter",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aevent-processor%3Aassignment-progression",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Agrace%3Ainstitutional-proposal-lifecycle",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Agrace%3Aoperational-integration",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Ainstitutional-authority%3Aidentity-and-grants",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Ainstitutional-authority%3Aresident-permission-profiles",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Arepository-knowledge-provider%3Apinned-worker-contracts",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Anotification-delivery%3Avisual-attention",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aoutcome-verifier%3Aindependent-result",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Apostgres-ledger%3Aassignment-lifecycle",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aresident-reasoning%3Aruntime",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aruntime-baseline%3Acommissioning",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Apostgres-ledger%3Amigration",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aresident-conversation%3Abrowser-chat",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aworker-adapter%3Aregistration-retirement",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Asteward-dashboard%3Astatus",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aworker-adapter%3Adeterministic-attempt",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/graphs/rv%3Aworker-adapter%3Asupervised-services",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/account/enrollments?limit=50",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/account/email-settings",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/account/users?limit=100",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/resident-permissions",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/status",
+      "cookie_present": true
+    },
+    {
+      "path": "/api/v1/events?after_seq=0&limit=25",
+      "cookie_present": true
+    }
+  ],
+  "expected_workflows": 22,
+  "expected_nodes": 603,
+  "expected_edges": 807,
+  "registered_pages": 10,
+  "registered_controls": 55,
+  "unauthenticated_registry_status": 401,
+  "workflow_viewer": {
+    "initial_fit_scale": 0.536336,
+    "initial_fit_applied": true,
+    "zoom_in_increased_scale": true,
+    "reset_restored_unit_scale": true,
+    "fit_button_restored_fit": true,
+    "pan_changed_transform": true,
+    "fullscreen_entered": true,
+    "fullscreen_supported": true,
+    "fullscreen_behavior_ok": true
+  },
+  "archive_local_fallback": {
+    "clear_failure_message": true,
+    "local_zip_downloaded": true,
+    "github_request_skipped_without_csrf": true
+  },
+  "package_bytes": 83162400,
+  "zip_integrity_test": true,
+  "offline_json_node_edge_inventory_reconciles": true,
+  "synthetic_cookie_not_exported": true,
+  "manifest_files_valid": true,
+  "manifest_capture_complete": false,
+  "all_registered_pages_captured": true,
+  "documentation_full_extent_tiles_complete": true,
+  "actual_dashboard_assets_served": true,
+  "actual_dashboard_page_content_captured": true,
+  "page_private_content_redacted": true,
+  "sensitive_form_value_redacted": true,
+  "page_visuals_are_full_rendered_captures": true,
+  "offline_html_is_inert": true,
+  "page_control_correlation": true,
+  "manifest_workflows": 22,
+  "manifest_nodes": 603,
+  "manifest_edges": 807,
+  "workflow_index_relations": [
+    {
+      "source_graph_id": "rv:assignment-intake:governed-request",
+      "source_node_id": "rv:assignment-intake:governed-request:exact-grant-jump",
+      "target_node_id": "rv:institutional-authority:identity-and-grants:runtime-grant-check",
+      "target_graph_id": "rv:institutional-authority:identity-and-grants",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:assignment-scheduler:independent-claims",
+      "source_node_id": "rv:assignment-scheduler:independent-claims:ready-jump",
+      "target_node_id": "rv:event-processor:assignment-progression:advance",
+      "target_graph_id": "rv:event-processor:assignment-progression",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:cme:progress-and-recovery",
+      "source_node_id": "rv:cme:progress-and-recovery:resident-feedback",
+      "target_node_id": "rv:grace:operational-integration:evidence-review",
+      "target_graph_id": "rv:grace:operational-integration",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:event-processor:assignment-progression",
+      "source_node_id": "rv:event-processor:assignment-progression:baseline-jump",
+      "target_node_id": "rv:runtime-baseline:commissioning:ready",
+      "target_graph_id": "rv:runtime-baseline:commissioning",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:grace:operational-integration",
+      "source_node_id": "rv:grace:operational-integration:worker-dispatch",
+      "target_node_id": "rv:worker-adapter:deterministic-attempt:continuous-cycle",
+      "target_graph_id": "rv:worker-adapter:deterministic-attempt",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:grace:operational-integration",
+      "source_node_id": "rv:grace:operational-integration:cme-progress",
+      "target_node_id": "rv:cme:progress-and-recovery:observe",
+      "target_graph_id": "rv:cme:progress-and-recovery",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:grace:operational-integration",
+      "source_node_id": "rv:grace:operational-integration:verification-feedback",
+      "target_node_id": "rv:outcome-verifier:independent-result:decision",
+      "target_graph_id": "rv:outcome-verifier:independent-result",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:institutional-authority:resident-permission-profiles",
+      "source_node_id": "rv:institutional-authority:resident-permission-profiles:authority-revalidation-jump",
+      "target_node_id": "rv:institutional-authority:identity-and-grants:authorize",
+      "target_graph_id": "rv:institutional-authority:identity-and-grants",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:repository-knowledge-provider:pinned-worker-contracts",
+      "source_node_id": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-ground",
+      "target_node_id": "rv:worker-adapter:deterministic-attempt:ground",
+      "target_graph_id": "rv:worker-adapter:deterministic-attempt",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:repository-knowledge-provider:pinned-worker-contracts",
+      "source_node_id": "rv:repository-knowledge-provider:pinned-worker-contracts:worker-wait",
+      "target_node_id": "rv:worker-adapter:deterministic-attempt:evidence-wait",
+      "target_graph_id": "rv:worker-adapter:deterministic-attempt",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:notification-delivery:visual-attention",
+      "source_node_id": "rv:notification-delivery:visual-attention:jump-cme",
+      "target_node_id": "rv:cme:progress-and-recovery:monitor-start",
+      "target_graph_id": "rv:cme:progress-and-recovery",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:notification-delivery:visual-attention",
+      "source_node_id": "rv:notification-delivery:visual-attention:jump-dashboard",
+      "target_node_id": "rv:steward-dashboard:status:ingest",
+      "target_graph_id": "rv:steward-dashboard:status",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:outcome-verifier:independent-result",
+      "source_node_id": "rv:outcome-verifier:independent-result:result-jump",
+      "target_node_id": "rv:worker-adapter:deterministic-attempt:result",
+      "target_graph_id": "rv:worker-adapter:deterministic-attempt",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:postgres-ledger:migration",
+      "source_node_id": "rv:postgres-ledger:migration:dashboard-jump",
+      "target_node_id": "rv:steward-dashboard:status:ingest",
+      "target_graph_id": "rv:steward-dashboard:status",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:resident-conversation:browser-chat",
+      "source_node_id": "rv:resident-conversation:browser-chat:future-objective-jump",
+      "target_node_id": "rv:grace:operational-integration:objective-intake",
+      "target_graph_id": "rv:grace:operational-integration",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:resident-reasoning:runtime",
+      "source_node_id": "rv:resident-reasoning:runtime:knowledge-contract-jump",
+      "target_node_id": "rv:worker-adapter:deterministic-attempt:ground",
+      "target_graph_id": "rv:worker-adapter:deterministic-attempt",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:resident-reasoning:runtime",
+      "source_node_id": "rv:resident-reasoning:runtime:binding-jump",
+      "target_node_id": "rv:institutional-authority:identity-and-grants:office-state",
+      "target_graph_id": "rv:institutional-authority:identity-and-grants",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:runtime-baseline:commissioning",
+      "source_node_id": "rv:runtime-baseline:commissioning:m12-jump",
+      "target_node_id": "rv:postgres-ledger:migration:apply",
+      "target_graph_id": "rv:postgres-ledger:migration",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:steward-dashboard:status",
+      "source_node_id": "rv:steward-dashboard:status:jump-ledger",
+      "target_node_id": "rv:postgres-ledger:assignment-lifecycle:intake",
+      "target_graph_id": "rv:postgres-ledger:assignment-lifecycle",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:steward-dashboard:status",
+      "source_node_id": "rv:steward-dashboard:status:jump-cme",
+      "target_node_id": "rv:cme:progress-and-recovery:monitor-start",
+      "target_graph_id": "rv:cme:progress-and-recovery",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:steward-dashboard:status",
+      "source_node_id": "rv:steward-dashboard:status:account-login",
+      "target_node_id": "rv:website-account-auth:account-lifecycle:visitor-request",
+      "target_graph_id": "rv:website-account-auth:account-lifecycle",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:steward-dashboard:status",
+      "source_node_id": "rv:steward-dashboard:status:account-management",
+      "target_node_id": "rv:website-account-auth:account-lifecycle:steward-management",
+      "target_graph_id": "rv:website-account-auth:account-lifecycle",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:worker-adapter:deterministic-attempt",
+      "source_node_id": "rv:worker-adapter:deterministic-attempt:lease-jump",
+      "target_node_id": "rv:assignment-scheduler:independent-claims:start-check",
+      "target_graph_id": "rv:assignment-scheduler:independent-claims",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:worker-adapter:deterministic-attempt",
+      "source_node_id": "rv:worker-adapter:deterministic-attempt:verification-jump",
+      "target_node_id": "rv:outcome-verifier:independent-result:verification-intake",
+      "target_graph_id": "rv:outcome-verifier:independent-result",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:worker-adapter:supervised-services",
+      "source_node_id": "rv:worker-adapter:supervised-services:verification-handoff",
+      "target_node_id": "rv:outcome-verifier:independent-result:verification-intake",
+      "target_graph_id": "rv:outcome-verifier:independent-result",
+      "resolved": true
+    },
+    {
+      "source_graph_id": "rv:worker-adapter:supervised-services",
+      "source_node_id": "rv:worker-adapter:supervised-services:intake-persist",
+      "target_node_id": "rv:event-processor:assignment-progression:created",
+      "target_graph_id": "rv:event-processor:assignment-progression",
+      "resolved": true
+    }
+  ],
+  "alpha_svg_node_ids": [
+    "rv:assignment-intake:governed-request:request",
+    "rv:assignment-intake:governed-request:bounded-request",
+    "rv:assignment-intake:governed-request:grant-decision",
+    "rv:assignment-intake:governed-request:exact-grant-jump",
+    "rv:assignment-intake:governed-request:reject-request",
+    "rv:assignment-intake:governed-request:atomic-write",
+    "rv:assignment-intake:governed-request:accepted",
+    "rv:assignment-intake:governed-request:recovery"
+  ],
+  "alpha_svg_edge_count": 10,
+  "alpha_png_signature_valid": true,
+  "workflow_runtime_status_exported": true,
+  "all_workflow_visuals_valid": true,
+  "all_canonical_workflow_json_matches": true,
+  "page_pngs_complete": true,
+  "request_metadata_captured": true,
+  "navigation_timing_captured": true,
+  "diagnostic_privacy_filter_passed": true,
+  "control_coverage_uncovered": 11,
+  "captured_interactions": 8,
+  "cross_workflow_target_preserved": true,
+  "cross_workflow_index_complete": true,
+  "workflow_index_unresolved_references_complete": true,
+  "node_identity_preserved": true,
+  "edge_identity_preserved": true,
+  "offline_index_has_file_refs": true,
+  "browser_errors": [],
+  "passed": true,
+  "package_sha256": "096a8e16ccc0b04c1042e4d6d0b7c95c1e36c254fc3c99b7d4a6b34aab22590a",
+  "stress_hook_loaded": true,
+  "package_bound_stress": {
+    "current_limit_bytes": 100663296,
+    "uncompressed_archive_bytes": 83139338,
+    "omitted_raster_visual_count": 17,
+    "manifest_lists_visual_omissions": true,
+    "raster_budget_respected": true,
+    "structured_and_manifest_reserves_respected": true,
+    "omitted_paths_absent_from_archive": true,
+    "canonical_page_and_workflow_references_valid": true,
+    "diagnostic_members_present": true,
+    "capture_complete_truthfully_false": true
+  },
+  "package_file": "downloads/riverview-diagnostic-2026-10-20T19-39-24.650Z.zip"
+}

@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.12
+# Revision: 1.0.14
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Project accepted image downloads beside their assignment verification record.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Expose only independently accepted ComfyUI binary artifact metadata for authorized download.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Project bounded sanitized grounding-failure history with owner-scoped objective progress.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Expose the criteria source alongside effective objective criteria.
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Project durable rework escalation-pending events as actionable Steward holds.
@@ -25,6 +27,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -419,6 +423,80 @@ class DashboardProjection:
                            for row in events],
                 "attempts": attempts, "verifications": verifications,
                 "diagnostic_ref": "docs/components/STATUS_DASHBOARD_COOKBOOK.md"}
+        detail = self._read(query)
+        if (detail and re.fullmatch(r"[A-Za-z0-9:._-]{1,128}", assignment_id) and
+                any(item.get("capability") == "engineering.comfyui-image.v1"
+                          and item.get("status") == "succeeded"
+                          for item in detail.get("attempts", []))):
+            artifacts = []
+            for index in range(1, 9):
+                item = self.comfyui_artifact(assignment_id, index)
+                if item is None:
+                    break
+                artifacts.append({"index": index, "name": item["name"],
+                    "bytes": item["bytes"], "sha256": item["sha256"],
+                    "download_url": f"/api/v1/assignments/{assignment_id}/artifacts/{index}"})
+            detail["comfyui_artifacts"] = artifacts
+        return detail
+
+    def comfyui_artifact(self, assignment_id: str, index: int):
+        """Return metadata only for one independently accepted ComfyUI output."""
+        if (not isinstance(assignment_id, str) or len(assignment_id) > 256 or
+                "\x00" in assignment_id or type(index) is not int or not 1 <= index <= 8):
+            raise ValueError("invalid ComfyUI artifact reference")
+        def query(cur):
+            cur.execute("""SELECT a.state,wa.attempt_id,wr.result,wr.result_sha256,
+                    (SELECT decision FROM verification_records vr WHERE vr.attempt_id=wa.attempt_id
+                     ORDER BY vr.recorded_at DESC,vr.verification_id DESC LIMIT 1) AS decision
+                FROM assignments a
+                JOIN worker_attempts wa ON wa.assignment_id=a.id
+                JOIN worker_results wr USING(attempt_id)
+                WHERE a.id=%s AND wa.capability='engineering.comfyui-image.v1'
+                  AND wa.status='succeeded'
+                  AND NOT EXISTS (SELECT 1 FROM events p WHERE p.assignment_id=a.id
+                                  AND p.privacy_domain <> 'institution')
+                ORDER BY wa.started_at DESC,wa.attempt_id DESC LIMIT 1""", (assignment_id,))
+            row = cur.fetchone()
+            if row is None or row["decision"] != "ACCEPTED" or row["state"] != "completed":
+                return None
+            result = row["result"] if isinstance(row["result"], dict) else None
+            if result is None:
+                return None
+            encoded = json.dumps(result, sort_keys=True, separators=(",", ":"),
+                                 ensure_ascii=False, allow_nan=False).encode("utf-8")
+            if hashlib.sha256(encoded).hexdigest() != str(row["result_sha256"]).strip():
+                return None
+            records = result.get("artifacts")
+            if not isinstance(records, list) or not 1 <= len(records) <= 8:
+                return None
+            total = 0
+            valid_records = []
+            assignment_key = hashlib.sha256(assignment_id.encode("utf-8")).hexdigest()
+            for item_position, item in enumerate(records, 1):
+                if not isinstance(item, dict):
+                    return None
+                name = item.get("name")
+                if (not isinstance(name, str) or
+                        re.fullmatch(rf"comfyui-output-{item_position}\.(?:png|jpg|webp)", name) is None):
+                    return None
+                expected_storage = assignment_key + "/" + hashlib.sha256(name.encode()).hexdigest()[:12]
+                size = item.get("bytes")
+                digest = item.get("sha256")
+                media = item.get("media_type")
+                if (item.get("storage_name") != expected_storage or type(size) is not int or
+                        not 0 < size <= 16 * 1024 * 1024 or
+                        not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest) or
+                        media not in {"image/png", "image/jpeg", "image/webp"}):
+                    return None
+                total += size
+                valid_records.append({"name": name, "storage_name": expected_storage,
+                                      "bytes": size, "sha256": digest, "media_type": media})
+            selected = next((item for pos, item in enumerate(valid_records, 1) if pos == index), None)
+            if selected is None or total > 48 * 1024 * 1024:
+                return None
+            return {"status": "available", "assignment_id": assignment_id,
+                    "attempt_id": str(row["attempt_id"]), "index": index,
+                    "verification": "ACCEPTED", **selected}
         return self._read(query)
 
     def graph_execution_position(self, graph_id: str):

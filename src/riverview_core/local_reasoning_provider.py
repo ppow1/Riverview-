@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.30
+# Revision: 1.3.31
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Validate typed registered-workflow requests in Grace Engineering proposals.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Support optional bounded JSON-Schema chat output for strict verified-result review.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Keep artifact-specific criteria in their artifact contract, not formal step binding.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Restore only stripped structural list markers from original lifecycle criteria and remove temporary capture.
@@ -402,6 +403,14 @@ class LocalReasoningProvider:
                               "execution_capability", "authorized_paths", "test_targets",
                               "repository_reference", "repository_revision"],
                  "additionalProperties": False},
+                {"type": "object", "properties": {**common_step_properties,
+                    "execution_capability": {"type": "string", "enum": ["engineering.comfyui-image.v1"]},
+                    "comfyui_workflow_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"},
+                    "comfyui_parameters": {"type": "object", "maxProperties": 32,
+                        "additionalProperties": {"type": ["string", "number"], "maxLength": 4096}}},
+                 "required": ["step_id", "objective", "acceptance_criteria", "depends_on",
+                              "execution_capability", "comfyui_workflow_id", "comfyui_parameters"],
+                 "additionalProperties": False},
             ]}
             schema_properties = {
                 "summary": {"type": "string", "minLength": 1, "maxLength": 60},
@@ -550,7 +559,8 @@ class LocalReasoningProvider:
                 step_path = f"$.steps[{index}]"
                 required = {"step_id", "objective", "acceptance_criteria", "depends_on"}
                 allowed = required | {"execution_capability", "authorized_paths", "test_targets",
-                                     "repository_reference", "repository_revision", "artifact_requirements"}
+                                     "repository_reference", "repository_revision", "artifact_requirements",
+                                     "comfyui_workflow_id", "comfyui_parameters"}
                 if not isinstance(item, dict):
                     return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
                         "step_validation", step_path, "object", item)
@@ -569,6 +579,11 @@ class LocalReasoningProvider:
                         return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
                             "step_validation", f"{step_path}.{field}", "array", item[field])
                 capability = item.get("execution_capability", "engineering.codex-cli-artifact.v1")
+                if capability == "engineering.comfyui-image.v1" and (
+                        not isinstance(item.get("comfyui_workflow_id"), str) or
+                        not isinstance(item.get("comfyui_parameters"), dict)):
+                    return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                        "step_validation", step_path, "typed ComfyUI workflow request", item)
                 if capability == "engineering.codex-cli-artifact.v1" and not item.get("artifact_requirements"):
                     return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
                         "artifact_requirements", f"{step_path}.artifact_requirements", "non-empty array",
@@ -614,7 +629,9 @@ class LocalReasoningProvider:
                     test_targets=tuple(item.get("test_targets", ())),
                     repository_reference=item.get("repository_reference"),
                     repository_revision=item.get("repository_revision"),
-                    artifact_requirements=tuple(artifact_requirements)))
+                    artifact_requirements=tuple(artifact_requirements),
+                    comfyui_workflow_id=item.get("comfyui_workflow_id"),
+                    comfyui_parameters=item.get("comfyui_parameters")))
             escalation = None
             if "external_escalation" in plan:
                 raw_escalation = plan["external_escalation"]

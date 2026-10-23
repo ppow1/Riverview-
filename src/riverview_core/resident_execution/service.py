@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.37
+# Revision: 1.0.39
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Route only explicitly configured typed ComfyUI proposal steps to the existing capability worker.
+# Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Reconcile the latest verified step first so terminal evidence uses the final completion cycle after restart.
 # Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Correlate objective proposal persistence outcomes with the resident request
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Service ready dispatch, execution, verification, completion and conversation publication before potentially slow model planning
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Provide enough bounded completion tokens for full typed proposals with dynamic objective criteria
@@ -174,6 +176,9 @@ class GraceExecutionService:
         source = "engineering.codex-cli-source-change.v1"
         if requested == source:
             return source if source in self.execution_workers else None
+        comfyui = "engineering.comfyui-image.v1"
+        if requested == comfyui:
+            return comfyui if comfyui in self.execution_workers else None
         artifact_caps = {"engineering.codex-cli-artifact.v1",
                          "engineering.bounded-artifact.v1"}
         if requested not in artifact_caps:
@@ -615,23 +620,31 @@ class GraceExecutionService:
     def reconcile_completions(self, limit=25, objective_id=None):
         with self.pipeline.ledger.db.cursor() as cur:
             self.pipeline.ledger._set_search_path(cur)
-            cur.execute("""SELECT objective_id,assignment_id FROM grace_objectives
-                WHERE status='WORK_ORDER_CREATED' AND assignment_id IS NOT NULL
-                  AND (%s::text IS NULL OR objective_id=%s)
-                ORDER BY updated_at LIMIT %s""", (objective_id, objective_id, limit))
+            cur.execute("""SELECT o.objective_id,s.assignment_id
+                FROM grace_objectives o
+                JOIN grace_objective_steps s USING (objective_id)
+                JOIN assignments a ON a.id=s.assignment_id
+                    AND a.objective_ref=o.objective_id
+                WHERE o.status='WORK_ORDER_CREATED'
+                  AND s.status IN ('assigned','verified')
+                  AND a.state='completed'
+                  AND EXISTS (SELECT 1 FROM verification_records vr
+                      WHERE vr.assignment_id=a.id AND vr.decision='ACCEPTED')
+                  AND (%s::text IS NULL OR o.objective_id=%s)
+                ORDER BY o.updated_at,s.step_order DESC LIMIT %s""",
+                (objective_id, objective_id, limit))
             rows = cur.fetchall()
         completed = 0
         for row in rows:
-            assignment = self.pipeline.ledger.get(row["assignment_id"])
-            if assignment and assignment["state"] == "completed":
-                try:
-                    self.pipeline.record_verified_completion(row["objective_id"],
-                                                             row["assignment_id"])
-                    completed += 1
-                except Exception as exc:
-                    LOG.warning(json.dumps({"event": "grace_completion_reconcile_failed",
-                        "objective_id": row["objective_id"],
-                        "failure_type": type(exc).__name__}, sort_keys=True))
+            try:
+                self.pipeline.record_verified_completion(row["objective_id"],
+                                                         row["assignment_id"])
+                completed += 1
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_completion_reconcile_failed",
+                    "objective_id": row["objective_id"],
+                    "assignment_id": row["assignment_id"],
+                    "failure_type": type(exc).__name__}, sort_keys=True))
         return completed
 
     def publish_conversation_results(self, limit=10):

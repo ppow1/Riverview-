@@ -2,7 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.27
+File Revision: 1.1.29
+Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001-DOC-CORRECTION | Make persisted accepted verification, not conversational output, the objective completion authority.
+Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Document durable terminal completion recovery and distinguish post-completion conversation feedback.
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Diagnose scheduler ordering, split lifecycle criteria, and distinguish verifier rejection from Grace acceptance
 Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-002 | Diagnose dynamic bounded artifact contracts and verifier outcomes
 Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Document assignment-defined artifact diagnosis and bounded recovery
@@ -131,6 +133,7 @@ assignment as a substitute for this route.
 | Legacy Codex verifier rejected substantive content for missing exact wording | Preserve the verifier record. Confirm the deployed verifier revision and criteria in the assignment-linked verification row, then confirm Grace's review context includes the exact verifier evidence and a bounded artifact snapshot whose SHA-256 matches the stored result. | The independent verifier now checks authorized assignment/criteria binding, file identity, digest, owner/mode/size, pinned source/repository provenance and mandatory Markdown structure. It does not decide whether prose substantively meets the criteria. Grace's bound 80B reads the digest-reverified artifact and makes the substantive decision. | The owner cycle first records Grace's durable `OBJECTIVE_SATISFIED`, `REWORK_PROPOSED`, or `STEWARD_AUTHORIZATION_REQUIRED` decision. Satisfaction permits only same-attempt verifier recheck; a rework decision alone can requeue the same assignment after exact `assignment.create` authorization. Never erase the original rejection or auto-requeue it. If artifact bytes fail integrity checks, expose verifier evidence without the untrusted bytes and do not accept satisfaction. |
 | Owner-session startup reports `grace_service_start_failed` with `AttributeError` before its healthy event | Confirm the active immutable source commit and compare the service's startup recovery hook with `CodexWorkAction.reconcile_retryable_no_artifact_failures`. Do not inspect objective or conversation bodies. | Deploy a reviewed immutable release whose service entry point calls `reconcile_codex_startup_recovery`; missing hooks now produce the bounded `codex_recovery_hook_unavailable` configuration error. Preserve the existing objective, lease, event history, and release predecessor. | Restart only the owner-session service after package and backup checks. The normal cycle may retry the same assignment only after its lease expires and the recovery coordinator proves verified objective provenance and absence of attempts, results, verifier decisions, and artifact. |
 | Assignment awaits verification | Check successful attempt result and verifier registry/lease/service. | Restore the distinct verifier service identity and exact `assignment.verify` grant. | Only a separately recorded `ACCEPTED` decision permits objective completion. |
+| All required steps are verified but objective remains open | Read the objective row, ordered step statuses, assignment states, independent verification decisions, and latest `objective.completed` event. | Let the existing Grace service run its completion reconciliation cycle. It completes from the persisted accepted step state after restart; no worker replay or new Steward grant is needed. | One terminal event is written atomically with `COMPLETED`. Conversation review/receipt events are post-completion delivery and cannot reverse objective state. |
 | Verification failures reach three | Inspect objective `verification_failures`, the three `execution.verification_failed` events and verifier journal. | Correct verifier/runtime faults; the poller caps retries per attempt and proceeds to other candidates. Do not change the assignment state manually. | The item remains awaiting verification and objective remains incomplete until independent verification succeeds; escalate unresolved evidence integrity concerns. |
 | Dashboard says Grace unavailable/stale | Check `/api/v1/status`, dashboard journal, migration presence and heartbeat age. | Restore dashboard/database connectivity; do not infer health from systemd active state alone. | Confirm the service instance, fresh heartbeat, objective detail, artifact digest and verification decision. |
 | Process restart during work | Inspect the latest lease generation, execution intent, attempt/result and recovery record. | Start the supervised service; it reads PostgreSQL and CME reconciles expired leases. Do not replay a completion manually. | A preserved result proceeds to verification; a safe action may be requeued; uncertain effects stay blocked for Steward. |
@@ -336,11 +339,13 @@ metadata. These checks establish integrity, required structure, and explicitly
 testable literals only; Grace's reasoning decision remains responsible for
 substantive acceptance.
 
-An independently accepted final assignment on a conversation-origin objective
-first remains `WORK_ORDER_CREATED` while Grace reviews the artifact and
-verification evidence. Check the same-cycle `conversation.result_published` or
-`conversation.result_review_published` event for `review_decision`. Only
-`OBJECTIVE_COMPLETE` allows the normal completion reconciler to append
-`objective.completed`. Other decisions leave the objective open; preserve the
-receipt and follow the established evidence, continuation, or Steward-action
-path. Do not modify objective state manually or replay the original smoke test.
+Objective completion is governed by persisted state: the objective reaches
+`COMPLETED` only when every required step is verified and has persisted
+independent verification with decision `ACCEPTED`. The normal reconciliation
+path records one durable `objective.completed` event idempotently and recovers
+after interrupted processing. Grace's conversational `OBJECTIVE_COMPLETE`
+response, other conversation messages, and published conversation feedback do
+not determine or override objective completion. Preserve receipts and continue
+only through the established evidence, continuation, or Steward-action path
+when required. Do not modify objective state manually or replay the original
+smoke test.

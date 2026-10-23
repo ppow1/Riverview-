@@ -24,10 +24,14 @@ from .knowledge import KnowledgeResult, KnowledgeStatus, UnavailableKnowledgePro
 from .verifier import (DeterministicSha256Verifier, OutcomeVerifier,
                        VerificationResult, VerificationStatus)
 from .local_inference import LocalInferenceAction, LocalInferenceError
+from .comfyui import (ComfyUIAction, ComfyUIError, ComfyUITemplateError,
+                      ComfyUIWorkflowRegistry, ComfyUIOutputVerifier)
 
 __all__ = ["PostgresWorkerAdapter", "WorkerAdapterError",
            "WorkerAuthorizationError", "WorkerLeaseLost", "ContinuousWorker",
            "PostgresRecoveryCoordinator",
            "KnowledgeResult", "KnowledgeStatus", "UnavailableKnowledgeProvider",
            "DeterministicSha256Verifier", "OutcomeVerifier", "VerificationResult",
-           "VerificationStatus", "LocalInferenceAction", "LocalInferenceError"]
+           "VerificationStatus", "LocalInferenceAction", "LocalInferenceError",
+           "ComfyUIAction", "ComfyUIError", "ComfyUITemplateError",
+           "ComfyUIWorkflowRegistry", "ComfyUIOutputVerifier"]

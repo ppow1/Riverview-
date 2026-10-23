@@ -1,0 +1,87 @@
+{
+  "schema_version": "rv.steward-dashboard.checkout-evidence.v1",
+  "revision": "1.0.0",
+  "task_id": "RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020",
+  "component_id": "STEWARD-DASHBOARD",
+  "branch": "codex/snapshot-github-archive-20261020",
+  "base_commit": "cb7ee02fc883d468e8f20fb22ec8840acc7fd4f8",
+  "environment": {
+    "mode": "isolated local checkout and synthetic browser/API fixtures",
+    "real_github_requests": false,
+    "production_access": false,
+    "archive_credentials_present": false,
+    "snapshot_zip_artifacts_retained": false
+  },
+  "tests": [
+    {
+      "name": "snapshot archive and dashboard HTTP tests",
+      "command": "env PYTHONPATH=src pytest -q tests/test_snapshot_archive.py tests/test_status_dashboard.py",
+      "exit_code": 0,
+      "result": "54 passed, 10 skipped in 14.88s",
+      "coverage": ["Release create/upload/publish", "upload failure and draft/tag cleanup", "private repository enforcement", "LoadCredential validation", "CSRF Steward endpoint gate", "browser token exclusion", "redaction declaration", "ZIP CRC and manifest SHA-256/size integrity"]
+    },
+    {
+      "name": "normal dashboard browser acceptance and local fallback",
+      "command": "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --output /tmp/rv-snapshot-github-normal-final-20261020",
+      "exit_code": 0,
+      "result": "PASS; complete manifest; no browser errors; full documentation image capture; archive fallback message and local download verified",
+      "package_bytes": 71763017,
+      "package_uncompressed_bytes": 71735589,
+      "package_sha256": "465868d8596ce9e2b493245a997c8d42fa4ee59e1e663e845651b9488633bb61",
+      "zip_integrity": "PASS (ZipFile.testzip returned None)",
+      "documentation_extent_css_px": 24782,
+      "documentation_detail_tiles": 15,
+      "documentation_tiles_present_and_valid": true,
+      "structured_diagnostic_members_present": true,
+      "capture_complete": true,
+      "archive_failure_message_clear": true,
+      "local_fallback_downloaded": true,
+      "archive_request_skipped_without_csrf": true
+    },
+    {
+      "name": "oversized raster package-bound stress acceptance",
+      "command": "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --package-bound-stress-fixture --single-capture --output /tmp/rv-snapshot-github-stress-final-20261020",
+      "exit_code": 0,
+      "result": "PASS; bounded partial capture preserves structured diagnostics and canonical references",
+      "package_bytes": 83137423,
+      "package_uncompressed_bytes": 83114361,
+      "package_sha256": "8f303efa9595ad9ff32c267579c4b8051c579884e6207eaedc5158894393305a",
+      "zip_integrity": "PASS (ZipFile.testzip returned None)",
+      "omitted_raster_visual_count": 17,
+      "omitted_paths_listed_and_absent": true,
+      "structured_and_manifest_reserves_respected": true,
+      "capture_complete_truthfully_false": true,
+      "diagnostic_members_present": true,
+      "canonical_references_valid": true
+    },
+    {
+      "name": "process graph consistency",
+      "command": "python3 scripts/process_graph.py check",
+      "exit_code": 0,
+      "result": "PASS; 22 graphs, 599 nodes"
+    },
+    {
+      "name": "syntax, schema and whitespace checks",
+      "commands": [
+        "node --check src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
+        "python3 -m py_compile src/riverview_core/status_dashboard/server.py src/riverview_core/status_dashboard/snapshot_archive.py scripts/verify_diagnostic_snapshot_browser.py tests/test_snapshot_archive.py tests/test_status_dashboard.py",
+        "python3 -m json.tool docs/components/STATUS_DASHBOARD_API.schema.json",
+        "git diff --check"
+      ],
+      "exit_code": 0,
+      "result": "PASS"
+    }
+  ],
+  "failed_attempts": [
+    {
+      "command": "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --output /tmp/rv-snapshot-github-normal-20261020",
+      "exit_code": 1,
+      "finding": "Documentation imagery and archive fallback assertions passed, but the run recorded one transient synthetic /api/v1/events ui_error; the full acceptance gate failed on browser_errors. A subsequent retry and the final normal run passed."
+    }
+  ],
+  "deployment": {
+    "ready_for_integration_review": true,
+    "live_github_archive_acceptance": "NOT VERIFIED; dedicated private repository and protected token were not supplied",
+    "production_deployed_or_restarted": false
+  }
+}

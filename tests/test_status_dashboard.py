@@ -2,63 +2,13 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.66
-# Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Verify authenticated cancellation forwards bounded reason and exact assignment.cancel credential.
-# Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Verify durable grounding projection, authenticated scope, redaction, retry guidance, and UI rendering contract.
-# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Align retry-copy assertion with immutable criteria-source semantics.
-# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Cover blank/explicit intake and criteria-source visibility.
-# Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Verify telemetry endpoint authentication, projection, and read-only methods.
-# Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Verify knowledge source pin is independent of dashboard source identity.
-# Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Cover persisted-sequence binding and visible recovery when the retry dialog cannot open.
-# Predecessor: .riverview-backups/20261020T153249910848Z/tests/test_status_dashboard.py (SHA-256 fa08f2763f1eb9234a217974196ab49d416edd73b76987fa104ade8d38ebe1ba)
-# Changed: 2026-10-20 UTC | RV-C4-ACTIVE-LINE-INTEGRATION-001 | Verify re-review route authentication, exact objective scope, bounded payload and request-only behavior.
-# Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Cover Steward and conversation-owner objective access, redaction, and PostgreSQL scoping
-# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify institutional proposal dashboard actions remain distinct from Engineering intake.
-# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Verify authenticated conversation-scoped Engineering progress projection and invalid filters
-# Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Verify Steward proposal UI uses distinct draft, approval and objective-promotion actions.
-# Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Assert UI distinguishes lease heartbeat status from worker process liveness.
-# Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Assert inactive retired registrations do not affect active worker health counts.
-# Purpose: Verify authenticated read-only projections, privacy, paging and restart-safe UI service
-# Execution Model: HTTP component tests and isolated PostgreSQL integration tests
-# Observability: Versioned status and request failure contracts
-# Dependencies: Python 3.10+; Psycopg 3; disposable PostgreSQL for integration class
-# Authority: Creates/drops only unique rvtest_* schemas; never accesses shared Riverview data
-# Changed: 2026-10-16 UTC | RV-WEBSITE-PL-NEW-042 | Verify registered workflow fit/zoom/pan/reset/fullscreen controls.
-# Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Verify inactive registrations are excluded from active health counts
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Verify safe component links remain functional in the consolidated guide
-# Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Exercise updated authority diagnostics through the dashboard documentation route
-# Changed: 2026-10-12 UTC | RV-GRACE-AUTH-SESSION-001 | Enforce browser-managed persistent grant cookie and denial retry suppression UI contract
-# Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ASSERTION | Match cookbook's documented DROP CASCADE warning text
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-SCHEDULER-DIAGNOSTICS | Assert expanded scheduler recovery docs render through dashboard route
-# Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-EXACT-DOCS-REVISION | Match the exact docs/graph source revision in the deployment contract
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-WORKER-DIAGNOSTICS | Assert worker recovery diagnostics render through dashboard route
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PG-SECRET-SAFETY | Assert PostgreSQL cookbook has no password-bearing command examples
-# Changed: 2026-10-13 UTC | RV-GRACE-TO-ENGINEERING | Verify workflow-session transport, exact Steward work-order gate and corrected cookie text assertion
-# Changed: 2026-10-11 UTC | RV-M1.4-LIVE-DEPENDENCY-CORRECTION | Assert scheduler docs distinguish shared migration from commissioning
-# Changed: 2026-10-12 UTC | RV-GRACE-CHAT-UX-001 | Assert complete conversational controls, accessibility hooks, and disabled future actions
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-DASHBOARD-REPOSITORY-LINK | Preserve installed knowledge-cookbook navigation in source shell
-# Changed: 2026-10-11 UTC | RV-M4.1-DB-RESTORE-COOKBOOK | Verify observed backup path incident renders safely through docs route
-# Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-PACKAGE-ROUTE-INTEGRITY | Require every dashboard shell documentation link to resolve
-# Changed: 2026-10-11 UTC | RV-M3.3-ASSIGNMENT-INTAKE-COOKBOOK-RENDER | Verify current authority recovery section renders safely with no broken evidence link
-# Changed: 2026-10-11 UTC | RV-M3.3-DASHBOARD-COOKBOOK-ASSERTION-CORRECTION | Match expected HTML code-tag rendering rather than Markdown source
-# Contracts: docs/components/STATUS_DASHBOARD.md
-# Tests: This file
-# History: Git and revision/backup manifest
-# Changed: 2026-10-15 UTC | RV-GRACE-LIVE-STREAMING-001 | Persist bounded streaming, reconnect, and terminal provenance.
-# Changed: 2026-10-15 UTC | RV-GRACE-WORKORDER-RECOVERY-001 | Cover release-pinned knowledge and idempotent wait-state intake.
-# Changed: 2026-10-15 UTC | RV-WEBSITE-PL004/006/008/011/012/014 | Assert assignment linkage, overview semantics, worker states, activity paging, event provenance, and refresh guidance.
-# Changed: 2026-10-15 UTC | RV-WEBSITE-PL016 | Reuse named dashboard/documentation tabs for return navigation.
-# Changed: 2026-10-15 UTC | RV-WEBSITE-PL010/015/020/023/024 | Explain execution readiness, chat controls, menu availability and milestone semantics.
-# Changed: 2026-10-15 UTC | RV-WEBSITE-PL019 | Prevent transcript/composer overlap and verify responsive long-history layout.
-# Changed: 2026-10-15 UTC | RV-WEBSITE-PL036 | Verify persistent rail state, accessible names and retained status/snapshot controls.
-# Changed: 2026-10-15 UTC | RV-WEBSITE-PL003 | Resolve assignment task labels from exact persisted graph/node IDs.
-# Changed: 2026-10-15 UTC | RV-WEBSITE-PL029 | Separate notification rendering, receipt, person-seen and decision states.
-# Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Verify searchable canonical traceability catalog and evidence qualification.
-# Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify authenticated dynamic capability/workflow inventories, complete source metadata and snapshot affordance.
+# Revision: 1.0.70
+# Changed: 2026-10-23 UTC | RV-COMFYUI-C4-MERGE-20261023 | Preserve ComfyUI artifact, telemetry, cancellation and Snapshot archive acceptance.
+# Purpose: Verify authenticated dashboard projections, Engineering artifacts, and archive routes.
 # =============================================================================
-"""Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
 import json
+import hashlib
 import os
 import re
 import tempfile
@@ -89,6 +39,7 @@ class _FakeProjection:
         self.last_progress_only = None
         self.objective_items = []
         self.execution_position = {"status": "unknown", "reason": "No recorded node."}
+        self.comfyui_metadata = None
 
     def graph_execution_position(self, graph_id):
         return self.execution_position
@@ -144,6 +95,9 @@ class _FakeProjection:
 
     def assignment_detail(self, assignment_id):
         return None
+
+    def comfyui_artifact(self, assignment_id, index):
+        return self.comfyui_metadata if assignment_id == "assignment-test" and index == 1 else None
 
 
 class DashboardDeploymentContractTests(unittest.TestCase):
@@ -230,6 +184,13 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("an idle worker may have no lease heartbeat", html)
         self.assertIn("Process state is not reported by this view", html)
 
+    def test_assignment_detail_renders_only_verified_comfyui_download_links(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        self.assertIn("Array.isArray(detail.comfyui_artifacts)", app)
+        self.assertIn('Verified ComfyUI images', app)
+        self.assertIn('href="${esc(x.download_url)}" download', app)
+        self.assertIn('SHA-256 ${esc(x.sha256)}', app)
+
     def test_grace_execution_and_chat_readiness_are_distinct_and_explained(self):
         html = (ROOT / "src/riverview_core/status_dashboard/static/index.html").read_text(encoding="utf-8")
         self.assertIn("Chat access alone does not establish execution readiness.", html)
@@ -260,7 +221,8 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         css = (ROOT / "src/riverview_core/status_dashboard/static/app.css").read_text(encoding="utf-8")
         self.assertIn('id="rail-toggle"', html)
         self.assertIn('aria-controls="primary-navigation"', html)
-        self.assertIn('aria-label="Download comprehensive offline diagnostic snapshot"', html)
+        self.assertIn('aria-label="Snapshot"', html)
+        self.assertIn('<span class="snapshot-label">Snapshot</span>', html)
         self.assertIn('role="img" aria-label="Source health: connecting"', html)
         self.assertIn('rv.dashboard.rail-collapsed', app)
         self.assertIn('setAttribute("aria-expanded"', app)
@@ -501,7 +463,8 @@ class DashboardHTTPTests(unittest.TestCase):
         self.thread.join(timeout=2)
         self.temp.cleanup()
 
-    def request(self, method, path, *, token=None, host=None, cookie=None):
+    def request(self, method, path, *, token=None, host=None, cookie=None, csrf=None,
+                body=None, content_type=None):
         conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
         headers = {}
         if token is not None:
@@ -510,13 +473,73 @@ class DashboardHTTPTests(unittest.TestCase):
             headers["Host"] = host
         if cookie:
             headers["Cookie"] = cookie
-        conn.request(method, path, headers=headers)
+        if csrf:
+            headers["X-Riverview-CSRF"] = csrf
+        if content_type:
+            headers["Content-Type"] = content_type
+        conn.request(method, path, body=body, headers=headers)
         response = conn.getresponse()
         body = response.read()
         result = (response.status, response.getheaders(), body)
         conn.close()
         return result
 
+    def test_comfyui_work_order_proposal_preserves_typed_workflow_binding(self):
+        from contextlib import nullcontext
+
+        class Cursor:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+
+        class DB:
+            db = None
+            def transaction(self): return nullcontext()
+            def cursor(self): return Cursor()
+            def _set_search_path(self, cur): pass
+
+        class Authorizer:
+            def require(self, cur, credential, action, scope):
+                self.assertion = (credential, action, scope)
+                return {"principal_id": "steward:test"}
+
+        class Pipeline:
+            def __init__(self):
+                self.ledger = DB()
+                self.authorizer = Authorizer()
+                self.recorded = None
+
+            def get_objective(self, objective_id):
+                return {"scope_ref": "work-order:engineering"}
+
+            def record_proposal(self, objective_id, proposal, *, actor_id):
+                self.recorded = (objective_id, proposal, actor_id)
+                return {"status": "recorded", "assignment_id": "assignment-comfy"}
+
+        pipeline = Pipeline()
+        pipeline.ledger.db = pipeline.ledger
+        self.server._objective_pipeline = pipeline
+        body = json.dumps({"summary": "Generate a bounded test image", "tokens_used": 12,
+            "steps": [{"step_id": "image", "objective": "Generate one test image",
+                "acceptance_criteria": ["one verified PNG"], "depends_on": [],
+                "execution_capability": "engineering.comfyui-image.v1",
+                "comfyui_workflow_id": "sd-turbo-512", "comfyui_parameters": {
+                    "prompt": "a small blue cube", "seed": 42}}]}).encode()
+        conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        conn.request("POST", "/api/v1/objectives/objective:test/proposal", body=body,
+            headers={"Authorization": "Bearer " + self.token,
+                "X-Riverview-Authority": "D" * 43,
+                "Content-Type": "application/json", "Content-Length": str(len(body))})
+        response = conn.getresponse()
+        payload = json.loads(response.read())
+        conn.close()
+        self.assertEqual(response.status, 202, payload)
+        step = pipeline.recorded[1].steps[0]
+        self.assertEqual(step.execution_capability, "engineering.comfyui-image.v1")
+        self.assertEqual(step.comfyui_workflow_id, "sd-turbo-512")
+        self.assertEqual(step.comfyui_parameters, {"prompt": "a small blue cube", "seed": 42})
+        self.assertEqual(pipeline.authorizer.assertion[1:],
+                         ("assignment.create", "work-order:engineering"))
+        self.assertEqual(payload["assignment_id"], "assignment-comfy")
     def test_authenticated_objective_cancel_route_preserves_exact_grant_and_reason(self):
         from riverview_core.resident_execution import ObjectiveNotAuthorized
 
@@ -589,6 +612,116 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(status, 405)
         self.assertEqual(json.loads(body)["error"], "read_only_method")
 
+    def test_comfyui_binary_download_requires_auth_and_returns_verified_artifact_bytes(self):
+        assignment_hash = hashlib.sha256(b"assignment-test").hexdigest()
+        name = "comfyui-output-1.png"
+        storage_leaf = hashlib.sha256(name.encode()).hexdigest()[:12]
+        payload = b"PNG synthetic test bytes"
+        with tempfile.TemporaryDirectory() as root:
+            os.chmod(root, 0o2750)
+            directory = Path(root) / assignment_hash
+            directory.mkdir(mode=0o2750)
+            path = directory / storage_leaf
+            path.write_bytes(payload)
+            path.chmod(0o640)
+            self.projection.comfyui_metadata = {
+                "status": "available", "assignment_id": "assignment-test", "index": 1,
+                "verification": "ACCEPTED", "name": name,
+                "storage_name": assignment_hash + "/" + storage_leaf,
+                "bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest(),
+                "media_type": "image/png"}
+            route = "/api/v1/assignments/assignment-test/artifacts/1"
+            self.assertEqual(self.request("GET", route)[0], 401)
+            with mock.patch.dict(os.environ, {"RIVERVIEW_COMFYUI_ARTIFACT_ROOT": root}):
+                status, headers, body = self.request("GET", route, token=self.token)
+                self.assertEqual(status, 200)
+                self.assertEqual(body, payload)
+                self.assertIn(("Content-Type", "image/png"), headers)
+                self.assertIn(("Content-Disposition", 'attachment; filename="comfyui-output-1.png"'), headers)
+                path.write_bytes(b"tampered")
+                status, _, _ = self.request("GET", route, token=self.token)
+                self.assertEqual(status, 503)
+    def test_same_origin_v2_static_route_serves_only_allowlisted_release_assets(self):
+        status, headers, body = self.request("GET", "/v2/")
+        self.assertEqual(status, 200)
+        self.assertIn(b'id="snapshot-action"', body)
+        self.assertIn(b'<meta name="rv-v2-snapshot-mode" content="authenticated-dashboard">', body)
+        self.assertIn("connect-src 'self'", dict(headers)["Content-Security-Policy"])
+        self.assertEqual(self.request("GET", "/v2/assets/snapshot.js")[0], 200)
+        self.assertEqual(self.request("GET", "/v2/assets/../../src/riverview_core/status_dashboard/server.py")[0], 404)
+        self.assertEqual(self.request("GET", "/v2/assets/server.py")[0], 404)
+
+    def test_v2_snapshot_mode_is_injected_only_by_dashboard_route(self):
+        source = (Path(__file__).resolve().parents[1] / "website/v2/index.html").read_bytes()
+        self.assertNotIn(b"rv-v2-snapshot-mode", source)
+        status, _, body = self.request("GET", "/v2/")
+        self.assertEqual(status, 200)
+        self.assertEqual(body.count(b'<meta name="rv-v2-snapshot-mode" content="authenticated-dashboard">'), 1)
+
+    def test_snapshot_archive_requires_csrf_validated_steward_cookie_and_returns_only_release_metadata(self):
+        class Archive:
+            def __init__(self): self.payload = None
+            def archive(self, payload):
+                self.payload = payload
+                return {"status":"archived", "snapshot_id":"rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef",
+                    "dashboard_version":"v1", "capture_id":"capture-test-1",
+                    "release_url":"https://github.com/owner/private-repo/releases/tag/rvdiag-20261020T150000Z-0123456789abcdef0123456789abcdef",
+                    "asset_name":"riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip",
+                    "archive_sha256":"a"*64,"asset_sha256":"a"*64,"asset_id":123,
+                    "archive_size_bytes":8,"retention":"permanent"}
+        class Auth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                from riverview_core.account_auth import AuthDenied
+                if credential != "steward-session" or (state_changing and csrf_token != "csrf-ok"):
+                    raise AuthDenied("denied")
+                return {"account_id":"steward-1", "roles":["steward"]}
+        archive = Archive()
+        self.server._snapshot_archive = archive
+        self.server._account_auth_service = Auth()
+        payload = b"synthetic-bounded-zip"
+        self.assertEqual(self.request("POST", "/api/v1/snapshot/archive", token=self.token,
+            body=payload, content_type="application/zip")[0], 403)
+        cookie = "rv_account_session=steward-session"
+        self.assertEqual(self.request("POST", "/api/v1/snapshot/archive", cookie=cookie,
+            body=payload, content_type="application/zip")[0], 403)
+        status, _, body = self.request("POST", "/api/v1/snapshot/archive", cookie=cookie,
+            csrf="csrf-ok", body=payload, content_type="application/zip")
+        self.assertEqual(status, 201)
+        self.assertEqual(archive.payload, payload)
+        result = json.loads(body)
+        self.assertEqual(result["status"], "archived")
+        self.assertEqual(result["dashboard_version"], "v1")
+        self.assertEqual(result["asset_name"], "riverview-v1-2026-10-20T15-00-00Z-capture-test-1.zip")
+        self.assertEqual(result["asset_id"], 123)
+        self.assertEqual(result["asset_sha256"], "a" * 64)
+        self.assertTrue(result["release_url"].startswith("https://github.com/owner/private-repo/"))
+        self.assertNotIn(self.token.encode(), body)
+
+    def test_snapshot_archive_is_unavailable_without_server_configuration(self):
+        class Auth:
+            def authenticate(self, credential, *, csrf_token, state_changing):
+                return {"account_id":"steward-1", "roles":["steward"]}
+        self.server._account_auth_service = Auth()
+        status, _, body = self.request("POST", "/api/v1/snapshot/archive",
+            cookie="rv_account_session=steward-session", csrf="csrf-ok",
+            body=b"zip", content_type="application/zip")
+        self.assertEqual(status, 503)
+        self.assertEqual(json.loads(body)["error"], "snapshot_archive_not_configured")
+
+    def test_browser_snapshot_archival_never_contains_github_authorization_material(self):
+        status, _, body = self.request("GET", "/assets/diagnostic-snapshot.js", token=self.token)
+        self.assertEqual(status, 200)
+        source = body.decode("utf-8")
+        self.assertIn("/api/v1/snapshot/archive", source)
+        self.assertIn("browser download", source)
+        self.assertIn('"requested"', source)
+        self.assertIn("Download ZIP", source)
+        self.assertIn("Copy GitHub Link", source)
+        self.assertIn("payload.archive_sha256!==localDigest", source)
+        self.assertIn("payload.asset_sha256!==localDigest", source)
+        self.assertNotIn("github_pat_", source)
+        self.assertNotIn("Authorization", source[source.index("async function archiveSnapshot"):source.index("async function download")])
+#
     def test_authenticated_result_rereview_route_is_exact_scoped_bounded_and_request_only(self):
         from riverview_core.resident_execution import ObjectiveNotAuthorized
 

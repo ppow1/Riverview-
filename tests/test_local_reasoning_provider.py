@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.33
+# Revision: 1.1.34
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Check the ComfyUI typed plan schema alongside existing artifact and source-change variants.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional JSON-schema chat mode is sent only when requested and bounded.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Verify artifact checks stay in the artifact contract without becoming extra formal criteria.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Verify lifecycle criterion binding restores only a stripped structural bullet.
@@ -565,11 +566,16 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("For artifact steps, include artifact_requirements", prompt)
         step_schema = sent["response_format"]["json_schema"]["schema"]
         variants = step_schema["properties"]["steps"]["items"]["oneOf"]
-        artifact_schema, source_schema = variants
+        artifact_schema, source_schema, comfyui_schema = variants
         self.assertIn("artifact_requirements", artifact_schema["required"])
         self.assertIn("execution_capability", artifact_schema["required"])
         self.assertNotIn("authorized_paths", artifact_schema["properties"])
         self.assertNotIn("artifact_requirements", source_schema["properties"])
+        self.assertEqual(comfyui_schema["properties"]["execution_capability"]["enum"],
+                         ["engineering.comfyui-image.v1"])
+        self.assertEqual(set(comfyui_schema["required"]), {"step_id", "objective",
+            "acceptance_criteria", "depends_on", "execution_capability",
+            "comfyui_workflow_id", "comfyui_parameters"})
 
         del valid_step["artifact_requirements"]
         self.response_body = self._response(text=json.dumps({

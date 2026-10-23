@@ -1,16 +1,22 @@
 <!--
+Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the same-origin V2 route and shared authenticated snapshot/archive boundary.
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.15
+File Revision: 1.1.17
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
-Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify numeric per-slot context counters and unavailable KV-cache bytes.
-Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free live stream activity projection and metric limits.
-Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Define per-host read-only storage projection, unique filesystem aggregation, and unavailable host behavior.
-Changed: 2026-10-22 UTC | RV-V2-WEBSITE-INTEGRATION-20261022 | Record independent Camrui df/statvfs comparison evidence and uncommissioned host limits.
-Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate dashboard identity from the pinned Grace knowledge source.
+Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify per-slot context counters and unavailable KV-cache bytes.
+Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free stream activity projection.
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Define per-host read-only storage projection and host gaps.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Specify bounded private Release archival and Steward/CSRF authorization.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Specify byte-identical archive/download handoff and local recovery.
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Specify bounded raster omission while preserving snapshot records and vector representations.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Separate the fixed raster ceiling from structured-content and manifest headroom.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Specify private Release archival, Steward/CSRF gate, protected credential and local fallback.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Specify same-Blob archive and browser-download handoff, digest matching, and independent failure behavior.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Specify dashboard-version manifest identity and capture-specific Release asset names while retaining legacy V1 package acceptance.
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -112,6 +118,28 @@ verification decision and pinned source revision.
 | `POST /api/v1/notifications/<uuid>/delivered` | Record successful visible rendering by the dashboard client. | Empty body; service bearer only; not human identity or Steward authority. |
 | `POST /api/v1/notifications/<uuid>/acknowledge` | Explicit receipt acknowledgment after delivery. | Empty body; cannot alter the linked decision request or assignment. |
 | `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
+| `POST /api/v1/snapshot/archive` | Validate and archive the generated redacted diagnostic ZIP as a versioned, capture-specific asset in the private GitHub Release repository; return release URL and metadata. | Steward account session plus CSRF; `application/zip`; one concurrent upload; maximum 97 MiB request and 96 MiB uncompressed members. Dashboard bearer alone is insufficient. Requires `RIVERVIEW_SNAPSHOT_GITHUB_REPOSITORY` and systemd `snapshot-github-token`; errors retain browser local-download fallback. |
+
+The **Snapshot** action generates one bounded, redacted ZIP Blob,
+posts that Blob through the authenticated archive endpoint, checks the confirmed
+response's SHA-256 and byte count against the same Blob, and requests a browser
+download from it. The result retains the GitHub Release URL, a **Copy GitHub
+Link** action, and a **Download ZIP** retry link. Archive failure is reported
+while the browser download is still requested. If starting the browser download
+throws after archive success, the verified archive remains linked and the local
+retry link stays available. Browser APIs do not confirm that a user saved the
+file, so the interface says that a download was requested. The local link also
+supports local-only fallback without creating a server-side ZIP copy.
+
+New manifests identify `dashboard_version`, `capture_id`, `captured_at`, and
+`source_commit`. V1 and V2 assets are named
+`riverview-v1-<capture-timestamp>-<capture-id>.zip` and
+`riverview-v2-<capture-timestamp>-<capture-id>.zip`, respectively; both use
+the configured shared private archive repository and the same endpoint. Older
+V1 manifests without `dashboard_version` remain accepted as V1. The isolated
+V2 shell is currently a separate fixture-only interface; its button remains
+disabled until its authenticated API integration is implemented and browser
+verified. Backend V2 package acceptance is not evidence of V2 UI acceptance.
 | `GET /api/v1/graphs` | Index of registered canonical focused process graphs. | Reads versioned package registry; bounded by checked-in graph count. |
 | `GET /api/v1/graphs/<graph_id>` | Canonical nodes, typed edges, decisions, references, and execution-position state. | One registered focused workflow; no graph mutation. |
 | `POST /api/v1/auth/enrollment` / `.../enrollment/verify` | Request access and verify a single-use email challenge. | Generic anti-enumeration request response; 15-minute challenge; email delivery must be configured. |
@@ -225,6 +253,21 @@ payload body, unrestricted conversations, resident session, work-order or
 capability-registry data. Fields not implemented are named in `client_state` or
 omitted; absence is never represented as an empty healthy registry.
 
+The browser ZIP exporter caps total uncompressed member payload at 96 MiB and
+reserves 4 MiB for the manifest. ZIP headers add small overhead to the final
+download and are not part of the uncompressed member-byte check. It always preserves the bounded
+operational/browser diagnostics, sanitized HTML, page/workflow JSON, workflow
+status and SVG. PNG previews and detail tiles have a 76 MiB cumulative ceiling within the 96 MiB
+uncompressed member cap. At that ceiling, 16 MiB remains available for structured
+HTML/JSON/SVG/status/diagnostics and 4 MiB is reserved for the manifest; unused
+raster headroom is also available to required members. If a PNG would cross either
+limit, only that raster preview or tile is omitted; each omitted path and reason
+is recorded, affected visual status is `incomplete`, and `capture_complete` is
+false. The manifest reports uncompressed bytes by component category. A mandatory
+non-raster member that exceeds the hard package ceiling fails with its member
+path and attempted/cap byte counts. No server limit or diagnostic redaction
+rule changes.
+
 ## Grace resident conversation integration
 
 The shared dashboard serves the `Talk with Grace` view and versioned resident
@@ -311,3 +354,11 @@ Grace activity is correlated through its durable conversation and response reque
 `GET /api/v1/resources/telemetry` adds `storage_status`, `storage_observed_at`, and per-host `storage` records in the same authenticated response. Camrui volumes are read with Linux mountinfo plus `statvfs`; OCTO1 volumes are supplied by the existing restricted `resource-telemetry` forced command. The collector admits only supported persistent filesystems, deduplicates bind aliases and shared network filesystems, and returns total/used/available bytes, percent used, mount point, filesystem/device identifier when available, and observation timestamp. Windows development and OCTO2 remain explicitly unavailable until an approved host collector exists. Unavailable measurements are not zero and are excluded from aggregate totals. Collection is request-driven and read-only; no capacity change, mount action, cleanup, or storage scheduling occurs.
 
 Read-only collection on Camrui was compared against `df -B1 -T / /boot/efi` on 2026-10-22; exact total/used/available byte values and timestamps are retained in `evidence/v2-storage-20261022/camrui-mount-observation.json`. This observation validates only Camrui. The current deployed OCTO1 forced-command does not yet emit mount capacity, and Windows development/OCTO2 remain unconnected.
+
+## V2 same-origin snapshot integration
+
+The dashboard package serves the V2 shell at `/v2/` and its allowlisted assets at `/v2/assets/`. This path uses the dashboard HTTPS origin so the browser can reuse the existing Steward account session and CSRF cookie. The V2 interface calls only the existing `/api/v1/status`, `/api/v1/snapshot`, and `/api/v1/snapshot/archive` routes; archive authorization, Steward role checks, CSRF validation, redaction declaration validation, and the private GitHub Release credential remain server-side. The browser never receives the GitHub credential.
+
+A V2 package uses `rv.website.diagnostic-snapshot.v1`, records `dashboard_version: v2`, capture ID, capture time, source commit and deployment ID, and names the asset `riverview-v2-<timestamp>-<capture-id>.zip`. Its V2 workspace state is separate from common authenticated dashboard diagnostics. One generated Blob is submitted to the archive endpoint and handed to the browser download. An archive error leaves the local download available; an archive receipt is shown only after the endpoint response matches the capture identity, size and digest.
+
+The independently authenticated LAN preview on port 8877 remains fixture-only and local-download-only. It does not call the dashboard API or archive endpoint. To use V2 archival, open `/v2/` from the authenticated HTTPS dashboard origin.

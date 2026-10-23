@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.2.2
+# Revision: 1.2.3
+# Changed: 2026-10-23 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept historical plan subjects without newly optional ComfyUI fields while retaining digest identity.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Preserve lifecycle criteria in provider-reviewed proposal subject digests
 # Purpose: Expose the durable advisory exchange through authenticated MCP Streamable HTTP
 # Execution Model: Request-driven, sessionless HTTP JSON-RPC adapter
@@ -522,18 +523,19 @@ class ExternalReasoningMCPAdapter:
             UUID(subject["subject_id"])
             subject_id = str(subject["subject_id"])
             allowed_step_keys = set(PlanStep.__dataclass_fields__)
+            required_step_keys = {"step_id", "objective", "acceptance_criteria"}
             normalized_steps = []
             for step in proposal["steps"]:
-                if not isinstance(step, Mapping) or frozenset(step) not in {
-                        frozenset(allowed_step_keys),
-                        frozenset(allowed_step_keys - {"artifact_requirements"})}:
+                if (not isinstance(step, Mapping) or
+                        not required_step_keys <= set(step) or
+                        not set(step) <= allowed_step_keys):
                     raise ValueError
                 step_data = dict(step)
-                has_artifacts = "artifact_requirements" in step_data
                 fields = ["acceptance_criteria", "depends_on", "authorized_paths", "test_targets"]
-                if has_artifacts:
-                    fields.append("artifact_requirements")
+                fields.append("artifact_requirements")
                 for field in fields:
+                    if field not in step_data:
+                        continue
                     values = step_data[field]
                     if not isinstance(values, (list, tuple)):
                         raise ValueError
@@ -553,8 +555,8 @@ class ExternalReasoningMCPAdapter:
             normalized_steps_data = []
             for original, step in zip(proposal["steps"], validated_proposal.steps):
                 record = asdict(step)
-                if "artifact_requirements" not in original:
-                    record.pop("artifact_requirements", None)
+                for field in allowed_step_keys - set(original):
+                    record.pop(field, None)
                 normalized_steps_data.append(record)
             normalized_proposal = {"summary": validated_proposal.summary,
                 "steps": normalized_steps_data}

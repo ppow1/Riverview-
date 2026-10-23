@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.29
+# Revision: 1.0.30
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Add a bounded typed ComfyUI workflow request to the existing proposal step contract.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Map structural list labels and exact single-dispatch lifecycle criteria.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Carry per-attempt correlation ID into provider validation diagnostics.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Correlate separate grounding provider outcomes without request content
@@ -141,11 +142,14 @@ class PlanStep:
     repository_reference: str | None = None
     repository_revision: str | None = None
     artifact_requirements: tuple[ArtifactRequirement, ...] = ()
+    comfyui_workflow_id: str | None = None
+    comfyui_parameters: dict | None = None
 
     def __post_init__(self):
         if self.execution_capability not in {
                 "engineering.codex-cli-artifact.v1",
-                "engineering.codex-cli-source-change.v1"}:
+                "engineering.codex-cli-source-change.v1",
+                "engineering.comfyui-image.v1"}:
             raise ValueError("plan step execution capability is not registered")
         if self.execution_capability == "engineering.codex-cli-source-change.v1":
             def safe(values):
@@ -164,7 +168,30 @@ class PlanStep:
                     not set(self.test_targets) <= set(self.authorized_paths) or
                     self.artifact_requirements):
                 raise ValueError("source-change plan step requires a pinned repository and bounded paths and test targets")
-        elif self.authorized_paths or self.test_targets or self.repository_reference is not None or self.repository_revision is not None:
+        elif self.execution_capability == "engineering.comfyui-image.v1":
+            import json
+            if (self.authorized_paths or self.test_targets or self.repository_reference is not None or
+                    self.repository_revision is not None or self.artifact_requirements or
+                    not isinstance(self.comfyui_workflow_id, str) or
+                    not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,63}", self.comfyui_workflow_id) or
+                    not isinstance(self.comfyui_parameters, dict) or
+                    len(self.comfyui_parameters) > 32):
+                raise ValueError("ComfyUI plan steps require one registered workflow request")
+            for key, value in self.comfyui_parameters.items():
+                if (not isinstance(key, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,47}", key) or
+                        type(value) not in (str, int, float) or
+                        isinstance(value, float) and (value != value or abs(value) == float("inf")) or
+                        isinstance(value, str) and len(value.encode("utf-8")) > 4096):
+                    raise ValueError("ComfyUI parameter values must be bounded JSON scalars")
+            try:
+                if len(json.dumps(self.comfyui_parameters, separators=(",", ":"),
+                                  allow_nan=False).encode("utf-8")) > 8192:
+                    raise ValueError("ComfyUI parameter object exceeds its byte limit")
+            except (TypeError, ValueError):
+                raise ValueError("ComfyUI parameter object is invalid") from None
+        elif (self.authorized_paths or self.test_targets or self.repository_reference is not None or
+              self.repository_revision is not None or self.comfyui_workflow_id is not None or
+              self.comfyui_parameters is not None):
             raise ValueError("bounded artifact steps cannot carry source-change target scope")
         if (not isinstance(self.artifact_requirements, tuple) or
                 len(self.artifact_requirements) > 8 or
