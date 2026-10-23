@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/resource_telemetry.py
 # Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-# Revision: 1.2.0
-# Purpose: Build a read-only, timestamped projection from approved GPU, model, and storage sources
+# Revision: 1.2.3
+# Purpose: Build a read-only, timestamped projection from approved GPU, model, storage, and printer sources
 # Execution Model: Request-driven; one bounded collection per authenticated GET
 # Observability: rv.dashboard.resource-telemetry.v1 with per-source state, timestamps, and safe error codes
 # Dependencies: Python standard library, systemd SSH credentials, restricted OCTOMINER1 telemetry key
@@ -12,6 +12,7 @@
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial read-only telemetry projection
 # Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Project bounded numeric per-slot context counters without task IDs or prompt data
 # Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Add local and OCTO1 mounted-volume measurements to the existing resource projection
+# Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Project the sanitized OCTO Control Bambu status from the existing restricted host read
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_resource_telemetry.py; tests/test_status_dashboard.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -46,6 +47,11 @@ SCHEMA_VERSION = "rv.dashboard.resource-telemetry.v1"
 MAX_RESPONSE_BYTES = 64 * 1024
 _MODEL_ID = re.compile(r"^[A-Za-z0-9._+() -]{1,128}$")
 _GPU_NAME = re.compile(r"^[A-Za-z0-9._+() -]{1,100}$")
+_PRINTER_TEXT = re.compile(r"^[A-Za-z0-9._+() /-]{1,64}$")
+_BAMBU_ERRORS = frozenset({"bambu_source_unavailable", "bambu_source_status_invalid",
+                           "bambu_source_response_too_large", "bambu_source_schema_invalid",
+                           "bambu_authentication_failed", "printer_offline",
+                           "printer_telemetry_stale"})
 _SSH_HOST = "192.168.1.160"
 _SSH_USER = "root"
 _SSH_PORT = "22"
@@ -94,6 +100,79 @@ def _safe_integer(value: object) -> int | None:
         return number if 0 <= number <= 2**63 - 1 else None
     except (TypeError, ValueError, OverflowError):
         return None
+
+
+def _safe_timestamp(value: object) -> str | None:
+    if not isinstance(value, str) or len(value) > 40:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _project_bambu_status(raw: object) -> dict:
+    """Return only the bounded display contract; discard all upstream identity/secrets."""
+    empty_printer = {"state": None, "nozzle_temperature_c": None,
+                     "bed_temperature_c": None, "progress_percent": None,
+                     "remaining_minutes": None, "layer_number": None,
+                     "total_layers": None}
+    unavailable = {"schema_version": "rv.octo.bambu-status.v1", "status": "unavailable",
+                   "connected": None, "observed_at": None, "last_seen_at": None,
+                   "stale_after_seconds": 30, "printer": empty_printer, "ams": [],
+                   "error_code": "bambu_source_unavailable"}
+    if not isinstance(raw, dict) or raw.get("schema_version") != "rv.octo.bambu-status.v1":
+        return unavailable
+    status = raw.get("status")
+    if not isinstance(status, str) or status not in {"healthy", "offline", "stale", "unavailable"}:
+        return {**unavailable, "error_code": "bambu_source_schema_invalid"}
+    connected = raw.get("connected") if type(raw.get("connected")) is bool else None
+    printer_raw = raw.get("printer") if isinstance(raw.get("printer"), dict) else {}
+    state = printer_raw.get("state")
+    if not isinstance(state, str) or not re.fullmatch(r"[A-Za-z0-9 _-]{1,48}", state.strip()):
+        state = None
+    def number(name: str, low: float, high: float):
+        value = printer_raw.get(name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return value if low <= value <= high else None
+    def integer(name: str):
+        value = printer_raw.get(name)
+        return value if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 1000000 else None
+    slots = []
+    raw_slots = raw.get("ams") if isinstance(raw.get("ams"), list) else []
+    for item in raw_slots[:8]:
+        if not isinstance(item, dict):
+            continue
+        material = item.get("material")
+        if not isinstance(material, str) or not _PRINTER_TEXT.fullmatch(material.strip()):
+            material = None
+        remaining = item.get("remaining")
+        if isinstance(remaining, bool) or not isinstance(remaining, (int, float)) or not -1 <= remaining <= 10000:
+            remaining = None
+        color = item.get("color_hex")
+        if not isinstance(color, str) or not re.fullmatch(r"[0-9A-Fa-f]{8}", color):
+            color = None
+        slots.append({"unit": item.get("unit") if type(item.get("unit")) is int and 0 <= item["unit"] <= 32 else None,
+                      "slot": item.get("slot") if type(item.get("slot")) is int and 0 <= item["slot"] <= 31 else None,
+                      "material": material.strip() if isinstance(material, str) else None,
+                      "remaining": remaining, "color_hex": color.upper() if color else None})
+    error = raw.get("error_code")
+    return {"schema_version": "rv.octo.bambu-status.v1", "status": status,
+            "connected": connected,
+            "observed_at": _safe_timestamp(raw.get("observed_at")),
+            "last_seen_at": _safe_timestamp(raw.get("last_seen_at")),
+            "stale_after_seconds": 30,
+            "printer": {"state": state,
+                        "nozzle_temperature_c": number("nozzle_temperature_c", 0, 500),
+                        "bed_temperature_c": number("bed_temperature_c", 0, 200),
+                        "progress_percent": number("progress_percent", 0, 100),
+                        "remaining_minutes": integer("remaining_minutes"),
+                        "layer_number": integer("layer_number"),
+                        "total_layers": integer("total_layers")},
+            "ams": slots,
+            "error_code": error if isinstance(error, str) and error in _BAMBU_ERRORS else (None if status == "healthy" else "bambu_source_unavailable")}
 
 
 def _credential_path(name: str) -> Path | None:
@@ -151,7 +230,8 @@ class DashboardResourceTelemetry:
             return {"state": "unavailable", "observed_at": None,
                     "error_code": "telemetry_credentials_unavailable", "devices": [],
                     "storage": {"state": "unavailable", "observed_at": None,
-                                "volumes": [], "error_code": "storage_credentials_unavailable"}}
+                                "volumes": [], "error_code": "storage_credentials_unavailable"},
+                    "bambu_printer": _project_bambu_status(None)}
         command = [
             "/usr/bin/ssh", "-T", "-p", _SSH_PORT,
             "-i", str(key),
@@ -175,14 +255,17 @@ class DashboardResourceTelemetry:
                 return {"state": "unavailable", "observed_at": None,
                         "error_code": "gpu_source_unreachable", "devices": [],
                         "storage": {"state": "unavailable", "observed_at": None,
-                                    "volumes": [], "error_code": "storage_source_unreachable"}}
+                                    "volumes": [], "error_code": "storage_source_unreachable"},
+                        "bambu_printer": _project_bambu_status(None)}
             payload = json.loads(completed.stdout)
+            bambu_printer = _project_bambu_status(payload.get("bambu_status") if isinstance(payload, dict) else None)
             if (not isinstance(payload, dict) or
                     payload.get("schema_version") != "rv.gpu-host-telemetry.v1" or
                     not isinstance(payload.get("devices"), list) or len(payload["devices"]) > 32):
                 return {"state": "unavailable", "observed_at": None,
                         "error_code": "gpu_source_schema_invalid", "devices": [],
-                        "storage": project_remote_volumes("octominer1", payload)}
+                        "storage": project_remote_volumes("octominer1", payload),
+                        "bambu_printer": bambu_printer}
             devices = []
             for raw in payload["devices"]:
                 if not isinstance(raw, dict):
@@ -235,12 +318,14 @@ class DashboardResourceTelemetry:
                     "observed_at": source_time,
                     "error_code": None if devices else "gpu_inventory_empty",
                     "devices": devices,
-                    "storage": project_remote_volumes("octominer1", payload)}
+                    "storage": project_remote_volumes("octominer1", payload),
+                    "bambu_printer": bambu_printer}
         except (OSError, subprocess.SubprocessError, ValueError, TypeError, json.JSONDecodeError):
             return {"state": "unavailable", "observed_at": None,
                     "error_code": "gpu_source_unavailable", "devices": [],
                     "storage": {"state": "unavailable", "observed_at": None,
-                                "volumes": [], "error_code": "storage_source_unavailable"}}
+                                "volumes": [], "error_code": "storage_source_unavailable"},
+                    "bambu_printer": _project_bambu_status(None)}
 
     def _read_json(self, url: str) -> object:
         request = Request(url, headers={"Accept": "application/json"}, method="GET")
@@ -377,6 +462,7 @@ class DashboardResourceTelemetry:
                                   "devices": gpu["devices"]},
                 "inference_servers": [results["grace-reasoning-80b"], results["grace-vision-30b"]],
                 "storage": gpu["storage"],
+                "bambu_printer": gpu.get("bambu_printer", _project_bambu_status(None)),
             },
             {
                 "host_id": "octominer2",

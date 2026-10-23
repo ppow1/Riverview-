@@ -2,12 +2,13 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.15
+File Revision: 1.1.16
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify numeric per-slot context counters and unavailable KV-cache bytes.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free live stream activity projection and metric limits.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Define per-host read-only storage projection, unique filesystem aggregation, and unavailable host behavior.
 Changed: 2026-10-22 UTC | RV-V2-WEBSITE-INTEGRATION-20261022 | Record independent Camrui df/statvfs comparison evidence and uncommissioned host limits.
+Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Document the read-only P2S/AMS projection through the existing authenticated resource API.
 Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate dashboard identity from the pinned Grace knowledge source.
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
@@ -37,6 +38,29 @@ History: Git and revision/backup manifest
 **Source baseline:** `main` at `e9c66afabe88fe02403a35c8ede83eba54bca2e2` (M2.4 PR #14).  
 **Execution model:** Request-driven browser/API projections and objective intake; durable execution is performed by the separately supervised CME/Grace worker service.
 **Port:** `127.0.0.1:8766`, reserved to `riverview-status-dashboard.service`.
+
+### OCTO1 Bambu P2S and AMS projection
+
+The authenticated `GET /api/v1/resources/telemetry` response may include an
+optional `bambu_printer` object on the `octominer1` host. The OCTO1 restricted
+`resource-telemetry` command performs one fixed, bounded HTTP `GET` to its local
+OCTO Control endpoint (`127.0.0.1:8180/api/v1/bambu/status`) using the existing
+locally protected control token. The token is never sent to Camrui or included
+in the telemetry response. The command allowlists connection/freshness state,
+printer state, temperatures, progress, remaining time/layers, and AMS material,
+remaining amount, and color. Credentials, serial identifiers, printer-control
+routes, MQTT details, and raw upstream fields are discarded. A missing or
+invalid local token or unavailable upstream yields `status: unavailable`; stale
+or disconnected readings remain explicit. Only the existing authenticated
+Dashboard projection exposes these values to V2. The local printer-status port
+`8765` is not used. This integration contains no print or hardware controls.
+
+The V2 card is presentation-only and reads this optional field from the same
+five-second authenticated telemetry refresh used for GPU and inference data.
+Missing values display as unavailable; the browser does not call OCTO Control
+directly or receive the token. Backend deployment must update the existing
+OCTO1 forced-command collector package and the Dashboard projection together;
+the website UI change is separately deployable after that API field exists.
 
 ## Reuse assessment
 

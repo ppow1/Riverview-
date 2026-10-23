@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.1.23",
+  "graph_revision": "1.1.24",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -27,7 +27,9 @@
     "tests/test_gpu_telemetry_command.py",
     "tests/test_resource_telemetry.py",
     "tests/test_status_dashboard.py",
-    "src/riverview_core/status_dashboard/storage_inventory.py"
+    "src/riverview_core/status_dashboard/storage_inventory.py",
+    "tests/test_bambu_telemetry_command.py",
+    "docs/components/STATUS_DASHBOARD_API.schema.json"
   ],
   "documentation_references": [
     "docs/components/ACCOUNT_AUTHENTICATION.md",
@@ -875,6 +877,24 @@
       "verification_evidence": [
         "tests/test_resource_telemetry.py"
       ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:resource-bambu-source",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Read bounded local OCTO Control Bambu status through existing restricted OCTO1 collector; retain only printer/AMS fields",
+      "source_references": [
+        "scripts/rv_gpu_telemetry_command.py",
+        "src/riverview_core/status_dashboard/resource_telemetry.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_bambu_telemetry_command.py",
+        "tests/test_resource_telemetry.py"
+      ]
     }
   ],
   "edges": [
@@ -1269,6 +1289,18 @@
       "to": "rv:steward-dashboard:status:resource-render",
       "type": "runtime_transition",
       "label": "Return unique measured totals and source timestamps"
+    },
+    {
+      "from": "rv:steward-dashboard:status:resource-gpu-source",
+      "to": "rv:steward-dashboard:status:resource-bambu-source",
+      "type": "runtime_transition",
+      "label": "Existing restricted collector performs fixed authenticated local OCTO Control GET; no printer control calls"
+    },
+    {
+      "from": "rv:steward-dashboard:status:resource-bambu-source",
+      "to": "rv:steward-dashboard:status:resource-render",
+      "type": "runtime_transition",
+      "label": "Project bounded printer/AMS status or explicit stale/unavailable values through the authenticated API"
     }
   ]
 }
