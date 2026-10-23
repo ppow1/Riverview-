@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution_health_acl.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.1
+# Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify restricted role access to the appended worker-capability health field.
 # Purpose: Reproduce restricted-role service failure and verify narrow objective/health ACLs
 # Execution Model: Isolated PostgreSQL schema and temporary NOLOGIN runtime role
 # Observability: Sanitized failure log and persisted heartbeat metadata
@@ -55,10 +56,14 @@ class GraceExecutionHealthAclTests(unittest.TestCase):
         self.migration_dir = tempfile.TemporaryDirectory(prefix="rv-health-base-migrations-")
         base_dir = Path(self.migration_dir.name)
         for migration in (ROOT / "resident_execution/migrations").glob("*.sql"):
-            if migration.name.startswith("0007_"):
+            if migration.name.startswith(("0007_", "0018_")):
                 continue
             shutil.copyfile(migration, base_dir / migration.name)
         apply_migrations(DSN, schema=self.schema, migrations_dir=base_dir)
+        self.admin.execute(sql.SQL("""ALTER TABLE {}.grace_execution_health
+            ADD COLUMN worker_capabilities JSONB NOT NULL DEFAULT '[]'::jsonb
+            CHECK (jsonb_typeof(worker_capabilities)='array')""").format(
+                sql.Identifier(self.schema)))
 
         self.admin.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
             sql.Identifier(self.schema), sql.Identifier(self.role)))
@@ -70,6 +75,7 @@ class GraceExecutionHealthAclTests(unittest.TestCase):
         self.service = GraceExecutionService.__new__(GraceExecutionService)
         self.service.pipeline = type("Pipeline", (), {"ledger": self.ledger})()
         self.service.instance_id = uuid4()
+        self.service.execution_workers = {}
 
     def tearDown(self):
         if hasattr(self, "ledger"):
@@ -105,11 +111,17 @@ class GraceExecutionHealthAclTests(unittest.TestCase):
         self.assertNotIn("riverview_authority", grant)
 
         test_migration = grant.replace("'riverview_core'", f"'{self.role}'")
+        capability_grant = (ROOT / "resident_execution/migrations/0018_grace_worker_capability_health.sql").read_text()
+        capability_migration = capability_grant.replace(
+            "ADD COLUMN worker_capabilities", "ADD COLUMN IF NOT EXISTS worker_capabilities")
+        capability_migration = capability_migration.replace("'riverview_core'", f"'{self.role}'")
         with tempfile.TemporaryDirectory(prefix="rv-health-writer-migration-") as temp:
             (Path(temp) / "0007_grace_runtime_objective_and_health_acl.sql").write_text(test_migration)
+            (Path(temp) / "0018_grace_worker_capability_health.sql").write_text(capability_migration)
             self.assertEqual(apply_migrations(DSN, schema=self.schema,
                                               migrations_dir=temp),
-                             ["0007_grace_runtime_objective_and_health_acl"])
+                             ["0007_grace_runtime_objective_and_health_acl",
+                              "0018_grace_worker_capability_health"])
 
         self.assertEqual(self.service._proposed(), [])
         with self.ledger.db.cursor() as cur:
@@ -147,6 +159,8 @@ class GraceExecutionHealthAclTests(unittest.TestCase):
 
         checks = self.admin.execute(
             "SELECT has_column_privilege(%s,%s,'service_id','INSERT'), "
+            "has_column_privilege(%s,%s,'worker_capabilities','INSERT'), "
+            "has_column_privilege(%s,%s,'worker_capabilities','UPDATE'), "
             "has_column_privilege(%s,%s,'cycles_completed','UPDATE'), "
             "has_column_privilege(%s,%s,'service_id','UPDATE'), "
             "has_column_privilege(%s,%s,'request','SELECT'), "
@@ -162,6 +176,8 @@ class GraceExecutionHealthAclTests(unittest.TestCase):
             (self.role, f"{self.schema}.grace_execution_health",
              self.role, f"{self.schema}.grace_execution_health",
              self.role, f"{self.schema}.grace_execution_health",
+             self.role, f"{self.schema}.grace_execution_health",
+             self.role, f"{self.schema}.grace_execution_health",
              self.role, f"{self.schema}.grace_objectives",
              self.role, f"{self.schema}.grace_objectives",
              self.role, f"{self.schema}.grace_objectives",
@@ -174,7 +190,7 @@ class GraceExecutionHealthAclTests(unittest.TestCase):
              self.role, f"{self.schema}.grace_objectives"),
         ).fetchone()
         self.assertEqual(tuple(checks),
-                         (True, True, False, True, True, False, True, True, False,
+                         (True, True, True, True, False, True, True, False, True, True, False,
                           False, False, False, False))
 
         restricted = psycopg.connect(DSN, autocommit=True)

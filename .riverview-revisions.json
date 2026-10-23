@@ -677,15 +677,15 @@
     },
     "docs/components/STATUS_DASHBOARD.md": {
       "path": "docs/components/STATUS_DASHBOARD.md",
-      "revision": "1.1.18",
-      "sha256": "a6d17a317a34ffc0d6f8a84e3e01651979e31ffe9c49684c6702eebeac3ad0c0",
-      "size_bytes": 37497
+      "revision": "1.1.20",
+      "sha256": "aedcccfa176536ebed475d3b68b19755a55d5bf1bbba014943a721393380b75e",
+      "size_bytes": 37856
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.2.5",
-      "sha256": "98a52758e017effc4209132c9d397454a55818bb6434c9ee0a26a030e5117700",
-      "size_bytes": 37205
+      "revision": "1.4.1",
+      "sha256": "e7645f68411f928cea909d4f9d29096fd5368a6c4e2a5dd79762fbba19943c87",
+      "size_bytes": 37960
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
@@ -9550,6 +9550,6 @@
       "size_bytes": 15190
     }
   },
-  "manifest_revision": "1.1.319",
-  "updated_at": "2026-10-23T10:48:42Z"
+  "manifest_revision": "1.1.320",
+  "updated_at": "2026-10-23T12:08:59Z"
 }

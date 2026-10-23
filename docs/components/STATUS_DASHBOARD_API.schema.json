@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.2.schema.json",
-  "title": "Riverview Status Dashboard API v1.2",
+  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.4.schema.json",
+  "title": "Riverview Status Dashboard API v1.4",
   "description": "Authenticated read-only status, resource telemetry, canonical workflow projection, conversation-owner-scoped objective progress, persistent sanitized grounding diagnostics, and component documentation renderer; authenticated dashboard projections and bounded Steward operations, including private GitHub snapshot archival.",
   "$defs": {
     "timestamp": {
@@ -379,6 +379,7 @@
         "status",
         "active_workers",
         "healthy_workers",
+        "degraded_workers",
         "stale_workers",
         "unknown_workers",
         "unverified_workers",
@@ -389,6 +390,7 @@
         "status": {
           "enum": [
             "healthy",
+            "degraded",
             "stale",
             "unknown",
             "unverified",
@@ -401,6 +403,10 @@
           "minimum": 0
         },
         "healthy_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "degraded_workers": {
           "type": "integer",
           "minimum": 0
         },
@@ -421,7 +427,10 @@
           "minimum": 0
         },
         "source": {
-          "const": "assignment_leases"
+          "enum": [
+            "assignment_leases",
+            "grace_execution_health_and_assignment_leases"
+          ]
         },
         "health_semantics": {
           "type": "string"
@@ -466,6 +475,7 @@
               "status": {
                 "enum": [
                   "healthy",
+                  "degraded",
                   "stale",
                   "unknown",
                   "unverified",
@@ -489,8 +499,21 @@
                 "type": "integer",
                 "minimum": 0
               },
+              "last_lease_heartbeat_at": {
+                "type": ["string", "null"],
+                "format": "date-time"
+              },
+              "scope_ref": {"type": "string"},
+              "registered_capabilities": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "live_registered_capabilities": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
               "source": {
-                "const": "assignment_leases"
+                "enum": ["assignment_leases", "grace_execution_health"]
               }
             },
             "additionalProperties": false

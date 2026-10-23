@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.14
+# Revision: 1.0.16
+# Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Require active engineering-scope registry and matching capability for live worker health.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Project accepted image downloads beside their assignment verification record.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Expose only independently accepted ComfyUI binary artifact metadata for authorized download.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Project bounded sanitized grounding-failure history with owner-scoped objective progress.
@@ -173,7 +174,7 @@ class DashboardProjection:
                     }
             if present["grace_execution_health"]:
                 cur.execute("""SELECT instance_id,status,last_heartbeat_at,last_cycle_at,
-                    last_error_type,cycles_completed FROM grace_execution_health
+                    last_error_type,cycles_completed,worker_capabilities FROM grace_execution_health
                     WHERE service_id='grace.execution.v1'""")
                 grace = cur.fetchone()
                 if grace:
@@ -193,27 +194,67 @@ class DashboardProjection:
                         "last_cycle_at": self._iso(grace["last_cycle_at"]),
                         "last_error_type": grace["last_error_type"],
                         "cycles_completed": grace["cycles_completed"],
+                        "worker_capabilities": grace["worker_capabilities"],
                         "source": "grace_execution_health"}
             if present["worker_registry"] and present["assignment_leases"]:
-                cur.execute("""WITH worker_rows AS (
-                               SELECT w.worker_id, w.active, max(l.heartbeat_at) AS heartbeat_at,
-                                      count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
-                                        AND NOT EXISTS (SELECT 1 FROM events p
-                                          WHERE p.assignment_id=l.assignment_id
-                                            AND p.privacy_domain <> 'institution')) AS active_leases
-                               FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
-                               GROUP BY w.worker_id, w.active
-                             ), classified AS (
-                               SELECT *, CASE
-                                 WHEN NOT active THEN 'inactive'
-                                 WHEN heartbeat_at IS NULL THEN 'unknown'
-                                 WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) < 0 THEN 'unverified'
-                                 WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) > %s THEN 'stale'
-                                 ELSE 'healthy' END AS health
-                               FROM worker_rows
-                             )
+                if present["grace_execution_health"]:
+                    cur.execute("""WITH worker_rows AS (
+                                   SELECT w.worker_id, w.active, max(l.heartbeat_at) AS lease_heartbeat_at,
+                                          extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS lease_age,
+                                          count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
+                                            AND NOT EXISTS (SELECT 1 FROM events p
+                                              WHERE p.assignment_id=l.assignment_id
+                                                AND p.privacy_domain <> 'institution')) AS active_leases,
+                                          gh.status AS runtime_status,
+                                          extract(epoch FROM (clock_timestamp()-gh.last_heartbeat_at)) AS runtime_age,
+                                          EXISTS (SELECT 1 FROM jsonb_array_elements(gh.worker_capabilities) cap
+                                            WHERE cap->>'worker_id'=w.worker_id
+                                              AND w.capabilities ? (cap->>'capability'))
+                                            AND w.scope_ref='work-order:engineering' AS runtime_ready
+                                   FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
+                                   LEFT JOIN grace_execution_health gh ON gh.service_id='grace.execution.v1'
+                                   GROUP BY w.worker_id,w.active,gh.status,gh.last_heartbeat_at,gh.worker_capabilities
+                                 ), classified AS (
+                                   SELECT *, CASE
+                                     WHEN NOT active THEN 'inactive'
+                                     WHEN runtime_ready AND runtime_age < 0 THEN 'unverified'
+                                     WHEN runtime_ready AND runtime_age > %s THEN 'stale'
+                                     WHEN runtime_ready AND runtime_status='healthy' THEN 'healthy'
+                                     WHEN runtime_ready THEN 'degraded'
+                                     WHEN lease_age IS NULL THEN 'unknown'
+                                     WHEN lease_age < 0 THEN 'unverified'
+                                     WHEN lease_age > %s THEN 'stale'
+                                     ELSE 'healthy' END AS health
+                                   FROM worker_rows
+                                 )
                              SELECT count(*) FILTER (WHERE active) AS active_workers,
                                     count(*) FILTER (WHERE active AND health='healthy') AS healthy_workers,
+                                    count(*) FILTER (WHERE active AND health='degraded') AS degraded_workers,
+                                    count(*) FILTER (WHERE active AND health='stale') AS stale_workers,
+                                    count(*) FILTER (WHERE active AND health='unknown') AS unknown_workers,
+                                    count(*) FILTER (WHERE active AND health='unverified') AS unverified_workers,
+                                    coalesce(sum(active_leases) FILTER (WHERE active),0) AS active_leases
+                             FROM classified""", (self.heartbeat_stale_seconds,
+                                                    self.heartbeat_stale_seconds))
+                else:
+                    cur.execute("""WITH worker_rows AS (
+                                   SELECT w.worker_id, w.active, max(l.heartbeat_at) AS heartbeat_at,
+                                          count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
+                                            AND NOT EXISTS (SELECT 1 FROM events p
+                                              WHERE p.assignment_id=l.assignment_id
+                                                AND p.privacy_domain <> 'institution')) AS active_leases
+                                   FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
+                                   GROUP BY w.worker_id,w.active
+                                 ), classified AS (
+                                   SELECT *, CASE WHEN NOT active THEN 'inactive'
+                                     WHEN heartbeat_at IS NULL THEN 'unknown'
+                                     WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) < 0 THEN 'unverified'
+                                     WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) > %s THEN 'stale'
+                                     ELSE 'healthy' END AS health FROM worker_rows
+                                 )
+                             SELECT count(*) FILTER (WHERE active) AS active_workers,
+                                    count(*) FILTER (WHERE active AND health='healthy') AS healthy_workers,
+                                    0 AS degraded_workers,
                                     count(*) FILTER (WHERE active AND health='stale') AS stale_workers,
                                     count(*) FILTER (WHERE active AND health='unknown') AS unknown_workers,
                                     count(*) FILTER (WHERE active AND health='unverified') AS unverified_workers,
@@ -226,6 +267,8 @@ class DashboardProjection:
                     worker_status = "unverified"
                 elif worker["stale_workers"]:
                     worker_status = "stale"
+                elif worker["degraded_workers"]:
+                    worker_status = "degraded"
                 elif worker["unknown_workers"]:
                     worker_status = "unknown"
                 else:
@@ -233,12 +276,13 @@ class DashboardProjection:
                 result["workers"] = {
                     "status": worker_status, "active_workers": worker["active_workers"],
                     "healthy_workers": worker["healthy_workers"],
+                    "degraded_workers": worker["degraded_workers"],
                     "stale_workers": worker["stale_workers"],
                     "unknown_workers": worker["unknown_workers"],
                     "unverified_workers": worker["unverified_workers"],
                     "active_leases": int(worker["active_leases"] or 0),
-                    "source": "assignment_leases", "health_semantics":
-                        "per-worker latest lease heartbeat; no heartbeat is unknown, not healthy",
+                    "source": "grace_execution_health_and_assignment_leases", "health_semantics":
+                        "configured in-process capabilities use Grace runtime heartbeat; other workers use lease heartbeats",
                 }
             return result
         try:
@@ -527,33 +571,80 @@ class DashboardProjection:
         def query(cur):
             rel = self._relations(cur, [f"{self.schema}.worker_registry",
                                         f"{self.schema}.assignment_leases",
-                                        f"{self.schema}.events"])
-            if not all(rel.values()):
+                                        f"{self.schema}.events",
+                                        f"{self.schema}.grace_execution_health"])
+            required_relations = (f"{self.schema}.worker_registry",
+                                  f"{self.schema}.assignment_leases",
+                                  f"{self.schema}.events")
+            if not all(rel[name] for name in required_relations):
                 return {"status": "not_initialized", "items": [], "next_cursor": None,
                         "page_limit": limit}
-            cur.execute("""SELECT w.worker_id, w.active,
-                                max(l.heartbeat_at) AS heartbeat_at,
-                                extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS heartbeat_age,
+            if rel[f"{self.schema}.grace_execution_health"]:
+                cur.execute("""SELECT w.worker_id,w.active,w.capabilities,w.scope_ref,
+                                max(l.heartbeat_at) AS lease_heartbeat_at,
+                                extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS lease_age,
                                 count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
                                   AND NOT EXISTS (SELECT 1 FROM events p
                                     WHERE p.assignment_id=l.assignment_id
-                                      AND p.privacy_domain <> 'institution')) AS active_leases
+                                      AND p.privacy_domain <> 'institution')) AS active_leases,
+                                gh.status AS runtime_status,gh.worker_capabilities,
+                                gh.last_heartbeat_at AS runtime_heartbeat_at,
+                                extract(epoch FROM (clock_timestamp()-gh.last_heartbeat_at)) AS runtime_age
+                         FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
+                         LEFT JOIN grace_execution_health gh ON gh.service_id='grace.execution.v1'
+                         WHERE (%s::text IS NULL OR w.worker_id > %s)
+                         GROUP BY w.worker_id,w.active,w.capabilities,w.scope_ref,gh.status,
+                                  gh.worker_capabilities,gh.last_heartbeat_at
+                         ORDER BY w.worker_id LIMIT %s""", (after, after, limit + 1))
+            else:
+                cur.execute("""SELECT w.worker_id,w.active,w.capabilities,w.scope_ref,
+                                max(l.heartbeat_at) AS lease_heartbeat_at,
+                                extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS lease_age,
+                                count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
+                                  AND NOT EXISTS (SELECT 1 FROM events p
+                                    WHERE p.assignment_id=l.assignment_id
+                                      AND p.privacy_domain <> 'institution')) AS active_leases,
+                                NULL::text AS runtime_status,NULL::jsonb AS worker_capabilities,
+                                NULL::timestamptz AS runtime_heartbeat_at,NULL::numeric AS runtime_age
                          FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
                          WHERE (%s::text IS NULL OR w.worker_id > %s)
-                         GROUP BY w.worker_id,w.active ORDER BY w.worker_id LIMIT %s""",
-                        (after, after, limit + 1))
+                         GROUP BY w.worker_id,w.active,w.capabilities,w.scope_ref
+                         ORDER BY w.worker_id LIMIT %s""", (after, after, limit + 1))
             rows=cur.fetchall();more=len(rows)>limit;rows=rows[:limit];items=[]
             for row in rows:
-                age=float(row["heartbeat_age"]) if row["heartbeat_age"] is not None else None
-                if not row["active"]: health="inactive"
-                elif age is None: health="unknown"
-                elif age < 0: health="unverified"
-                elif age > self.heartbeat_stale_seconds: health="stale"
+                registered_capabilities = row["capabilities"] or []
+                runtime_capabilities = [item for item in (row["worker_capabilities"] or [])
+                    if isinstance(item, dict) and item.get("worker_id") == row["worker_id"] and
+                    item.get("capability") in registered_capabilities and
+                    row["scope_ref"] == "work-order:engineering"] if row["active"] else []
+                runtime_age = (float(row["runtime_age"])
+                               if row["runtime_age"] is not None else None)
+                lease_age = float(row["lease_age"]) if row["lease_age"] is not None else None
+                if not row["active"]:
+                    health="inactive"
+                elif runtime_capabilities and runtime_age is not None:
+                    if runtime_age < 0: health="unverified"
+                    elif runtime_age > self.heartbeat_stale_seconds: health="stale"
+                    elif row["runtime_status"] == "healthy": health="healthy"
+                    else: health="degraded"
+                elif lease_age is None: health="unknown"
+                elif lease_age < 0: health="unverified"
+                elif lease_age > self.heartbeat_stale_seconds: health="stale"
                 else: health="healthy"
+                live_capabilities = sorted({item["capability"] for item in runtime_capabilities
+                    if isinstance(item.get("capability"), str)})
+                heartbeat_at = (row["runtime_heartbeat_at"] if runtime_capabilities
+                                else row["lease_heartbeat_at"])
                 items.append({"worker_id":row["worker_id"],"active":row["active"],
-                    "status":health,"last_heartbeat_at":self._iso(row["heartbeat_at"]),
-                    "heartbeat_age_seconds":round(age,3) if age is not None else None,
-                    "active_leases":row["active_leases"],"source":"assignment_leases"})
+                    "status":health,"last_heartbeat_at":self._iso(heartbeat_at),
+                    "heartbeat_age_seconds":round(runtime_age if runtime_capabilities else lease_age,3)
+                        if (runtime_age if runtime_capabilities else lease_age) is not None else None,
+                    "last_lease_heartbeat_at":self._iso(row["lease_heartbeat_at"]),
+                    "active_leases":row["active_leases"],
+                    "scope_ref":row["scope_ref"],
+                    "registered_capabilities":registered_capabilities,
+                    "live_registered_capabilities":live_capabilities,
+                    "source":"grace_execution_health" if runtime_capabilities else "assignment_leases"})
             return {"status":"available","items":items,
                     "next_cursor":items[-1]["worker_id"] if more and items else None,
                     "page_limit":limit,"truncated":more}

@@ -3,8 +3,9 @@ Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the s
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.18
-Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Define UUID, compute architecture, process, and explicit unknown-reservation telemetry
+File Revision: 1.1.20
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Define stable GPU identity and fail-closed allocation/reservation telemetry.
+Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Distinguish live registered engineering capabilities from assignment-lease activity.
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify per-slot context counters and unavailable KV-cache bytes.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free stream activity projection.
@@ -171,7 +172,7 @@ reuse `RIVERVIEW_SOURCE_COMMIT` as the knowledge pin. The provider resolves the
 configured root when the Dashboard process starts, so restart only the Dashboard
 after changing the knowledge package pointer or pin.
 
-The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. The worker summary counts active registry rows with recent, stale, absent, or future-dated assignment-lease heartbeats. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. These fields describe lease activity only; they do not establish whether a worker process is running, idle, disconnected, blocked, or failed. A worker polling while idle may have no assignment lease and therefore an unknown lease heartbeat. Process liveness is unavailable from this projection. The overview labels lease health and lease counts explicitly. List/detail
+The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. Active workers configured in Grace are matched to the capability snapshot written with Grace's heartbeat and to their active `work-order:engineering` registration; an idle capability can therefore be healthy without an active assignment lease. Workers not present in that live capability snapshot continue to use their latest assignment-lease heartbeat and remain unknown or stale when there is no fresh lease evidence. `GET /api/v1/workers` exposes the telemetry source, live registered capabilities, last Grace heartbeat, last lease heartbeat, scope, and active lease count separately. This is process/configuration readiness evidence, not proof that every remote worker dependency is reachable or that a specific assignment is authorized. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database
 unavailability returns a status projection whose `projection_status` is
 `unavailable`; HTTP query failures return 503. A reachable PostgreSQL instance
@@ -180,9 +181,11 @@ this is a valid domain state, not a transport failure. The browser skips the
 optional attention query while its relation is absent and displays that state.
 CME values are
 `healthy`, `degraded`, `stale`, `unavailable`, or `not_initialized`; a missing
-heartbeat is unknown/not initialized, never healthy. Worker status is derived
-only from recorded assignment-lease heartbeats; no lease means `unknown`. A
-future-dated heartbeat is `unverified`. Event time/correlation is retained as
+heartbeat is unknown/not initialized, never healthy. A configured Grace worker
+capability is healthy only while present in the persisted runtime capability
+snapshot and the Grace service heartbeat is fresh and healthy. Other worker
+status is derived from recorded assignment-lease heartbeats; no lease means
+`unknown`. A future-dated heartbeat is `unverified`. Event time/correlation is retained as
 recorded, not inferred from browser refresh time.
 
 Machine-readable route schema: `docs/components/STATUS_DASHBOARD_API.schema.json`.
@@ -340,13 +343,13 @@ document does not claim those future obligations complete.
 
 ### Authenticated hardware and inference telemetry
 
-`GET /api/v1/resources/telemetry` is protected by the same `_authorized()` account-session or Dashboard bearer gate as every other projection. It is a request-driven, uncached read; writes return `405`. The collector has fixed Camrui and OCTOMINER1 model endpoint allowlists and one OCTOMINER1 GPU source using `nvidia-smi` over a dedicated SSH identity. That identity is delivered with systemd `LoadCredential`, requires strict host-key checking, and is forced on the GPU host to `/usr/local/libexec/rv-gpu-telemetry` with no PTY, forwarding, or arbitrary command. The remote command exposes only GPU name/index, utilization, memory, temperature, power, fan when supported, and allowlisted Grace service labels; UUIDs and PIDs are discarded before returning to the Dashboard.
+`GET /api/v1/resources/telemetry` is protected by the same `_authorized()` account-session or Dashboard bearer gate as every other projection. It is a request-driven, uncached read; writes return `405`. The collector has fixed Camrui and OCTOMINER1 model endpoint allowlists and one OCTOMINER1 GPU source using `nvidia-smi` over a dedicated SSH identity. That identity is delivered with systemd `LoadCredential`, requires strict host-key checking, and is forced on the GPU host to `/usr/local/libexec/rv-gpu-telemetry` with no PTY, forwarding, or arbitrary command. The checked-in collector requests GPU UUID and compute capability, counts observed compute processes per GPU, and returns allowlisted service owners without PIDs. The Dashboard uses UUID as the stable identity when valid; an index is retained only as a display fallback and is never proof of identity or availability. Missing process data yields an unknown allocation state, while zero observed compute processes is explicitly not proof that the GPU is unreserved. The current production forced command predates these fields, so they remain unavailable until the authorized host collector rollout and reservation source are verified. No scheduler may assign a GPU from absent or stale telemetry.
 
 The model projection includes a bounded numeric `slot_context` view from each fixed llama.cpp `/slots` endpoint: slot index, processing boolean, configured context tokens, prompt-token count, processed prompt-token count, and cached prompt-token count when present. Raw task IDs, prompt text, token data, and arbitrary slot fields are discarded. Context counts are per slot; server capacity is the sum of measured per-slot capacities and must not be presented as one slot's limit. Current server builds expose no KV-cache allocation bytes and `/metrics` returns not-supported, so `kv_cache_bytes` is explicitly unavailable. Queue depth remains unavailable. This extension does not alter model startup parameters or inference behavior.
 
 Model readiness is sampled from the configured llama.cpp `/health`, `/v1/models`, and `/slots` endpoints. Only safe model basenames and the count of processing slots are projected. The current servers do not expose request queue depth or metrics; queue state therefore remains `unavailable`, never zero. OctoMiner2 has a documented inventory row but its identity/source is not independently verified; its projection remains unavailable. Camrui's GPU inventory is unavailable, while its local 0.6B model endpoint may report readiness and model identity. No inference controls, prompt data, slot details, PIDs, GPU UUIDs, or host credential data are exposed.
 
-The projection schema is `rv.dashboard.resource-telemetry.v1`. Per-source state and source observation timestamps remain visible. GPU inventory includes a stable UUID and compute capability only when supplied by the host collector and validated by the Dashboard; the transient NVIDIA index remains informational. Active compute-process counts are reported without process IDs, alongside allowlisted service owners. Missing UUID or reservation data is explicitly unavailable/unreported and must not be interpreted as an available GPU. The current host collector has no durable reservation API; scheduler selection must fail closed unless a separate authorized reservation/ownership source confirms eligibility. Missing credentials, host-key mismatch, source timeout, invalid source data, and unavailable host APIs remain unavailable with sanitized error codes. The Dashboard does not cache prior observations. Operational credential installation and rollback are documented in `STATUS_DASHBOARD_COOKBOOK.md`.
+The projection schema is `rv.dashboard.resource-telemetry.v1`. Per-source state and source observation timestamps remain visible. Missing credentials, host-key mismatch, source timeout, invalid source data, and unavailable host APIs remain unavailable with sanitized error codes. The Dashboard does not cache prior observations. Operational credential installation and rollback are documented in `STATUS_DASHBOARD_COOKBOOK.md`.
 
 Grace activity is correlated through its durable conversation and response request IDs. Active streamed output is measured only from persisted provider text deltas with database timestamps and character counts; the dashboard may show received streamed characters/second after two timed deltas. This is not model-server token throughput, prompt processing, or GPU work. The current 0.6B/80B/30B `/metrics` endpoints return HTTP 501; `/slots` exposes occupancy and prompt/context fields but no output-token counter. Completed token throughput remains a separate router-call measurement.
 
