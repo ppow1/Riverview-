@@ -63,6 +63,7 @@ class PostgresWorkerAdapter:
 
     SHA256_CAPABILITY = "deterministic.sha256.v1"
     LOCAL_INFERENCE_CAPABILITY = "local.inference.v1"
+    COMFYUI_CAPABILITY = "engineering.comfyui-image.v1"
     REPOSITORY_CHECK_CAPABILITY = "engineering.repository-check.v1"
     BOUNDED_ARTIFACT_CAPABILITY = "engineering.bounded-artifact.v1"
     CODEX_CLI_CAPABILITY = "engineering.codex-cli-artifact.v1"
@@ -131,7 +132,8 @@ class PostgresWorkerAdapter:
                             self.REPOSITORY_CHECK_CAPABILITY,
                             self.BOUNDED_ARTIFACT_CAPABILITY,
                             self.CODEX_CLI_CAPABILITY,
-                            self.CODEX_SOURCE_CHANGE_CAPABILITY}:
+                            self.CODEX_SOURCE_CHANGE_CAPABILITY,
+                            self.COMFYUI_CAPABILITY}:
             action = "assignment.execute"
         else:
             raise WorkerAuthorizationError("capability has no authority action mapping")

@@ -65,6 +65,7 @@ class RepositoryKnowledgeProvider:
         "engineering.bounded-artifact.v1": WORKER_CONTRACT,
         "engineering.codex-cli-artifact.v1": WORKER_CONTRACT,
         "engineering.codex-cli-source-change.v1": WORKER_CONTRACT,
+        "engineering.comfyui-image.v1": WORKER_CONTRACT,
         "resident.reasoning.v1": RESIDENT_CONTRACT,
     }
     MAX_SOURCE_BYTES = 256 * 1024
