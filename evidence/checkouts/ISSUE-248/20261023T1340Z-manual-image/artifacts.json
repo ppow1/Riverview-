@@ -1,0 +1,13 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-V2-MANUAL-IMAGE-GENERATION-248",
+  "source_commit": "candidate working tree before commit",
+  "artifacts": {
+    "browser-fixture.json": {
+      "path": "browser-fixture.json",
+      "size_bytes": 750,
+      "sha256": "adc7f3ffee800a140c0b678eb7e859319ded30fc94c5e8df80f396ee2479e421",
+      "revision": "1.0.0"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:steward-dashboard:status",
-  "graph_revision": "1.1.21",
+  "graph_revision": "1.1.27",
   "component_id": "STEWARD-DASHBOARD",
   "workflow_id": "status-projection.v1",
   "diagram_order": 1,
@@ -26,7 +26,11 @@
     "tests/test_account_auth_http.py",
     "tests/test_gpu_telemetry_command.py",
     "tests/test_resource_telemetry.py",
-    "tests/test_status_dashboard.py"
+    "tests/test_status_dashboard.py",
+    "src/riverview_core/status_dashboard/storage_inventory.py",
+    "deploy/systemd/riverview-status-dashboard-snapshot-archive.conf.example",
+    "src/riverview_core/status_dashboard/snapshot_archive.py",
+    "tests/test_snapshot_archive.py"
   ],
   "documentation_references": [
     "docs/components/ACCOUNT_AUTHENTICATION.md",
@@ -838,6 +842,290 @@
         "tests/test_resource_telemetry.py",
         "tests/test_status_dashboard.py"
       ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:resource-storage-source",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Read Camrui mounted storage locally and OCTO1 storage through the fixed restricted telemetry command; keep Windows development and OCTO2 unavailable until approved collectors exist",
+      "source_references": [
+        "src/riverview_core/status_dashboard/storage_inventory.py",
+        "src/riverview_core/status_dashboard/resource_telemetry.py",
+        "scripts/rv_gpu_telemetry_command.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_storage_inventory.py",
+        "tests/test_resource_telemetry.py",
+        "tests/test_gpu_telemetry_command.py",
+        "evidence/v2-storage-20261022/camrui-mount-observation.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:resource-storage-render",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Return unique mounted volume capacity with timestamps; exclude duplicate filesystem views and keep unavailable hosts out of totals",
+      "source_references": [
+        "src/riverview_core/status_dashboard/resource_telemetry.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md"
+      ],
+      "verification_evidence": [
+        "tests/test_resource_telemetry.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-raster-budget",
+      "node_revision": "1.0.1",
+      "type": "decision",
+      "label": "Will the next PNG preview fit within the 76 MiB raster and 96 MiB package limits?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_diagnostic_snapshot_browser.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-preserve-vector-data",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Omit only over-budget raster previews and retain diagnostic records and vector representations",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_diagnostic_snapshot_browser.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-write-manifest",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Record dashboard version, capture ID, timestamp, source commit, component sizes, omissions, and truthful capture completeness",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_diagnostic_snapshot_browser.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-verify-archive",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Verify ZIP integrity, manifest hashes, and canonical offline references",
+      "source_references": [
+        "scripts/verify_diagnostic_snapshot_browser.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_diagnostic_snapshot_browser.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-required-member-bound",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Mandatory non-raster member exceeds the hard uncompressed package limit",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-diagnose-and-retry",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Use the reported member path and byte counts to diagnose authorized source growth, then retry",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": []
+    },
+    {
+      "id": "rv:steward-dashboard:status:archive-steward-gate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does the request have a CSRF-valid Steward account session and configured private repository credential?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/snapshot_archive.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_snapshot_archive.py",
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:archive-validate-package",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Validate stored ZIP integrity, 96 MiB uncompressed bound, manifest hashes, and redaction declaration",
+      "source_references": [
+        "src/riverview_core/status_dashboard/snapshot_archive.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_snapshot_archive.py",
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:archive-private-release",
+      "node_revision": "1.0.1",
+      "type": "process",
+      "label": "Create a unique draft Release, upload the versioned capture-specific ZIP asset, publish it, and store lookup metadata",
+      "source_references": [
+        "src/riverview_core/status_dashboard/snapshot_archive.py"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_snapshot_archive.py",
+        "tests/test_status_dashboard.py"
+      ],
+      "extension": {
+        "retention": "permanent; no expiration",
+        "server_disk_staging": false
+      }
+    },
+    {
+      "id": "rv:steward-dashboard:status:archive-release-receipt",
+      "node_revision": "1.0.1",
+      "type": "verification",
+      "label": "Return timestamped Release URL, asset name, SHA-256, and size to the dashboard",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "evidence/checkouts/STEWARD-DASHBOARD/20261020T-snapshot-github-archive/acceptance.json",
+        "tests/test_snapshot_archive.py",
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:archive-local-fallback",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Report safe archive failure and request browser download while retaining a local ZIP retry link",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_snapshot_archive.py",
+        "tests/test_status_dashboard.py"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:archive-verify-local-digest",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Does the confirmed GitHub receipt SHA-256 and byte count match the generated ZIP Blob?",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_diagnostic_snapshot_browser.py",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261020T-snapshot-archive-download/acceptance.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-download-same-blob",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Request browser download from the same ZIP Blob and retain a visible Download ZIP retry link",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_diagnostic_snapshot_browser.py",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261020T-snapshot-archive-download/acceptance.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-archive-link-actions",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Show the confirmed private Release URL and Copy GitHub Link action",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_diagnostic_snapshot_browser.py",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261020T-snapshot-archive-download/acceptance.json"
+      ]
+    },
+    {
+      "id": "rv:steward-dashboard:status:snapshot-download-start-failure",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Browser did not start the ZIP download; retain archive URL and local retry link",
+      "source_references": [
+        "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js"
+      ],
+      "documentation_references": [
+        "docs/components/STATUS_DASHBOARD.md",
+        "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "scripts/verify_diagnostic_snapshot_browser.py",
+        "evidence/checkouts/STEWARD-DASHBOARD/20261020T-snapshot-archive-download/acceptance.json"
+      ]
     }
   ],
   "edges": [
@@ -1214,6 +1502,150 @@
       "to": "rv:steward-dashboard:status:resource-render",
       "type": "runtime_transition",
       "label": "Return per-slot context projection with raw task and prompt fields removed"
+    },
+    {
+      "from": "rv:steward-dashboard:status:resource-telemetry-route",
+      "to": "rv:steward-dashboard:status:resource-storage-source",
+      "type": "runtime_transition",
+      "label": "Same bounded authenticated resource request collects storage"
+    },
+    {
+      "from": "rv:steward-dashboard:status:resource-storage-source",
+      "to": "rv:steward-dashboard:status:resource-storage-render",
+      "type": "runtime_transition",
+      "label": "Read measured host volumes or preserve explicit unavailable state"
+    },
+    {
+      "from": "rv:steward-dashboard:status:resource-storage-render",
+      "to": "rv:steward-dashboard:status:resource-render",
+      "type": "runtime_transition",
+      "label": "Return unique measured totals and source timestamps"
+    },
+    {
+      "from": "rv:steward-dashboard:status:export-snapshot",
+      "to": "rv:steward-dashboard:status:snapshot-raster-budget",
+      "type": "runtime_transition",
+      "label": "Assemble bounded archive members"
+    },
+    {
+      "from": "rv:steward-dashboard:status:snapshot-raster-budget",
+      "to": "rv:steward-dashboard:status:snapshot-write-manifest",
+      "type": "runtime_transition",
+      "label": "Raster members fit or visual pass is complete"
+    },
+    {
+      "from": "rv:steward-dashboard:status:snapshot-preserve-vector-data",
+      "to": "rv:steward-dashboard:status:snapshot-write-manifest",
+      "type": "runtime_transition",
+      "label": "Retain HTML, JSON, SVG, and diagnostics; record omitted raster paths"
+    },
+    {
+      "from": "rv:steward-dashboard:status:snapshot-write-manifest",
+      "to": "rv:steward-dashboard:status:snapshot-verify-archive",
+      "type": "verification",
+      "label": "Finalize self-describing ZIP"
+    },
+    {
+      "from": "rv:steward-dashboard:status:export-snapshot",
+      "to": "rv:steward-dashboard:status:snapshot-required-member-bound",
+      "type": "diagnostic_branch",
+      "label": "A mandatory non-raster member would exceed the hard limit"
+    },
+    {
+      "from": "rv:steward-dashboard:status:snapshot-required-member-bound",
+      "to": "rv:steward-dashboard:status:snapshot-diagnose-and-retry",
+      "type": "recovery_route",
+      "label": "Inspect reported member and byte counts"
+    },
+    {
+      "from": "rv:steward-dashboard:status:snapshot-diagnose-and-retry",
+      "to": "rv:steward-dashboard:status:export-snapshot",
+      "type": "runtime_transition",
+      "label": "Retry after source correction"
+    },
+    {
+      "from": "rv:steward-dashboard:status:snapshot-raster-budget",
+      "to": "rv:steward-dashboard:status:snapshot-preserve-vector-data",
+      "type": "diagnostic_branch",
+      "label": "Next raster would exceed the 76 MiB raster ceiling or reserved package space"
+    },
+    {
+      "from": "rv:steward-dashboard:status:export-snapshot",
+      "to": "rv:steward-dashboard:status:archive-steward-gate",
+      "type": "runtime_transition",
+      "label": "ZIP finalized; attempt primary archive"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-steward-gate",
+      "to": "rv:steward-dashboard:status:archive-validate-package",
+      "type": "runtime_transition",
+      "label": "Steward session, CSRF, private repo and systemd credential available"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-steward-gate",
+      "to": "rv:steward-dashboard:status:archive-local-fallback",
+      "type": "diagnostic_branch",
+      "label": "Missing authority or archive configuration"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-validate-package",
+      "to": "rv:steward-dashboard:status:archive-private-release",
+      "type": "runtime_transition",
+      "label": "ZIP, manifest and privacy checks pass"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-validate-package",
+      "to": "rv:steward-dashboard:status:archive-local-fallback",
+      "type": "diagnostic_branch",
+      "label": "Invalid, oversized or privacy contract failure"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-private-release",
+      "to": "rv:steward-dashboard:status:archive-release-receipt",
+      "type": "verification",
+      "label": "Asset upload and Release publication verified"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-private-release",
+      "to": "rv:steward-dashboard:status:archive-local-fallback",
+      "type": "recovery_route",
+      "label": "GitHub upload or publication failed; clean draft/tag best effort"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-release-receipt",
+      "to": "rv:steward-dashboard:status:archive-verify-local-digest",
+      "type": "verification",
+      "label": "Verify receipt digest and size against the exact uploaded ZIP"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-verify-local-digest",
+      "to": "rv:steward-dashboard:status:snapshot-download-same-blob",
+      "type": "runtime_transition",
+      "label": "Confirmed matching receipt"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-verify-local-digest",
+      "to": "rv:steward-dashboard:status:archive-local-fallback",
+      "type": "diagnostic_branch",
+      "label": "Missing or mismatched receipt; do not claim archival success"
+    },
+    {
+      "from": "rv:steward-dashboard:status:snapshot-download-same-blob",
+      "to": "rv:steward-dashboard:status:snapshot-archive-link-actions",
+      "type": "runtime_transition",
+      "label": "Keep the ZIP retry action and confirmed archive link visible"
+    },
+    {
+      "from": "rv:steward-dashboard:status:archive-local-fallback",
+      "to": "rv:steward-dashboard:status:snapshot-download-same-blob",
+      "type": "recovery_route",
+      "label": "Archive failed; request local browser download from the original Blob"
+    },
+    {
+      "from": "rv:steward-dashboard:status:snapshot-download-same-blob",
+      "to": "rv:steward-dashboard:status:snapshot-download-start-failure",
+      "type": "diagnostic_branch",
+      "label": "Browser failed to start the download; keep verified archive and local retry available"
     }
   ]
 }

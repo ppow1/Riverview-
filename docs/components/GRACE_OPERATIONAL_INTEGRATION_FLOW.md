@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.66
+**Document Revision:** 1.0.69
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Show lifecycle criteria separately, prioritize ready work, and gate conversation-origin completion on Grace review.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -92,18 +92,19 @@ flowchart LR
     g_rv_grace_operational_integration_assignment_fanout_81ca8043["IMPLEMENTED MULTI-STEP — persist one assignment per ordered proposal step; dispatch only when all dependency steps have independent verification"]
     g_rv_grace_operational_integration_worker_dispatch_20506b72["DETERMINISTIC ADAPTER TESTED — lease-dispatched worker writes one bounded artifact; live executor remains outstanding"]
     g_rv_grace_operational_integration_cme_progress_68f6775b["PLANNED — subscribe to durable progress, stall, and recovery events from CME"]
-    g_rv_grace_operational_integration_evidence_review_600fe7b4["Grace receives the digest-verified artifact and immutable verifier evidence, then makes a durable substantive decision; verifier ACCEPTED alone does not complete a conversation-origin objective"]
+    g_rv_grace_operational_integration_evidence_review_600fe7b4["Grace receives digest-verified artifact and immutable verifier evidence to assess same-objective continuation or rework; this conversational assessment cannot veto terminal completion after every step has accepted independent verification"]
     g_rv_grace_operational_integration_verification_feedback_3d572dc6["PLANNED — consume independent verifier decision and evidence"]
-    g_rv_grace_operational_integration_objective_check_1e4d916a{"IMPLEMENTED — conversation-origin objective completes only after all persisted steps have ACCEPTED independent verification and Grace durably reports OBJECTIVE_COMPLETE for that cycle; other review decisions leave it open"}
+    g_rv_grace_operational_integration_objective_check_1e4d916a{"IMPLEMENTED — completion is derived from every persisted step's independently accepted verification; conversation responses are an outbox projection and cannot override objective state"}
     g_rv_grace_operational_integration_replan_58351ccd["IMPLEMENTED IN SOURCE — model-reviewed same-objective continuation is durable, bounded by original criteria, revalidates Grace binding, and returns through existing CME grants, leases, and verifier; production unverified"]
     g_rv_grace_operational_integration_steward_escalation_ca57acbb[["PLANNED — request only genuine Steward decision or authority"]]
-    g_rv_grace_operational_integration_objective_complete_a6f22d23(["All persisted steps require independent ACCEPTED verification; conversation-origin objectives additionally require a same-cycle durable Grace OBJECTIVE_COMPLETE decision before completion publication."])
+    g_rv_grace_operational_integration_objective_complete_a6f22d23(["All required steps must be durably verified with independent ACCEPTED decisions. The reconciler atomically records one objective.completed event and recovers after restart; later conversation results cannot veto or reverse completion."])
     g_rv_grace_operational_integration_bounded_evidence_selection_eb29b3f5["IMPLEMENTED — verify the full pinned source set and deterministically select ranked complete passages within the evidence bound; retain source provenance and coverage metadata"]
     g_rv_grace_operational_integration_proposal_validation_90e4c0ca["STRICT PROPOSAL VALIDATION — persist only a typed proposal after complete VERIFIED grounding and exact coverage of every original criterion; an omission leaves objective GROUNDED and records PROPOSAL_OMITS_ACCEPTANCE_CRITERIA"]
     g_rv_grace_operational_integration_work_order_authorization_829196dd["IMPLEMENTED — assignment.create exact grant precedes durable CME handoff"]
     g_rv_grace_operational_integration_independent_artifact_check_2502f001["Independent artifact verification checks assignment-bound integrity, scope, provenance, required structure, explicit deliverable literals, and rejects negative JSON decisions without treating envelope validity as substantive completion"]
     g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — evidence failures remain pending; incomplete typed proposals remain GROUNDED with a sanitized detail code and resume through the persistent reasoning cycle after the prior plan is explicitly corrected; never bypass proposal or assignment authorization"]]
     g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated exact-grant request persists one receipt; VERIFIED grounding advances RECEIVED or WAITING_FOR_EVIDENCE to GROUNDED atomically, while incomplete evidence stays pending"]
+    g_rv_grace_operational_integration_grounded_objective_cancellation_141266af["Authorized assignment.cancel may transition GROUNDED to CANCELLED only with an explicit reason and no objective assignment, ledger assignment, dispatch event, or active step; actor, reason, resulting revision, timestamp, and append-only event are retained. Existing WORK_ORDER_CREATED cancellation remains queued/ready-only."]
     g_rv_grace_operational_integration_typed_proposal_api_9e97178a["Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority"]
     g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8["Persistent loop advances existing dispatch, leased worker execution, verification, completion reconciliation, and result publication before potentially slow grounded/external reasoning; it uses the existing CME fair scheduler and persists heartbeat through the narrow runtime ACL"]
     g_rv_grace_operational_integration_dispatch_retry_limit_3d51ab17{"Persist authorization/dispatch failures; stop automatic dispatch after three attempts and expose the proposal for operator attention"}
@@ -143,7 +144,7 @@ flowchart LR
     g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766["Verify Codex artifacts against the durable dispatch contract; reject authoritative negative JSON outcomes and check explicit content literals while excluding echoed acceptance metadata; missing contract fields fail closed"]
     g_rv_grace_operational_integration_external_advisory_consumer_d4127120["Source implemented; isolated PostgreSQL verified — Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence"]
     g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791["ISOLATED IMPLEMENTATION — dispatch snapshots an explicitly Steward-authorized repository reference, immutable commit, paths, tests and proposal-step digest; resident grounding revision remains separate"]
-    g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17["ISOLATED IMPLEMENTATION — owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability"]
+    g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17["ISOLATED IMPLEMENTATION — concurrent capability workers use distinct PostgreSQL adapter connections; claims and verifier routing use persisted attempt capability"]
     g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087[["Source capability stays unavailable when separate credential, exact grants, registration, allowlist, repository mapping or pinned checkout is missing; artifact worker continues"]]
     g_rv_grace_operational_integration_latest_verifier_rejection_ca00fc0d[["Latest independent REJECTED result remains immutable and is resolved through its durable objective-step assignment link"]]
     g_rv_grace_operational_integration_grace_rejection_review_9f70861f{"For latest independent REJECTED result, Grace may choose exact-criteria correction within three proposals or Steward direction; provider absence creates durable actionable escalation-pending state."}
@@ -160,6 +161,7 @@ flowchart LR
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
   g_rv_outcome_verifier_independent_result_decision_5500806a["Registered target<br/>rv:outcome-verifier:independent-result"]
+  g_rv_grace_operational_integration_governed_objective_api_39b3aa23 -->|recovery_route: Steward-authorized exact assignment.cancel retires eligible grounded objectives without Engineering assignment or dispatch| g_rv_grace_operational_integration_grounded_objective_cancellation_141266af
   g_rv_grace_operational_integration_objective_intake_55567c14 --> g_rv_grace_operational_integration_authority_check_71ce44bf
   g_rv_grace_operational_integration_authority_check_71ce44bf --> g_rv_grace_operational_integration_reason_decompose_d48619ca
   g_rv_grace_operational_integration_reason_decompose_d48619ca --> g_rv_grace_operational_integration_durable_plan_26bc431c
@@ -171,8 +173,8 @@ flowchart LR
   g_rv_grace_operational_integration_evidence_review_600fe7b4 --> g_rv_grace_operational_integration_objective_check_1e4d916a
   g_rv_grace_operational_integration_evidence_review_600fe7b4 --> g_rv_grace_operational_integration_verification_feedback_3d572dc6
   g_rv_grace_operational_integration_verification_feedback_3d572dc6 -->|jump| g_rv_outcome_verifier_independent_result_decision_5500806a
-  g_rv_grace_operational_integration_objective_check_1e4d916a -->|verification: PLANNED — all criteria independently verified| g_rv_grace_operational_integration_objective_complete_a6f22d23
-  g_rv_grace_operational_integration_objective_check_1e4d916a -->|recovery_route: PLANNED — unmet criteria or new evidence| g_rv_grace_operational_integration_replan_58351ccd
+  g_rv_grace_operational_integration_objective_check_1e4d916a -->|verification: All persisted steps are verified with accepted independent evidence; conversation review is not a completion precondition| g_rv_grace_operational_integration_objective_complete_a6f22d23
+  g_rv_grace_operational_integration_objective_check_1e4d916a -->|recovery_route: A required step remains incomplete or a valid same-objective correction is needed| g_rv_grace_operational_integration_replan_58351ccd
   g_rv_grace_operational_integration_objective_check_1e4d916a -->|escalation: PLANNED — genuine decision required| g_rv_grace_operational_integration_steward_escalation_ca57acbb
   g_rv_grace_operational_integration_replan_58351ccd --> g_rv_grace_operational_integration_durable_plan_26bc431c
   g_rv_grace_operational_integration_steward_escalation_ca57acbb -->|PLANNED — resume after recorded decision| g_rv_grace_operational_integration_durable_plan_26bc431c
@@ -220,7 +222,7 @@ flowchart LR
   g_rv_grace_operational_integration_codex_artifact_verification_ab484b65 -->|prerequisite: Only an independent acceptance decision may feed objective completion| g_rv_grace_operational_integration_evidence_review_600fe7b4
   g_rv_grace_operational_integration_reason_decompose_d48619ca -->|prerequisite: Persistent grounded objective reasoning is routed through the exact authorized 80B binding| g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec
   g_rv_grace_operational_integration_router_backed_grace_proposal_931750ec -->|Typed proposal and actual provider provenance persist before dispatch| g_rv_grace_operational_integration_durable_plan_26bc431c
-  g_rv_grace_operational_integration_objective_complete_a6f22d23 -->|A durable independently accepted step enters the optional result outbox; objective completion still requires all persisted steps.| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
+  g_rv_grace_operational_integration_objective_complete_a6f22d23 -->|After all-step completion, a durable independently accepted result enters the retryable conversation outbox; its review decision cannot change objective state.| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
   g_rv_grace_operational_integration_verified_result_chat_return_108e1033 -->|diagnostic_branch: Current binding, exact send grant, provider, or durable insert unavailable| g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9
   g_rv_grace_operational_integration_verified_result_return_retry_ce159ed9 -->|recovery_route: Persistent poll retries; deterministic conversation response ID makes replay idempotent| g_rv_grace_operational_integration_verified_result_chat_return_108e1033
   g_rv_grace_operational_integration_codex_resource_check_71ed8b3b -->|prerequisite: Sandbox and subscription CLI readiness pass before owner-session staging| g_rv_grace_operational_integration_owner_session_provisioning_8f41090c

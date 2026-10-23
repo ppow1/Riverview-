@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.15
+**Document Revision:** 1.0.17
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -60,6 +60,23 @@ flowchart LR
     g_rv_steward_dashboard_status_resource_model_source_6bb51838["Read allowlisted model health, identity, active slots, and bounded numeric per-slot context; queue and KV-cache byte measurements remain unavailable"]
     g_rv_steward_dashboard_status_resource_render_1188c907["Return timestamped redacted GPU/model/context measurements or explicit per-source unavailable states"]
     g_rv_steward_dashboard_status_resource_slot_context_7a77bdac["Project only numeric llama.cpp /slots context and prompt counters; discard task IDs and prompt fields, and report KV-cache bytes unavailable"]
+    g_rv_steward_dashboard_status_resource_storage_source_1407be11["Read Camrui mounted storage locally and OCTO1 storage through the fixed restricted telemetry command; keep Windows development and OCTO2 unavailable until approved collectors exist"]
+    g_rv_steward_dashboard_status_resource_storage_render_5421a7fc["Return unique mounted volume capacity with timestamps; exclude duplicate filesystem views and keep unavailable hosts out of totals"]
+    g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643{"Will the next PNG preview fit within the 76 MiB raster and 96 MiB package limits?"}
+    g_rv_steward_dashboard_status_snapshot_preserve_vector_data_525eaf5f["Omit only over-budget raster previews and retain diagnostic records and vector representations"]
+    g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d["Record dashboard version, capture ID, timestamp, source commit, component sizes, omissions, and truthful capture completeness"]
+    g_rv_steward_dashboard_status_snapshot_verify_archive_9ea35dfa["Verify ZIP integrity, manifest hashes, and canonical offline references"]
+    g_rv_steward_dashboard_status_snapshot_required_member_bound_6fff171f[["Mandatory non-raster member exceeds the hard uncompressed package limit"]]
+    g_rv_steward_dashboard_status_snapshot_diagnose_and_retry_3507664e["Use the reported member path and byte counts to diagnose authorized source growth, then retry"]
+    g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0{"Does the request have a CSRF-valid Steward account session and configured private repository credential?"}
+    g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1["Validate stored ZIP integrity, 96 MiB uncompressed bound, manifest hashes, and redaction declaration"]
+    g_rv_steward_dashboard_status_archive_private_release_58971cd1["Create a unique draft Release, upload the versioned capture-specific ZIP asset, publish it, and store lookup metadata"]
+    g_rv_steward_dashboard_status_archive_release_receipt_f2a487fd["Return timestamped Release URL, asset name, SHA-256, and size to the dashboard"]
+    g_rv_steward_dashboard_status_archive_local_fallback_576863f0["Report safe archive failure and request browser download while retaining a local ZIP retry link"]
+    g_rv_steward_dashboard_status_archive_verify_local_digest_029c5e29{"Does the confirmed GitHub receipt SHA-256 and byte count match the generated ZIP Blob?"}
+    g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f["Request browser download from the same ZIP Blob and retain a visible Download ZIP retry link"]
+    g_rv_steward_dashboard_status_snapshot_archive_link_actions_dd928218["Show the confirmed private Release URL and Copy GitHub Link action"]
+    g_rv_steward_dashboard_status_snapshot_download_start_failure_fc3a6df3[["Browser did not start the ZIP download; retain archive URL and local retry link"]]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -130,6 +147,30 @@ flowchart LR
   g_rv_steward_dashboard_status_resource_model_source_6bb51838 -->|Readiness/model/slot data; queue unavailable| g_rv_steward_dashboard_status_resource_render_1188c907
   g_rv_steward_dashboard_status_resource_model_source_6bb51838 -->|Read bounded numeric context and prompt counters from fixed llama.cpp /slots responses| g_rv_steward_dashboard_status_resource_slot_context_7a77bdac
   g_rv_steward_dashboard_status_resource_slot_context_7a77bdac -->|Return per-slot context projection with raw task and prompt fields removed| g_rv_steward_dashboard_status_resource_render_1188c907
+  g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73 -->|Same bounded authenticated resource request collects storage| g_rv_steward_dashboard_status_resource_storage_source_1407be11
+  g_rv_steward_dashboard_status_resource_storage_source_1407be11 -->|Read measured host volumes or preserve explicit unavailable state| g_rv_steward_dashboard_status_resource_storage_render_5421a7fc
+  g_rv_steward_dashboard_status_resource_storage_render_5421a7fc -->|Return unique measured totals and source timestamps| g_rv_steward_dashboard_status_resource_render_1188c907
+  g_rv_steward_dashboard_status_export_snapshot_5d8d925e -->|Assemble bounded archive members| g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643
+  g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643 -->|Raster members fit or visual pass is complete| g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d
+  g_rv_steward_dashboard_status_snapshot_preserve_vector_data_525eaf5f -->|Retain HTML, JSON, SVG, and diagnostics; record omitted raster paths| g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d
+  g_rv_steward_dashboard_status_snapshot_write_manifest_be90d60d -->|verification: Finalize self-describing ZIP| g_rv_steward_dashboard_status_snapshot_verify_archive_9ea35dfa
+  g_rv_steward_dashboard_status_export_snapshot_5d8d925e -->|diagnostic_branch: A mandatory non-raster member would exceed the hard limit| g_rv_steward_dashboard_status_snapshot_required_member_bound_6fff171f
+  g_rv_steward_dashboard_status_snapshot_required_member_bound_6fff171f -->|recovery_route: Inspect reported member and byte counts| g_rv_steward_dashboard_status_snapshot_diagnose_and_retry_3507664e
+  g_rv_steward_dashboard_status_snapshot_diagnose_and_retry_3507664e -->|Retry after source correction| g_rv_steward_dashboard_status_export_snapshot_5d8d925e
+  g_rv_steward_dashboard_status_snapshot_raster_budget_1f5b4643 -->|diagnostic_branch: Next raster would exceed the 76 MiB raster ceiling or reserved package space| g_rv_steward_dashboard_status_snapshot_preserve_vector_data_525eaf5f
+  g_rv_steward_dashboard_status_export_snapshot_5d8d925e -->|ZIP finalized; attempt primary archive| g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0
+  g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0 -->|Steward session, CSRF, private repo and systemd credential available| g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1
+  g_rv_steward_dashboard_status_archive_steward_gate_1124d9b0 -->|diagnostic_branch: Missing authority or archive configuration| g_rv_steward_dashboard_status_archive_local_fallback_576863f0
+  g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1 -->|ZIP, manifest and privacy checks pass| g_rv_steward_dashboard_status_archive_private_release_58971cd1
+  g_rv_steward_dashboard_status_archive_validate_package_c0f9e9d1 -->|diagnostic_branch: Invalid, oversized or privacy contract failure| g_rv_steward_dashboard_status_archive_local_fallback_576863f0
+  g_rv_steward_dashboard_status_archive_private_release_58971cd1 -->|verification: Asset upload and Release publication verified| g_rv_steward_dashboard_status_archive_release_receipt_f2a487fd
+  g_rv_steward_dashboard_status_archive_private_release_58971cd1 -->|recovery_route: GitHub upload or publication failed; clean draft/tag best effort| g_rv_steward_dashboard_status_archive_local_fallback_576863f0
+  g_rv_steward_dashboard_status_archive_release_receipt_f2a487fd -->|verification: Verify receipt digest and size against the exact uploaded ZIP| g_rv_steward_dashboard_status_archive_verify_local_digest_029c5e29
+  g_rv_steward_dashboard_status_archive_verify_local_digest_029c5e29 -->|Confirmed matching receipt| g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f
+  g_rv_steward_dashboard_status_archive_verify_local_digest_029c5e29 -->|diagnostic_branch: Missing or mismatched receipt; do not claim archival success| g_rv_steward_dashboard_status_archive_local_fallback_576863f0
+  g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f -->|Keep the ZIP retry action and confirmed archive link visible| g_rv_steward_dashboard_status_snapshot_archive_link_actions_dd928218
+  g_rv_steward_dashboard_status_archive_local_fallback_576863f0 -->|recovery_route: Archive failed; request local browser download from the original Blob| g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f
+  g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f -->|diagnostic_branch: Browser failed to start the download; keep verified archive and local retry available| g_rv_steward_dashboard_status_snapshot_download_start_failure_fc3a6df3
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

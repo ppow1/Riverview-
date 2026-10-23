@@ -1,0 +1,1395 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://riverview.invalid/contracts/dashboard/status-v1.4.schema.json",
+  "title": "Riverview Status Dashboard API v1.4",
+  "description": "Authenticated read-only status, resource telemetry, canonical workflow projection, conversation-owner-scoped objective progress, persistent sanitized grounding diagnostics, and component documentation renderer; authenticated dashboard projections and bounded Steward operations, including private GitHub snapshot archival.",
+  "$defs": {
+    "timestamp": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "status": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "component_id",
+        "component_version",
+        "observed_at",
+        "projection_status",
+        "freshness",
+        "source",
+        "cme",
+        "workers"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "rv.dashboard.status.v1"
+        },
+        "component_id": {
+          "const": "STEWARD-DASHBOARD"
+        },
+        "component_version": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "projection_status": {
+          "enum": [
+            "healthy",
+            "not_initialized",
+            "unavailable",
+            "degraded"
+          ]
+        },
+        "freshness": {
+          "enum": [
+            "current",
+            "stale",
+            "unknown",
+            "unavailable"
+          ]
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "kind",
+            "schema",
+            "source_commit",
+            "deployment_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "postgresql"
+            },
+            "database": {
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            },
+            "source_commit": {
+              "type": "string"
+            },
+            "deployment_id": {
+              "type": "string"
+            },
+            "latest_migration": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "event_cursor": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "assignment_counts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "assignments_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cme": {
+          "type": "object"
+        },
+        "workers": {
+          "$ref": "#/$defs/workers"
+        },
+        "verification": {
+          "type": "object"
+        },
+        "relations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "diagnostics": {
+          "type": "object"
+        },
+        "unavailable_reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "page": {
+      "type": "object",
+      "required": [
+        "status",
+        "items"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "not_initialized"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "integer",
+            "null"
+          ]
+        },
+        "older_cursor": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "newer_cursor": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "page_limit": {
+          "type": "integer",
+          "maximum": 100
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "objectiveProgressItem": {
+      "type": "object",
+      "required": [
+        "objective_id",
+        "status",
+        "assignment_id",
+        "assignment_state",
+        "origin",
+        "lifecycle_status",
+        "lifecycle_stage",
+        "steward_action_required",
+        "grounding_diagnostics",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "objective_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "assignment_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assignment_state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "origin": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "conversation_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "source_sequence": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "lifecycle_status": {
+          "type": "string"
+        },
+        "lifecycle_stage": {
+          "type": "string"
+        },
+        "latest_event": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "verification": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "grounding_diagnostics": {
+          "type": "array",
+          "maxItems": 25,
+          "items": {
+            "$ref": "#/$defs/groundingAttempt"
+          }
+        },
+        "rework": {
+          "type": "object"
+        },
+        "steward_action_required": {
+          "type": "boolean"
+        },
+        "dispatch_failures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_dispatch_failure_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "verification_failures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_verification_failure_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    },
+    "objectiveProgressPage": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "status",
+        "items",
+        "limit"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "rv.dashboard.objective_progress.v1"
+        },
+        "status": {
+          "enum": [
+            "available",
+            "not_initialized"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/objectiveProgressItem"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "captured_at",
+        "observed_state",
+        "source",
+        "projection",
+        "redaction"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "rv.dashboard.snapshot.v1"
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "observed_state": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "object"
+        },
+        "projection": {
+          "$ref": "#/$defs/status"
+        },
+        "assignments": {
+          "$ref": "#/$defs/page"
+        },
+        "events": {
+          "$ref": "#/$defs/page"
+        },
+        "attention": {
+          "type": "object"
+        },
+        "references": {
+          "type": "object"
+        },
+        "redaction": {
+          "type": "object"
+        },
+        "client_state": {
+          "type": "object"
+        },
+        "workers": {
+          "$ref": "#/$defs/workerPage"
+        }
+      },
+      "additionalProperties": true
+    },
+    "workers": {
+      "type": "object",
+      "required": [
+        "status",
+        "active_workers",
+        "healthy_workers",
+        "degraded_workers",
+        "stale_workers",
+        "unknown_workers",
+        "unverified_workers",
+        "active_leases",
+        "source"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "healthy",
+            "degraded",
+            "stale",
+            "unknown",
+            "unverified",
+            "not_initialized",
+            "unavailable"
+          ]
+        },
+        "active_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "healthy_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "degraded_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stale_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unverified_workers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_leases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source": {
+          "enum": [
+            "assignment_leases",
+            "grace_execution_health_and_assignment_leases"
+          ]
+        },
+        "health_semantics": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "workerPage": {
+      "type": "object",
+      "required": [
+        "status",
+        "items"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "available",
+            "not_initialized"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "required": [
+              "worker_id",
+              "active",
+              "status",
+              "last_heartbeat_at",
+              "heartbeat_age_seconds",
+              "active_leases",
+              "source"
+            ],
+            "properties": {
+              "worker_id": {
+                "type": "string"
+              },
+              "active": {
+                "type": "boolean"
+              },
+              "status": {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "stale",
+                  "unknown",
+                  "unverified",
+                  "inactive"
+                ]
+              },
+              "last_heartbeat_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "heartbeat_age_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "active_leases": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_lease_heartbeat_at": {
+                "type": ["string", "null"],
+                "format": "date-time"
+              },
+              "scope_ref": {"type": "string"},
+              "registered_capabilities": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "live_registered_capabilities": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "source": {
+                "enum": ["assignment_leases", "grace_execution_health"]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "page_limit": {
+          "type": "integer",
+          "maximum": 100
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "graphIndex": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "status",
+        "items"
+      ],
+      "properties": {
+        "status": {
+          "const": "available"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "graph_id",
+              "component_id",
+              "workflow_id",
+              "graph_revision",
+              "node_count",
+              "edge_count"
+            ],
+            "properties": {
+              "graph_id": {
+                "type": "string"
+              },
+              "component_id": {
+                "type": "string"
+              },
+              "workflow_id": {
+                "type": "string"
+              },
+              "graph_revision": {
+                "type": "string"
+              },
+              "node_count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "edge_count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "schema_version": {
+          "const": "rv.dashboard.graph-index.v1"
+        }
+      },
+      "additionalProperties": false
+    },
+    "graphResponse": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "status",
+        "graph"
+      ],
+      "properties": {
+        "status": {
+          "const": "available"
+        },
+        "graph": {
+          "type": "object",
+          "required": [
+            "graph_id",
+            "graph_revision",
+            "component_id",
+            "workflow_id",
+            "nodes",
+            "edges",
+            "execution_position"
+          ],
+          "properties": {
+            "graph_id": {
+              "type": "string"
+            },
+            "graph_revision": {
+              "type": "string"
+            },
+            "component_id": {
+              "type": "string"
+            },
+            "workflow_id": {
+              "type": "string"
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "execution_position": {
+              "type": "object",
+              "required": [
+                "status",
+                "reason"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "unknown",
+                    "unavailable",
+                    "current"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "assignment_id": {
+                  "type": "string"
+                },
+                "node_id": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "recorded_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": true
+        },
+        "schema_version": {
+          "const": "rv.dashboard.graph.v1"
+        }
+      },
+      "additionalProperties": false
+    },
+    "groundingDiagnostic": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "attempt_id",
+        "objective_id",
+        "objective_revision",
+        "previous_state",
+        "new_state",
+        "stage",
+        "attempted_operation",
+        "outcome",
+        "reason_code",
+        "explanation",
+        "evidence",
+        "responsible_component",
+        "retry",
+        "attempt_started_at"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "attempt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "objective_id": {
+          "type": "string"
+        },
+        "objective_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "previous_state": {
+          "type": "string"
+        },
+        "new_state": {
+          "type": "string"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "attempted_operation": {
+          "type": "string"
+        },
+        "outcome": {
+          "const": "blocked"
+        },
+        "reason_code": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]{1,64}$"
+        },
+        "explanation": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "status",
+            "source_revision",
+            "source_sha256_present",
+            "retrieval_complete",
+            "reference_count",
+            "sha256"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "source_revision": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_sha256_present": {
+              "type": "boolean"
+            },
+            "retrieval_complete": {
+              "type": "boolean"
+            },
+            "reference_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "responsible_component": {
+          "type": "string"
+        },
+        "retry": {
+          "type": "object",
+          "required": [
+            "status",
+            "retryable",
+            "automatic",
+            "next_retry_at",
+            "required_actor",
+            "next_permitted_action"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "automatic": {
+              "type": "boolean"
+            },
+            "next_retry_at": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "required_actor": {
+              "type": "string"
+            },
+            "next_permitted_action": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "additionalProperties": false
+        },
+        "attempt_started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "failure_type": {
+          "type": "string",
+          "maxLength": 80
+        }
+      },
+      "additionalProperties": false
+    },
+    "groundingAttempt": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "occurred_at",
+        "diagnostic"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "diagnostic": {
+          "$ref": "#/$defs/groundingDiagnostic"
+        }
+      },
+      "additionalProperties": false
+    },
+    "resourceTelemetry": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "component_id",
+        "status",
+        "observed_at",
+        "freshness_window_seconds",
+        "collection_model",
+        "hosts",
+        "storage_status",
+        "storage_observed_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "rv.dashboard.resource-telemetry.v1"
+        },
+        "component_id": {
+          "const": "STEWARD-DASHBOARD-RESOURCE-TELEMETRY"
+        },
+        "status": {
+          "enum": [
+            "healthy",
+            "partial",
+            "unavailable"
+          ]
+        },
+        "observed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "freshness_window_seconds": {
+          "const": 30
+        },
+        "collection_model": {
+          "const": "request_driven_no_cache"
+        },
+        "storage_status": {
+          "enum": [
+            "healthy",
+            "partial",
+            "unavailable"
+          ]
+        },
+        "storage_observed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "hosts": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "required": [
+              "host_id",
+              "identity_state",
+              "state",
+              "gpu_inventory",
+              "inference_servers",
+              "storage"
+            ],
+            "properties": {
+              "host_id": {
+                "enum": [
+                  "camrui",
+                  "octominer1",
+                  "octominer2",
+                  "windows-development"
+                ]
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "identity_state": {
+                "enum": [
+                  "verified",
+                  "documented_unverified",
+                  "documented_not_connected"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "unavailable"
+                ]
+              },
+              "observed_at": {
+                "$ref": "#/$defs/timestamp"
+              },
+              "gpu_inventory": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "healthy",
+                      "unavailable"
+                    ]
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "observed_at": {
+                    "$ref": "#/$defs/timestamp"
+                  },
+                  "devices": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "device_id": {
+                          "type": "string"
+                        },
+                        "identity_state": {
+                          "enum": ["verified", "unavailable"]
+                        },
+                        "gpu_uuid": {
+                          "type": ["string", "null"],
+                          "pattern": "^GPU-(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})$"
+                        },
+                        "index": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "compute_capability": {
+                          "type": ["string", "null"],
+                          "pattern": "^[1-9][0-9]?\\.[0-9]{1,2}$"
+                        },
+                        "active_compute_process_count": {
+                          "type": ["integer", "null"],
+                          "minimum": 0
+                        },
+                        "allocation_state": {
+                          "enum": ["occupied", "no_compute_processes_observed", "unknown"]
+                        },
+                        "reservation_state": {
+                          "enum": ["known_owner", "unreported"]
+                        },
+                        "utilization_percent": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "memory_used_bytes": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0
+                        },
+                        "memory_total_bytes": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0
+                        },
+                        "temperature_celsius": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0,
+                          "maximum": 200
+                        },
+                        "power_watts": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "minimum": 0
+                        },
+                        "fan_percent": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "active_services": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "grace-reasoning-80b",
+                              "grace-vision-30b",
+                              "other"
+                            ]
+                          }
+                        },
+                        "observed_at": {
+                          "$ref": "#/$defs/timestamp"
+                        },
+                        "source": {
+                          "const": "nvidia-smi"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": true
+              },
+              "inference_servers": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service_id": {
+                      "type": "string"
+                    },
+                    "display_name": {
+                      "type": "string"
+                    },
+                    "endpoint_id": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "ready",
+                        "unavailable"
+                      ]
+                    },
+                    "observed_at": {
+                      "$ref": "#/$defs/timestamp"
+                    },
+                    "readiness_source": {
+                      "type": "string"
+                    },
+                    "loaded_models": {
+                      "type": "array",
+                      "maxItems": 16,
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "active_slots": {
+                      "type": "object"
+                    },
+                    "slot_context": {
+                      "type": "object",
+                      "required": [
+                        "state",
+                        "source",
+                        "observed_at",
+                        "slots",
+                        "kv_cache_bytes"
+                      ],
+                      "properties": {
+                        "state": {
+                          "enum": [
+                            "measured",
+                            "unavailable"
+                          ]
+                        },
+                        "source": {
+                          "const": "llama.cpp /slots numeric fields"
+                        },
+                        "observed_at": {
+                          "$ref": "#/$defs/timestamp"
+                        },
+                        "slots": {
+                          "type": "array",
+                          "maxItems": 256,
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "slot_id",
+                              "processing",
+                              "context_tokens",
+                              "prompt_tokens",
+                              "prompt_tokens_processed",
+                              "prompt_tokens_cached"
+                            ],
+                            "properties": {
+                              "slot_id": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "processing": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              },
+                              "context_tokens": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              "prompt_tokens": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              "prompt_tokens_processed": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              "prompt_tokens_cached": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        },
+                        "kv_cache_bytes": {
+                          "type": "object",
+                          "required": [
+                            "state",
+                            "value",
+                            "reason"
+                          ],
+                          "properties": {
+                            "state": {
+                              "const": "unavailable"
+                            },
+                            "value": {
+                              "type": "null"
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "queued_requests": {
+                      "type": "object"
+                    },
+                    "error_code": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "storage": {
+                "type": "object",
+                "required": [
+                  "state",
+                  "observed_at",
+                  "volumes",
+                  "error_code"
+                ],
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "healthy",
+                      "unavailable"
+                    ]
+                  },
+                  "observed_at": {
+                    "$ref": "#/$defs/timestamp"
+                  },
+                  "error_code": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "volumes": {
+                    "type": "array",
+                    "maxItems": 64,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "volume_id",
+                        "filesystem_id",
+                        "mount_point",
+                        "filesystem_type",
+                        "device_id",
+                        "total_bytes",
+                        "used_bytes",
+                        "available_bytes",
+                        "percent_used",
+                        "observed_at",
+                        "source"
+                      ],
+                      "properties": {
+                        "volume_id": {
+                          "type": "string",
+                          "maxLength": 384
+                        },
+                        "filesystem_id": {
+                          "type": "string",
+                          "maxLength": 384
+                        },
+                        "mount_point": {
+                          "type": "string",
+                          "maxLength": 256
+                        },
+                        "filesystem_type": {
+                          "type": "string",
+                          "maxLength": 24
+                        },
+                        "device_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 256
+                        },
+                        "total_bytes": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "used_bytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "available_bytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "percent_used": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "observed_at": {
+                          "$ref": "#/$defs/timestamp"
+                        },
+                        "source": {
+                          "type": "string",
+                          "maxLength": 64
+                        },
+                        "also_mounted_at": {
+                          "type": "array",
+                          "maxItems": 16,
+                          "items": {
+                            "type": "string",
+                            "maxLength": 256
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "snapshotArchiveResult": {
+      "type": "object",
+      "required": [
+        "status",
+        "snapshot_id",
+        "release_url",
+        "asset_name",
+        "archive_sha256",
+        "archive_size_bytes",
+        "retention"
+      ],
+      "properties": {
+        "status": {
+          "const": "archived"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$"
+        },
+        "release_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://github\\.com/[^/]+/[^/]+/releases/tag/rvdiag-"
+        },
+        "asset_name": {
+          "type": "string",
+          "pattern": "^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}\\.zip$"
+        },
+        "archive_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "archive_size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 101711872
+        },
+        "retention": {
+          "const": "permanent"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/status"
+    },
+    {
+      "$ref": "#/$defs/page"
+    },
+    {
+      "$ref": "#/$defs/objectiveProgressPage"
+    },
+    {
+      "$ref": "#/$defs/workerPage"
+    },
+    {
+      "$ref": "#/$defs/snapshot"
+    },
+    {
+      "$ref": "#/$defs/graphIndex"
+    },
+    {
+      "$ref": "#/$defs/graphResponse"
+    },
+    {
+      "$ref": "#/$defs/resourceTelemetry"
+    },
+    {
+      "$ref": "#/$defs/snapshotArchiveResult"
+    }
+  ]
+}

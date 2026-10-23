@@ -1,8 +1,8 @@
 """RIVERVIEW~ CONTROLLED SOURCE
 File: tests/test_resource_telemetry.py
 Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-Revision: 1.1.1
-Purpose: Verify bounded authenticated hardware and inference projections
+Revision: 1.2.2
+Purpose: Verify bounded authenticated hardware, inference, and storage projections
 Execution Model: Isolated unittest fixtures
 Observability: Assertions for source status, redaction, readiness and unavailable data
 Dependencies: DashboardResourceTelemetry and Python unittest
@@ -10,6 +10,9 @@ Authority: Disposable fixtures only; no production credentials or writes
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial telemetry projection tests
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Verify safe numeric slot context projection and raw task/prompt redaction
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Keep context telemetry unavailable when slots contain no numeric context measurements
+Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Verify host-scoped volume projection and unavailable states.
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Verify UUID/architecture projection, allocation counts, reservation unknown states, and PID redaction
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Validate complete storage telemetry projection against the versioned API schema.
 Contracts: docs/components/STATUS_DASHBOARD.md
 Tests: python -m unittest tests.test_resource_telemetry
 History: Git and .riverview-backups/manifest.jsonl
@@ -36,13 +39,19 @@ class ResourceTelemetryTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_gpu_projection_uses_strict_fixed_ssh_and_redacts_host_identifiers(self):
+    def test_gpu_projection_uses_stable_uuid_and_redacts_process_identifiers(self):
         payload = {
             "schema_version": "rv.gpu-host-telemetry.v1",
             "observed_at": "2026-10-21T17:10:00Z",
+            "storage_volumes": [{"major_minor": "8:1", "filesystem_type": "ext4",
+                                 "source": "/dev/sda1", "mount_point": "/data",
+                                 "total_bytes": 1000, "used_bytes": 400,
+                                 "available_bytes": 500}],
             "devices": [{
                 "index": 0, "name": "Tesla P100-PCIE-16GB",
-                "uuid": "GPU-secret-uuid", "pid": 12345,
+                "uuid": "GPU-01234567-89ab-cdef-0123-456789abcdef",
+                "compute_capability": "6.0", "active_compute_process_count": 2,
+                "pid": 99887766,
                 "utilization_percent": 82, "memory_used_bytes": 10,
                 "memory_total_bytes": 20, "temperature_celsius": 49,
                 "power_watts": 60.0, "fan_percent": None,
@@ -60,11 +69,36 @@ class ResourceTelemetryTests(unittest.TestCase):
         result = telemetry._gpu_source()
         self.assertEqual(result["state"], "healthy")
         device = result["devices"][0]
+        self.assertEqual(device["device_id"], "GPU-01234567-89ab-cdef-0123-456789abcdef")
+        self.assertEqual(device["gpu_uuid"], "GPU-01234567-89ab-cdef-0123-456789abcdef")
+        self.assertEqual(device["identity_state"], "verified")
         self.assertEqual(device["name"], "Tesla P100-PCIE-16GB")
+        self.assertEqual(device["compute_capability"], "6.0")
+        self.assertEqual(device["active_compute_process_count"], 2)
+        self.assertEqual(device["allocation_state"], "occupied")
+        self.assertEqual(device["reservation_state"], "known_owner")
         self.assertEqual(device["active_services"], ["grace-reasoning-80b"])
+        self.assertEqual(result["storage"]["state"], "healthy")
+        self.assertEqual(result["storage"]["volumes"][0]["percent_used"], 40.0)
+        self.assertEqual(result["storage"]["volumes"][0]["mount_point"], "/data")
         serialized = json.dumps(result)
-        for forbidden in ("GPU-secret-uuid", "12345"):
+        self.assertIn("GPU-01234567-89ab-cdef-0123-456789abcdef", serialized)
+        for forbidden in ('"99887766"', '"pid"'):
             self.assertNotIn(forbidden, serialized)
+
+    def test_legacy_gpu_inventory_does_not_claim_free_or_stable_identity(self):
+        payload = {"schema_version": "rv.gpu-host-telemetry.v1", "devices": [{
+            "index": 1, "name": "NVIDIA GeForce RTX 4090", "memory_used_bytes": 1,
+            "memory_total_bytes": 24, "active_services": [],
+        }]}
+        telemetry = DashboardResourceTelemetry(
+            runner=lambda *_a, **_k: subprocess.CompletedProcess([], 0, json.dumps(payload), ""),
+            credential_directory=self.credentials, http_open=lambda *_a, **_k: None)
+        device = telemetry._gpu_source()["devices"][0]
+        self.assertIsNone(device["gpu_uuid"])
+        self.assertEqual(device["identity_state"], "unavailable")
+        self.assertEqual(device["allocation_state"], "unknown")
+        self.assertEqual(device["reservation_state"], "unreported")
 
     def test_missing_credentials_fails_closed_without_running_ssh(self):
         with tempfile.TemporaryDirectory() as empty:
@@ -148,6 +182,47 @@ class ResourceTelemetryTests(unittest.TestCase):
         result = DashboardResourceTelemetry(runner=runner, credential_directory=self.credentials)._gpu_source()
         self.assertEqual(result["state"], "unavailable")
         self.assertEqual(result["error_code"], "gpu_source_schema_invalid")
+        self.assertEqual(result["storage"]["state"], "unavailable")
+
+    def test_full_storage_projection_matches_versioned_api_schema(self):
+        from jsonschema import Draft202012Validator
+        schema = json.loads(Path("docs/components/STATUS_DASHBOARD_API.schema.json").read_text())
+        volume = {"volume_id":"camrui:8:2:ext4","filesystem_id":"camrui:8:2:ext4:/dev/sda2",
+                  "mount_point":"/","filesystem_type":"ext4","device_id":"/dev/sda2",
+                  "total_bytes":1000,"used_bytes":400,"available_bytes":500,
+                  "percent_used":40.0,"observed_at":"2026-10-22T19:00:00Z",
+                  "source":"linux mountinfo + statvfs"}
+        local={"state":"healthy","observed_at":"2026-10-22T19:00:00Z","volumes":[volume],"error_code":None}
+        telemetry=DashboardResourceTelemetry(credential_directory=self.credentials,local_storage_reader=lambda _host:local)
+        telemetry._gpu_source=lambda:{"state":"unavailable","observed_at":None,"error_code":"offline","devices":[],"storage":{"state":"unavailable","observed_at":None,"volumes":[],"error_code":"offline"}}
+        telemetry._model_source=lambda source:{"service_id":source["service_id"],"state":"unavailable","observed_at":None}
+        result=telemetry.read()
+        errors=list(Draft202012Validator(schema).iter_errors(result))
+        self.assertEqual(errors,[],[error.message for error in errors])
+        self.assertEqual(result["hosts"][0]["storage"]["volumes"][0]["filesystem_id"],volume["filesystem_id"])
+        self.assertEqual(result["hosts"][2]["storage"]["state"],"unavailable")
+
+    def test_resource_projection_lists_all_hosts_and_marks_missing_storage_unavailable(self):
+        local = {"state": "healthy", "observed_at": "2026-10-22T19:00:00Z",
+                 "volumes": [{"filesystem_id": "camrui:8:1:ext4:/dev/vda1",
+                              "total_bytes": 100, "available_bytes": 40}],
+                 "error_code": None}
+        telemetry = DashboardResourceTelemetry(
+            credential_directory=self.credentials, local_storage_reader=lambda _host: local)
+        telemetry._gpu_source = lambda: {"state": "healthy", "observed_at": "2026-10-22T19:00:00Z",
+                                         "error_code": None, "devices": [],
+                                         "storage": {"state": "unavailable", "observed_at": None,
+                                                     "volumes": [], "error_code": "storage_source_not_reporting"}}
+        telemetry._model_source = lambda source: {"service_id": source["service_id"], "state": "ready",
+                                                  "observed_at": "2026-10-22T19:00:00Z"}
+        result = telemetry.read()
+        storage_hosts = {host["host_id"]: host["storage"] for host in result["hosts"]}
+        self.assertEqual(set(storage_hosts), {"camrui", "octominer1", "octominer2", "windows-development"})
+        self.assertEqual(storage_hosts["camrui"]["state"], "healthy")
+        self.assertEqual(storage_hosts["octominer1"]["state"], "unavailable")
+        self.assertEqual(storage_hosts["octominer2"]["state"], "unavailable")
+        self.assertEqual(storage_hosts["windows-development"]["state"], "unavailable")
+        self.assertEqual(result["storage_status"], "partial")
 
 
 if __name__ == "__main__":

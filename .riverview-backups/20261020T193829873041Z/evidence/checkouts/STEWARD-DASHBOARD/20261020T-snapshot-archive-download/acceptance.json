@@ -1,0 +1,151 @@
+{
+  "schema_version": "rv.steward-dashboard.checkout-acceptance.v1",
+  "task_id": "RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020",
+  "owner": "C2",
+  "component_id": "STEWARD-DASHBOARD",
+  "classification": "dashboard client workflow change with controlled documentation, regression tests, and process graph updates",
+  "branch": "codex/snapshot-archive-download-20261020",
+  "base_sha": "cf4a97e2a712e05e5c5d0a4a82d1016df5ed2ba1",
+  "scope": "One generated ZIP Blob is uploaded to the existing private GitHub archive endpoint and handed to the browser download manager; local retry and copy-link results remain available.",
+  "dependencies": [
+    "Existing snapshot generator and bounds",
+    "Existing CSRF-protected POST /api/v1/snapshot/archive endpoint",
+    "Private server-side GitHub credential configuration; no browser credential",
+    "Browser Web Crypto, Blob URL, download attribute, Clipboard API or copy fallback",
+    "Firefox/geckodriver for synthetic acceptance"
+  ],
+  "execution_model": "Explicit Steward user action; one request-driven bounded capture, archive post, and browser download handoff. No worker, background service, migration, production state, or real GitHub Release is touched.",
+  "acceptance_criteria": [
+    "One bounded redacted snapshot is generated and reused as the upload and local download bytes.",
+    "Archival is claimed only after a successful authenticated response with valid ID, release URL, size, and matching SHA-256.",
+    "The browser exposes a normal ZIP download and visible retry link; archive failure preserves local download.",
+    "Local download start failure preserves the confirmed archive URL and copy action.",
+    "A mismatched server digest is treated as archive failure and does not claim success.",
+    "Existing local download, authentication, CSRF, privacy/redaction, dashboard regressions, and package bounds remain intact."
+  ],
+  "tests": {
+    "browser_acceptance_commands": [
+      "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --archive-fixture success --output /tmp/rv-snapshot-archive-download-final",
+      "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --archive-fixture failure --output /tmp/rv-snapshot-archive-download-final-failure",
+      "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --archive-fixture mismatch --output /tmp/rv-snapshot-archive-download-final-mismatch",
+      "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --package-bound-stress-fixture --output /tmp/rv-snapshot-archive-download-final-stress"
+    ],
+    "browser_reports": {
+      "normal_success": {
+        "passed": true,
+        "package_bytes": 76708075,
+        "package_sha256": "d88328204eadb3a683982398683f78935fb8c8b5e7d2aaf46c40a7650b3d2400",
+        "archive_local_fallback": {
+          "archive_request_made": true,
+          "csrf_present": true,
+          "authenticated_cookie_present": true,
+          "local_zip_downloaded": true,
+          "browser_download_visible": true,
+          "archive_sha256": "d88328204eadb3a683982398683f78935fb8c8b5e7d2aaf46c40a7650b3d2400",
+          "local_sha256": "d88328204eadb3a683982398683f78935fb8c8b5e7d2aaf46c40a7650b3d2400",
+          "same_zip_bytes": true,
+          "matching_zip_hashes": true,
+          "confirmed_release_link_visible": true,
+          "copy_link_action_visible": true,
+          "copy_link_copied_confirmed_url": true,
+          "download_retry_link_visible": true,
+          "toast_interactive": true,
+          "ui_text": "Snapshot archived permanently; browser download requested · Open private GitHub release · Copy GitHub Link · Download ZIP"
+        },
+        "local_download_failure_after_archive": {
+          "archive_confirmed": true,
+          "local_download_requested": false,
+          "release_link": true,
+          "download_retry_link": true,
+          "failure_reported": true
+        },
+        "package_bound_stress": null,
+        "privacy": {
+          "page_private_content_redacted": true,
+          "sensitive_form_value_redacted": true,
+          "diagnostic_privacy_filter_passed": true,
+          "zip_integrity_test": true,
+          "manifest_files_valid": true
+        }
+      },
+      "github_failure_local_success": {
+        "passed": true,
+        "package_bytes": 76707477,
+        "package_sha256": "933f6d2983df85a6f33e3c3f5eee807df88f84c02594caa1004c132db3915883",
+        "archive_local_fallback": {
+          "archive_request_made": true,
+          "github_failure_reported": true,
+          "local_zip_downloaded": true,
+          "archive_not_claimed": true,
+          "csrf_present": true
+        },
+        "local_download_failure_after_archive": null,
+        "package_bound_stress": null,
+        "privacy": {
+          "page_private_content_redacted": true,
+          "sensitive_form_value_redacted": true,
+          "diagnostic_privacy_filter_passed": true,
+          "zip_integrity_test": true,
+          "manifest_files_valid": true
+        }
+      },
+      "receipt_digest_mismatch": {
+        "passed": true,
+        "package_bytes": 76708310,
+        "package_sha256": "353462006d1310571632c8456045248a0cfb9ca046c4f4e40ec82f0df0961320",
+        "archive_local_fallback": {
+          "archive_request_made": true,
+          "github_failure_reported": true,
+          "local_zip_downloaded": true,
+          "archive_not_claimed": true,
+          "csrf_present": true
+        },
+        "local_download_failure_after_archive": null,
+        "package_bound_stress": null,
+        "privacy": {
+          "page_private_content_redacted": true,
+          "sensitive_form_value_redacted": true,
+          "diagnostic_privacy_filter_passed": true,
+          "zip_integrity_test": true,
+          "manifest_files_valid": true
+        }
+      },
+      "oversized_package": {
+        "passed": true,
+        "package_bytes": 83161239,
+        "package_sha256": "54d4ee44fedae115accd24a42b4aa07566c6050c11ab876c1dc83b721394b926",
+        "archive_local_fallback": {
+          "clear_failure_message": true,
+          "local_zip_downloaded": true,
+          "github_request_skipped_without_csrf": true
+        },
+        "local_download_failure_after_archive": null,
+        "package_bound_stress": {
+          "current_limit_bytes": 100663296,
+          "uncompressed_archive_bytes": 83138177,
+          "omitted_raster_visual_count": 17,
+          "manifest_lists_visual_omissions": true,
+          "raster_budget_respected": true,
+          "structured_and_manifest_reserves_respected": true,
+          "omitted_paths_absent_from_archive": true,
+          "canonical_page_and_workflow_references_valid": true,
+          "diagnostic_members_present": true,
+          "capture_complete_truthfully_false": true
+        },
+        "privacy": {
+          "page_private_content_redacted": true,
+          "sensitive_form_value_redacted": true,
+          "diagnostic_privacy_filter_passed": true,
+          "zip_integrity_test": true,
+          "manifest_files_valid": true
+        }
+      }
+    },
+    "regression_command": "PYTHONPATH=src python3 -m pytest -q tests/test_snapshot_archive.py tests/test_status_dashboard.py tests/test_account_auth_http.py tests/test_account_auth.py",
+    "regression_result": "67 passed, 16 skipped",
+    "graph_check": "python3 scripts/process_graph.py check — PASS (22 graphs, 603 nodes)",
+    "revision_check": "python3 scripts/revision_control.py check --baseline /tmp/rv-snapshot-archive-download-baseline-inventory.json — PASS (no issues)"
+  },
+  "security_and_storage": "All provider calls use the same-origin CSRF-protected endpoint. The browser never receives GitHub authorization material. Synthetic tests use only a fixture cookie and local fake API; no real GitHub upload occurred. Browser history and page content privacy assertions pass. Test ZIPs are temporary and excluded from this evidence record.",
+  "deployment_status": "Not deployed. Merge and deployment remain outside this authorization; real account-session acceptance and production archive activation are still required."
+}

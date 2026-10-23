@@ -1,0 +1,7 @@
+# Riverview~ controlled optional systemd drop-in; component STEWARD-DASHBOARD.
+# Revision: 1.0.0
+# Enable only after provisioning the dedicated PRIVATE GitHub repository and credential.
+# Never put the GitHub token in this file; LoadCredential keeps it out of browser code.
+[Service]
+Environment=RIVERVIEW_SNAPSHOT_GITHUB_REPOSITORY=OWNER/PRIVATE_REPOSITORY
+LoadCredential=snapshot-github-token:/etc/riverview/snapshot-github-token

@@ -2,7 +2,12 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.12
+# Revision: 1.0.18
+# Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Add owner-scoped cancellation reason/time to the objective progress projection.
+# Changed: 2026-10-23 UTC | RV-GRACE-CANCELLED-PROGRESS-20261023 | Keep CANCELLED authoritative over historical failure and blocked activity.
+# Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Require active engineering-scope registry and matching capability for live worker health.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Project accepted image downloads beside their assignment verification record.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Expose only independently accepted ComfyUI binary artifact metadata for authorized download.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Project bounded sanitized grounding-failure history with owner-scoped objective progress.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Expose the criteria source alongside effective objective criteria.
 # Changed: 2026-10-20 UTC | RV-GRACE-ACCEPTED-STEP-REWORK-001 | Project durable rework escalation-pending events as actionable Steward holds.
@@ -25,6 +30,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -169,7 +176,7 @@ class DashboardProjection:
                     }
             if present["grace_execution_health"]:
                 cur.execute("""SELECT instance_id,status,last_heartbeat_at,last_cycle_at,
-                    last_error_type,cycles_completed FROM grace_execution_health
+                    last_error_type,cycles_completed,worker_capabilities FROM grace_execution_health
                     WHERE service_id='grace.execution.v1'""")
                 grace = cur.fetchone()
                 if grace:
@@ -189,27 +196,67 @@ class DashboardProjection:
                         "last_cycle_at": self._iso(grace["last_cycle_at"]),
                         "last_error_type": grace["last_error_type"],
                         "cycles_completed": grace["cycles_completed"],
+                        "worker_capabilities": grace["worker_capabilities"],
                         "source": "grace_execution_health"}
             if present["worker_registry"] and present["assignment_leases"]:
-                cur.execute("""WITH worker_rows AS (
-                               SELECT w.worker_id, w.active, max(l.heartbeat_at) AS heartbeat_at,
-                                      count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
-                                        AND NOT EXISTS (SELECT 1 FROM events p
-                                          WHERE p.assignment_id=l.assignment_id
-                                            AND p.privacy_domain <> 'institution')) AS active_leases
-                               FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
-                               GROUP BY w.worker_id, w.active
-                             ), classified AS (
-                               SELECT *, CASE
-                                 WHEN NOT active THEN 'inactive'
-                                 WHEN heartbeat_at IS NULL THEN 'unknown'
-                                 WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) < 0 THEN 'unverified'
-                                 WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) > %s THEN 'stale'
-                                 ELSE 'healthy' END AS health
-                               FROM worker_rows
-                             )
+                if present["grace_execution_health"]:
+                    cur.execute("""WITH worker_rows AS (
+                                   SELECT w.worker_id, w.active, max(l.heartbeat_at) AS lease_heartbeat_at,
+                                          extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS lease_age,
+                                          count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
+                                            AND NOT EXISTS (SELECT 1 FROM events p
+                                              WHERE p.assignment_id=l.assignment_id
+                                                AND p.privacy_domain <> 'institution')) AS active_leases,
+                                          gh.status AS runtime_status,
+                                          extract(epoch FROM (clock_timestamp()-gh.last_heartbeat_at)) AS runtime_age,
+                                          EXISTS (SELECT 1 FROM jsonb_array_elements(gh.worker_capabilities) cap
+                                            WHERE cap->>'worker_id'=w.worker_id
+                                              AND w.capabilities ? (cap->>'capability'))
+                                            AND w.scope_ref='work-order:engineering' AS runtime_ready
+                                   FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
+                                   LEFT JOIN grace_execution_health gh ON gh.service_id='grace.execution.v1'
+                                   GROUP BY w.worker_id,w.active,gh.status,gh.last_heartbeat_at,gh.worker_capabilities
+                                 ), classified AS (
+                                   SELECT *, CASE
+                                     WHEN NOT active THEN 'inactive'
+                                     WHEN runtime_ready AND runtime_age < 0 THEN 'unverified'
+                                     WHEN runtime_ready AND runtime_age > %s THEN 'stale'
+                                     WHEN runtime_ready AND runtime_status='healthy' THEN 'healthy'
+                                     WHEN runtime_ready THEN 'degraded'
+                                     WHEN lease_age IS NULL THEN 'unknown'
+                                     WHEN lease_age < 0 THEN 'unverified'
+                                     WHEN lease_age > %s THEN 'stale'
+                                     ELSE 'healthy' END AS health
+                                   FROM worker_rows
+                                 )
                              SELECT count(*) FILTER (WHERE active) AS active_workers,
                                     count(*) FILTER (WHERE active AND health='healthy') AS healthy_workers,
+                                    count(*) FILTER (WHERE active AND health='degraded') AS degraded_workers,
+                                    count(*) FILTER (WHERE active AND health='stale') AS stale_workers,
+                                    count(*) FILTER (WHERE active AND health='unknown') AS unknown_workers,
+                                    count(*) FILTER (WHERE active AND health='unverified') AS unverified_workers,
+                                    coalesce(sum(active_leases) FILTER (WHERE active),0) AS active_leases
+                             FROM classified""", (self.heartbeat_stale_seconds,
+                                                    self.heartbeat_stale_seconds))
+                else:
+                    cur.execute("""WITH worker_rows AS (
+                                   SELECT w.worker_id, w.active, max(l.heartbeat_at) AS heartbeat_at,
+                                          count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
+                                            AND NOT EXISTS (SELECT 1 FROM events p
+                                              WHERE p.assignment_id=l.assignment_id
+                                                AND p.privacy_domain <> 'institution')) AS active_leases
+                                   FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
+                                   GROUP BY w.worker_id,w.active
+                                 ), classified AS (
+                                   SELECT *, CASE WHEN NOT active THEN 'inactive'
+                                     WHEN heartbeat_at IS NULL THEN 'unknown'
+                                     WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) < 0 THEN 'unverified'
+                                     WHEN extract(epoch FROM (clock_timestamp()-heartbeat_at)) > %s THEN 'stale'
+                                     ELSE 'healthy' END AS health FROM worker_rows
+                                 )
+                             SELECT count(*) FILTER (WHERE active) AS active_workers,
+                                    count(*) FILTER (WHERE active AND health='healthy') AS healthy_workers,
+                                    0 AS degraded_workers,
                                     count(*) FILTER (WHERE active AND health='stale') AS stale_workers,
                                     count(*) FILTER (WHERE active AND health='unknown') AS unknown_workers,
                                     count(*) FILTER (WHERE active AND health='unverified') AS unverified_workers,
@@ -222,6 +269,8 @@ class DashboardProjection:
                     worker_status = "unverified"
                 elif worker["stale_workers"]:
                     worker_status = "stale"
+                elif worker["degraded_workers"]:
+                    worker_status = "degraded"
                 elif worker["unknown_workers"]:
                     worker_status = "unknown"
                 else:
@@ -229,12 +278,13 @@ class DashboardProjection:
                 result["workers"] = {
                     "status": worker_status, "active_workers": worker["active_workers"],
                     "healthy_workers": worker["healthy_workers"],
+                    "degraded_workers": worker["degraded_workers"],
                     "stale_workers": worker["stale_workers"],
                     "unknown_workers": worker["unknown_workers"],
                     "unverified_workers": worker["unverified_workers"],
                     "active_leases": int(worker["active_leases"] or 0),
-                    "source": "assignment_leases", "health_semantics":
-                        "per-worker latest lease heartbeat; no heartbeat is unknown, not healthy",
+                    "source": "grace_execution_health_and_assignment_leases", "health_semantics":
+                        "configured in-process capabilities use Grace runtime heartbeat; other workers use lease heartbeats",
                 }
             return result
         try:
@@ -419,6 +469,80 @@ class DashboardProjection:
                            for row in events],
                 "attempts": attempts, "verifications": verifications,
                 "diagnostic_ref": "docs/components/STATUS_DASHBOARD_COOKBOOK.md"}
+        detail = self._read(query)
+        if (detail and re.fullmatch(r"[A-Za-z0-9:._-]{1,128}", assignment_id) and
+                any(item.get("capability") == "engineering.comfyui-image.v1"
+                          and item.get("status") == "succeeded"
+                          for item in detail.get("attempts", []))):
+            artifacts = []
+            for index in range(1, 9):
+                item = self.comfyui_artifact(assignment_id, index)
+                if item is None:
+                    break
+                artifacts.append({"index": index, "name": item["name"],
+                    "bytes": item["bytes"], "sha256": item["sha256"],
+                    "download_url": f"/api/v1/assignments/{assignment_id}/artifacts/{index}"})
+            detail["comfyui_artifacts"] = artifacts
+        return detail
+
+    def comfyui_artifact(self, assignment_id: str, index: int):
+        """Return metadata only for one independently accepted ComfyUI output."""
+        if (not isinstance(assignment_id, str) or len(assignment_id) > 256 or
+                "\x00" in assignment_id or type(index) is not int or not 1 <= index <= 8):
+            raise ValueError("invalid ComfyUI artifact reference")
+        def query(cur):
+            cur.execute("""SELECT a.state,wa.attempt_id,wr.result,wr.result_sha256,
+                    (SELECT decision FROM verification_records vr WHERE vr.attempt_id=wa.attempt_id
+                     ORDER BY vr.recorded_at DESC,vr.verification_id DESC LIMIT 1) AS decision
+                FROM assignments a
+                JOIN worker_attempts wa ON wa.assignment_id=a.id
+                JOIN worker_results wr USING(attempt_id)
+                WHERE a.id=%s AND wa.capability='engineering.comfyui-image.v1'
+                  AND wa.status='succeeded'
+                  AND NOT EXISTS (SELECT 1 FROM events p WHERE p.assignment_id=a.id
+                                  AND p.privacy_domain <> 'institution')
+                ORDER BY wa.started_at DESC,wa.attempt_id DESC LIMIT 1""", (assignment_id,))
+            row = cur.fetchone()
+            if row is None or row["decision"] != "ACCEPTED" or row["state"] != "completed":
+                return None
+            result = row["result"] if isinstance(row["result"], dict) else None
+            if result is None:
+                return None
+            encoded = json.dumps(result, sort_keys=True, separators=(",", ":"),
+                                 ensure_ascii=False, allow_nan=False).encode("utf-8")
+            if hashlib.sha256(encoded).hexdigest() != str(row["result_sha256"]).strip():
+                return None
+            records = result.get("artifacts")
+            if not isinstance(records, list) or not 1 <= len(records) <= 8:
+                return None
+            total = 0
+            valid_records = []
+            assignment_key = hashlib.sha256(assignment_id.encode("utf-8")).hexdigest()
+            for item_position, item in enumerate(records, 1):
+                if not isinstance(item, dict):
+                    return None
+                name = item.get("name")
+                if (not isinstance(name, str) or
+                        re.fullmatch(rf"comfyui-output-{item_position}\.(?:png|jpg|webp)", name) is None):
+                    return None
+                expected_storage = assignment_key + "/" + hashlib.sha256(name.encode()).hexdigest()[:12]
+                size = item.get("bytes")
+                digest = item.get("sha256")
+                media = item.get("media_type")
+                if (item.get("storage_name") != expected_storage or type(size) is not int or
+                        not 0 < size <= 16 * 1024 * 1024 or
+                        not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest) or
+                        media not in {"image/png", "image/jpeg", "image/webp"}):
+                    return None
+                total += size
+                valid_records.append({"name": name, "storage_name": expected_storage,
+                                      "bytes": size, "sha256": digest, "media_type": media})
+            selected = next((item for pos, item in enumerate(valid_records, 1) if pos == index), None)
+            if selected is None or total > 48 * 1024 * 1024:
+                return None
+            return {"status": "available", "assignment_id": assignment_id,
+                    "attempt_id": str(row["attempt_id"]), "index": index,
+                    "verification": "ACCEPTED", **selected}
         return self._read(query)
 
     def graph_execution_position(self, graph_id: str):
@@ -449,33 +573,80 @@ class DashboardProjection:
         def query(cur):
             rel = self._relations(cur, [f"{self.schema}.worker_registry",
                                         f"{self.schema}.assignment_leases",
-                                        f"{self.schema}.events"])
-            if not all(rel.values()):
+                                        f"{self.schema}.events",
+                                        f"{self.schema}.grace_execution_health"])
+            required_relations = (f"{self.schema}.worker_registry",
+                                  f"{self.schema}.assignment_leases",
+                                  f"{self.schema}.events")
+            if not all(rel[name] for name in required_relations):
                 return {"status": "not_initialized", "items": [], "next_cursor": None,
                         "page_limit": limit}
-            cur.execute("""SELECT w.worker_id, w.active,
-                                max(l.heartbeat_at) AS heartbeat_at,
-                                extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS heartbeat_age,
+            if rel[f"{self.schema}.grace_execution_health"]:
+                cur.execute("""SELECT w.worker_id,w.active,w.capabilities,w.scope_ref,
+                                max(l.heartbeat_at) AS lease_heartbeat_at,
+                                extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS lease_age,
                                 count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
                                   AND NOT EXISTS (SELECT 1 FROM events p
                                     WHERE p.assignment_id=l.assignment_id
-                                      AND p.privacy_domain <> 'institution')) AS active_leases
+                                      AND p.privacy_domain <> 'institution')) AS active_leases,
+                                gh.status AS runtime_status,gh.worker_capabilities,
+                                gh.last_heartbeat_at AS runtime_heartbeat_at,
+                                extract(epoch FROM (clock_timestamp()-gh.last_heartbeat_at)) AS runtime_age
+                         FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
+                         LEFT JOIN grace_execution_health gh ON gh.service_id='grace.execution.v1'
+                         WHERE (%s::text IS NULL OR w.worker_id > %s)
+                         GROUP BY w.worker_id,w.active,w.capabilities,w.scope_ref,gh.status,
+                                  gh.worker_capabilities,gh.last_heartbeat_at
+                         ORDER BY w.worker_id LIMIT %s""", (after, after, limit + 1))
+            else:
+                cur.execute("""SELECT w.worker_id,w.active,w.capabilities,w.scope_ref,
+                                max(l.heartbeat_at) AS lease_heartbeat_at,
+                                extract(epoch FROM (clock_timestamp()-max(l.heartbeat_at))) AS lease_age,
+                                count(l.assignment_id) FILTER (WHERE l.expires_at > clock_timestamp()
+                                  AND NOT EXISTS (SELECT 1 FROM events p
+                                    WHERE p.assignment_id=l.assignment_id
+                                      AND p.privacy_domain <> 'institution')) AS active_leases,
+                                NULL::text AS runtime_status,NULL::jsonb AS worker_capabilities,
+                                NULL::timestamptz AS runtime_heartbeat_at,NULL::numeric AS runtime_age
                          FROM worker_registry w LEFT JOIN assignment_leases l USING(worker_id)
                          WHERE (%s::text IS NULL OR w.worker_id > %s)
-                         GROUP BY w.worker_id,w.active ORDER BY w.worker_id LIMIT %s""",
-                        (after, after, limit + 1))
+                         GROUP BY w.worker_id,w.active,w.capabilities,w.scope_ref
+                         ORDER BY w.worker_id LIMIT %s""", (after, after, limit + 1))
             rows=cur.fetchall();more=len(rows)>limit;rows=rows[:limit];items=[]
             for row in rows:
-                age=float(row["heartbeat_age"]) if row["heartbeat_age"] is not None else None
-                if not row["active"]: health="inactive"
-                elif age is None: health="unknown"
-                elif age < 0: health="unverified"
-                elif age > self.heartbeat_stale_seconds: health="stale"
+                registered_capabilities = row["capabilities"] or []
+                runtime_capabilities = [item for item in (row["worker_capabilities"] or [])
+                    if isinstance(item, dict) and item.get("worker_id") == row["worker_id"] and
+                    item.get("capability") in registered_capabilities and
+                    row["scope_ref"] == "work-order:engineering"] if row["active"] else []
+                runtime_age = (float(row["runtime_age"])
+                               if row["runtime_age"] is not None else None)
+                lease_age = float(row["lease_age"]) if row["lease_age"] is not None else None
+                if not row["active"]:
+                    health="inactive"
+                elif runtime_capabilities and runtime_age is not None:
+                    if runtime_age < 0: health="unverified"
+                    elif runtime_age > self.heartbeat_stale_seconds: health="stale"
+                    elif row["runtime_status"] == "healthy": health="healthy"
+                    else: health="degraded"
+                elif lease_age is None: health="unknown"
+                elif lease_age < 0: health="unverified"
+                elif lease_age > self.heartbeat_stale_seconds: health="stale"
                 else: health="healthy"
+                live_capabilities = sorted({item["capability"] for item in runtime_capabilities
+                    if isinstance(item.get("capability"), str)})
+                heartbeat_at = (row["runtime_heartbeat_at"] if runtime_capabilities
+                                else row["lease_heartbeat_at"])
                 items.append({"worker_id":row["worker_id"],"active":row["active"],
-                    "status":health,"last_heartbeat_at":self._iso(row["heartbeat_at"]),
-                    "heartbeat_age_seconds":round(age,3) if age is not None else None,
-                    "active_leases":row["active_leases"],"source":"assignment_leases"})
+                    "status":health,"last_heartbeat_at":self._iso(heartbeat_at),
+                    "heartbeat_age_seconds":round(runtime_age if runtime_capabilities else lease_age,3)
+                        if (runtime_age if runtime_capabilities else lease_age) is not None else None,
+                    "last_lease_heartbeat_at":self._iso(row["lease_heartbeat_at"]),
+                    "active_leases":row["active_leases"],
+                    "scope_ref":row["scope_ref"],
+                    "registered_capabilities":registered_capabilities,
+                    "live_registered_capabilities":live_capabilities,
+                    "source":"grace_execution_health" if runtime_capabilities else "assignment_leases"})
             return {"status":"available","items":items,
                     "next_cursor":items[-1]["worker_id"] if more and items else None,
                     "page_limit":limit,"truncated":more}
@@ -542,6 +713,10 @@ class DashboardProjection:
                     vr.verification_id,vr.verifier_revision,vr.summary AS verification_summary,
                     received.payload AS received_payload,
                     activity.event_type AS latest_event_type,activity.activity_at AS latest_event_at,
+                    cancellation.event_type AS cancellation_event_type,
+                    cancellation.occurred_at AS cancellation_at,
+                    cancellation.actor_id AS cancellation_actor,
+                    cancellation.payload AS cancellation_payload,
                     attempt_count.attempt_count,rejections.rejection_count,
                     rework.payload AS latest_rework,rework.occurred_at AS rework_at,
                     grounding.events AS grounding_diagnostics,
@@ -590,6 +765,11 @@ class DashboardProjection:
                         ORDER BY e.sequence DESC LIMIT 25
                     ) history
                 ) grounding ON true
+                LEFT JOIN LATERAL (SELECT e.event_type,e.occurred_at,e.actor_id,e.payload
+                    FROM grace_objective_events e
+                    WHERE e.objective_id=o.objective_id
+                      AND e.event_type IN ('objective.cancelled','work_order.cancelled')
+                    ORDER BY e.sequence DESC LIMIT 1) cancellation ON true
                 LEFT JOIN LATERAL (SELECT count(*) AS failure_count,max(occurred_at) AS last_failure_at
                     FROM grace_objective_events e WHERE e.objective_id=o.objective_id
                       AND e.event_type='execution.dispatch_failed') de ON true
@@ -615,6 +795,8 @@ class DashboardProjection:
                 assignment_state = row["assignment_state"]
                 if row["status"] == "COMPLETED":
                     lifecycle_status, lifecycle_stage = "completed", "Objective completed"
+                elif row["status"] == "CANCELLED":
+                    lifecycle_status, lifecycle_stage = "cancelled", "Objective cancelled"
                 elif action_needed:
                     lifecycle_status, lifecycle_stage = "blocked", (
                         "Rework escalation pending: Steward action required"
@@ -626,7 +808,7 @@ class DashboardProjection:
                     lifecycle_status, lifecycle_stage = "waiting", "Grace reviewing verifier rejection"
                 elif assignment_state == "awaiting_verification":
                     lifecycle_status, lifecycle_stage = "waiting", "Independent verification"
-                elif assignment_state == "blocked" or row["status"] in {"FAILED", "CANCELLED"}:
+                elif assignment_state == "blocked" or row["status"] == "FAILED":
                     lifecycle_status, lifecycle_stage = "blocked", "Blocked"
                 elif assignment_state in {"queued", "ready", "running"}:
                     lifecycle_status, lifecycle_stage = "working", {
@@ -685,11 +867,18 @@ class DashboardProjection:
                     "source_sha256": row["source_sha256"], "revision": row["revision"],
                     "created_at": self._iso(row["created_at"]),
                     "updated_at": self._iso(row["updated_at"])}
+                cancellation_payload = (row["cancellation_payload"]
+                    if isinstance(row["cancellation_payload"], dict) else {})
+                item["cancellation"] = ({
+                    "reason": str(cancellation_payload.get("reason", ""))[:500],
+                    "cancelled_at": self._iso(row["cancellation_at"]),
+                    "actor_id": str(row["cancellation_actor"] or "")[:256] or None,
+                } if row["status"] == "CANCELLED" and row["cancellation_event_type"] else None)
                 if progress_only:
                     item = {key: item[key] for key in (
                         "objective_id", "status", "assignment_id", "assignment_state",
                         "origin", "lifecycle_status", "lifecycle_stage", "latest_event",
-                        "verification", "rework", "steward_action_required",
+                        "verification", "rework", "cancellation", "steward_action_required",
                         "grounding_diagnostics",
                         "dispatch_failures", "last_dispatch_failure_at",
                         "verification_failures", "last_verification_failure_at",

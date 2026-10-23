@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_runtime_provider_wiring.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.10
+# Revision: 1.0.12
+# Changed: 2026-10-23 UTC | RV-COMFYUI-ISOLATED-WORKER-DB | Require a distinct PostgreSQL adapter connection for concurrently polled capability workers.
 # Changed: 2026-10-21 UTC | RV-GRACE-REASONING-DEADLINE-SEPARATION | Verify separate ordered provider and caller deadlines
 # Purpose: Verify persistent Grace reasoning follows the authorized office binding
 # Execution Model: Deterministic provider factory; no database or inference service
@@ -23,7 +24,7 @@ from contextlib import nullcontext
 
 from scripts.run_grace_execution_service import (
     configured_resident_providers, is_codex_adapter_mode, persistent_owner_codex_home,
-    active_resident_principal, external_exchange_configuration, reconcile_codex_startup_recovery, resident_result_review_tokens,
+    active_resident_principal, external_exchange_configuration, isolated_capability_worker_adapter, reconcile_codex_startup_recovery, resident_result_review_tokens,
     source_change_path_allowlist,
 )
 from riverview_core.local_reasoning_provider import LocalReasoningProvider
@@ -58,6 +59,46 @@ def make_router(environ):
 
 
 class GraceRuntimeProviderWiringTests(unittest.TestCase):
+    def test_comfyui_worker_gets_a_distinct_adapter_connection(self):
+        from unittest.mock import Mock, patch
+        primary = object()
+        isolated = Mock()
+        with patch("scripts.run_grace_execution_service.PostgresWorkerAdapter",
+                   return_value=isolated) as factory:
+            result = isolated_capability_worker_adapter(
+                "postgresql://configured", "riverview_dev", "riverview_authority", primary)
+        self.assertIs(result, isolated)
+        factory.assert_called_once_with("postgresql://configured", schema="riverview_dev",
+                                        authority_schema="riverview_authority")
+        isolated.close.assert_not_called()
+
+    def test_comfyui_worker_adapter_rejects_shared_connection(self):
+        from unittest.mock import Mock, patch
+        shared = Mock()
+        with patch("scripts.run_grace_execution_service.PostgresWorkerAdapter",
+                   return_value=shared):
+            with self.assertRaisesRegex(WorkerServiceConfigurationError,
+                    "capability_worker_database_connection_not_isolated"):
+                isolated_capability_worker_adapter(
+                    "postgresql://configured", "riverview_dev", "riverview_authority", shared)
+        shared.close.assert_not_called()
+
+    def test_comfyui_continuous_worker_uses_its_isolated_adapter(self):
+        import ast
+        from pathlib import Path
+        source_path = Path(__file__).parents[1] / "scripts/run_grace_execution_service.py"
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        worker_calls = [node.value for node in ast.walk(tree)
+                        if isinstance(node, ast.Assign) and
+                        any(isinstance(target, ast.Name) and target.id == "comfy_engine"
+                            for target in node.targets) and
+                        isinstance(node.value, ast.Call)]
+        self.assertEqual(len(worker_calls), 1)
+        self.assertIsInstance(worker_calls[0].func, ast.Name)
+        self.assertEqual(worker_calls[0].func.id, "ContinuousWorker")
+        self.assertIsInstance(worker_calls[0].args[0], ast.Name)
+        self.assertEqual(worker_calls[0].args[0].id, "comfy_worker_adapter")
+
     def test_external_exchange_configuration_reuses_exact_escalation_grant(self):
         from riverview_core.reasoning_escalation import EscalationRequest, EscalationStatus
         from riverview_core.resident_reasoning import ReasoningRequest

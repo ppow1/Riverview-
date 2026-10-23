@@ -1,14 +1,20 @@
-<!-- Riverview~ Controlled Document
+<!-- Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Add V2 snapshot integration diagnostics and recovery actions.
+Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.33
+File Revision: 1.1.37
+Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Document V2 responsive objective progress, cancellation authorization, and browser recovery checks.
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Record UUID/process telemetry and fail-closed host rollout boundary.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document safe per-slot context projection and explicit KV-data limitation.
 Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Document the authorized post-deployment path for diagnosing historical Grace grounding failures.
 Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Document authorized Engineering Progress grounding diagnostics and same-objective recovery guidance.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Document archive-plus-download results, digest checks, and independent recovery paths.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Explain V1/V2 manifest identity, asset naming, and legacy V1 compatibility.
 Purpose: Troubleshoot and recover the read-only status dashboard
 Authority: Diagnostic and read-only operations only
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Add dedicated telemetry credential, source and rollback runbook.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Add live Grace text-activity diagnostics and distinguish missing server token metrics.
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Document mounted-volume sources, host gaps, deduplication, and read-only validation.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
@@ -43,6 +49,9 @@ Changed: 2026-10-16 UTC | RV-WEBSITE-PR67-SNAPSHOT-CSP-FIX | Record f957 product
 Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record real-dashboard DOM verification and complete responsive long-page tile captures
 Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Add read-only diagnosis and recovery steps for same-message work-order dialog failures.
 Predecessor: .riverview-backups/20261020T153250380083Z/docs/components/STATUS_DASHBOARD_COOKBOOK.md (SHA-256 c3ec88d4281da37403f784d3209a0a0301a1086945759ff0b94e185aea633d5f)
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Document raster budget fallback, package-size diagnostics, and ZIP recovery checks
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Document the 76 MiB raster ceiling and structured-content reserve
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Document optional private GitHub Release archive provisioning, errors, retention and recovery.
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
@@ -155,9 +164,9 @@ does not establish acceptance against a deployed account or release. For live
 acceptance, run the deployed dashboard browser check after account-session access
 is available and retain its redacted report and screenshots.
 
-## Download Snapshot and offline diagnostics (PL-NEW-041)
+## Snapshot and offline diagnostics (PL-NEW-041)
 
-**Download Snapshot** creates one ZIP in the current browser session. It uses the
+**Snapshot** creates one ZIP in the current browser session. It uses the
 versioned authenticated capability registry at `GET /api/v1/capabilities`, the
 existing read-only `GET /api/v1/snapshot` projection, and the current workflow
 registry exposed by `GET /api/v1/snapshot/workflow-index` plus authenticated
@@ -166,13 +175,23 @@ registry exposed by `GET /api/v1/snapshot/workflow-index` plus authenticated
 runtime execution-position projection, not canonical graph definitions. No
 workflow registry or operational source is inferred by the browser exporter.
 
-The ZIP schema is `rv.website.diagnostic-snapshot.v1`. It contains the live
+The ZIP schema is `rv.website.diagnostic-snapshot.v1`. New V1/V2 manifests
+include `dashboard_version`, `capture_id`, `captured_at`, and `source_commit`.
+The published Release asset and local download use the same filename:
+`riverview-<v1|v2>-<captured_at-with-colons-replaced>-<capture_id>.zip`.
+V1 packages created before the version field was added are interpreted as V1.
+This contract does not by itself enable the isolated V2 interface: until the
+V2 shell has a verified authenticated route to this API, its Snapshot control
+must remain unavailable.
+
+It contains the live
 capability registry, per-page inventories, sanitized offline HTML with dashboard
 CSS, full-content SVG/PNG visual maps, bounded recent browser diagnostics, the
 existing redacted operational snapshot, and one original canonical graph JSON,
-runtime-status JSON, full-extent SVG, and PNG per workflow. Large graph PNGs have
-overlapping detail tiles. `workflow-index.json` includes counts, source paths,
-file references, available runtime state, and outbound/incoming jump references.
+runtime-status JSON, and full-extent SVG per workflow. PNG previews and overlapping
+detail tiles are included while they fit the raster budget. `workflow-index.json`
+includes counts, source paths, file references, available runtime state, and
+outbound/incoming jump references.
 The graph JSON is copied from the authenticated API with its transient status
 projection kept separately; node and edge IDs and all represented fields stay
 unchanged. Page visual maps annotate controls with their registry IDs and each
@@ -185,6 +204,63 @@ features; it does not assert that actions work. Coverage reports controls as
 rendered, available, disabled, unavailable, or not observed, and lists rendered
 controls with no registry entry. Current account permissions are respected.
 
+The same in-memory ZIP Blob is submitted to the configured private GitHub
+Release endpoint and passed to the browser's normal download manager. The
+ dashboard reports archival only after an authenticated successful response whose
+snapshot ID, release URL, byte count, and SHA-256 are valid; the response digest
+must match the locally computed ZIP digest. The result offers **Open private
+GitHub release**, **Copy GitHub Link**, and **Download ZIP**. Keep the retry link
+available. If archive upload fails, the UI reports the safe error and still
+requests the local download. If the browser throws while starting that download
+after archive success, the GitHub link remains available and **Download ZIP**
+can retry. Browser APIs cannot confirm that a download reached disk, so the UI
+says it was requested. No ZIP is retained on the dashboard server.
+
+### Private GitHub snapshot archive
+
+Archival is enabled only when the dashboard unit is deliberately configured
+with `RIVERVIEW_SNAPSHOT_GITHUB_REPOSITORY=OWNER/PRIVATE_REPOSITORY` and a
+systemd `LoadCredential` named `snapshot-github-token`. Keep the token in a
+root-owned protected source file (for example
+`/etc/riverview/snapshot-github-token`); never put it in an environment file,
+repository, command line, dashboard HTML, JavaScript, or browser storage. Use a
+fine-grained token scoped only to the dedicated private repository with
+contents read/write permission. Releases are created as drafts, uploaded, and
+then published; the backend verifies that GitHub reports the repository as
+private before creating a release. Do not configure a public repository.
+
+Install the optional example as a reviewed systemd drop-in only after the
+private repository and credential are provisioned:
+
+```sh
+sudo install -d -o root -g root -m 0755 /etc/systemd/system/riverview-status-dashboard.service.d
+sudo install -o root -g root -m 0644 deploy/systemd/riverview-status-dashboard-snapshot-archive.conf.example \\
+  /etc/systemd/system/riverview-status-dashboard.service.d/snapshot-archive.conf
+sudo systemd-analyze verify /etc/systemd/system/riverview-status-dashboard.service
+```
+
+Edit the repository slug in the installed drop-in, run `daemon-reload`, and
+restart the dashboard only in a separately approved deployment window. The
+credential must exist before enabling the drop-in. Missing or invalid archive
+configuration makes only archival unavailable; the dashboard itself continues
+to start. No background worker or server-side file staging is used. Successful
+Releases are permanent and are not automatically expired.
+
+The browser sends its generated ZIP to the authenticated dashboard backend
+over the same origin. The endpoint requires a Steward account cookie and CSRF
+token, validates the package bound, ZIP CRC, every manifest SHA-256/size and the
+manifest redaction declaration, then calls GitHub. It returns a UTC timestamp
+plus random identifier, release URL, versioned asset name, archive size and SHA-256. The
+Release body stores these metadata fields for historical lookup. On failure,
+the browser reports a safe error and downloads the same ZIP locally. Do not
+retry by copying ZIPs into the repository or committing them to Git.
+
+If cleanup of a failed draft is unsuccessful, locate it by the generated
+`rvdiag-...` tag and inspect its assets. Delete only that draft and its exact
+generated tag after confirming no asset was published. A successfully
+published release is the durable archive and must not be removed as part of a
+retry.
+
 The bounded interaction history stores at most 120 interactions, 200 API request
 summaries, and 50 browser errors in tab session storage. Request summaries contain
 method, sanitized endpoint, response status, elapsed time, safe correlation ID,
@@ -196,13 +272,22 @@ raw URLs and document names are excluded.
 Page HTML and visuals redact account rows and conversation/request content; form
 values and selected values are cleared. Offline HTML is inert: scripts, form
 actions, and link destinations are removed, and non-data external media is omitted
-and reported. The package is limited to 96 MiB and any history, external-media, or
-page-extent omission is stated in the manifest. Full page captures are bounded
-to 50,000 CSS pixels; taller content is explicitly marked incomplete. Pages
-taller than 1,800 CSS pixels include overlapping readable PNG detail tiles
-under `website/pages/<page-id>/details/`; the page JSON links each tile. If a required graph
-or visual cannot be exported within that bound, the error is reported instead
-of claiming a complete workflow capture.
+and reported. The package is limited to 96 MiB of uncompressed member data. PNG previews and
+detail tiles have a 76 MiB cumulative ceiling. At that ceiling, 16 MiB remains
+available for structured HTML/JSON/SVG/status/diagnostics and 4 MiB is reserved
+for the manifest; unused raster headroom also remains available to required
+members. ZIP headers add small overhead to the downloaded file and are outside
+the uncompressed member check. The manifest reports uncompressed bytes by
+category and lists every omitted raster path and reason. If the raster budget is
+reached, the exporter retains diagnostics, sanitized HTML, page/workflow JSON,
+workflow status and SVG while omitting only PNG previews or detail tiles.
+Affected page/workflow visual status is `incomplete` and the top-level
+`capture_complete` flag is false; canonical workflow data remains usable. Full
+page captures are bounded to 50,000 CSS pixels; taller content is explicitly
+marked incomplete. Pages taller than 1,800 CSS pixels include overlapping
+readable PNG detail tiles under `website/pages/<page-id>/details/` while budget
+allows. A mandatory non-raster member that alone causes the hard package ceiling
+to be exceeded fails with `snapshot_package_bound_exceeded:<member>:<attempted>/<limit>`; inspect the named source/category before retrying.
 
 The registry is a versioned static JSON contract served through the authenticated
 capability API; each page and control declares a capability version. The collector
@@ -219,6 +304,41 @@ and [`archive inspection`](../../evidence/checkouts/WEBSITE-SNAPSHOT-041/2026101
 These fixture-only API and session responses are not evidence of authenticated
 production acceptance or a deployed PR #67 release. The Camrui readiness facts are
 in `evidence/checkouts/WEBSITE-SNAPSHOT-041/20261016T-snapshot-fullsource-final4/production-readiness.json`.
+
+### RV-WEBSITE-SNAPSHOT-BOUND-20261020 repair evidence
+
+The deployed exporter failed when cumulative uncompressed ZIP members exceeded
+96 MiB. The bound was checked in `ZipStore.add` for every member; it was not a
+record-count limit. A baseline full-source Firefox fixture on the deployed
+source commit captured 10 pages and 22 workflows at 71,115,604 uncompressed
+bytes: workflow visuals 50,113,354 bytes, page visuals 18,836,817 bytes, page
+records 1,308,874 bytes, workflow records 631,897 bytes, and registry/diagnostic/
+manifest material 224,662 bytes. This fixture has empty operational rows and
+synthetic browser history; it demonstrates visual dominance but does not measure
+the Steward's current production download. Browser-history retention is bounded
+to 120 interactions, 200 requests, and 50 errors, and conversation/request
+bodies are excluded by the exporter.
+
+When the raster budget is exceeded, the exporter now omits only redundant PNG
+previews/detail tiles. Canonical JSON, SVG, sanitized HTML and diagnostics remain
+in the archive; the manifest names omitted raster members, reports category
+byte totals, and marks the package incomplete. If a mandatory non-raster
+member exceeds the hard bound, the displayed error includes the path and byte
+threshold.
+
+Run the isolated full-source bound regression without production access:
+
+```sh
+python3 scripts/verify_diagnostic_snapshot_browser.py \
+  --actual-dashboard-fixture --package-bound-stress-fixture --single-capture \
+  --output evidence/checkouts/STEWARD-DASHBOARD/<new-run-directory>
+```
+
+Expected: exit 0, valid ZIP CRCs and manifest hashes, package below 96 MiB, one
+or more raster omissions listed, every canonical graph JSON/SVG and sanitized
+page HTML/JSON present, diagnostics present, and no synthetic cookie, private
+conversation text or form value in the package. The harness uses an isolated
+synthetic cookie and synthetic APIs; it does not establish deployed acceptance.
 
 If a deployed snapshot manifest reports `Invalid image request` for every PNG,
 check the dashboard's `img-src` Content Security Policy before changing the
@@ -564,7 +684,7 @@ existing PostgreSQL credential.
 | Detect initialization | relation and migration inventory | `not_initialized` | status `relations` and source schema | Correct service configuration or separately authorized migration; restart is not a migration. |
 | Project lifecycle/events | bounded page, institution privacy filter, event cursor | empty/not found or page source error | assignment ID, event sequence and correlation ID | Inspect ledger contract; use next keyset/sequence cursor; no full history rebuild. |
 | Render/update | local tab switch and localized view update | browser-local sanitized error entry | snapshot browser error ring and request ID | Refresh affected panel only; slow/unavailable DB must not hold navigation. |
-| Download Snapshot | one bounded ZIP with page inventories/visuals, workflow JSON/SVG/PNG/status, and safe browser diagnostics | unavailable page/graph, incomplete visual, package bound, or download failure | ZIP manifest omissions, per-page/per-workflow outcomes, and browser-local safe error class | verify the current account can access the page; retry after the projection/API issue is understood. Do not treat missing output as a complete capture; no cookies, credentials, form values, or conversation bodies are exported. |
+| Snapshot | one bounded ZIP with page inventories/visuals, workflow JSON/SVG/PNG/status, and safe browser diagnostics; same bytes sent to archive and browser download | unavailable page/graph, incomplete visual, package bound, archive failure, or browser download start failure | ZIP manifest version, capture identity, omissions, per-page/per-workflow outcomes, archive error class, matching server/client digest on confirmed receipt, and visible retry link | use the GitHub link only after a confirmed response; retry local download with Download ZIP if needed; investigate archive configuration on upload error. Do not treat missing output as complete; no cookies, credentials, form values, or conversation bodies are exported. |
 | Restart/reconnect | same release/port; current state re-read from PostgreSQL | systemd failed/inactive or authentication lost | `systemctl status` and `journalctl -u ... -n 50 --no-pager` | restart only the dashboard unit; reauthenticate; CME and assignments continue independently. |
 
 ### Grace same-message work-order dialog
@@ -934,7 +1054,7 @@ freshness metadata and test-coverage outcomes. Isolated Firefox evidence:
 
 ## V2 GPU and model telemetry
 
-The authenticated V2 Hardware page reads `GET /api/v1/resources/telemetry` only after `/api/v1/auth/session` succeeds. Dashboard-to-host access uses a dedicated Ed25519 key provisioned at `/etc/riverview/resource-telemetry/telemetry_ed25519`, supplied to the dashboard via systemd credentials, and a pinned `known_hosts` file at `/etc/riverview/resource-telemetry/known_hosts`. The OCTOMINER1 root `authorized_keys` entry must restrict source to Camrui and force `/usr/local/libexec/rv-gpu-telemetry`; never reuse the operator SSH identity or permit general shell access. The service collector returns no GPU UUIDs or process identifiers.
+The authenticated V2 Hardware telemetry API reads `GET /api/v1/resources/telemetry` only after dashboard authentication. Dashboard-to-host access uses a dedicated Ed25519 key provisioned at `/etc/riverview/resource-telemetry/telemetry_ed25519`, supplied to the dashboard via systemd credentials, and a pinned `known_hosts` file at `/etc/riverview/resource-telemetry/known_hosts`. The OCTOMINER1 root `authorized_keys` entry restricts source to Camrui and forces `/usr/local/libexec/rv-gpu-telemetry`; never reuse the operator SSH identity or permit general shell access. The checked-in collector now requests GPU UUID, compute capability, and per-GPU compute-process count, and emits allowlisted active service labels without PIDs. The currently installed production forced command predates that payload and returns none of those stable identity/architecture/process-count fields. It must be updated only through the authorized OCTOMINER1 management/deployment path; the read-only telemetry key cannot install or modify it. Until host rollout and a durable reservation source are verified, missing identity/reservation data must remain unavailable and must not be used to schedule work.
 
 Preflight/health checks (run from Camrui; outputs contain only public host identity and source status):
 
@@ -967,3 +1087,23 @@ authoritative inference-server counter; production `/metrics` currently returns
 HTTP 501 and no model configuration should be changed to enable it under this task.
 
 If the dedicated telemetry key or host pin is absent or invalid, the API returns unavailable for the GPU source and continues to report other model sources independently. To disable host telemetry, remove only the Dashboard drop-in `riverview-status-dashboard.service.d/resource-telemetry.conf` from the deployment package, run `systemctl daemon-reload`, and restart only `riverview-status-dashboard.service`; the prior release reports GPU fields unavailable. Rollback restores the protected Dashboard `current` symlink and removes the telemetry-only drop-in/credentials, then restarts only the Dashboard service. Preserve the GPU host forced-command entry until the rollback is verified; then remove only its exact key line from the protected `authorized_keys` predecessor copy. Do not edit Comms4, Grace, CME, Comms5, or inference service configuration.
+
+## V2 mounted-storage projection checks
+
+After a controlled Dashboard release containing the storage collector, verify the authenticated `GET /api/v1/resources/telemetry` response has `storage_status` and a `storage` object on each configured host. On Camrui compare the projected mount rows to `findmnt -t ext2,ext3,ext4,xfs,btrfs,vfat,exfat,ntfs,ntfs3,fuseblk,zfs,nfs,nfs4,cifs,smb3` and `df -B1 -T`; on OCTO1 the same fields come from the fixed forced-command payload. Check the `observed_at` timestamps, ensure aliases of one filesystem are counted once, and confirm offline hosts show `state=unavailable` with an error code rather than byte counts of zero. This collection path is read-only. Windows development and OCTO2 require a separate authorized collector onboarding before their capacity can be reported. Do not infer host failure from a missing connection in this API.
+## V2 Snapshot checks
+
+- Use `/v2/` on the dashboard HTTPS origin for archive plus local download. The separate LAN preview intentionally stays local-only.
+- Read-only diagnostics: browser DevTools Network should show same-origin GETs to `/api/v1/status` and `/api/v1/snapshot`, followed by POST `/api/v1/snapshot/archive`; no request may target GitHub from the browser. The page must have the current Steward session and CSRF cookie.
+- Expected successful result: `riverview-v2-<timestamp>-<capture-id>.zip` is downloaded and the status includes the confirmed private Release link and Copy GitHub Link. Manifest version is `v2`; the archive receipt must match capture ID, filename, size and SHA-256.
+- If GET returns 401/403, authenticate in the dashboard and retry. If archive POST returns 403, reload the dashboard to obtain a fresh CSRF cookie, then click Snapshot once. If archive fails after package creation, retain the local ZIP; do not report archive success. If browser download cannot start after archive confirmation, use the confirmed GitHub release link.
+- Resume point: `/v2/` Snapshot click. No service restart or database migration is needed for the route once the package is installed; deployment and service restart still require their separate release authorization. Rollback removes the V2 route/assets from the dashboard package and returns V2 users to the fixture-only LAN preview; it does not change archive assets or credentials.
+
+
+## V2 Grace Engineering Progress and cancellation
+
+V2 `/v2/` reads linked objective progress from the existing authenticated Dashboard API. A production browser must be signed in through the Steward account; a fixture or standalone preview is not an authenticated production acceptance. Confirm `GET /api/v1/objectives?limit=25&conversation_id=<id>` returns the versioned progress schema before diagnosing a blank panel. The panel polls at five-second intervals with an in-flight guard, and retains its last successful projection with a stale indicator if a later read fails.
+
+The same panel is in the expanded desktop context sidebar. On compact/hidden sidebar or a viewport no wider than 760 px, it belongs after `#grace-chat-root`, below the message composer. If it appears between conversation messages and the composer, inspect the current `index.html`, `assets/grace-chat.js`, and `assets/workspace.css` as one release bundle; do not copy a duplicate panel. Sidebar and resize transitions should preserve message draft, focused selection, transcript scroll, and page scroll. Run `python3 scripts/verify_v2_engineering_progress_browser.py` for synthetic Firefox acceptance; test data and the test TLS certificate are local fixtures only.
+
+Cancel is a request into the existing objective pipeline, not a browser-side state change. The form must send a non-empty reason and the same-origin CSRF header. The Dashboard resolves the objective's persisted scope and passes the authenticated linked institutional principal (or existing explicit authority credential) to `cancel_work_order`; `AuthorityRegistry` must grant the exact `assignment.cancel` scope. Rejection means the browser must refresh and display the authoritative lifecycle, not retry under a wider scope. In-flight execution is not cancelled by this control. A successful HTTP response should be followed by an authoritative progress read containing cancellation reason, actor, and timestamp; that record is sourced from the existing append-only lifecycle events.

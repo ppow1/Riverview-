@@ -1,9 +1,9 @@
 # Riverview~ development journal
 
-**Document Revision:** 1.0.176
+**Document Revision:** 1.0.177
 **Component:** ENG-RECORDS
 **Date:** 2026-10-12 UTC
-**Changed:** 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Supersede historical fixed-output adapter with persisted dynamic multi-artifact contracts
+**Changed:** 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Record the verified completion-gate defect, durable recovery correction, and PostgreSQL acceptance results
 
 ## 2026-10-20 UTC — RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001
 
@@ -2591,3 +2591,13 @@ Disposable PostgreSQL tests using the real `AuthorityRegistry` cover active prin
 Built and independently verified the full Camrui immutable package from source commit `3e0cb2c98e0308bdda3458715622d57953082c58`. Archive: `/tmp/riverview-camrui-followup-3e0cb2c9.tar.gz`, 34,097,690 bytes, SHA-256 `ecead4fb3d7673b461572012df5184c2a961dc17f29436a7b1a5156fbc4095cb`. Package manifest and shell compatibility passed; direct member inspection confirmed Grace, external exchange/MCP, Comms5 resource policy, and migrations 0011 and 0012 are included. The package is local validation output only; it was not transferred, installed, or activated.
 
 No production database, migration, credential, grant, service, or release was changed. PR #109 remains unchanged and open. This follow-up is isolated on `codex/comms5-principal-escalation-20261018`; it is not merged. Production requires review/integration, a fresh protected backup and restore verification, migration 0012 and exact provider identity/grant commissioning under Steward authority, complete multi-component immutable release staging, and controlled service activation followed by external exchange and Grace-consumption acceptance.
+
+## 2026-10-22 UTC — RV-GRACE-DURABLE-COMPLETION-001
+
+Read-only inspection of deployed Grace source `12ba9c766e44e3d83e94d00f038c97bc9a3cd032` and Test 1B's persisted event history identified a defect distinct from Test 1's assignment-pointer reconciliation bug. Test 1B's final accepted `execution.step_verified` event recorded `awaiting_grace_acceptance=true`; the subsequent correlated conversation receipt recorded `ADDITIONAL_EVIDENCE_REQUIRED`. `record_verified_completion()` treated that model/conversation response as a second terminal authority, so the reconciler repeatedly returned without writing `objective.completed`, despite all four durable step records being verified and their assignments independently accepted.
+
+Changed completion authority to persisted accepted-verification state for every required step. Completion and `objective.completed` are committed in one transaction; a repeated callback against a completed objective is a verified no-op. Intermediate duplicate reconciliation does not rewrite objective revision or duplicate its step event. Reconciliation processes the latest step first, while terminal evidence references the proposal's final step, accepted verifier record, and report artifact even if a different step triggered recovery. Conversation results are post-completion outbox messages and cannot veto the terminal objective state. Ordinary restart recovery reuses the existing exact-authorized assignments and does not require a new Steward grant.
+
+PostgreSQL 16 tests ran against a disposable local cluster and isolated schemas, not production. `RIVERVIEW_TEST_PG_DSN=host=/tmp/rv-grace-completion-sock-20261022 port=55491 dbname=postgres user=admin1 PYTHONPATH=src pytest -q tests/test_grace_execution.py` passed 45/45 in 107.37 seconds. The regression covers four actual worker/verifier steps, loss after final verification before reconciliation, reconstruction with new ledger/adapter/pipeline/service instances, one terminal event, one dispatch per step, a conflicting post-completion conversation receipt, partial progress, and rejected-then-corrected verification. It also covers the earlier Test 1 pointer-advance regression. `python3 scripts/process_graph.py check` passed (22 workflows, 602 nodes); process-graph and revision-control unit tests passed 28/28; Python compilation passed. No production database, service, objective, package, migration, or runtime configuration was changed.
+
+Source is committed locally on `codex/grace-durable-completion-20261022`, based on the deployed source commit above. No PR or CI run was created: the active checkout branch `codex/grace-profile-legacy-compat` at `0db48a2d06236e800d05df2dd618f5bdcad7fe4a` is a divergent reduced-compatibility snapshot, and `origin/main` is also not an ancestor of the deployed source. A focused PR requires selecting the intended integration base without importing hundreds of unrelated commits. Next release step, after Steward approval: integrate this focused commit onto the compatible production source line, build/verify the immutable Grace package, take the established protected backup, atomically activate and restart only Grace, then confirm the original objective reaches `COMPLETED` from reconciliation and the Dashboard projects that persisted state.

@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.37
+# Revision: 1.0.40
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Route only explicitly configured typed ComfyUI proposal steps to the existing capability worker.
+# Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Reconcile the latest verified step first so terminal evidence uses the final completion cycle after restart.
 # Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Correlate objective proposal persistence outcomes with the resident request
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Service ready dispatch, execution, verification, completion and conversation publication before potentially slow model planning
 # Changed: 2026-10-21 UTC | RV-GRACE-PROPOSAL-OUTPUT-BUDGET | Provide enough bounded completion tokens for full typed proposals with dynamic objective criteria
@@ -31,6 +33,7 @@
 # Changed: 2026-10-13 UTC | RV-SUPERVISED-CODEX-DISPATCH-001 | Add a targeted operator-supervised objective execution cycle
 # Changed: 2026-10-13 UTC | RV-GRACE-CODEX-DISPATCH | Select registered execution capability for worker and verification queries
 # Changed: 2026-10-14 UTC | RV-GRACE-ADB-LOOP-001 | Retry durable verified-result returns to the originating Grace conversation
+# Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Publish configured worker capabilities with Grace heartbeat
 # Changed: 2026-10-16 UTC | RV-GRACE-MULTISTEP-PLAN-001 | Dispatch only dependency-ready verified steps through existing worker leases
 # Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Persist cycle-specific result receipts and resume only idempotent same-objective continuations
 # Changed: 2026-10-16 UTC | RV-GRACE-VERIFIER-REVALIDATION-001 | Re-evaluate preserved rejected results only when the verifier implementation revision changes
@@ -174,6 +177,9 @@ class GraceExecutionService:
         source = "engineering.codex-cli-source-change.v1"
         if requested == source:
             return source if source in self.execution_workers else None
+        comfyui = "engineering.comfyui-image.v1"
+        if requested == comfyui:
+            return comfyui if comfyui in self.execution_workers else None
         artifact_caps = {"engineering.codex-cli-artifact.v1",
                          "engineering.bounded-artifact.v1"}
         if requested not in artifact_caps:
@@ -450,20 +456,28 @@ class GraceExecutionService:
     def _heartbeat(self, status, error_type=None):
         """Update the durable external health projection; never logs request content."""
         try:
+            worker_capabilities = sorted(({
+                "worker_id": worker.worker_id,
+                "capability": capability,
+            } for capability, worker in self.execution_workers.items()),
+                key=lambda item: (item["worker_id"], item["capability"]))
             with self.pipeline.ledger.db.transaction():
                 with self.pipeline.ledger.db.cursor() as cur:
                     self.pipeline.ledger._set_search_path(cur)
                     cur.execute("""INSERT INTO grace_execution_health
-                        (service_id,instance_id,status,last_heartbeat_at,last_cycle_at,
+                        (service_id,instance_id,status,worker_capabilities,last_heartbeat_at,last_cycle_at,
                          last_error_type,cycles_completed)
-                        VALUES ('grace.execution.v1',%s,%s,clock_timestamp(),clock_timestamp(),%s,
+                        VALUES ('grace.execution.v1',%s,%s,%s::jsonb,clock_timestamp(),clock_timestamp(),%s,
                           CASE WHEN %s IN ('healthy','degraded') THEN 1 ELSE 0 END)
                         ON CONFLICT (service_id) DO UPDATE SET instance_id=EXCLUDED.instance_id,
-                          status=EXCLUDED.status,last_heartbeat_at=clock_timestamp(),
+                          status=EXCLUDED.status,worker_capabilities=EXCLUDED.worker_capabilities,
+                          last_heartbeat_at=clock_timestamp(),
                           last_cycle_at=clock_timestamp(),last_error_type=EXCLUDED.last_error_type,
                           cycles_completed=grace_execution_health.cycles_completed+
                             CASE WHEN EXCLUDED.status IN ('healthy','degraded') THEN 1 ELSE 0 END""",
-                        (self.instance_id, status, error_type, status))
+                        (self.instance_id, status,
+                         json.dumps(worker_capabilities, sort_keys=True, separators=(",", ":")),
+                         error_type, status))
         except Exception as exc:
             LOG.warning(json.dumps({"event": "grace_heartbeat_write_failed",
                                     "failure_type": type(exc).__name__}, sort_keys=True))
@@ -615,23 +629,31 @@ class GraceExecutionService:
     def reconcile_completions(self, limit=25, objective_id=None):
         with self.pipeline.ledger.db.cursor() as cur:
             self.pipeline.ledger._set_search_path(cur)
-            cur.execute("""SELECT objective_id,assignment_id FROM grace_objectives
-                WHERE status='WORK_ORDER_CREATED' AND assignment_id IS NOT NULL
-                  AND (%s::text IS NULL OR objective_id=%s)
-                ORDER BY updated_at LIMIT %s""", (objective_id, objective_id, limit))
+            cur.execute("""SELECT o.objective_id,s.assignment_id
+                FROM grace_objectives o
+                JOIN grace_objective_steps s USING (objective_id)
+                JOIN assignments a ON a.id=s.assignment_id
+                    AND a.objective_ref=o.objective_id
+                WHERE o.status='WORK_ORDER_CREATED'
+                  AND s.status IN ('assigned','verified')
+                  AND a.state='completed'
+                  AND EXISTS (SELECT 1 FROM verification_records vr
+                      WHERE vr.assignment_id=a.id AND vr.decision='ACCEPTED')
+                  AND (%s::text IS NULL OR o.objective_id=%s)
+                ORDER BY o.updated_at,s.step_order DESC LIMIT %s""",
+                (objective_id, objective_id, limit))
             rows = cur.fetchall()
         completed = 0
         for row in rows:
-            assignment = self.pipeline.ledger.get(row["assignment_id"])
-            if assignment and assignment["state"] == "completed":
-                try:
-                    self.pipeline.record_verified_completion(row["objective_id"],
-                                                             row["assignment_id"])
-                    completed += 1
-                except Exception as exc:
-                    LOG.warning(json.dumps({"event": "grace_completion_reconcile_failed",
-                        "objective_id": row["objective_id"],
-                        "failure_type": type(exc).__name__}, sort_keys=True))
+            try:
+                self.pipeline.record_verified_completion(row["objective_id"],
+                                                         row["assignment_id"])
+                completed += 1
+            except Exception as exc:
+                LOG.warning(json.dumps({"event": "grace_completion_reconcile_failed",
+                    "objective_id": row["objective_id"],
+                    "assignment_id": row["assignment_id"],
+                    "failure_type": type(exc).__name__}, sort_keys=True))
         return completed
 
     def publish_conversation_results(self, limit=10):

@@ -2,7 +2,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.28
+# Revision: 1.1.32
+# Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Accept linked authenticated institutional principals for exact-scope cancellation.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
+# Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve deployed exact-grant grounded objective cancellation and durable audit evidence.
+# Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Complete from durable accepted step state and make duplicate completion calls idempotent; conversation reviews are post-completion delivery only.
 # Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Serialize grounding failure event persistence and make attempt replay idempotent.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Persist sanitized, correlated grounding failure details in durable objective events.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022 | Permit artifact-specific step checks only when retained in the same artifact contract.
@@ -799,16 +803,29 @@ class GraceExecutionPipeline:
         declared_contract = raw_step.get("artifact_requirements", [])
         if (not isinstance(artifact_contract, list) or artifact_contract != declared_contract):
             return None
+        capability = raw_step.get("execution_capability", "engineering.codex-cli-artifact.v1")
+        comfyui_binding = dispatch_payload.get("comfyui_request_binding")
+        if capability == "engineering.comfyui-image.v1":
+            expected = {"version": "grace.comfyui-request-binding.v1",
+                "objective_id": objective_id, "assignment_id": assignment_id,
+                "step_id": row["step_id"], "capability": capability,
+                "workflow_id": raw_step.get("comfyui_workflow_id"),
+                "parameters": raw_step.get("comfyui_parameters"),
+                "proposal_step_sha256": hashlib.sha256(_json(raw_step).encode("utf-8")).hexdigest()}
+            if not isinstance(comfyui_binding, dict) or comfyui_binding != expected:
+                return None
+        elif comfyui_binding is not None:
+            return None
         return {"step_id": row["step_id"], "objective": row["step_objective"],
                 "acceptance_criteria": row["acceptance_criteria"],
                 "depends_on": row["depends_on"],
                 "artifact_requirements": artifact_contract,
-                "execution_capability": raw_step.get(
-                    "execution_capability", "engineering.codex-cli-artifact.v1"),
+                "execution_capability": capability,
                 "authorized_paths": raw_step.get("authorized_paths", []),
                 "test_targets": raw_step.get("test_targets", []),
                 "repository_reference": raw_step.get("repository_reference"),
                 "repository_revision": raw_step.get("repository_revision"),
+                "comfyui_request_binding": comfyui_binding,
                 "source_target_binding": (row["dispatch_payload"].get("source_target_binding")
                     if isinstance(row["dispatch_payload"], dict) else None)}
 
@@ -848,6 +865,35 @@ class GraceExecutionPipeline:
             "proposal_step_sha256": hashlib.sha256(
                 _json(raw_step).encode("utf-8")).hexdigest(),
         }}
+
+    @staticmethod
+    def _comfyui_request_binding(objective, step, assignment_id):
+        """Snapshot a typed registered-workflow request in the durable dispatch event."""
+        proposal = objective.get("proposal") if isinstance(objective, dict) else None
+        raw_steps = proposal.get("steps", []) if isinstance(proposal, dict) else []
+        raw_step = next((item for item in raw_steps if isinstance(item, dict) and
+                         item.get("step_id") == step["step_id"]), None)
+        if not isinstance(raw_step, dict):
+            raise ObjectiveStateError("persisted proposal step is unavailable at dispatch")
+        if raw_step.get("execution_capability") != "engineering.comfyui-image.v1":
+            return {}
+        if (raw_step.get("step_id") != step["step_id"] or
+                raw_step.get("objective") != step.get("step_objective") or
+                tuple(raw_step.get("acceptance_criteria", ())) != tuple(
+                    step.get("acceptance_criteria", ())) or
+                not isinstance(raw_step.get("comfyui_workflow_id"), str) or
+                not isinstance(raw_step.get("comfyui_parameters"), dict)):
+            raise ObjectiveStateError("ComfyUI request changed or is incomplete before dispatch")
+        return {"comfyui_request_binding": {
+            "version": "grace.comfyui-request-binding.v1",
+            "objective_id": objective["objective_id"],
+            "assignment_id": assignment_id,
+            "step_id": step["step_id"],
+            "capability": raw_step["execution_capability"],
+            "workflow_id": raw_step["comfyui_workflow_id"],
+            "parameters": raw_step["comfyui_parameters"],
+            "proposal_step_sha256": hashlib.sha256(
+                _json(raw_step).encode("utf-8")).hexdigest()}}
 
     def verified_source_change_predecessor(self, objective_id, step):
         """Return the latest independently verified patch and scope for a linear dependent step."""
@@ -975,7 +1021,8 @@ class GraceExecutionPipeline:
                         {"assignment_id": assignment_id,
                          "workflow_step": step["step_id"],
                          "artifact_contract": artifact_contract,
-                         **self._source_target_binding(binding_objective, step, assignment_id)})
+                         **self._source_target_binding(binding_objective, step, assignment_id),
+                         **self._comfyui_request_binding(binding_objective, step, assignment_id)})
         except AssignmentIntakeDenied:
             raise ObjectiveNotAuthorized("assignment.create is not authorized") from None
         return assignment
@@ -983,8 +1030,27 @@ class GraceExecutionPipeline:
     def record_verified_completion(self, objective_id, assignment_id):
         objective = self.get_objective(objective_id)
         assignment = self.ledger.get(assignment_id)
+        if objective and objective["status"] == "COMPLETED":
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT
+                    EXISTS (SELECT 1 FROM verification_records
+                        WHERE assignment_id=%s AND decision='ACCEPTED') AS accepted,
+                    EXISTS (SELECT 1 FROM grace_objective_steps
+                        WHERE objective_id=%s AND assignment_id=%s AND status='verified')
+                        AS verified_step,
+                    EXISTS (SELECT 1 FROM grace_objective_events
+                        WHERE objective_id=%s AND event_type='objective.completed')
+                        AS terminal_event""",
+                    (assignment_id, objective_id, assignment_id, objective_id))
+                durable = cur.fetchone()
+            if (assignment and assignment.get("objective_ref") == objective_id and
+                    assignment["state"] == "completed" and durable["accepted"] and
+                    durable["verified_step"] and durable["terminal_event"]):
+                return objective
+            raise ObjectiveStateError("completed objective does not match verified assignment")
         if (objective is None or objective["status"] != "WORK_ORDER_CREATED" or
-                objective["assignment_id"] != assignment_id or not assignment or
+                not assignment or assignment.get("objective_ref") != objective_id or
                 assignment["state"] != "completed"):
             raise ObjectiveStateError("completed assignment is not independently verified")
         with self.ledger.db.cursor() as cur:
@@ -996,15 +1062,14 @@ class GraceExecutionPipeline:
             verification = cur.fetchone()
         if not verification:
             raise ObjectiveStateError("persisted independent verification is required")
-        events = self.objective_events(objective_id)
-        received = next((item for item in events if item.get("event_type") ==
-                         "objective.received"), None)
-        has_conversation_origin = bool(
-            isinstance((received or {}).get("payload"), dict) and
-            isinstance(received["payload"].get("origin"), dict))
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
+                cur.execute("SELECT status FROM grace_objectives WHERE objective_id=%s FOR UPDATE",
+                            (objective_id,))
+                locked_objective = cur.fetchone()
+                if not locked_objective or locked_objective["status"] != "WORK_ORDER_CREATED":
+                    raise ObjectiveStateError("objective changed before step verification")
                 cur.execute("""SELECT step_id,step_order,status FROM grace_objective_steps
                     WHERE objective_id=%s AND assignment_id=%s FOR UPDATE""",
                     (objective_id, assignment_id))
@@ -1018,29 +1083,52 @@ class GraceExecutionPipeline:
                 if cur.rowcount not in (0, 1):
                     raise ObjectiveStateError("step verification state is inconsistent")
                 all_steps = self.objective_steps_complete(cur, objective_id)
-        completion_cycle = step_row["step_order"]
-        grace_accepted = any(
-            item.get("event_type") in {"conversation.result_published",
-                                       "conversation.result_review_published"} and
-            isinstance(item.get("payload"), dict) and
-            item["payload"].get("completion_cycle") == str(completion_cycle) and
-            item["payload"].get("review_decision") == "OBJECTIVE_COMPLETE"
-            for item in events)
-        await_grace_acceptance = bool(all_steps and has_conversation_origin and not grace_accepted)
-        if await_grace_acceptance and step_row["status"] == "verified":
-            # The verifier result has already been durably surfaced. Wait for
-            # Grace's correlated substantive review without rewriting state or
-            # producing repeated completion events on each CME poll.
+                completion_step = None
+                if all_steps:
+                    cur.execute("""SELECT step_id,step_order,assignment_id
+                        FROM grace_objective_steps WHERE objective_id=%s
+                        ORDER BY step_order DESC LIMIT 1""", (objective_id,))
+                    completion_step = cur.fetchone()
+        if step_row["status"] == "verified" and not all_steps:
+            # A duplicate completion notification for an already verified
+            # intermediate step is a no-op. Once every step is verified, the
+            # same persisted row can still drive crash recovery below.
             return objective
-        payload = {"assignment_id": assignment_id, "step_id": step_row["step_id"],
+        completion_assignment_id = (completion_step["assignment_id"] if all_steps
+                                    else assignment_id)
+        completion_verification = verification
+        if all_steps and completion_assignment_id != assignment_id:
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT verification_id,decision,verifier_id,criteria,
+                        verifier_revision,evidence_references,summary
+                    FROM verification_records WHERE assignment_id=%s AND decision='ACCEPTED'
+                    ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""",
+                    (completion_assignment_id,))
+                completion_verification = cur.fetchone()
+            if not completion_verification:
+                raise ObjectiveStateError("final step has no persisted independent acceptance")
+        completion_cycle = (completion_step["step_order"] if all_steps
+                            else step_row["step_order"])
+        payload = {"assignment_id": completion_assignment_id,
+                   "step_id": (completion_step["step_id"] if all_steps else step_row["step_id"]),
                    "completion_cycle": completion_cycle,
-                   "verification_id": str(verification["verification_id"]),
-                   "decision": verification["decision"],
-                   "verifier_id": verification["verifier_id"],
-                   "verifier_revision": verification["verifier_revision"],
-                   "verification_criteria": verification["criteria"],
-                   "verification_summary": verification["summary"],
-                   "evidence_references": list(verification["evidence_references"])}
+                   "verification_id": str(completion_verification["verification_id"]),
+                   "decision": completion_verification["decision"],
+                   "verifier_id": completion_verification["verifier_id"],
+                   "verifier_revision": completion_verification["verifier_revision"],
+                   "verification_criteria": completion_verification["criteria"],
+                   "verification_summary": completion_verification["summary"],
+                   "evidence_references": list(completion_verification["evidence_references"])}
+        step_payload = {"assignment_id": assignment_id, "step_id": step_row["step_id"],
+                        "completion_cycle": step_row["step_order"],
+                        "verification_id": str(verification["verification_id"]),
+                        "decision": verification["decision"],
+                        "verifier_id": verification["verifier_id"],
+                        "verifier_revision": verification["verifier_revision"],
+                        "verification_criteria": verification["criteria"],
+                        "verification_summary": verification["summary"],
+                        "evidence_references": list(verification["evidence_references"])}
         if all_steps:
             payload["proposal"] = objective.get("proposal")
             payload["objective_acceptance_criteria"] = list(objective.get(
@@ -1049,74 +1137,160 @@ class GraceExecutionPipeline:
                 self.ledger._set_search_path(cur)
                 payload["system_owned_criteria_evidence"] = self._system_criterion_evidence(
                     cur, objective_id, objective.get("proposal") or {}, completion_cycle)
-        if await_grace_acceptance:
-            payload["awaiting_grace_acceptance"] = True
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT wr.result FROM worker_attempts wa
                 JOIN worker_results wr USING(attempt_id)
                 WHERE wa.assignment_id=%s AND wa.status='succeeded'
-                ORDER BY wa.started_at DESC LIMIT 1""", (assignment_id,))
-            artifact_row = cur.fetchone()
-        artifact = artifact_row["result"] if artifact_row else None
-        if isinstance(artifact, dict):
-            allowed_evidence = ("artifact_name", "artifact_path", "artifact_sha256",
-                "artifact_bytes", "capability", "changed_files", "patch_sha256",
-                "patch_bytes", "test_status", "repository_reference", "repository_revision",
-                "assignment_id", "objective_id", "artifact_schema", "source_artifact_name",
-                "artifacts", "artifact_contract", "source_revision", "source_sha256",
-                "rework_verification_id", "status")
-            payload["artifact"] = {key: artifact[key] for key in allowed_evidence
-                                    if key in artifact}
+                ORDER BY wa.started_at DESC LIMIT 1""", (completion_assignment_id,))
+            completion_artifact_row = cur.fetchone()
+            if completion_assignment_id != assignment_id:
+                cur.execute("""SELECT wr.result FROM worker_attempts wa
+                    JOIN worker_results wr USING(attempt_id)
+                    WHERE wa.assignment_id=%s AND wa.status='succeeded'
+                    ORDER BY wa.started_at DESC LIMIT 1""", (assignment_id,))
+                step_artifact_row = cur.fetchone()
+            else:
+                step_artifact_row = completion_artifact_row
+        allowed_evidence = ("artifact_name", "artifact_path", "artifact_sha256",
+            "artifact_bytes", "capability", "changed_files", "patch_sha256",
+            "patch_bytes", "test_status", "repository_reference", "repository_revision",
+            "assignment_id", "objective_id", "artifact_schema", "source_artifact_name",
+            "artifacts", "artifact_contract", "source_revision", "source_sha256",
+            "rework_verification_id", "status")
+        completion_artifact = (completion_artifact_row or {}).get("result")
+        if isinstance(completion_artifact, dict):
+            payload["artifact"] = {key: completion_artifact[key] for key in allowed_evidence
+                                    if key in completion_artifact}
+        step_artifact = (step_artifact_row or {}).get("result")
+        if isinstance(step_artifact, dict):
+            step_payload["artifact"] = {key: step_artifact[key] for key in allowed_evidence
+                                         if key in step_artifact}
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
                 cur.execute("""UPDATE grace_objectives SET status=%s,revision=revision+1,
                     updated_at=clock_timestamp() WHERE objective_id=%s
-                    AND status='WORK_ORDER_CREATED' AND assignment_id=%s""",
-                    ("COMPLETED" if all_steps and not await_grace_acceptance
-                     else "WORK_ORDER_CREATED",
-                     objective_id, assignment_id))
+                    AND status='WORK_ORDER_CREATED'""",
+                    ("COMPLETED" if all_steps else "WORK_ORDER_CREATED", objective_id))
                 if cur.rowcount != 1:
                     raise ObjectiveStateError("objective completion raced with another update")
-                if all_steps and not await_grace_acceptance:
+                self._event(cur, objective_id, "execution.step_verified",
+                            f"grace-step-verified:{objective_id}:{step_row['step_id']}",
+                            "verifier:independent", step_payload)
+                if all_steps:
                     self._event(cur, objective_id, "objective.completed",
                                 f"grace-objective-completed:{objective_id}:{completion_cycle}", "verifier:independent",
                                 payload)
-                else:
-                    self._event(cur, objective_id, "execution.step_verified",
-                                f"grace-step-verified:{objective_id}:{step_row['step_id']}",
-                                "verifier:independent", payload)
         return self.get_objective(objective_id)
 
-    def cancel_work_order(self, objective_id, *, credential, authority_ref):
-        """Cancel only work that has not started, using an exact assignment.cancel grant."""
+    def cancel_work_order(self, objective_id, *, credential, authority_ref, reason=None):
+        """Cancel grounded or not-yet-started work under the exact assignment.cancel grant."""
+        if reason is not None and (not isinstance(reason, str) or
+                                   not reason.strip() or len(reason.strip()) > 1000):
+            raise ValueError("a bounded cancellation reason is required")
+        supplied_reason = reason is not None
+        reason = reason.strip() if supplied_reason else "Authorized work-order cancellation"
         objective = self.get_objective(objective_id)
-        if (objective is None or objective["status"] != "WORK_ORDER_CREATED" or
-                objective["scope_ref"] != authority_ref or not objective["assignment_id"]):
-            raise ObjectiveStateError("a dispatched objective in the exact scope is required")
+        if (objective is None or objective["scope_ref"] != authority_ref or
+                objective["status"] not in {"GROUNDED", "WORK_ORDER_CREATED", "CANCELLED"}):
+            raise ObjectiveStateError("a cancellable objective in the exact scope is required")
+        if objective["status"] == "GROUNDED" and not supplied_reason:
+            raise ValueError("grounded objective cancellation requires an explicit reason")
+
         try:
             with self.ledger.db.transaction():
                 with self.ledger.db.cursor() as cur:
                     self.ledger._set_search_path(cur)
-                    actor = self.authorizer.require(
-                        cur, credential, "assignment.cancel", authority_ref)
-                    assignment = self.ledger.get(objective["assignment_id"])
-                    if not assignment or assignment["state"] not in {"queued", "ready"}:
-                        raise ObjectiveStateError("only queued or ready work can be cancelled safely")
-                    self.ledger.transition(
-                        assignment["id"], "cancelled", "authorized_work_order_cancellation",
-                        f"grace-work-order-cancel:{objective_id}", actor_id=actor["principal_id"])
-                    cur.execute("""UPDATE grace_objectives SET status='CANCELLED',
-                        revision=revision+1,updated_at=clock_timestamp()
-                        WHERE objective_id=%s AND status='WORK_ORDER_CREATED'""",
+                    cur.execute("""SELECT status,scope_ref,assignment_id,revision
+                        FROM grace_objectives WHERE objective_id=%s FOR UPDATE""",
                         (objective_id,))
-                    if cur.rowcount != 1:
-                        raise ObjectiveStateError("objective cancellation raced with another update")
-                    self._event(cur, objective_id, "work_order.cancelled",
-                                f"grace-work-order-cancelled:{objective_id}",
-                                actor["principal_id"],
-                                {"assignment_id": assignment["id"]})
+                    locked = cur.fetchone()
+                    if (locked is None or locked["scope_ref"] != authority_ref or
+                            locked["status"] not in {
+                                "GROUNDED", "WORK_ORDER_CREATED", "CANCELLED"}):
+                        raise ObjectiveStateError("objective changed before cancellation")
+                    from ..institutional_authority.grants import InstitutionalPrincipal
+                    if isinstance(credential, InstitutionalPrincipal):
+                        actor = self.authorizer.require_principal(
+                            cur, credential.principal_id, "assignment.cancel", authority_ref)
+                    else:
+                        actor = self.authorizer.require(
+                            cur, credential, "assignment.cancel", authority_ref)
+                    if locked["status"] == "CANCELLED":
+                        cur.execute("""SELECT event_type,payload FROM grace_objective_events
+                            WHERE objective_id=%s AND idempotency_key IN (%s,%s)
+                            ORDER BY sequence DESC LIMIT 1""",
+                            (objective_id,
+                             f"grace-objective-cancelled:{objective_id}",
+                             f"grace-work-order-cancelled:{objective_id}"))
+                        prior = cur.fetchone()
+                        if (prior is None or
+                                prior["payload"].get("reason", reason) != reason):
+                            raise ObjectiveStateError(
+                                "objective was already cancelled for a different reason")
+                    elif locked["status"] == "GROUNDED":
+                        if locked["assignment_id"] is not None:
+                            raise ObjectiveStateError(
+                                "grounded objective already has an Engineering assignment")
+                        cur.execute("""SELECT
+                            EXISTS (SELECT 1 FROM assignments WHERE objective_ref=%s) AS has_assignment,
+                            EXISTS (SELECT 1 FROM grace_objective_events
+                                WHERE objective_id=%s AND event_type='work_order.dispatched') AS has_dispatch,
+                            EXISTS (SELECT 1 FROM grace_objective_steps
+                                WHERE objective_id=%s AND
+                                  (assignment_id IS NOT NULL OR status<>'pending' OR dispatch_count>0))
+                                AS has_step_activity""",
+                            (objective_id, objective_id, objective_id))
+                        activity = cur.fetchone()
+                        if any(activity.values()):
+                            raise ObjectiveStateError(
+                                "grounded objective has Engineering assignment or dispatch history")
+                        cur.execute("""UPDATE grace_objectives SET status='CANCELLED',
+                            revision=revision+1,updated_at=clock_timestamp()
+                            WHERE objective_id=%s AND status='GROUNDED'
+                              AND assignment_id IS NULL AND revision=%s
+                            RETURNING revision,updated_at""",
+                            (objective_id, locked["revision"]))
+                        cancelled = cur.fetchone()
+                        if cancelled is None:
+                            raise ObjectiveStateError(
+                                "objective cancellation raced with another update")
+                        self._event(cur, objective_id, "objective.cancelled",
+                            f"grace-objective-cancelled:{objective_id}",
+                            actor["principal_id"], {
+                                "reason": reason,
+                                "authorized_principal": actor["principal_id"],
+                                "objective_revision": cancelled["revision"],
+                                "cancelled_at": cancelled["updated_at"].isoformat(),
+                            })
+                    else:
+                        assignment = self.ledger.get(locked["assignment_id"])
+                        if not assignment or assignment["state"] not in {"queued", "ready"}:
+                            raise ObjectiveStateError(
+                                "only queued or ready work can be cancelled safely")
+                        self.ledger.transition(
+                            assignment["id"], "cancelled", "authorized_work_order_cancellation",
+                            f"grace-work-order-cancel:{objective_id}",
+                            actor_id=actor["principal_id"])
+                        cur.execute("""UPDATE grace_objectives SET status='CANCELLED',
+                            revision=revision+1,updated_at=clock_timestamp()
+                            WHERE objective_id=%s AND status='WORK_ORDER_CREATED'
+                              AND revision=%s RETURNING revision,updated_at""",
+                            (objective_id, locked["revision"]))
+                        cancelled = cur.fetchone()
+                        if cancelled is None:
+                            raise ObjectiveStateError(
+                                "objective cancellation raced with another update")
+                        self._event(cur, objective_id, "work_order.cancelled",
+                            f"grace-work-order-cancelled:{objective_id}",
+                            actor["principal_id"], {
+                                "assignment_id": assignment["id"],
+                                "reason": reason,
+                                "authorized_principal": actor["principal_id"],
+                                "objective_revision": cancelled["revision"],
+                                "cancelled_at": cancelled["updated_at"].isoformat(),
+                            })
         except AssignmentIntakeDenied:
             raise ObjectiveNotAuthorized("assignment.cancel is not authorized") from None
         except Exception as exc:
@@ -1816,6 +1990,8 @@ class GraceExecutionPipeline:
                 tuple(raw.get("test_targets", ())) == tuple(step.test_targets) and
                 raw.get("repository_reference") == step.repository_reference and
                 raw.get("repository_revision") == step.repository_revision and
+                raw.get("comfyui_workflow_id") == step.comfyui_workflow_id and
+                raw.get("comfyui_parameters") == step.comfyui_parameters and
                 raw.get("artifact_requirements", []) == [
                     {"name": item.name, "path": item.path, "media_type": item.media_type,
                      "acceptance_criteria": list(item.acceptance_criteria),
@@ -1894,7 +2070,8 @@ class GraceExecutionPipeline:
                                 tuple(step.depends_on), step.execution_capability,
                                 tuple(step.authorized_paths), tuple(step.test_targets),
                 step.repository_reference, step.repository_revision,
-                tuple(step.artifact_requirements))
+                tuple(step.artifact_requirements), step.comfyui_workflow_id,
+                step.comfyui_parameters)
         merged = dict(objective["proposal"])
         merged["steps"] = [*prior_steps, asdict(continuation)]
         # Reuse the public typed contract to validate unique IDs and acyclic
@@ -1909,7 +2086,8 @@ class GraceExecutionPipeline:
                      tuple(ArtifactRequirement(requirement["name"], requirement["path"],
                          requirement["media_type"], tuple(requirement["acceptance_criteria"]),
                          requirement.get("max_bytes", 32768))
-                         for requirement in item.get("artifact_requirements", [])))
+                         for requirement in item.get("artifact_requirements", [])),
+                     item.get("comfyui_workflow_id"), item.get("comfyui_parameters"))
             for item in merged["steps"]), 0)
         step_order = len(prior_steps) + 1
         with self.ledger.db.transaction():

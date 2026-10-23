@@ -1,14 +1,25 @@
 <!--
+Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the same-origin V2 route and shared authenticated snapshot/archive boundary.
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.13
+File Revision: 1.1.21
+Changed: 2026-10-23 UTC | RV-GRACE-CANCELLED-PROGRESS-20261023 | Define terminal cancellation precedence over historical activity in objective progress.
+Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Define stable GPU identity and fail-closed allocation/reservation telemetry.
+Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Distinguish live registered engineering capabilities from assignment-lease activity.
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
-Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify numeric per-slot context counters and unavailable KV-cache bytes.
-Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free live stream activity projection and metric limits.
-Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate dashboard identity from the pinned Grace knowledge source.
+Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify per-slot context counters and unavailable KV-cache bytes.
+Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free stream activity projection.
+Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Define per-host read-only storage projection and host gaps.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Specify bounded private Release archival and Steward/CSRF authorization.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Specify byte-identical archive/download handoff and local recovery.
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
 Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Add conversation-origin-filtered durable Engineering progress and authenticated UI refresh contract.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Specify bounded raster omission while preserving snapshot records and vector representations.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-BOUND-20261020 | Separate the fixed raster ceiling from structured-content and manifest headroom.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Specify private Release archival, Steward/CSRF gate, protected credential and local fallback.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Specify same-Blob archive and browser-download handoff, digest matching, and independent failure behavior.
+Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-V1-V2-COMPAT-20261020 | Specify dashboard-version manifest identity and capture-specific Release asset names while retaining legacy V1 package acceptance.
 Purpose: Specify operational projections and exact-grant Grace objective and conversation interfaces
 Authority: Reads require dashboard authentication; objective and resident conversation operations require exact institutional grants
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Document bounded visual notification and receipt routes
@@ -90,6 +101,12 @@ private conversation content are not projected. Objective summaries show at
 most 512 characters of the authorized human request, lifecycle, artifact digest,
 verification decision and pinned source revision.
 
+Objective progress derives terminal `COMPLETED` and `CANCELLED` presentation from
+the authoritative objective status before interpreting assignment, rework, or
+failure activity. A later or historical reasoning/assignment failure remains
+visible as latest activity but cannot change a `CANCELLED` objective's displayed
+status or stage. Progress is read-only and does not alter objective state.
+
 | Route | Purpose | Parameters and limit |
 | --- | --- | --- |
 | `GET /api/v1/objectives?conversation_id=<uuid>&limit=<n>` | The bounded, progress-only objective projection filtered by immutable conversation origin; includes lifecycle stage, latest meaningful event, verifier summary/rework state and Steward-action-needed flag for the persistent Talk with Grace activity panel. No request text, scope, submitter, acceptance criteria, artifact path/digest, source digest, transcript body or artifact content. | Requires an active account session. A non-Steward account must provide a conversation it owns; the route validates ownership through the existing `ConversationService.history()` exact read-authority and owner check, then filters objectives by that principal and exact conversation. Default 25, max 100. |
@@ -110,6 +127,28 @@ verification decision and pinned source revision.
 | `POST /api/v1/notifications/<uuid>/delivered` | Record successful visible rendering by the dashboard client. | Empty body; service bearer only; not human identity or Steward authority. |
 | `POST /api/v1/notifications/<uuid>/acknowledge` | Explicit receipt acknowledgment after delivery. | Empty body; cannot alter the linked decision request or assignment. |
 | `GET /api/v1/snapshot` | Bounded server-observed operational snapshot. | At most 50 assignments and 25 events/attention/worker rows. |
+| `POST /api/v1/snapshot/archive` | Validate and archive the generated redacted diagnostic ZIP as a versioned, capture-specific asset in the private GitHub Release repository; return release URL and metadata. | Steward account session plus CSRF; `application/zip`; one concurrent upload; maximum 97 MiB request and 96 MiB uncompressed members. Dashboard bearer alone is insufficient. Requires `RIVERVIEW_SNAPSHOT_GITHUB_REPOSITORY` and systemd `snapshot-github-token`; errors retain browser local-download fallback. |
+
+The **Snapshot** action generates one bounded, redacted ZIP Blob,
+posts that Blob through the authenticated archive endpoint, checks the confirmed
+response's SHA-256 and byte count against the same Blob, and requests a browser
+download from it. The result retains the GitHub Release URL, a **Copy GitHub
+Link** action, and a **Download ZIP** retry link. Archive failure is reported
+while the browser download is still requested. If starting the browser download
+throws after archive success, the verified archive remains linked and the local
+retry link stays available. Browser APIs do not confirm that a user saved the
+file, so the interface says that a download was requested. The local link also
+supports local-only fallback without creating a server-side ZIP copy.
+
+New manifests identify `dashboard_version`, `capture_id`, `captured_at`, and
+`source_commit`. V1 and V2 assets are named
+`riverview-v1-<capture-timestamp>-<capture-id>.zip` and
+`riverview-v2-<capture-timestamp>-<capture-id>.zip`, respectively; both use
+the configured shared private archive repository and the same endpoint. Older
+V1 manifests without `dashboard_version` remain accepted as V1. The isolated
+V2 shell is currently a separate fixture-only interface; its button remains
+disabled until its authenticated API integration is implemented and browser
+verified. Backend V2 package acceptance is not evidence of V2 UI acceptance.
 | `GET /api/v1/graphs` | Index of registered canonical focused process graphs. | Reads versioned package registry; bounded by checked-in graph count. |
 | `GET /api/v1/graphs/<graph_id>` | Canonical nodes, typed edges, decisions, references, and execution-position state. | One registered focused workflow; no graph mutation. |
 | `POST /api/v1/auth/enrollment` / `.../enrollment/verify` | Request access and verify a single-use email challenge. | Generic anti-enumeration request response; 15-minute challenge; email delivery must be configured. |
@@ -140,7 +179,7 @@ reuse `RIVERVIEW_SOURCE_COMMIT` as the knowledge pin. The provider resolves the
 configured root when the Dashboard process starts, so restart only the Dashboard
 after changing the knowledge package pointer or pin.
 
-The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. The worker summary counts active registry rows with recent, stale, absent, or future-dated assignment-lease heartbeats. `GET /api/v1/workers` pages individual identities; each status uses the latest recorded assignment-lease heartbeat. These fields describe lease activity only; they do not establish whether a worker process is running, idle, disconnected, blocked, or failed. A worker polling while idle may have no assignment lease and therefore an unknown lease heartbeat. Process liveness is unavailable from this projection. The overview labels lease health and lease counts explicitly. List/detail
+The status response schema identifier is `rv.dashboard.status.v1`; it includes Grace execution heartbeat and freshness when the runtime migration is installed. Active workers configured in Grace are matched to the capability snapshot written with Grace's heartbeat and to their active `work-order:engineering` registration; an idle capability can therefore be healthy without an active assignment lease. Workers not present in that live capability snapshot continue to use their latest assignment-lease heartbeat and remain unknown or stale when there is no fresh lease evidence. `GET /api/v1/workers` exposes the telemetry source, live registered capabilities, last Grace heartbeat, last lease heartbeat, scope, and active lease count separately. This is process/configuration readiness evidence, not proof that every remote worker dependency is reachable or that a specific assignment is authorized. List/detail
 responses carry `status`, bounded `items`, and pagination state. Database
 unavailability returns a status projection whose `projection_status` is
 `unavailable`; HTTP query failures return 503. A reachable PostgreSQL instance
@@ -149,9 +188,11 @@ this is a valid domain state, not a transport failure. The browser skips the
 optional attention query while its relation is absent and displays that state.
 CME values are
 `healthy`, `degraded`, `stale`, `unavailable`, or `not_initialized`; a missing
-heartbeat is unknown/not initialized, never healthy. Worker status is derived
-only from recorded assignment-lease heartbeats; no lease means `unknown`. A
-future-dated heartbeat is `unverified`. Event time/correlation is retained as
+heartbeat is unknown/not initialized, never healthy. A configured Grace worker
+capability is healthy only while present in the persisted runtime capability
+snapshot and the Grace service heartbeat is fresh and healthy. Other worker
+status is derived from recorded assignment-lease heartbeats; no lease means
+`unknown`. A future-dated heartbeat is `unverified`. Event time/correlation is retained as
 recorded, not inferred from browser refresh time.
 
 Machine-readable route schema: `docs/components/STATUS_DASHBOARD_API.schema.json`.
@@ -222,6 +263,21 @@ timings from the current tab. It contains no token, headers, database DSN,
 payload body, unrestricted conversations, resident session, work-order or
 capability-registry data. Fields not implemented are named in `client_state` or
 omitted; absence is never represented as an empty healthy registry.
+
+The browser ZIP exporter caps total uncompressed member payload at 96 MiB and
+reserves 4 MiB for the manifest. ZIP headers add small overhead to the final
+download and are not part of the uncompressed member-byte check. It always preserves the bounded
+operational/browser diagnostics, sanitized HTML, page/workflow JSON, workflow
+status and SVG. PNG previews and detail tiles have a 76 MiB cumulative ceiling within the 96 MiB
+uncompressed member cap. At that ceiling, 16 MiB remains available for structured
+HTML/JSON/SVG/status/diagnostics and 4 MiB is reserved for the manifest; unused
+raster headroom is also available to required members. If a PNG would cross either
+limit, only that raster preview or tile is omitted; each omitted path and reason
+is recorded, affected visual status is `incomplete`, and `capture_complete` is
+false. The manifest reports uncompressed bytes by component category. A mandatory
+non-raster member that exceeds the hard package ceiling fails with its member
+path and attempted/cap byte counts. No server limit or diagnostic redaction
+rule changes.
 
 ## Grace resident conversation integration
 
@@ -294,7 +350,7 @@ document does not claim those future obligations complete.
 
 ### Authenticated hardware and inference telemetry
 
-`GET /api/v1/resources/telemetry` is protected by the same `_authorized()` account-session or Dashboard bearer gate as every other projection. It is a request-driven, uncached read; writes return `405`. The collector has fixed Camrui and OCTOMINER1 model endpoint allowlists and one OCTOMINER1 GPU source using `nvidia-smi` over a dedicated SSH identity. That identity is delivered with systemd `LoadCredential`, requires strict host-key checking, and is forced on the GPU host to `/usr/local/libexec/rv-gpu-telemetry` with no PTY, forwarding, or arbitrary command. The remote command exposes only GPU name/index, utilization, memory, temperature, power, fan when supported, and allowlisted Grace service labels; UUIDs and PIDs are discarded before returning to the Dashboard.
+`GET /api/v1/resources/telemetry` is protected by the same `_authorized()` account-session or Dashboard bearer gate as every other projection. It is a request-driven, uncached read; writes return `405`. The collector has fixed Camrui and OCTOMINER1 model endpoint allowlists and one OCTOMINER1 GPU source using `nvidia-smi` over a dedicated SSH identity. That identity is delivered with systemd `LoadCredential`, requires strict host-key checking, and is forced on the GPU host to `/usr/local/libexec/rv-gpu-telemetry` with no PTY, forwarding, or arbitrary command. The checked-in collector requests GPU UUID and compute capability, counts observed compute processes per GPU, and returns allowlisted service owners without PIDs. The Dashboard uses UUID as the stable identity when valid; an index is retained only as a display fallback and is never proof of identity or availability. Missing process data yields an unknown allocation state, while zero observed compute processes is explicitly not proof that the GPU is unreserved. The current production forced command predates these fields, so they remain unavailable until the authorized host collector rollout and reservation source are verified. No scheduler may assign a GPU from absent or stale telemetry.
 
 The model projection includes a bounded numeric `slot_context` view from each fixed llama.cpp `/slots` endpoint: slot index, processing boolean, configured context tokens, prompt-token count, processed prompt-token count, and cached prompt-token count when present. Raw task IDs, prompt text, token data, and arbitrary slot fields are discarded. Context counts are per slot; server capacity is the sum of measured per-slot capacities and must not be presented as one slot's limit. Current server builds expose no KV-cache allocation bytes and `/metrics` returns not-supported, so `kv_cache_bytes` is explicitly unavailable. Queue depth remains unavailable. This extension does not alter model startup parameters or inference behavior.
 
@@ -303,3 +359,17 @@ Model readiness is sampled from the configured llama.cpp `/health`, `/v1/models`
 The projection schema is `rv.dashboard.resource-telemetry.v1`. Per-source state and source observation timestamps remain visible. Missing credentials, host-key mismatch, source timeout, invalid source data, and unavailable host APIs remain unavailable with sanitized error codes. The Dashboard does not cache prior observations. Operational credential installation and rollback are documented in `STATUS_DASHBOARD_COOKBOOK.md`.
 
 Grace activity is correlated through its durable conversation and response request IDs. Active streamed output is measured only from persisted provider text deltas with database timestamps and character counts; the dashboard may show received streamed characters/second after two timed deltas. This is not model-server token throughput, prompt processing, or GPU work. The current 0.6B/80B/30B `/metrics` endpoints return HTTP 501; `/slots` exposes occupancy and prompt/context fields but no output-token counter. Completed token throughput remains a separate router-call measurement.
+
+## Mounted storage capacity projection
+
+`GET /api/v1/resources/telemetry` adds `storage_status`, `storage_observed_at`, and per-host `storage` records in the same authenticated response. Camrui volumes are read with Linux mountinfo plus `statvfs`; OCTO1 volumes are supplied by the existing restricted `resource-telemetry` forced command. The collector admits only supported persistent filesystems, deduplicates bind aliases and shared network filesystems, and returns total/used/available bytes, percent used, mount point, filesystem/device identifier when available, and observation timestamp. Windows development and OCTO2 remain explicitly unavailable until an approved host collector exists. Unavailable measurements are not zero and are excluded from aggregate totals. Collection is request-driven and read-only; no capacity change, mount action, cleanup, or storage scheduling occurs.
+
+Read-only collection on Camrui was compared against `df -B1 -T / /boot/efi` on 2026-10-22; exact total/used/available byte values and timestamps are retained in `evidence/v2-storage-20261022/camrui-mount-observation.json`. This observation validates only Camrui. The current deployed OCTO1 forced-command does not yet emit mount capacity, and Windows development/OCTO2 remain unconnected.
+
+## V2 same-origin snapshot integration
+
+The dashboard package serves the V2 shell at `/v2/` and its allowlisted assets at `/v2/assets/`. This path uses the dashboard HTTPS origin so the browser can reuse the existing Steward account session and CSRF cookie. The V2 interface calls only the existing `/api/v1/status`, `/api/v1/snapshot`, and `/api/v1/snapshot/archive` routes; archive authorization, Steward role checks, CSRF validation, redaction declaration validation, and the private GitHub Release credential remain server-side. The browser never receives the GitHub credential.
+
+A V2 package uses `rv.website.diagnostic-snapshot.v1`, records `dashboard_version: v2`, capture ID, capture time, source commit and deployment ID, and names the asset `riverview-v2-<timestamp>-<capture-id>.zip`. Its V2 workspace state is separate from common authenticated dashboard diagnostics. One generated Blob is submitted to the archive endpoint and handed to the browser download. An archive error leaves the local download available; an archive receipt is shown only after the endpoint response matches the capture identity, size and digest.
+
+The independently authenticated LAN preview on port 8877 remains fixture-only and local-download-only. It does not call the dashboard API or archive endpoint. To use V2 archival, open `/v2/` from the authenticated HTTPS dashboard origin.

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.3
+# Revision: 1.0.6
 # Purpose: Validate systemd worker credentials and idempotent registry state
 # Execution Model: Shared startup preflight for supervised executor/verifier units
 # Observability: Safe identity/configuration errors without bearer disclosure
@@ -11,6 +11,9 @@
 # Changed: 2026-10-11 UTC | RV-M3.3-WORKER-SERVICE | Initial systemd service preflight
 # Changed: 2026-10-11 UTC | RV-M4.4-PERSISTENT-EXECUTION | Permit fixed Grace executor credential names and unit
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Register the owner-session unit and its least-privilege credentials
+# Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Keep persisted worker capability identity stable across ComfyUI service restarts.
+# Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Add only the optional ComfyUI capability through the existing exact registration grant.
+# Changed: 2026-10-23 UTC | RV-COMFYUI-ROLLBACK-CAPABILITY | Remove only the optional ComfyUI capability during authorized rollback.
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_service.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -32,6 +35,18 @@ from .adapter import PostgresWorkerAdapter, WorkerAdapterError
 
 class WorkerServiceConfigurationError(RuntimeError):
     """A required service identity, credential or pin does not match policy."""
+
+
+def configured_worker_capabilities(primary_capability: str, *, comfyui_enabled: bool) -> tuple[str, ...]:
+    """Return the exact capability set registered for the configured executor."""
+    if not isinstance(primary_capability, str) or not primary_capability.strip():
+        raise WorkerServiceConfigurationError("worker_configuration_invalid")
+    if type(comfyui_enabled) is not bool:
+        raise WorkerServiceConfigurationError("worker_configuration_invalid")
+    capabilities = {primary_capability}
+    if comfyui_enabled:
+        capabilities.add("engineering.comfyui-image.v1")
+    return tuple(sorted(capabilities))
 
 
 _SERVICE_CREDENTIALS = {
@@ -131,9 +146,28 @@ def ensure_registered(adapter: PostgresWorkerAdapter, worker_id: str, token: str
         adapter.register_worker(worker_id, capabilities, scope_ref, credential=token)
         return
     if (not row["active"] or row["scope_ref"] != scope_ref or
-            sorted(row["capabilities"]) != sorted(capabilities) or
             not hmac.compare_digest(bytes(row["credential_sha256"]), candidate)):
         raise WorkerServiceConfigurationError("registered_worker_mismatch")
+    registered = row["capabilities"]
+    if not isinstance(registered, list) or any(not isinstance(cap, str) for cap in registered):
+        raise WorkerServiceConfigurationError("registered_worker_mismatch")
+    expected = set(capabilities)
+    current = set(registered)
+    if current == expected:
+        return
+    if (expected - current == {adapter.COMFYUI_CAPABILITY} and
+            current <= expected):
+        # A service deployment may add only this optional operation through
+        # the existing exact worker.register grant. All other mismatches fail closed.
+        adapter.register_comfyui_capability(worker_id, token, scope_ref)
+        return
+    if (current - expected == {adapter.COMFYUI_CAPABILITY} and
+            expected <= current):
+        # Rollback may remove only the optional ComfyUI capability. The
+        # existing exact worker.register grant is checked by this operation.
+        adapter.unregister_comfyui_capability(worker_id, token, scope_ref)
+        return
+    raise WorkerServiceConfigurationError("registered_worker_mismatch")
 
 
 def load_runtime_config(service_unit: str, credential_name: str):

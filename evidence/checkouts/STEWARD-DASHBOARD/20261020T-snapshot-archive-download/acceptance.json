@@ -1,0 +1,149 @@
+{
+  "schema_version": "rv.steward-dashboard.checkout-acceptance.v1",
+  "task_id": "RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020",
+  "owner": "C2",
+  "component_id": "STEWARD-DASHBOARD",
+  "classification": "dashboard client workflow change with controlled documentation, regression tests, and process graph updates",
+  "branch": "codex/snapshot-archive-download-20261020",
+  "base_sha": "cf4a97e2a712e05e5c5d0a4a82d1016df5ed2ba1",
+  "scope": "One generated ZIP Blob is uploaded to the existing private GitHub archive endpoint and handed to the browser download manager; local retry and copy-link results remain available. No production activation.",
+  "dependencies": [
+    "Existing snapshot generator and bounds",
+    "Existing CSRF-protected POST /api/v1/snapshot/archive endpoint",
+    "Private server-side GitHub credential configuration; no browser credential",
+    "Browser Web Crypto, Blob URL, download attribute, Clipboard API or copy fallback",
+    "Firefox/geckodriver for synthetic acceptance"
+  ],
+  "execution_model": "Explicit Steward user action; one bounded capture, one authenticated archive request, and one browser download handoff. No worker, background service, migration, production state, or real GitHub Release is touched.",
+  "acceptance_criteria": [
+    "One bounded redacted snapshot is reused as upload and browser download bytes.",
+    "Archival is reported only after a successful authenticated response with a valid ID and private Release URL, matching byte count, and matching SHA-256.",
+    "The normal browser download and visible retry link work; archive failure preserves local download.",
+    "A download-start failure after archive confirmation preserves the archive URL and copy action.",
+    "A mismatched server digest is treated as archive failure and is never reported successful.",
+    "Existing authentication, CSRF, redaction, manifest, package bounds, and dashboard behavior remain intact."
+  ],
+  "browser_runs": {
+    "browser-success.json": {
+      "report_file": "browser-success.json",
+      "passed": true,
+      "package_bytes": 76716875,
+      "package_sha256": "1298350dd1398ddd4c0f493dded51cc6d42fbfe4d402ff2f1924be3edc36e688",
+      "archive_local_fallback": {
+        "archive_request_made": true,
+        "csrf_present": true,
+        "authenticated_cookie_present": true,
+        "local_zip_downloaded": true,
+        "browser_download_visible": true,
+        "archive_sha256": "1298350dd1398ddd4c0f493dded51cc6d42fbfe4d402ff2f1924be3edc36e688",
+        "local_sha256": "1298350dd1398ddd4c0f493dded51cc6d42fbfe4d402ff2f1924be3edc36e688",
+        "same_zip_bytes": true,
+        "matching_zip_hashes": true,
+        "confirmed_release_link_visible": true,
+        "copy_link_action_visible": true,
+        "copy_link_copied_confirmed_url": true,
+        "download_retry_link_visible": true,
+        "toast_interactive": true,
+        "ui_text": "Snapshot archived permanently; browser download requested · Open private GitHub release · Copy GitHub Link · Download ZIP"
+      },
+      "local_download_failure_after_archive": {
+        "archive_request_made": true,
+        "csrf_present": true,
+        "archive_confirmed": true,
+        "local_download_requested": false,
+        "release_link": true,
+        "download_retry_link": true,
+        "failure_reported": true
+      },
+      "package_bound_stress": null,
+      "zip_integrity_test": true,
+      "manifest_files_valid": true,
+      "page_private_content_redacted": true,
+      "sensitive_form_value_redacted": true,
+      "diagnostic_privacy_filter_passed": true
+    },
+    "browser-github-failure.json": {
+      "report_file": "browser-github-failure.json",
+      "passed": true,
+      "package_bytes": 76717477,
+      "package_sha256": "2d2b1b0136b88c7fe8fd4ffe97f8c035c6814f4f91a15f6d6910f33b407f1b26",
+      "archive_local_fallback": {
+        "archive_request_made": true,
+        "github_failure_reported": true,
+        "local_zip_downloaded": true,
+        "archive_not_claimed": true,
+        "csrf_present": true
+      },
+      "local_download_failure_after_archive": null,
+      "package_bound_stress": null,
+      "zip_integrity_test": true,
+      "manifest_files_valid": true,
+      "page_private_content_redacted": true,
+      "sensitive_form_value_redacted": true,
+      "diagnostic_privacy_filter_passed": true
+    },
+    "browser-digest-mismatch.json": {
+      "report_file": "browser-digest-mismatch.json",
+      "passed": true,
+      "package_bytes": 76717467,
+      "package_sha256": "1d01e3cef1f32ac2d77228dd10b06032bc0257304c1d21995c063a7240974652",
+      "archive_local_fallback": {
+        "archive_request_made": true,
+        "github_failure_reported": true,
+        "local_zip_downloaded": true,
+        "archive_not_claimed": true,
+        "csrf_present": true
+      },
+      "local_download_failure_after_archive": null,
+      "package_bound_stress": null,
+      "zip_integrity_test": true,
+      "manifest_files_valid": true,
+      "page_private_content_redacted": true,
+      "sensitive_form_value_redacted": true,
+      "diagnostic_privacy_filter_passed": true
+    },
+    "browser-package-bound-stress.json": {
+      "report_file": "browser-package-bound-stress.json",
+      "passed": true,
+      "package_bytes": 83162400,
+      "package_sha256": "096a8e16ccc0b04c1042e4d6d0b7c95c1e36c254fc3c99b7d4a6b34aab22590a",
+      "archive_local_fallback": {
+        "clear_failure_message": true,
+        "local_zip_downloaded": true,
+        "github_request_skipped_without_csrf": true
+      },
+      "local_download_failure_after_archive": null,
+      "package_bound_stress": {
+        "current_limit_bytes": 100663296,
+        "uncompressed_archive_bytes": 83139338,
+        "omitted_raster_visual_count": 17,
+        "manifest_lists_visual_omissions": true,
+        "raster_budget_respected": true,
+        "structured_and_manifest_reserves_respected": true,
+        "omitted_paths_absent_from_archive": true,
+        "canonical_page_and_workflow_references_valid": true,
+        "diagnostic_members_present": true,
+        "capture_complete_truthfully_false": true
+      },
+      "zip_integrity_test": true,
+      "manifest_files_valid": true,
+      "page_private_content_redacted": true,
+      "sensitive_form_value_redacted": true,
+      "diagnostic_privacy_filter_passed": true
+    }
+  },
+  "commands": [
+    "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --archive-fixture success --output /tmp/rv-snapshot-archive-download-final2",
+    "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --archive-fixture failure --output /tmp/rv-snapshot-archive-download-final2-failure",
+    "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --archive-fixture mismatch --output /tmp/rv-snapshot-archive-download-final2-mismatch",
+    "python3 scripts/verify_diagnostic_snapshot_browser.py --actual-dashboard-fixture --single-capture --package-bound-stress-fixture --output /tmp/rv-snapshot-archive-download-final2-stress",
+    "PYTHONPATH=src python3 -m pytest -q tests/test_snapshot_archive.py tests/test_status_dashboard.py tests/test_account_auth_http.py tests/test_account_auth.py",
+    "python3 scripts/process_graph.py check",
+    "python3 scripts/revision_control.py check --baseline /tmp/rv-snapshot-archive-download-baseline-inventory.json"
+  ],
+  "server_regression_result": "67 passed, 16 skipped",
+  "process_graph_result": "PASS (22 graphs, 603 nodes)",
+  "controlled_revision_backup_result": "PASS (no issues)",
+  "security_and_storage": "The synthetic fixture used a local fake archive endpoint and synthetic account/CSRF cookie. No real GitHub API call, credential, Release, or production service was used. Raw browser JSON reports and hashes are retained; ZIPs are not.",
+  "deployment_status": "Not deployed. Merge and deployment remain outside this authorization. Real authenticated production browser acceptance remains required."
+}

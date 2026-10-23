@@ -1,8 +1,12 @@
-# =============================================================================
-# RIVERVIEW~ CONTROLLED TEST
+# ======================================================================# RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.59
+# Revision: 1.0.64
+# Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Verify principal-based Steward cancellation against the real AuthorityRegistry in PostgreSQL fixtures.
+# Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify Grace persists the exact configured worker capability set.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
+# Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve cancellation authorization, audit, idempotency, queue exclusion, and active-work protection tests.
+# Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Prove four-step verified completion recovers after restart and ignores conversational review disagreement.
 # Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Verify concurrent grounding failures serialize into distinct durable attempts and duplicate attempt replay is a no-op.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Cover durable sanitized grounding failure codes, persistence, exception redaction, and retry history.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-STEP-CRITERIA-20261022-R1 | Align the database regression fixture with available repository grounding terms.
@@ -69,8 +73,7 @@
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
-# =============================================================================
-"""Model-independent integration test of Grace objective execution."""
+# ======================================================================"""Model-independent integration test of Grace objective execution."""
 
 import hashlib
 import json
@@ -316,6 +319,28 @@ class CodingWorkOrderContractTests(unittest.TestCase):
         self.assertEqual(result["capabilities"][artifact]["status"], "FAILED")
         self.assertEqual(result["capabilities"][source]["status"], "IDLE")
 
+    def test_comfyui_proposal_requires_an_explicitly_configured_capability_worker(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        class Worker:
+            def run_once(self, **_kwargs): return {"status": "IDLE"}
+        class Verifier:
+            REVISION = "fixture-v1"
+            def verify(self, *_args): return None
+        comfy = "engineering.comfyui-image.v1"
+        artifact = "engineering.codex-cli-artifact.v1"
+        workers = {artifact: Worker(), comfy: Worker()}
+        service = GraceExecutionService(None, None, workers[artifact],
+            dispatch_credential="dispatch", authority_ref="work-order:test",
+            verifier_id="verifier", verifier_credential="verify", artifact_root="/tmp/unused",
+            execution_capability=artifact, execution_workers=workers,
+            verifiers={artifact: Verifier(), comfy: Verifier()})
+        self.assertEqual(service._proposal_worker_capability({"execution_capability": comfy}), comfy)
+        service_without_comfy = GraceExecutionService(None, None, workers[artifact],
+            dispatch_credential="dispatch", authority_ref="work-order:test",
+            verifier_id="verifier", verifier_credential="verify", artifact_root="/tmp/unused")
+        self.assertIsNone(service_without_comfy._proposal_worker_capability(
+            {"execution_capability": comfy}))
+
     def test_artifact_only_worker_configuration_remains_supported(self):
         from riverview_core.resident_execution.service import GraceExecutionService
         class Worker:
@@ -441,6 +466,38 @@ class GraceExecutionTests(unittest.TestCase):
         self.admin.execute("DROP SCHEMA IF EXISTS " + self.schema + " CASCADE")
         self.admin.close()
         self.temp.cleanup()
+
+    def test_grace_health_heartbeat_persists_live_worker_capabilities(self):
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        class Verifier:
+            def verify(self, *_args, **_kwargs):
+                return None
+
+        repository_worker = SimpleNamespace(worker_id=self.worker_id, run_once=lambda **_kwargs: {})
+        comfy_worker = SimpleNamespace(worker_id=self.worker_id, run_once=lambda **_kwargs: {})
+        verifier = Verifier()
+        capabilities = {
+            "engineering.codex-cli-artifact.v1": repository_worker,
+            "engineering.comfyui-image.v1": comfy_worker,
+        }
+        service = GraceExecutionService(self.pipeline, self.adapter, repository_worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root / "health-artifacts", execution_workers=capabilities,
+            verifiers={key: verifier for key in capabilities})
+        service._heartbeat("healthy")
+
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT worker_capabilities FROM grace_execution_health "
+                        "WHERE service_id='grace.execution.v1'")
+            observed = cur.fetchone()["worker_capabilities"]
+        self.assertEqual(observed, [
+            {"worker_id": self.worker_id, "capability": "engineering.codex-cli-artifact.v1"},
+            {"worker_id": self.worker_id, "capability": "engineering.comfyui-image.v1"},
+        ])
 
     def _create_grounded_reasoning_objective(self, objective_id):
         row = self.pipeline.submit_objective(
@@ -963,6 +1020,7 @@ class GraceExecutionTests(unittest.TestCase):
                           self.pipeline.objective_events(row["objective_id"])],
                          ["objective.received", "objective.grounded",
                           "work_order.proposed", "work_order.dispatched",
+                          "execution.step_verified",
                           "objective.completed"])
 
     def test_late_codex_artifact_is_preserved_for_independent_verification(self):
@@ -1086,6 +1144,96 @@ class GraceExecutionTests(unittest.TestCase):
                 "WHERE assignment_id=%s", (assignment_id,)).fetchone()[0], 1)
         finally:
             recovery.close()
+
+    def test_four_verified_steps_complete_once_after_restart_before_reconciliation(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        objective_id = "objective:completion-restart:" + uuid4().hex
+        criteria = tuple(f"Step {index} report records its verified repository provenance."
+                         for index in range(1, 5))
+        self.pipeline.submit_objective(objective_id,
+            "Create four sequential reports at reports/completion-1.json, "
+            "reports/completion-2.json, reports/completion-3.json, and "
+            "reports/completion-4.json; each records its verified repository provenance.",
+            list(criteria), credential=self.credentials["steward"], scope_ref=self.scope,
+            origin={"conversation_id": str(uuid4()), "source_sequence": 4})
+        self.pipeline.ground_objective(objective_id)
+        steps = tuple(PlanStep(f"s{index}", f"Create report {index}", (criterion,),
+            artifact_requirements=(ArtifactRequirement(f"report-{index}",
+                f"reports/completion-{index}.json", "application/json", (criterion,)),))
+            for index, criterion in enumerate(criteria, 1))
+        self.pipeline.record_proposal(objective_id,
+            PlanProposal("Create four independently verified reports", steps, 0))
+
+        artifact_root = self.root / "completion-restart-artifacts"
+        class ResultPublisher:
+            def __call__(self, context):
+                return {"status": "published", "request_id": "restart-review:" +
+                    str(context["completion_cycle"]), "provider_id": "provider:test",
+                    "served_model": "model:test", "implementation_id": "implementation:test",
+                    "review_decision": "ADDITIONAL_EVIDENCE_REQUIRED"}
+
+        def make_service(pipeline=None, adapter=None):
+            pipeline = pipeline or self.pipeline
+            adapter = adapter or self.adapter
+            engine = ContinuousWorker(adapter, self.worker_id, self.credentials["worker"],
+                knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
+                action=BoundedLocalCodingWorker(pipeline, artifact_root),
+                action_effect_class="retry_safe",
+                action_capability="engineering.bounded-artifact.v1")
+            return GraceExecutionService(pipeline, adapter, engine,
+                dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+                verifier_id=self.verifier_id,
+                verifier_credential=self.credentials["verifier"], artifact_root=artifact_root,
+                conversation_result_publisher=ResultPublisher())
+
+        service = make_service()
+        assignments = []
+        for index in range(1, 5):
+            self.assertEqual(service.dispatch_proposed(objective_id), 1)
+            assignment_id = self.pipeline.get_objective(objective_id)["assignment_id"]
+            assignments.append(assignment_id)
+            self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+                f"completion-restart-ready:{index}:{assignment_id}", actor_id="event-processor")
+            outcome = service.worker.run_once(assignment_id=assignment_id)
+            self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
+            self.assertTrue(service.verify_one(assignment_id))
+            if index < 4:
+                self.assertEqual(service.reconcile_completions(objective_id=objective_id), index)
+                self.assertEqual(self.pipeline.get_objective(objective_id)["status"],
+                                 "WORK_ORDER_CREATED")
+
+        # Simulate process loss after PostgreSQL accepted the final verification,
+        # before the objective-step/completion reconciliation runs.
+        self.assertFalse(any(event["event_type"] == "objective.completed"
+                             for event in self.pipeline.objective_events(objective_id)))
+        restarted_ledger = PostgresLedger(DSN, schema=self.schema)
+        restarted_adapter = PostgresWorkerAdapter(DSN, schema=self.schema)
+        self.addCleanup(restarted_ledger.close)
+        self.addCleanup(restarted_adapter.close)
+        restarted_pipeline = GraceExecutionPipeline(restarted_ledger, self.authorizer,
+            AuthorizedAssignmentIntake(restarted_ledger, self.authorizer), self.knowledge)
+        service = make_service(restarted_pipeline, restarted_adapter)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 4)
+        completed = restarted_pipeline.get_objective(objective_id)
+        self.assertEqual(completed["status"], "COMPLETED")
+        self.assertEqual(service.publish_conversation_results(), 1)
+        self.assertEqual(restarted_pipeline.get_objective(objective_id)["status"], "COMPLETED",
+                         "a conflicting conversational review cannot veto persisted completion")
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 0)
+        self.assertEqual(restarted_pipeline.record_verified_completion(
+            objective_id, assignments[-1])["status"], "COMPLETED")
+        events = restarted_pipeline.objective_events(objective_id)
+        self.assertEqual(sum(event["event_type"] == "objective.completed" for event in events), 1)
+        self.assertEqual(sum(event["event_type"] == "work_order.dispatched" for event in events), 4)
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT step_id,status,dispatch_count FROM grace_objective_steps
+                WHERE objective_id=%s ORDER BY step_order""", (objective_id,))
+            steps_after = cur.fetchall()
+        self.assertEqual([row["status"] for row in steps_after], ["verified"] * 4)
+        self.assertEqual([row["dispatch_count"] for row in steps_after], [1] * 4)
+        self.assertEqual(len(set(assignments)), 4)
 
     def test_multistep_dispatch_follows_independent_acceptance_without_second_model_gate(self):
         from riverview_core.resident_execution.service import GraceExecutionService
@@ -1272,12 +1420,12 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(result["status"], "AWAITING_VERIFICATION")
         self.assertTrue(service.verify_one(second))
         self.assertEqual(self.pipeline.record_verified_completion(objective_id, second)["status"],
-                         "WORK_ORDER_CREATED")
+                         "COMPLETED")
         self.assertEqual(service.publish_conversation_results(), 1,
-                         "the final output is delivered for Grace's substantive review")
-        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
-        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "WORK_ORDER_CREATED",
-                         "additional evidence is not accepted as objective completion")
+                         "the final result is delivered after durable completion")
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 0)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED",
+                         "a later conversational review cannot reverse accepted persisted state")
         self.assertEqual(self.pipeline.pending_conversation_results(), [])
         revision = self.pipeline.request_conversation_result_rereview(objective_id, 2,
             evidence_revision="final-review-evidence-v1",
@@ -1287,7 +1435,7 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(revision["review_generation"], 2)
         publisher.decisions[2] = "OBJECTIVE_COMPLETE"
         self.assertEqual(service.publish_conversation_results(), 1)
-        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 0)
         self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED")
         pending = self.pipeline.pending_conversation_results()
         self.assertEqual(pending, [])
@@ -1377,6 +1525,9 @@ class GraceExecutionTests(unittest.TestCase):
             ".assignment_leases WHERE assignment_id=%s", (assignment_id,)).fetchone()[0]
         self.assertTrue(service.verify_one(assignment_id))
         self.assertEqual(self.ledger.get(assignment_id)["state"], "rework_required")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"],
+                         "WORK_ORDER_CREATED",
+                         "a rejected step cannot complete before corrected accepted verification")
         context = self.pipeline.pending_rejected_work_order_reviews()[0]
         self.assertEqual(context["objective_id"], objective_id)
         self.assertEqual(context["assignment_id"], assignment_id)
@@ -1404,9 +1555,9 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertTrue(service.verify_one(assignment_id))
         self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
         completion = self.pipeline.record_verified_completion(objective_id, assignment_id)
-        self.assertEqual(completion["status"], "WORK_ORDER_CREATED")
+        self.assertEqual(completion["status"], "COMPLETED")
         self.assertEqual(service.publish_conversation_results(), 1)
-        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 0)
         completion = self.pipeline.get_objective(objective_id)
         self.assertEqual(completion["status"], "COMPLETED")
         table = self.schema + ".verification_records"
@@ -1981,11 +2132,11 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(second_result["repository_reference"], repo_ref)
         self.assertEqual(second_result["repository_revision"], pinned)
         self.assertTrue(service.verify_one(second_assignment))
-        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
-        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "WORK_ORDER_CREATED")
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 2)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED")
 
         self.assertEqual(service.publish_conversation_results(), 1)
-        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 0)
         self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED")
         self.assertEqual(service.publish_conversation_results(), 0)
         self.assertEqual(publisher.cycles, [1, 2])
@@ -2006,6 +2157,93 @@ class GraceExecutionTests(unittest.TestCase):
         final_event = next(event for event in events if event["event_type"] == "objective.completed")
         self.assertEqual(final_event["payload"]["artifact"]["repository_reference"], repo_ref)
         self.assertEqual(final_event["payload"]["artifact"]["repository_revision"], pinned)
+
+    def test_reconciliation_verifies_earlier_step_after_objective_pointer_advances(self):
+        """A later dispatch must not hide an earlier completed step from reconciliation."""
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        objective_id = "objective:step-reconcile-pointer:" + uuid4().hex
+        criteria = ("Step one artifact records the baseline.",
+                    "Step two artifact records the analysis.",
+                    "Step three artifact records the risks.")
+        self.pipeline.submit_objective(objective_id,
+            "Create baseline, analysis, and risks artifacts at s1.json, s2.json, and s3.json for this execution test.",
+            criteria, credential=self.credentials["steward"], scope_ref=self.scope,
+            origin={"conversation_id": str(uuid4()), "source_sequence": 1})
+        self.pipeline.ground_objective(objective_id)
+        steps = tuple(PlanStep(step_id, task, (criterion,),
+            artifact_requirements=(ArtifactRequirement(name, path, "application/json",
+                (criterion,)),)) for step_id, task, criterion, name, path in (
+                    ("s1", "Create the baseline artifact", criteria[0], "baseline", "s1.json"),
+                    ("s2", "Create the analysis artifact", criteria[1], "analysis", "s2.json"),
+                    ("s3", "Create the risks artifact", criteria[2], "risks", "s3.json")))
+        self.pipeline.record_proposal(objective_id,
+            PlanProposal("Create three verified artifacts", steps, 0))
+
+        class ResultPublisher:
+            def __call__(self, context):
+                cycle = context["completion_cycle"]
+                return {"status": "published", "request_id": f"step-reconcile:{cycle}",
+                    "provider_id": "provider:test", "served_model": "model:test",
+                    "implementation_id": "implementation:test",
+                    "review_decision": ("OBJECTIVE_COMPLETE" if cycle == 3 else
+                                        "ENGINEERING_STEP_PROPOSED")}
+
+        artifact_root = self.root / "step-reconcile-artifacts"
+        worker = ContinuousWorker(self.adapter, self.worker_id, self.credentials["worker"],
+            knowledge=RepositoryKnowledgeProvider(self.repo, self.commit),
+            action=BoundedLocalCodingWorker(self.pipeline, artifact_root),
+            action_effect_class="retry_safe", action_capability="engineering.bounded-artifact.v1")
+        service = GraceExecutionService(self.pipeline, self.adapter, worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=artifact_root, conversation_result_publisher=ResultPublisher())
+
+        def execute_and_verify(assignment_id):
+            self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+                "step-reconcile-ready:" + assignment_id, actor_id="event-processor")
+            outcome = worker.run_once(assignment_id=assignment_id)
+            self.assertEqual(outcome["status"], "AWAITING_VERIFICATION")
+            self.assertTrue(service.verify_one(assignment_id))
+            self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        s1 = self.pipeline.get_objective(objective_id)["assignment_id"]
+        execute_and_verify(s1)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 1)
+        self.assertEqual(service.publish_conversation_results(), 1)
+
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        s2 = self.pipeline.get_objective(objective_id)["assignment_id"]
+        execute_and_verify(s2)
+        # Dispatching a later eligible step advances the objective's single
+        # assignment pointer before S2's accepted verification is reconciled.
+        self.assertEqual(service.dispatch_proposed(objective_id), 1)
+        s3 = self.pipeline.get_objective(objective_id)["assignment_id"]
+        self.assertNotEqual(s2, s3)
+        execute_and_verify(s3)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["assignment_id"], s3)
+        self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".verification_records '
+            "WHERE assignment_id=ANY(%s) AND decision='ACCEPTED'", ([s2, s3],)).fetchone()[0], 2)
+
+        service.reconcile_completions(objective_id=objective_id)
+        steps_after_reconcile = self.admin.execute(f'SELECT step_id,status FROM "{self.schema}".grace_objective_steps '
+            "WHERE objective_id=%s ORDER BY step_order", (objective_id,)).fetchall()
+        self.assertEqual(steps_after_reconcile, [("s1", "verified"),
+            ("s2", "verified"), ("s3", "verified")])
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED")
+        self.assertEqual(service.publish_conversation_results(), 1)
+        self.assertEqual(service.reconcile_completions(objective_id=objective_id), 0)
+
+        completed = self.pipeline.get_objective(objective_id)
+        self.assertEqual(completed["status"], "COMPLETED")
+        events = self.pipeline.objective_events(objective_id)
+        step_events = [event for event in events if event["event_type"] == "execution.step_verified"]
+        self.assertEqual({event["payload"]["step_id"] for event in step_events}, {"s1", "s2", "s3"})
+        completion = next(event for event in events if event["event_type"] == "objective.completed")
+        self.assertEqual(completion["payload"]["decision"], "ACCEPTED")
+        self.assertEqual(completion["payload"]["assignment_id"], s3)
+        self.assertTrue(completion["payload"]["artifact"]["artifact_sha256"])
 
 
     def test_rereview_key_collision_across_objectives_fails_closed(self):
@@ -2431,6 +2669,134 @@ class GraceExecutionTests(unittest.TestCase):
             objective_id, credential=self.credentials["steward"], authority_ref=self.scope)
         self.assertEqual(cancelled["status"], "CANCELLED")
         self.assertEqual(self.ledger.get(assignment_id)["state"], "cancelled")
+
+    def test_authenticated_institutional_principal_cancellation_uses_real_exact_grant(self):
+        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+        objective_id = "objective:account-principal-cancel"
+        grounded = self._create_grounded_reasoning_objective(objective_id)
+        with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            actor = self.pipeline.authorizer.require(
+                cur, self.credentials["steward"], "assignment.cancel", self.scope)
+        principal = InstitutionalPrincipal(actor["principal_id"])
+        with self.assertRaises(ObjectiveNotAuthorized):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=InstitutionalPrincipal("resident:ungranted"),
+                authority_ref=self.scope, reason="Unauthorized account principal")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["revision"], grounded["revision"])
+        cancelled = self.pipeline.cancel_work_order(objective_id, credential=principal,
+            authority_ref=self.scope, reason="Authorized linked account principal")
+        self.assertEqual(cancelled["status"], "CANCELLED")
+        events = [event for event in self.pipeline.objective_events(objective_id)
+                  if event["event_type"] == "objective.cancelled"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["actor_id"], actor["principal_id"])
+        self.assertEqual(events[0]["payload"]["authorized_principal"], actor["principal_id"])
+        self.assertEqual(events[0]["payload"]["reason"], "Authorized linked account principal")
+
+    def test_authorized_grounded_objective_cancellation_is_audited_and_leaves_queue(self):
+        objective_id = "objective:grounded-cancel"
+        grounded = self._create_grounded_reasoning_objective(objective_id)
+        initial_revision = grounded["revision"]
+        self.assertEqual([row["objective_id"] for row in
+            self.pipeline.grounded_objectives(scope_ref=self.scope)], [objective_id])
+
+        with self.assertRaises(ObjectiveNotAuthorized):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=secrets.token_urlsafe(36), authority_ref=self.scope,
+                reason="Obsolete test objective")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
+
+        cancelled = self.pipeline.cancel_work_order(objective_id,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            reason="Obsolete test objective")
+        self.assertEqual(cancelled["status"], "CANCELLED")
+        self.assertEqual(cancelled["revision"], initial_revision + 1)
+        self.assertEqual(self.pipeline.grounded_objectives(scope_ref=self.scope), [])
+        events = [event for event in self.pipeline.objective_events(objective_id)
+                  if event["event_type"] == "objective.cancelled"]
+        self.assertEqual(len(events), 1)
+        event = events[0]
+        self.assertEqual(event["actor_id"], "steward:test")
+        self.assertIsNotNone(event["occurred_at"])
+        self.assertEqual(event["payload"]["reason"], "Obsolete test objective")
+        self.assertEqual(event["payload"]["authorized_principal"], "steward:test")
+        self.assertEqual(event["payload"]["objective_revision"], initial_revision + 1)
+        self.assertTrue(event["payload"]["cancelled_at"])
+
+    def test_grounded_objective_cancellation_requires_reason_and_is_idempotent(self):
+        objective_id = "objective:grounded-cancel-idempotent"
+        grounded = self._create_grounded_reasoning_objective(objective_id)
+        with self.assertRaises(ValueError):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
+
+        reason = "Duplicate proposal is obsolete"
+        first = self.pipeline.cancel_work_order(objective_id,
+            credential=self.credentials["steward"], authority_ref=self.scope, reason=reason)
+        repeated = self.pipeline.cancel_work_order(objective_id,
+            credential=self.credentials["steward"], authority_ref=self.scope, reason=reason)
+        self.assertEqual(first["revision"], grounded["revision"] + 1)
+        self.assertEqual(repeated["revision"], first["revision"])
+        self.assertEqual(len([event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"] == "objective.cancelled"]), 1)
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope,
+                reason="Different cancellation reason")
+
+    def test_grounded_cancellation_rejects_any_existing_engineering_assignment(self):
+        from psycopg import sql
+
+        objective_id = "objective:grounded-cancel-assignment-exists"
+        self._create_grounded_reasoning_objective(objective_id)
+        assignment_id = "assignment:" + uuid4().hex
+        self.admin.execute(sql.SQL("""INSERT INTO {}.assignments
+            (id,state,owner,authority_ref,objective_ref,workflow_id,workflow_step,
+             correlation_id,updated_at)
+            VALUES (%s,'queued','engineering',%s,%s,'grace.objective-work-order.v1',
+                    'test-step',%s,clock_timestamp())""").format(sql.Identifier(self.schema)),
+            (assignment_id, self.scope, objective_id, objective_id))
+
+        with self.assertRaisesRegex(ObjectiveStateError, "assignment or dispatch history"):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope,
+                reason="Obsolete")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "queued")
+
+    def test_running_engineering_work_remains_uncancellable(self):
+        from riverview_core.resident_reasoning import ArtifactRequirement
+
+        objective_id = "objective:cancel-running"
+        criterion = "reports/cancel.json contains the task and verified repository provenance"
+        self.pipeline.submit_objective(objective_id,
+            "Create reports/cancel.json with the task and verified repository provenance.",
+            [criterion], credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(objective_id)
+        proposal = PlanProposal("Create the requested cancellation test artifact", (
+            PlanStep("create-report", "Create reports/cancel.json", (criterion,),
+                artifact_requirements=(ArtifactRequirement(
+                    "cancel-report", "reports/cancel.json", "application/json",
+                    (criterion,)),)),), 0)
+        self.pipeline.record_proposal(objective_id, proposal)
+        assignment_id = "assignment:" + uuid4().hex
+        self.pipeline.authorize_and_dispatch(objective_id, assignment_id,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            idempotency_key="grounded-cancel-running-" + assignment_id)
+        self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+            "cancel-running-ready-" + assignment_id, actor_id="event-processor:test")
+        self.ledger.transition(assignment_id, "running", "worker_started",
+            "cancel-running-started-" + assignment_id, actor_id="worker:test")
+
+        with self.assertRaisesRegex(ObjectiveStateError, "queued or ready"):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope,
+                reason="Must not interrupt running work")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"],
+                         "WORK_ORDER_CREATED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "running")
 
     def test_dashboard_submission_persistent_restart_worker_verification_and_projection(self):
         import psycopg

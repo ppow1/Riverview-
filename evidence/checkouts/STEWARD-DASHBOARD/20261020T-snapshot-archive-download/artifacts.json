@@ -1,0 +1,41 @@
+{
+  "manifest_revision": "1.0.1",
+  "artifacts": {
+    "acceptance.json": {
+      "path": "acceptance.json",
+      "revision": "1.0.1",
+      "sha256": "f83b37c849a39849ff2f39e9fb6f65c41e4fa198c5897e134614be574188bf48",
+      "size_bytes": 8048
+    },
+    "browser-digest-mismatch.json": {
+      "path": "browser-digest-mismatch.json",
+      "revision": "1.0.0",
+      "sha256": "294a14087f41c41762cc0243837eefbf118333c4607ec87020a1bed5fbf3dd86",
+      "size_bytes": 22452
+    },
+    "browser-github-failure.json": {
+      "path": "browser-github-failure.json",
+      "revision": "1.0.0",
+      "sha256": "23d371d40af1a3f69f012a250cb44fb9e2acb64322c0c400838e7b3c97ed00dd",
+      "size_bytes": 22452
+    },
+    "browser-package-bound-stress.json": {
+      "path": "browser-package-bound-stress.json",
+      "revision": "1.0.0",
+      "sha256": "6e4f7fa1de5a6cbe84efca62902346e453712d7b07dcf04f813e0104f4f52b0b",
+      "size_bytes": 21715
+    },
+    "browser-success.json": {
+      "path": "browser-success.json",
+      "revision": "1.0.0",
+      "sha256": "6ec8294959341c18c90801443c5c8c33643a526e8fa0e56249050421e67aff2c",
+      "size_bytes": 27921
+    },
+    "checkout.md": {
+      "path": "checkout.md",
+      "revision": "1.0.1",
+      "sha256": "a9130b24775d42149f4001c40e25cf79b464d94ad77050cb971976e8a419dee3",
+      "size_bytes": 7007
+    }
+  }
+}
