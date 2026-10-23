@@ -90,7 +90,8 @@ class GraceExecutionService:
                  conversation_result_publisher=None, proposal_lifecycle=None,
                  external_reasoning_exchange=None, external_reasoning_authorize=None,
                  external_reasoning_principal=None, execution_workers=None, verifiers=None,
-                 doorbell_worker=None, rejected_work_order_publisher=None):
+                 doorbell_worker=None, rejected_work_order_publisher=None,
+                 direct_external_reasoning_provider=None):
         if not 1 <= max_dispatch_failures <= 10:
             raise ValueError("dispatch failure limit must be between 1 and 10")
         if type(resident_token_budget) is not int or not 1 <= resident_token_budget <= 4096:
@@ -153,6 +154,11 @@ class GraceExecutionService:
         self.external_reasoning_exchange = external_reasoning_exchange
         self.external_reasoning_authorize = external_reasoning_authorize
         self.external_reasoning_principal = external_reasoning_principal
+        self.direct_external_reasoning_provider = direct_external_reasoning_provider
+        if (direct_external_reasoning_provider is not None and
+                (external_reasoning_exchange is None or
+                 not callable(getattr(direct_external_reasoning_provider, "process_one", None)))):
+            raise ValueError("direct external provider requires the existing durable exchange")
         if doorbell_worker is not None and not callable(getattr(doorbell_worker, "run_once", None)):
             raise ValueError("doorbell worker must provide a bounded run_once method")
         self.doorbell_worker = doorbell_worker
@@ -988,6 +994,13 @@ class GraceExecutionService:
             external_reasoned = self.consume_external_reasoning()
             self._current_stage = "resident_reasoning"
             reasoned = self.reason_one_grounded_objective()
+            direct_result = None
+            if self.direct_external_reasoning_provider is not None:
+                self._current_stage = "direct_external_reasoning"
+                direct_result = self.direct_external_reasoning_provider.process_one(
+                    self.external_reasoning_exchange)
+                if isinstance(direct_result, Mapping) and direct_result.get("status") == "RESPONSE_SUBMITTED":
+                    external_reasoned += self.consume_external_reasoning(limit=1)
             self._current_stage = "doorbell"
             doorbell = self._run_doorbell_worker()
             worker_failures = (worker_result.get("status") == "FAILED" or
@@ -999,7 +1012,8 @@ class GraceExecutionService:
                     "rejected_reviewed": rejected_reviewed,
                     "dispatched": dispatched, "worker": worker_result, "verified": verified,
                     "completed": completed, "returned": returned,
-                    "proposal_updates": proposal_updates, "doorbell": doorbell}
+                    "proposal_updates": proposal_updates, "doorbell": doorbell,
+                    "direct_external_reasoning": direct_result}
         except Exception as exc:
             self._heartbeat("degraded", type(exc).__name__)
             raise

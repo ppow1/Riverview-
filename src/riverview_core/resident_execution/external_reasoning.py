@@ -258,6 +258,46 @@ class DurableExternalReasoningExchange:
     def _set_path(self, cur):
         self.ledger._set_search_path(cur)
 
+    def begin_provider_attempt(self, request_id, correlation_id, *, principal_id,
+                               reserved_cost, additional_limit, baseline_total, total_credit):
+        """Reserve one bounded API attempt durably; a started request is never replayed."""
+        if (principal_id != "service:provider-gpt-6-luna" or reserved_cost != 0.01 or
+                additional_limit != 0.25 or baseline_total != 0.04104010 or total_credit != 5.0):
+            raise ExchangeUnauthorized("provider_attempt_policy_invalid")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self._set_path(cur)
+                row = self._lock(cur, request_id, correlation_id)
+                if row["provider_id"] != "gpt-6-luna" or row["claim_owner"] != principal_id:
+                    raise ExchangeUnauthorized("provider_attempt_route_mismatch")
+                cur.execute("""SELECT event_type FROM external_reasoning_exchange_events
+                    WHERE request_id=%s AND event_type='provider_attempt_started'""", (request_id,))
+                if cur.fetchone():
+                    return False
+                cur.execute("""SELECT COALESCE(sum((payload->>'reserved_cost_usd')::numeric),0) AS reserved
+                    FROM external_reasoning_exchange_events
+                    WHERE event_type='provider_attempt_started'""")
+                reserved = float(cur.fetchone()["reserved"])
+                if baseline_total + reserved + reserved_cost > baseline_total + additional_limit:
+                    return False
+                self._event(cur, row, "provider_attempt_started", "luna-api-attempt-started",
+                    principal_id, {"provider_id": "gpt-6-luna", "provider_model": "gpt-6-luna",
+                        "reserved_cost_usd": reserved_cost, "attempt": 1})
+                return True
+
+    def finish_provider_attempt(self, request_id, correlation_id, *, status,
+                                failure_type=None, usage=None):
+        if status not in {"failed", "settled"}:
+            raise ValueError("provider attempt status is invalid")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self._set_path(cur)
+                row = self._lock(cur, request_id, correlation_id)
+                payload = {"status": status, **({"failure_type": failure_type}
+                    if failure_type else {}), **({"usage": usage} if usage else {})}
+                self._event(cur, row, "provider_attempt_settled", "luna-api-attempt-settled",
+                    "service:provider-gpt-6-luna", payload)
+
     def _event(self, cur, row, event_type, key_suffix, actor, payload):
         payload = {"schema_version": self.EVENT_SCHEMA, **payload}
         key = f"external-reasoning:{row['request_id']}:{key_suffix}"
@@ -787,13 +827,14 @@ class DurableExternalReasoningExchange:
     def submit_response(self, request_id: str, correlation_id: str, *, provider_id: str,
                         principal_id: str, claim_token: str, fence: int,
                         idempotency_key: str, response: Mapping[str, Any],
-                        review_subject_sha256: str | None = None) -> str:
+                        review_subject_sha256: str | None = None,
+                        provider_usage: Mapping[str, Any] | None = None) -> str:
         clean = self._validate_response(response, request_id, correlation_id, provider_id)
         self._require_provider_principal(provider_id, principal_id)
         return self._submit_response(request_id, correlation_id, provider_id=provider_id,
             principal_id=principal_id, reviewer_kind="provider", claim_token=claim_token,
             fence=fence, idempotency_key=idempotency_key, response=clean,
-            review_subject_sha256=review_subject_sha256)
+            review_subject_sha256=review_subject_sha256, provider_usage=provider_usage)
 
     def steward_submit_response(self, request_id: str, correlation_id: str, *,
                                 principal_id: str, claim_token: str, fence: int,
@@ -820,7 +861,7 @@ class DurableExternalReasoningExchange:
 
     def _submit_response(self, request_id, correlation_id, *, provider_id, principal_id,
                          reviewer_kind, claim_token, fence, idempotency_key, response,
-                         review_subject_sha256):
+                         review_subject_sha256, provider_usage=None):
         if (not isinstance(idempotency_key, str)
                 or not 1 <= len(idempotency_key) <= 240):
             raise ExchangeUnauthorized("response principal or idempotency key is invalid")
@@ -875,6 +916,8 @@ class DurableExternalReasoningExchange:
                     "provider_id": provider_id, "provider_model": response["provider_model"],
                     "response_id": response["response_id"], "received_at": now.isoformat(),
                     "claim_fence": fence}
+                if reviewer_kind == "provider" and provider_usage is not None:
+                    provenance["usage"] = dict(provider_usage)
                 if reviewer_kind == "steward":
                     provenance.update({"reviewer_kind": "steward",
                         "reviewer_id": principal_id, "review_authority": "comms5_steward"})

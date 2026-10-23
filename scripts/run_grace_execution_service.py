@@ -622,6 +622,12 @@ def main() -> int:
                     "failure_type": type(exc).__name__}, sort_keys=True))
         doorbell_worker = create_configured_doorbell_worker(os.environ, external_exchange)
         service_options = {}
+        direct_provider = None
+        if "gpt-6-luna" in (external_exchange.router.providers if external_exchange else {}):
+            if os.environ.get("RIVERVIEW_DIRECT_LUNA_ENABLED") != "1":
+                raise WorkerServiceConfigurationError("direct_luna_route_requires_explicit_enablement")
+            from riverview_core.resident_execution.direct_luna import DirectLunaExchangeProvider
+            direct_provider = DirectLunaExchangeProvider()
         if doorbell_worker is not None:
             # Older releases remain compatible while the hook is disabled. If an
             # operator opts in before the owner-loop hook is present, fail closed.
@@ -644,6 +650,7 @@ def main() -> int:
             external_reasoning_exchange=external_exchange,
             external_reasoning_authorize=external_authorize,
             external_reasoning_principal=resident_principal_id,
+            direct_external_reasoning_provider=direct_provider,
             **service_options)
         if codex_auth_mode == "supervised-chatgpt":
             if not re.search(r"80b", (reasoning_model or "").lower()) or not providers:
