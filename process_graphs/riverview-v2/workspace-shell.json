@@ -712,7 +712,7 @@
       "id": "rv:riverview-v2:workspace-shell:manual-image-verify",
       "node_revision": "1.0.0",
       "type": "verification",
-      "label": "Independently verify and validate PNG bytes, dimensions, ownership and digest",
+      "label": "Verify exact ComfyUI history prompt and extra_data assignment/template identity, then independently validate PNG bytes, dimensions, ownership and digest",
       "source_references": [
         "src/riverview_core/worker_adapter/comfyui.py",
         "src/riverview_core/status_dashboard/manual_image_generation.py"

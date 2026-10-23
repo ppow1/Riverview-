@@ -2,9 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_manual_image_generation.py
 # Component: V2-MANUAL-IMAGE-GENERATION
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Purpose: Verify durable operator mode through the registered ComfyUI action
 # =============================================================================
+# Changed: 2026-10-23 UTC | RV-ISSUE-250 | Use actual history tuple and cover valid, mismatched and stale identities.
 """Mock ComfyUI execution and independent artifact acceptance for manual mode."""
 import base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -33,6 +34,9 @@ class ManualMockComfy:
         self.template_digest = None
         self.fail_worker = False
         self.fail_execution = False
+        self.history_assignment_override = None
+        self.history_prompt_id_override = None
+        self.views = 0
         self.devices = [{"name": "Test GPU", "vram_total": 8_000_000_000,
                          "vram_free": 7_000_000_000}]
         self.lock = threading.Lock()
@@ -68,12 +72,15 @@ class ManualMockComfy:
                 elif self.path == "/queue":
                     self._json({"queue_running": [], "queue_pending": []})
                 elif self.path.startswith("/history/"):
+                    prompt_id = owner.history_prompt_id_override or PROMPT_ID
+                    assignment = owner.history_assignment_override or owner.assignment
                     self._json({PROMPT_ID: {"status": {"status_str": "error" if owner.fail_execution else "success"},
-                        "prompt": [1, {}, {"riverview_assignment": owner.assignment,
+                        "prompt": [1, prompt_id, {}, {"riverview_assignment": assignment,
                             "riverview_template_sha256": owner.template_digest}, []],
                         "outputs": {"9": {"images": [{"filename": "manual.png",
                             "subfolder": "", "type": "output"}]}}}})
                 elif self.path.startswith("/view?"):
+                    owner.views += 1
                     self.send_response(200)
                     self.send_header("Content-Type", "image/png")
                     self.send_header("Content-Length", str(len(PNG)))
@@ -150,6 +157,25 @@ class ManualImageGenerationTests(unittest.TestCase):
         self.assertEqual(metadata["artifact"]["sha256"], hashlib.sha256(downloaded).hexdigest())
         self.assertEqual(downloaded, PNG)
         self.assertEqual(self.mock.posts, 1)
+
+
+    def test_history_rejects_cross_assignment_identity_without_retrieving_image(self):
+        self.mock.history_assignment_override = "manual:another-request"
+        self.submit()
+        record = self.wait()
+        self.assertEqual(record["status"], "failed")
+        self.assertEqual(record["error_code"], "history_identity_mismatch")
+        self.assertIsNone(record["artifact"])
+        self.assertEqual(self.mock.views, 0)
+
+    def test_stale_history_entry_is_not_treated_as_the_submitted_prompt(self):
+        self.mock.history_prompt_id_override = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        self.submit()
+        record = self.wait()
+        self.assertEqual(record["status"], "failed")
+        self.assertEqual(record["error_code"], "history_identity_mismatch")
+        self.assertIsNone(record["artifact"])
+        self.assertEqual(self.mock.views, 0)
 
     def test_duplicate_request_id_is_idempotent_and_changed_request_conflicts(self):
         first = self.submit()

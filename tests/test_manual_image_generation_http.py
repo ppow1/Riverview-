@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_manual_image_generation_http.py
 # Component: V2-MANUAL-IMAGE-GENERATION
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify manual image routes preserve Dashboard account, role and CSRF boundaries
+# Changed: 2026-10-23 UTC | RV-ISSUE-250 | Assert cross-account artifact verification remains forbidden.
 # =============================================================================
 """HTTP route authorization and artifact delivery checks for V2 manual images."""
 import hashlib
@@ -137,6 +138,12 @@ class ManualImageHTTPTests(unittest.TestCase):
         self.assertEqual(json.loads(body)["items"], [])
         status, _, _ = self.request("GET", f"/api/v1/manual-image-generations/{REQUEST_ID}/image",
                                     token=True)
+        self.assertEqual(status, 403)
+        status, _, _ = self.request("GET", f"/api/v1/manual-image-generations/{REQUEST_ID}/image?download=1",
+                                    session="other-session")
+        self.assertEqual(status, 403)
+        status, _, _ = self.request("GET", f"/api/v1/manual-image-generations/{REQUEST_ID}",
+                                    session="other-session")
         self.assertEqual(status, 403)
         status, headers, image = self.request("GET", f"/api/v1/manual-image-generations/{REQUEST_ID}/image?download=1",
                                               session="operator-session")

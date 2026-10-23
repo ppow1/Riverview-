@@ -1,11 +1,12 @@
 # Riverview V2 Manual Image Generation
 
-**Document Revision:** 1.0.3
+**Document Revision:** 1.0.4
 **Component:** `V2-MANUAL-IMAGE-GENERATION`
 **Task:** `RV-V2-MANUAL-IMAGE-GENERATION-248`
 **Status:** Production integration candidate
 **Changed:** 2026-10-23 UTC
 **Changed:** 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Record separation between the fixture preview source and the production V2 bundle.
+**Changed:** 2026-10-23 UTC | RV-ISSUE-250 | Document ComfyUI history tuple provenance validation and production correction.
 
 ## Contract
 

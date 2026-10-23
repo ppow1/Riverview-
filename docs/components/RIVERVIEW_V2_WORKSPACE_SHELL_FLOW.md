@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.12
+File Revision: 1.0.13
 Purpose: Show normal, decision, failure, and recovery paths for loopback and authenticated LAN preview
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Extend generated process view for authenticated LAN access
@@ -58,7 +58,7 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_manual_image_submit_5157edc9["Persist idempotent manual provenance and invoke the existing bounded ComfyUIAction"]
     g_rv_riverview_v2_workspace_shell_manual_image_progress_6829a78f["Persist execution status and progress from the ComfyUI worker"]
     g_rv_riverview_v2_workspace_shell_manual_image_interrupted_d3c8d138["Resume durable requests through the existing ComfyUI action journal after Dashboard restart"]
-    g_rv_riverview_v2_workspace_shell_manual_image_verify_f0fc10a3["Independently verify and validate PNG bytes, dimensions, ownership and digest"]
+    g_rv_riverview_v2_workspace_shell_manual_image_verify_f0fc10a3["Verify exact ComfyUI history prompt and extra_data assignment/template identity, then independently validate PNG bytes, dimensions, ownership and digest"]
     g_rv_riverview_v2_workspace_shell_manual_image_download_63653eba["Serve owner-scoped preview and download through the authenticated artifact route"]
     g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e[["Persist worker, timeout, output, or verification failure without exposing unverified bytes"]]
     g_rv_riverview_v2_workspace_shell_manual_image_gpu_disabled_fefa7853{"Keep per-request GPU selection disabled while allocator or reservation identity is unavailable"}
