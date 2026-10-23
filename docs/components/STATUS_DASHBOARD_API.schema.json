@@ -1267,6 +1267,237 @@
                   }
                 },
                 "additionalProperties": false
+              },
+              "system_metrics": {
+                "type": "object",
+                "required": [
+                  "state",
+                  "observed_at",
+                  "cpu_utilization_percent",
+                  "cpu_name",
+                  "memory_used_bytes",
+                  "memory_total_bytes",
+                  "error_code"
+                ],
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "healthy",
+                      "unavailable"
+                    ]
+                  },
+                  "observed_at": {
+                    "$ref": "#/$defs/timestamp"
+                  },
+                  "cpu_utilization_percent": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "cpu_name": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "memory_used_bytes": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "memory_total_bytes": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "error_code": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 64
+                  }
+                },
+                "additionalProperties": false
+              },
+              "bambu_printer": {
+                "type": "object",
+                "required": [
+                  "schema_version",
+                  "status",
+                  "connected",
+                  "observed_at",
+                  "last_seen_at",
+                  "stale_after_seconds",
+                  "printer",
+                  "ams",
+                  "error_code"
+                ],
+                "properties": {
+                  "schema_version": {
+                    "const": "rv.octo.bambu-status.v1"
+                  },
+                  "status": {
+                    "enum": [
+                      "healthy",
+                      "offline",
+                      "stale",
+                      "unavailable"
+                    ]
+                  },
+                  "connected": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "observed_at": {
+                    "$ref": "#/$defs/timestamp"
+                  },
+                  "last_seen_at": {
+                    "$ref": "#/$defs/timestamp"
+                  },
+                  "stale_after_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 300
+                  },
+                  "printer": {
+                    "type": "object",
+                    "required": [
+                      "state",
+                      "nozzle_temperature_c",
+                      "bed_temperature_c",
+                      "progress_percent",
+                      "remaining_minutes",
+                      "layer_number",
+                      "total_layers"
+                    ],
+                    "properties": {
+                      "state": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "maxLength": 48
+                      },
+                      "nozzle_temperature_c": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 500
+                      },
+                      "bed_temperature_c": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 200
+                      },
+                      "progress_percent": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "remaining_minutes": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 0
+                      },
+                      "layer_number": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 0
+                      },
+                      "total_layers": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 0
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "ams": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "unit",
+                        "slot",
+                        "material",
+                        "remaining",
+                        "color_hex"
+                      ],
+                      "properties": {
+                        "unit": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0,
+                          "maximum": 32
+                        },
+                        "slot": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "minimum": 0,
+                          "maximum": 31
+                        },
+                        "material": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 64
+                        },
+                        "remaining": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "minimum": -1,
+                          "maximum": 10000
+                        },
+                        "color_hex": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[0-9A-Fa-f]{8}$"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "error_code": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 64
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "additionalProperties": false

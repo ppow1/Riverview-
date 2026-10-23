@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/resource_telemetry.py
 # Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-# Revision: 1.2.0
-# Purpose: Build a read-only, timestamped projection from approved GPU, model, and storage sources
+# Revision: 1.4.0
+# Purpose: Build a read-only, timestamped projection from approved GPU, model, storage, printer, and optional host sources
 # Execution Model: Request-driven; one bounded collection per authenticated GET
 # Observability: rv.dashboard.resource-telemetry.v1 with per-source state, timestamps, and safe error codes
 # Dependencies: Python standard library, systemd SSH credentials, restricted OCTOMINER1 telemetry key
@@ -12,6 +12,8 @@
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial read-only telemetry projection
 # Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Project bounded numeric per-slot context counters without task IDs or prompt data
 # Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Add local and OCTO1 mounted-volume measurements to the existing resource projection
+# Changed: 2026-10-22 UTC | ISSUE-231 | Add pinned optional OCTO2 and Windows development telemetry sources
+# Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Project the sanitized OCTO Control Bambu status from the existing restricted host read
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_resource_telemetry.py; tests/test_status_dashboard.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -46,10 +48,24 @@ SCHEMA_VERSION = "rv.dashboard.resource-telemetry.v1"
 MAX_RESPONSE_BYTES = 64 * 1024
 _MODEL_ID = re.compile(r"^[A-Za-z0-9._+() -]{1,128}$")
 _GPU_NAME = re.compile(r"^[A-Za-z0-9._+() -]{1,100}$")
+_PRINTER_TEXT = re.compile(r"^[A-Za-z0-9._+() /-]{1,64}$")
+_BAMBU_ERRORS = frozenset({"bambu_source_unavailable", "bambu_source_status_invalid",
+                           "bambu_source_response_too_large", "bambu_source_schema_invalid",
+                           "bambu_authentication_failed", "printer_offline",
+                           "printer_telemetry_stale"})
 _SSH_HOST = "192.168.1.160"
 _SSH_USER = "root"
 _SSH_PORT = "22"
 _SSH_REMOTE_COMMAND = "resource-telemetry"
+_OPTIONAL_HOSTS = (
+    {"host_id": "octominer2", "display_name": "OCTO2", "address": "192.168.1.162",
+     "command": "resource-telemetry", "credential_prefix": "resource-telemetry-octo2",
+     "identity_state": "documented_unverified"},
+    {"host_id": "windows-development", "display_name": "Windows development machine",
+     "address": "192.168.1.88", "command": "rv-windows-resource-telemetry",
+     "credential_prefix": "resource-telemetry-windows",
+     "identity_state": "documented_not_connected"},
+)
 _MODEL_SOURCES = (
     {
         "host_id": "camrui",
@@ -94,6 +110,79 @@ def _safe_integer(value: object) -> int | None:
         return number if 0 <= number <= 2**63 - 1 else None
     except (TypeError, ValueError, OverflowError):
         return None
+
+
+def _safe_timestamp(value: object) -> str | None:
+    if not isinstance(value, str) or len(value) > 40:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _project_bambu_status(raw: object) -> dict:
+    """Return only the bounded display contract; discard all upstream identity/secrets."""
+    empty_printer = {"state": None, "nozzle_temperature_c": None,
+                     "bed_temperature_c": None, "progress_percent": None,
+                     "remaining_minutes": None, "layer_number": None,
+                     "total_layers": None}
+    unavailable = {"schema_version": "rv.octo.bambu-status.v1", "status": "unavailable",
+                   "connected": None, "observed_at": None, "last_seen_at": None,
+                   "stale_after_seconds": 30, "printer": empty_printer, "ams": [],
+                   "error_code": "bambu_source_unavailable"}
+    if not isinstance(raw, dict) or raw.get("schema_version") != "rv.octo.bambu-status.v1":
+        return unavailable
+    status = raw.get("status")
+    if not isinstance(status, str) or status not in {"healthy", "offline", "stale", "unavailable"}:
+        return {**unavailable, "error_code": "bambu_source_schema_invalid"}
+    connected = raw.get("connected") if type(raw.get("connected")) is bool else None
+    printer_raw = raw.get("printer") if isinstance(raw.get("printer"), dict) else {}
+    state = printer_raw.get("state")
+    if not isinstance(state, str) or not re.fullmatch(r"[A-Za-z0-9 _-]{1,48}", state.strip()):
+        state = None
+    def number(name: str, low: float, high: float):
+        value = printer_raw.get(name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return value if low <= value <= high else None
+    def integer(name: str):
+        value = printer_raw.get(name)
+        return value if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 1000000 else None
+    slots = []
+    raw_slots = raw.get("ams") if isinstance(raw.get("ams"), list) else []
+    for item in raw_slots[:8]:
+        if not isinstance(item, dict):
+            continue
+        material = item.get("material")
+        if not isinstance(material, str) or not _PRINTER_TEXT.fullmatch(material.strip()):
+            material = None
+        remaining = item.get("remaining")
+        if isinstance(remaining, bool) or not isinstance(remaining, (int, float)) or not -1 <= remaining <= 10000:
+            remaining = None
+        color = item.get("color_hex")
+        if not isinstance(color, str) or not re.fullmatch(r"[0-9A-Fa-f]{8}", color):
+            color = None
+        slots.append({"unit": item.get("unit") if type(item.get("unit")) is int and 0 <= item["unit"] <= 32 else None,
+                      "slot": item.get("slot") if type(item.get("slot")) is int and 0 <= item["slot"] <= 31 else None,
+                      "material": material.strip() if isinstance(material, str) else None,
+                      "remaining": remaining, "color_hex": color.upper() if color else None})
+    error = raw.get("error_code")
+    return {"schema_version": "rv.octo.bambu-status.v1", "status": status,
+            "connected": connected,
+            "observed_at": _safe_timestamp(raw.get("observed_at")),
+            "last_seen_at": _safe_timestamp(raw.get("last_seen_at")),
+            "stale_after_seconds": 30,
+            "printer": {"state": state,
+                        "nozzle_temperature_c": number("nozzle_temperature_c", 0, 500),
+                        "bed_temperature_c": number("bed_temperature_c", 0, 200),
+                        "progress_percent": number("progress_percent", 0, 100),
+                        "remaining_minutes": integer("remaining_minutes"),
+                        "layer_number": integer("layer_number"),
+                        "total_layers": integer("total_layers")},
+            "ams": slots,
+            "error_code": error if isinstance(error, str) and error in _BAMBU_ERRORS else (None if status == "healthy" else "bambu_source_unavailable")}
 
 
 def _credential_path(name: str) -> Path | None:
@@ -143,6 +232,103 @@ class DashboardResourceTelemetry:
             return path
         return _credential_path(name)
 
+    def _credential_text(self, name: str) -> str | None:
+        path = self._credential(name)
+        if path is None:
+            return None
+        try:
+            value = path.read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError):
+            return None
+        return value if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", value) else None
+
+    def _optional_host_source(self, host: dict) -> dict:
+        prefix = host["credential_prefix"]
+        key = self._credential(prefix + "-key")
+        known_hosts = self._credential(prefix + "-known-hosts")
+        user = self._credential_text(prefix + "-user")
+        failed = {"state": "unavailable", "observed_at": None, "devices": [],
+                  "system_metrics": {"state": "unavailable", "observed_at": None,
+                                     "cpu_utilization_percent": None, "cpu_name": "Unavailable",
+                                     "memory_used_bytes": None, "memory_total_bytes": None,
+                                     "error_code": "host_telemetry_unavailable"},
+                  "storage": {"state": "unavailable", "observed_at": None, "volumes": [],
+                              "error_code": "host_telemetry_unavailable"},
+                  "error_code": "host_telemetry_credentials_unavailable"}
+        if key is None or known_hosts is None or user is None:
+            return failed
+        command = ["/usr/bin/ssh", "-T", "-p", _SSH_PORT, "-i", str(key),
+                   "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes",
+                   "-o", "PasswordAuthentication=no", "-o", "KbdInteractiveAuthentication=no",
+                   "-o", "StrictHostKeyChecking=yes", "-o", f"UserKnownHostsFile={known_hosts}",
+                   "-o", "GlobalKnownHostsFile=/dev/null", "-o", "ConnectTimeout=3",
+                   "-o", "ServerAliveInterval=3", "-o", "ServerAliveCountMax=1",
+                   "-o", "LogLevel=ERROR", f"{user}@{host['address']}", host["command"]]
+        try:
+            completed = self._runner(command, check=False, capture_output=True, text=True,
+                                     timeout=5.0, env={"LC_ALL": "C"})
+            if completed.returncode != 0 or len(completed.stdout.encode("utf-8")) > MAX_RESPONSE_BYTES:
+                failed["error_code"] = "host_telemetry_unreachable"
+                return failed
+            payload = json.loads(completed.stdout)
+            if (not isinstance(payload, dict) or
+                    payload.get("schema_version") != "rv.gpu-host-telemetry.v1" or
+                    not isinstance(payload.get("devices"), list) or len(payload["devices"]) > 32):
+                failed["error_code"] = "host_telemetry_schema_invalid"
+                return failed
+            observed = payload.get("observed_at") if isinstance(payload.get("observed_at"), str) else None
+            devices = []
+            for raw in payload["devices"]:
+                if not isinstance(raw, dict):
+                    continue
+                index = _safe_integer(raw.get("index"))
+                if index is None:
+                    continue
+                used, total = _safe_integer(raw.get("memory_used_bytes")), _safe_integer(raw.get("memory_total_bytes"))
+                if used is not None and total is not None and used > total:
+                    used = total = None
+                utilization = _safe_integer(raw.get("utilization_percent"))
+                if utilization is not None and utilization > 100:
+                    utilization = None
+                temperature = _safe_integer(raw.get("temperature_celsius"))
+                if temperature is not None and temperature > 200:
+                    temperature = None
+                power = raw.get("power_watts")
+                if isinstance(power, bool) or not isinstance(power, (int, float)) or not 0 <= power <= 10000:
+                    power = None
+                fan = _safe_integer(raw.get("fan_percent"))
+                if fan is not None and fan > 100:
+                    fan = None
+                devices.append({"index": index, "name": _bounded_text(raw.get("name"), _GPU_NAME, "Unknown GPU"),
+                                "memory_used_bytes": used, "memory_total_bytes": total,
+                                "utilization_percent": utilization, "temperature_celsius": temperature,
+                                "power_watts": power, "fan_percent": fan, "active_services": [],
+                                "observed_at": observed, "source": "nvidia-smi"})
+            system_metrics = self._project_system_metrics(payload, observed)
+            return {"state": "healthy" if observed and (devices or system_metrics["state"] == "healthy") else "unavailable",
+                    "observed_at": observed, "devices": devices, "system_metrics": system_metrics,
+                    "storage": project_remote_volumes(host["host_id"], payload), "error_code": None}
+        except (OSError, subprocess.SubprocessError, ValueError, TypeError, json.JSONDecodeError):
+            failed["error_code"] = "host_telemetry_source_unavailable"
+            return failed
+
+    @staticmethod
+    def _project_system_metrics(payload: dict, observed: str | None) -> dict:
+        metrics = payload.get("host_metrics") if isinstance(payload.get("host_metrics"), dict) else {}
+        cpu = metrics.get("cpu_utilization_percent")
+        if isinstance(cpu, bool) or not isinstance(cpu, (int, float)) or not 0 <= cpu <= 100:
+            cpu = None
+        memory_total = _safe_integer(metrics.get("memory_total_bytes"))
+        memory_used = _safe_integer(metrics.get("memory_used_bytes"))
+        if memory_total is None or memory_total == 0 or memory_used is None or memory_used > memory_total:
+            memory_total = memory_used = None
+        metric_observed = metrics.get("observed_at") if isinstance(metrics.get("observed_at"), str) else observed
+        available = cpu is not None or memory_total is not None
+        return {"state": "healthy" if available else "unavailable", "observed_at": metric_observed,
+                "cpu_utilization_percent": cpu,
+                "cpu_name": _bounded_text(metrics.get("cpu_name"), _GPU_NAME, "Unavailable"),
+                "memory_used_bytes": memory_used, "memory_total_bytes": memory_total,
+                "error_code": None if available else "system_metrics_unavailable"}
     def _gpu_source(self) -> dict:
         observed = _utc_now()
         key = self._credential("resource-telemetry-key")
@@ -150,8 +336,10 @@ class DashboardResourceTelemetry:
         if key is None or known_hosts is None:
             return {"state": "unavailable", "observed_at": None,
                     "error_code": "telemetry_credentials_unavailable", "devices": [],
+                    "system_metrics": self._project_system_metrics({}, None),
                     "storage": {"state": "unavailable", "observed_at": None,
-                                "volumes": [], "error_code": "storage_credentials_unavailable"}}
+                                "volumes": [], "error_code": "storage_credentials_unavailable"},
+                    "bambu_printer": _project_bambu_status(None)}
         command = [
             "/usr/bin/ssh", "-T", "-p", _SSH_PORT,
             "-i", str(key),
@@ -174,15 +362,20 @@ class DashboardResourceTelemetry:
             if completed.returncode != 0 or len(completed.stdout.encode("utf-8")) > MAX_RESPONSE_BYTES:
                 return {"state": "unavailable", "observed_at": None,
                         "error_code": "gpu_source_unreachable", "devices": [],
+                        "system_metrics": self._project_system_metrics({}, None),
                         "storage": {"state": "unavailable", "observed_at": None,
-                                    "volumes": [], "error_code": "storage_source_unreachable"}}
+                                    "volumes": [], "error_code": "storage_source_unreachable"},
+                        "bambu_printer": _project_bambu_status(None)}
             payload = json.loads(completed.stdout)
+            bambu_printer = _project_bambu_status(payload.get("bambu_status") if isinstance(payload, dict) else None)
             if (not isinstance(payload, dict) or
                     payload.get("schema_version") != "rv.gpu-host-telemetry.v1" or
                     not isinstance(payload.get("devices"), list) or len(payload["devices"]) > 32):
                 return {"state": "unavailable", "observed_at": None,
                         "error_code": "gpu_source_schema_invalid", "devices": [],
-                        "storage": project_remote_volumes("octominer1", payload)}
+                        "system_metrics": self._project_system_metrics({}, None),
+                        "storage": project_remote_volumes("octominer1", payload),
+                        "bambu_printer": bambu_printer}
             devices = []
             for raw in payload["devices"]:
                 if not isinstance(raw, dict):
@@ -235,12 +428,16 @@ class DashboardResourceTelemetry:
                     "observed_at": source_time,
                     "error_code": None if devices else "gpu_inventory_empty",
                     "devices": devices,
-                    "storage": project_remote_volumes("octominer1", payload)}
+                    "system_metrics": self._project_system_metrics(payload, source_time),
+                    "storage": project_remote_volumes("octominer1", payload),
+                    "bambu_printer": bambu_printer}
         except (OSError, subprocess.SubprocessError, ValueError, TypeError, json.JSONDecodeError):
             return {"state": "unavailable", "observed_at": None,
                     "error_code": "gpu_source_unavailable", "devices": [],
+                    "system_metrics": self._project_system_metrics({}, None),
                     "storage": {"state": "unavailable", "observed_at": None,
-                                "volumes": [], "error_code": "storage_source_unavailable"}}
+                                "volumes": [], "error_code": "storage_source_unavailable"},
+                    "bambu_printer": _project_bambu_status(None)}
 
     def _read_json(self, url: str) -> object:
         request = Request(url, headers={"Accept": "application/json"}, method="GET")
@@ -343,17 +540,17 @@ class DashboardResourceTelemetry:
     def read(self) -> dict:
         """Return the current result; failed sources are never filled from cache."""
         tasks = {}
-        with ThreadPoolExecutor(max_workers=4, thread_name_prefix="rv-resource-read") as pool:
+        with ThreadPoolExecutor(max_workers=6, thread_name_prefix="rv-resource-read") as pool:
             tasks["gpu"] = pool.submit(self._gpu_source)
             for source in _MODEL_SOURCES:
                 tasks[source["service_id"]] = pool.submit(self._model_source, source)
+            for host in _OPTIONAL_HOSTS:
+                tasks[host["host_id"]] = pool.submit(self._optional_host_source, host)
             results = {name: future.result(timeout=7.0) for name, future in tasks.items()}
         gpu = results["gpu"]
         camrui_storage = self._local_storage_source("camrui")
-        octominer2_storage = {"state": "unavailable", "observed_at": None,
-                              "volumes": [], "error_code": "host_telemetry_not_configured"}
-        windows_storage = {"state": "unavailable", "observed_at": None,
-                           "volumes": [], "error_code": "host_telemetry_not_configured"}
+        optional_hosts = {host["host_id"]: {**host, **results[host["host_id"]]}
+                          for host in _OPTIONAL_HOSTS}
         hosts = [
             {
                 "host_id": "camrui",
@@ -375,32 +572,36 @@ class DashboardResourceTelemetry:
                 "gpu_inventory": {"state": gpu["state"], "source": "nvidia-smi via restricted SSH",
                                   "observed_at": gpu["observed_at"], "error_code": gpu["error_code"],
                                   "devices": gpu["devices"]},
+                "system_metrics": gpu.get("system_metrics", self._project_system_metrics({}, gpu.get("observed_at"))),
                 "inference_servers": [results["grace-reasoning-80b"], results["grace-vision-30b"]],
                 "storage": gpu["storage"],
+                "bambu_printer": gpu.get("bambu_printer", _project_bambu_status(None)),
             },
             {
-                "host_id": "octominer2",
-                "display_name": "OctoMiner2",
-                "identity_state": "documented_unverified",
-                "state": "unavailable",
-                "observed_at": None,
-                "gpu_inventory": {"state": "unavailable", "source": "not_configured",
-                                  "observed_at": None, "devices": [],
-                                  "error_code": "host_identity_or_telemetry_not_verified"},
-                "inference_servers": [],
-                "storage": octominer2_storage,
+                "host_id": "octominer2", "display_name": "OCTO2",
+                "identity_state": "verified" if optional_hosts["octominer2"]["state"] == "healthy" else "documented_unverified",
+                "state": optional_hosts["octominer2"]["state"],
+                "observed_at": optional_hosts["octominer2"]["observed_at"],
+                "gpu_inventory": {"state": "healthy" if optional_hosts["octominer2"]["devices"] else "unavailable",
+                                  "source": "nvidia-smi via pinned read-only SSH" if optional_hosts["octominer2"]["devices"] else "not_observed",
+                                  "observed_at": optional_hosts["octominer2"]["observed_at"],
+                                  "devices": optional_hosts["octominer2"]["devices"],
+                                  "error_code": optional_hosts["octominer2"]["error_code"]},
+                "system_metrics": optional_hosts["octominer2"]["system_metrics"],
+                "inference_servers": [], "storage": optional_hosts["octominer2"]["storage"],
             },
             {
-                "host_id": "windows-development",
-                "display_name": "Windows development machine",
-                "identity_state": "documented_not_connected",
-                "state": "unavailable",
-                "observed_at": None,
-                "gpu_inventory": {"state": "unavailable", "source": "not_configured",
-                                  "observed_at": None, "devices": [],
-                                  "error_code": "host_telemetry_not_configured"},
-                "inference_servers": [],
-                "storage": windows_storage,
+                "host_id": "windows-development", "display_name": "Windows development machine",
+                "identity_state": "verified" if optional_hosts["windows-development"]["state"] == "healthy" else "documented_not_connected",
+                "state": optional_hosts["windows-development"]["state"],
+                "observed_at": optional_hosts["windows-development"]["observed_at"],
+                "gpu_inventory": {"state": "healthy" if optional_hosts["windows-development"]["devices"] else "unavailable",
+                                  "source": "nvidia-smi via pinned read-only SSH" if optional_hosts["windows-development"]["devices"] else "not_observed",
+                                  "observed_at": optional_hosts["windows-development"]["observed_at"],
+                                  "devices": optional_hosts["windows-development"]["devices"],
+                                  "error_code": optional_hosts["windows-development"]["error_code"]},
+                "system_metrics": optional_hosts["windows-development"]["system_metrics"],
+                "inference_servers": [], "storage": optional_hosts["windows-development"]["storage"],
             },
         ]
         sources = [host["state"] for host in hosts]

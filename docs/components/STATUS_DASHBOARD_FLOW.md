@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.17
+**Document Revision:** 1.0.19
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -77,6 +77,9 @@ flowchart LR
     g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f["Request browser download from the same ZIP Blob and retain a visible Download ZIP retry link"]
     g_rv_steward_dashboard_status_snapshot_archive_link_actions_dd928218["Show the confirmed private Release URL and Copy GitHub Link action"]
     g_rv_steward_dashboard_status_snapshot_download_start_failure_fc3a6df3[["Browser did not start the ZIP download; retain archive URL and local retry link"]]
+    g_rv_steward_dashboard_status_resource_bambu_source_07513a34["Read bounded local OCTO Control Bambu status through the existing restricted OCTO1 collector; retain only print and AMS fields"]
+    g_rv_steward_dashboard_status_resource_optional_host_sources_cff474a8["Read optional Windows and OCTO2 sources only with dedicated credentials, strict pinned host keys, fixed addresses and forced commands; otherwise return unavailable"]
+    g_rv_steward_dashboard_status_resource_host_system_metrics_8f86e920["Project timestamped CPU and memory readings from /proc or the fixed Windows forced command; retain null/unavailable values when missing"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -171,6 +174,12 @@ flowchart LR
   g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f -->|Keep the ZIP retry action and confirmed archive link visible| g_rv_steward_dashboard_status_snapshot_archive_link_actions_dd928218
   g_rv_steward_dashboard_status_archive_local_fallback_576863f0 -->|recovery_route: Archive failed; request local browser download from the original Blob| g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f
   g_rv_steward_dashboard_status_snapshot_download_same_blob_9a677a5f -->|diagnostic_branch: Browser failed to start the download; keep verified archive and local retry available| g_rv_steward_dashboard_status_snapshot_download_start_failure_fc3a6df3
+  g_rv_steward_dashboard_status_resource_gpu_source_5155a557 -->|The fixed OCTO1 collector reads only the local authenticated Bambu status GET and sanitizes its response| g_rv_steward_dashboard_status_resource_bambu_source_07513a34
+  g_rv_steward_dashboard_status_resource_bambu_source_07513a34 -->|Project fresh, stale, offline or unavailable printer/AMS values without exposing the local token| g_rv_steward_dashboard_status_resource_render_1188c907
+  g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73 -->|Collect optional Windows/OCTO2 telemetry only when pinned host credentials exist; otherwise skip SSH| g_rv_steward_dashboard_status_resource_optional_host_sources_cff474a8
+  g_rv_steward_dashboard_status_resource_optional_host_sources_cff474a8 -->|Sanitize fixed-schema host readings or preserve explicit unavailable measurements| g_rv_steward_dashboard_status_resource_host_system_metrics_8f86e920
+  g_rv_steward_dashboard_status_resource_gpu_source_5155a557 -->|Include timestamped OCTO1 CPU/RAM measurements from its fixed collector| g_rv_steward_dashboard_status_resource_host_system_metrics_8f86e920
+  g_rv_steward_dashboard_status_resource_host_system_metrics_8f86e920 -->|Return measured host system values with source timestamps or null unavailable values| g_rv_steward_dashboard_status_resource_render_1188c907
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

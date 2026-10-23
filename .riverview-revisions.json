@@ -25,7 +25,9 @@
       "size_bytes": 1296735
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.318"
+      "revision": "1.1.319",
+      "sha256": "732f503799d82561cf11ce83730644fe4c49f7eb5c8f6e0030dfea848ff75c81",
+      "size_bytes": 506693
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -683,9 +685,9 @@
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.2.4",
-      "sha256": "aaf031b33c80a247f24dde6d2131e405410cbf0934a54d8f4ef152bd87a49d94",
-      "size_bytes": 29962
+      "revision": "1.2.5",
+      "sha256": "0cd4a2f37d7a5f938ac65dd550a1ec8be6cea3c12657aa9b11df55650f4541b2",
+      "size_bytes": 43749
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
@@ -7847,9 +7849,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.30",
-      "sha256": "f8f3fe7cd6aae0996b8d0a475a1be679655479630d8a2486bb8eaa2db816d27d",
-      "size_bytes": 766537
+      "revision": "1.1.31",
+      "sha256": "e15cb10b55a298bb50b355eecef06267cf466d7549f81ecf9cff769eb606caaf",
+      "size_bytes": 771150
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7937,9 +7939,9 @@
     },
     "process_graphs/steward-dashboard/status.json": {
       "path": "process_graphs/steward-dashboard/status.json",
-      "revision": "1.1.27",
-      "sha256": "3e0c4979f57820577b58dab203669a69096ac2976391a6aa1613a8874ab7c44d",
-      "size_bytes": 64046
+      "revision": "1.1.28",
+      "sha256": "0014c13bbf63204a8d87c4b091867545fe34c976e824589e8c997892d4e3f961",
+      "size_bytes": 68104
     },
     "process_graphs/worker-adapter/comfyui-execution.json": {
       "path": "process_graphs/worker-adapter/comfyui-execution.json",
@@ -9550,6 +9552,6 @@
       "size_bytes": 15190
     }
   },
-  "manifest_revision": "1.1.318",
+  "manifest_revision": "1.1.319",
   "updated_at": "2026-10-23T02:19:41Z"
 }

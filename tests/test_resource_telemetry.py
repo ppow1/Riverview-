@@ -1,7 +1,7 @@
 """RIVERVIEW~ CONTROLLED SOURCE
 File: tests/test_resource_telemetry.py
 Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-Revision: 1.2.1
+Revision: 1.3.0
 Purpose: Verify bounded authenticated hardware, inference, and storage projections
 Execution Model: Isolated unittest fixtures
 Observability: Assertions for source status, redaction, readiness and unavailable data
@@ -12,6 +12,9 @@ Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Verify safe numeric slo
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Keep context telemetry unavailable when slots contain no numeric context measurements
 Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Verify host-scoped volume projection and unavailable states.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Validate complete storage telemetry projection against the versioned API schema.
+Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Verify sanitized authenticated printer status projection and secret-field removal.
+Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Reject malformed identity/status values while preserving the bounded projection contract.
+Changed: 2026-10-23 UTC | ISSUE-242 | Verify pinned optional host and system-metric projections.
 Contracts: docs/components/STATUS_DASHBOARD.md
 Tests: python -m unittest tests.test_resource_telemetry
 History: Git and .riverview-backups/manifest.jsonl
@@ -54,6 +57,20 @@ class ResourceTelemetryTests(unittest.TestCase):
                 "power_watts": 60.0, "fan_percent": None,
                 "active_services": ["grace-reasoning-80b", "evil"],
             }],
+            "bambu_status": {
+                "schema_version": "rv.octo.bambu-status.v1", "status": "healthy",
+                "connected": True, "observed_at": "2026-10-23T01:00:00Z",
+                "last_seen_at": "2026-10-23T00:59:59Z", "stale_after_seconds": 30,
+                "printer": {"state": "RUNNING", "nozzle_temperature_c": 219.5,
+                            "bed_temperature_c": 54, "progress_percent": 42,
+                            "remaining_minutes": 35, "layer_number": 71, "total_layers": 160,
+                            "access_code": "never-project-this"},
+                "ams": [{"unit": 0, "slot": index, "material": material,
+                         "remaining": 80, "color_hex": "AABBCCFF",
+                         "serial_number": "never-project-this"}
+                        for index, material in enumerate(("PLA", "PLA", "PLA", "PETG"))],
+                "error_code": None, "serial_number": "never-project-this",
+            },
         }
         def runner(command, **kwargs):
             self.assertIn("StrictHostKeyChecking=yes", command)
@@ -71,9 +88,42 @@ class ResourceTelemetryTests(unittest.TestCase):
         self.assertEqual(result["storage"]["state"], "healthy")
         self.assertEqual(result["storage"]["volumes"][0]["percent_used"], 40.0)
         self.assertEqual(result["storage"]["volumes"][0]["mount_point"], "/data")
+        printer = result["bambu_printer"]
+        self.assertEqual(printer["status"], "healthy")
+        self.assertEqual(printer["printer"]["progress_percent"], 42)
+        self.assertEqual([slot["material"] for slot in printer["ams"]], ["PLA", "PLA", "PLA", "PETG"])
         serialized = json.dumps(result)
-        for forbidden in ("GPU-secret-uuid", "12345"):
+        for forbidden in ("GPU-secret-uuid", "12345", "never-project-this"):
             self.assertNotIn(forbidden, serialized)
+
+    def test_bambu_projection_marks_offline_and_stale_without_inventing_values(self):
+        from riverview_core.status_dashboard.resource_telemetry import _project_bambu_status
+
+        offline = _project_bambu_status({"schema_version": "rv.octo.bambu-status.v1",
+                                         "status": "offline", "connected": False,
+                                         "observed_at": "2026-10-23T01:00:00Z",
+                                         "last_seen_at": None, "printer": {"state": "IDLE"},
+                                         "ams": [], "serial_number": "private"})
+        self.assertEqual(offline["status"], "offline")
+        self.assertIsNone(offline["printer"]["nozzle_temperature_c"])
+        self.assertEqual(offline["ams"], [])
+        self.assertNotIn("serial_number", json.dumps(offline))
+        self.assertEqual(_project_bambu_status({"schema_version": "wrong"})["status"], "unavailable")
+
+    def test_bambu_projection_rejects_untrusted_enum_and_boolean_slot_identifiers(self):
+        from riverview_core.status_dashboard.resource_telemetry import _project_bambu_status
+
+        self.assertEqual(_project_bambu_status({"schema_version": "rv.octo.bambu-status.v1",
+                                                "status": []})["status"], "unavailable")
+        projected = _project_bambu_status({
+            "schema_version": "rv.octo.bambu-status.v1", "status": "healthy",
+            "connected": True, "ams": [{"unit": True, "slot": False, "material": "PLA",
+                                         "remaining": 55, "color_hex": "AABBCCFF"}],
+            "printer": {}, "error_code": {},
+        })
+        self.assertIsNone(projected["ams"][0]["unit"])
+        self.assertIsNone(projected["ams"][0]["slot"])
+        self.assertEqual(projected["error_code"], None)
 
     def test_missing_credentials_fails_closed_without_running_ssh(self):
         with tempfile.TemporaryDirectory() as empty:

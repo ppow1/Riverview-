@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.35
+File Revision: 1.1.36
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document safe per-slot context projection and explicit KV-data limitation.
 Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Document the authorized post-deployment path for diagnosing historical Grace grounding failures.
 Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Document authorized Engineering Progress grounding diagnostics and same-objective recovery guidance.
@@ -13,6 +13,7 @@ Authority: Diagnostic and read-only operations only
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Add dedicated telemetry credential, source and rollback runbook.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Add live Grace text-activity diagnostics and distinguish missing server token metrics.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Document mounted-volume sources, host gaps, deduplication, and read-only validation.
+Changed: 2026-10-23 UTC | ISSUE-242 | Add safe Bambu/AMS collector checks and optional host unavailable-state diagnostics.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
@@ -1096,3 +1097,20 @@ After a controlled Dashboard release containing the storage collector, verify th
 - Expected successful result: `riverview-v2-<timestamp>-<capture-id>.zip` is downloaded and the status includes the confirmed private Release link and Copy GitHub Link. Manifest version is `v2`; the archive receipt must match capture ID, filename, size and SHA-256.
 - If GET returns 401/403, authenticate in the dashboard and retry. If archive POST returns 403, reload the dashboard to obtain a fresh CSRF cookie, then click Snapshot once. If archive fails after package creation, retain the local ZIP; do not report archive success. If browser download cannot start after archive confirmation, use the confirmed GitHub release link.
 - Resume point: `/v2/` Snapshot click. No service restart or database migration is needed for the route once the package is installed; deployment and service restart still require their separate release authorization. Rollback removes the V2 route/assets from the dashboard package and returns V2 users to the fixture-only LAN preview; it does not change archive assets or credentials.
+
+
+## Issue #242 — OCTO1 Bambu and optional host telemetry
+
+### Read-only OCTO1 collector check
+
+The OCTO1 restricted collector is the only Dashboard-to-OCTO1 path. On Camrui, the Dashboard service uses its existing `resource-telemetry-key` and pinned `resource-telemetry-known-hosts` systemd credentials with strict host-key validation. It invokes only the forced command `resource-telemetry`; never use an operator key or an unrestricted shell for these checks. The collector's Bambu request is local to OCTO1 (`127.0.0.1:8180/api/v1/bambu/status`), uses the existing root-owned `/opt/riverview-octo-control/control.token`, disables redirects and environment proxies, and is GET-only. Token bytes must never be printed, logged, copied to Camrui, or included in the JSON response. If the token is missing or invalid, the printer projection must remain `status=unavailable` with a sanitized error code. The historical local printer-status port `8765` is not used.
+
+After the controlled OCTO1 collector release, invoke the current Dashboard restricted telemetry read and inspect only whitelisted fields. Expected OCTO1 payload shape: `schema_version=rv.gpu-host-telemetry.v1`, bounded `devices`, and `bambu_status`; the Dashboard response projects this as `hosts[host_id=octominer1].bambu_printer`. Compare the source timestamp and `last_seen_at`; stale source samples must not be relabeled healthy. Anonymous `/api/v1/resources/telemetry` remains HTTP 401. No printer operation may be sent from this interface.
+
+### Optional Windows/OCTO2 source checks
+
+Optional SSH is never attempted unless all three host-specific systemd credentials exist and pass path-boundary validation: `resource-telemetry-<host>-key`, `resource-telemetry-<host>-known-hosts`, and `resource-telemetry-<host>-user`. The fixed destinations are Windows development `192.168.1.88` using `rv-windows-resource-telemetry` and OCTO2 `192.168.1.162` using `resource-telemetry`. Check credential names and owner/mode only; do not print key or known-host contents. Without credentials, expected state is `unavailable` with `host_telemetry_credentials_unavailable`, no SSH invocation, no GPU/CPU/RAM/storage values, and no false zero. With verified credentials but an offline endpoint, expect `host_telemetry_unreachable`; timeout is bounded to five seconds. OCTO2 is currently offline and should remain visibly unavailable. Do not provision new host keys, usernames, or credentials as part of this release.
+
+### Recovery
+
+If an optional host response is malformed, over 64 KiB, missing the fixed schema, or unreachable, the collector discards that source and preserves available Camrui/OCTO1/model results. If OCTO1 Bambu status fails while GPU/storage telemetry succeeds, the Dashboard still returns HTTP 200 with `bambu_printer.status=unavailable`; this is an optional field failure, not permission to retry a control endpoint. Roll back the Dashboard and OCTO1 collector independently to their exact protected predecessors. Do not restart or reconfigure inference, printer, or OCTO control services.

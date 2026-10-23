@@ -1,7 +1,7 @@
 """RIVERVIEW~ CONTROLLED SOURCE
 File: tests/test_gpu_telemetry_command.py
 Component: OCTOMINER1-RESTRICTED-GPU-TELEMETRY
-Revision: 1.1.1
+Revision: 1.2.0
 Purpose: Verify the forced read-only host collector and identifier redaction
 Execution Model: Isolated subprocess fixtures
 Observability: Assertions for NVIDIA CSV mapping, mounted storage, and unsupported values
@@ -10,6 +10,7 @@ Authority: Disposable fixtures only; no production host access
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial collector tests
 Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Verify mounted storage is included without pseudo-filesystems or duplicate mounts.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Verify optional mount enumeration failure does not suppress GPU measurements.
+Changed: 2026-10-23 UTC | ISSUE-242 | Verify timestamped CPU and RAM readings remain bounded and optional.
 Contracts: docs/components/STATUS_DASHBOARD.md
 Tests: python -m unittest tests.test_gpu_telemetry_command
 History: Git and .riverview-backups/manifest.jsonl
@@ -22,6 +23,16 @@ from scripts.rv_gpu_telemetry_command import collect
 
 
 class CollectorTests(unittest.TestCase):
+    def test_host_metrics_are_bounded_and_timestamped(self):
+        from scripts.rv_gpu_telemetry_command import _host_metrics
+        result = _host_metrics()
+        self.assertRegex(result["observed_at"], r"^\d{4}-\d\d-\d\dT.*Z$")
+        cpu = result["cpu_utilization_percent"]
+        self.assertTrue(cpu is None or 0 <= cpu <= 100)
+        total, used = result["memory_total_bytes"], result["memory_used_bytes"]
+        self.assertTrue((total is None and used is None) or
+                        (type(total) is int and type(used) is int and 0 <= used <= total))
+
     @patch.dict(os.environ, {}, clear=True)
     def test_rejects_invocation_without_forced_command_marker(self):
         with self.assertRaises(PermissionError):
