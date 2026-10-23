@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:riverview-v2:workspace-shell",
-  "graph_revision": "1.0.10",
+  "graph_revision": "1.0.11",
   "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
   "workflow_id": "local-static-preview",
   "diagram_order": 80,
@@ -12,18 +12,29 @@
     "scripts/setup_v2_workspace_preview_auth.py",
     "website/v2/assets/workspace.css",
     "website/v2/assets/snapshot.js",
-    "src/riverview_core/status_dashboard/server.py"
+    "src/riverview_core/status_dashboard/server.py",
+    "src/riverview_core/status_dashboard/manual_image_generation.py",
+    "src/riverview_core/worker_adapter/comfyui.py",
+    "deploy/systemd/riverview-status-dashboard-manual-comfyui.conf",
+    "website/v2/deployed/index.html",
+    "website/v2/deployed/assets/workspace.js",
+    "website/v2/deployed/assets/manual-image-generation.js",
+    "website/v2/deployed/assets/manual-image-generation.css"
   ],
   "documentation_references": [
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
-    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md"
+    "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
+    "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
   ],
   "verification_evidence": [
     "tests/test_v2_workspace_shell.py",
     "scripts/verify_v2_workspace_browser.py",
     "scripts/verify_v2_workspace_mobile.cjs",
-    "scripts/verify_v2_workspace_snapshot_chrome.py"
+    "scripts/verify_v2_workspace_snapshot_chrome.py",
+    "tests/test_manual_image_generation.py",
+    "tests/test_manual_image_generation_http.py",
+    "scripts/verify_v2_manual_image_generation_browser.py"
   ],
   "nodes": [
     {
@@ -564,6 +575,205 @@
         "tests/test_v2_workspace_shell.py",
         "scripts/verify_v2_workspace_snapshot_chrome.py"
       ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-open",
+      "node_revision": "1.0.0",
+      "type": "entry",
+      "label": "Open Manual Image Generation from V2 navigation",
+      "source_references": [
+        "website/v2/deployed/index.html",
+        "website/v2/deployed/assets/workspace.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-auth",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Require Dashboard account cookie, operator or Steward role, and CSRF for submission",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-denied",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Reject missing account session, insufficient role, or invalid CSRF",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-catalog",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Discover workflow definitions and parameter bindings from the registered runtime catalog",
+      "source_references": [
+        "src/riverview_core/status_dashboard/manual_image_generation.py",
+        "website/v2/deployed/assets/manual-image-generation.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-validate",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Validate UUID, workflow binding, and parameters before persisting the request",
+      "source_references": [
+        "src/riverview_core/status_dashboard/manual_image_generation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-submit",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist idempotent manual provenance and invoke the existing bounded ComfyUIAction",
+      "source_references": [
+        "src/riverview_core/status_dashboard/manual_image_generation.py",
+        "src/riverview_core/worker_adapter/comfyui.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-progress",
+      "node_revision": "1.0.0",
+      "type": "measurement",
+      "label": "Persist execution status and progress from the ComfyUI worker",
+      "source_references": [
+        "src/riverview_core/status_dashboard/manual_image_generation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-interrupted",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Resume durable requests through the existing ComfyUI action journal after Dashboard restart",
+      "source_references": [
+        "src/riverview_core/status_dashboard/manual_image_generation.py",
+        "src/riverview_core/worker_adapter/comfyui.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-verify",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Independently verify and validate PNG bytes, dimensions, ownership and digest",
+      "source_references": [
+        "src/riverview_core/worker_adapter/comfyui.py",
+        "src/riverview_core/status_dashboard/manual_image_generation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-download",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Serve owner-scoped preview and download through the authenticated artifact route",
+      "source_references": [
+        "src/riverview_core/status_dashboard/server.py",
+        "website/v2/deployed/assets/manual-image-generation.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-failed",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist worker, timeout, output, or verification failure without exposing unverified bytes",
+      "source_references": [
+        "src/riverview_core/status_dashboard/manual_image_generation.py"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
+    },
+    {
+      "id": "rv:riverview-v2:workspace-shell:manual-image-gpu-disabled",
+      "node_revision": "1.0.0",
+      "type": "decision",
+      "label": "Keep per-request GPU selection disabled while allocator or reservation identity is unavailable",
+      "source_references": [
+        "src/riverview_core/status_dashboard/manual_image_generation.py",
+        "website/v2/deployed/assets/manual-image-generation.js"
+      ],
+      "documentation_references": [
+        "docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md"
+      ],
+      "verification_evidence": [
+        "tests/test_manual_image_generation.py",
+        "tests/test_manual_image_generation_http.py"
+      ]
     }
   ],
   "edges": [
@@ -841,6 +1051,111 @@
       "to": "rv:riverview-v2:workspace-shell:snapshot-capture",
       "type": "runtime_transition",
       "label": "Snapshot includes status and null counts only; no messages, credentials, or fabricated zeros"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:choose-view",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-open",
+      "type": "runtime_transition",
+      "label": "Select Image generation"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-open",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-auth",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-auth",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-denied",
+      "type": "diagnostic_branch",
+      "label": "Cookie missing, role denied, or CSRF invalid"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-denied",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-open",
+      "type": "recovery_route",
+      "label": "Sign in through the Dashboard and retry"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-auth",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-catalog",
+      "type": "runtime_transition",
+      "label": "Authorized operator or Steward session"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-catalog",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-gpu-disabled",
+      "type": "runtime_transition",
+      "label": "Display configured worker; GPU selection remains unavailable"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-gpu-disabled",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-validate",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-validate",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-submit",
+      "type": "runtime_transition",
+      "label": "Inputs match the discovered workflow schema"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-validate",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-failed",
+      "type": "diagnostic_branch",
+      "label": "Unknown workflow or invalid parameter"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-submit",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-progress",
+      "type": "runtime_transition"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-submit",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-interrupted",
+      "type": "diagnostic_branch",
+      "label": "Dashboard interruption or indeterminate submit"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-interrupted",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-progress",
+      "type": "recovery_route",
+      "label": "Existing ComfyUI journal resumes the same request identity"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-progress",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-verify",
+      "type": "runtime_transition",
+      "label": "ComfyUI reports output complete"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-progress",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-failed",
+      "type": "diagnostic_branch",
+      "label": "Worker error, conflict, or timeout"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-verify",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-download",
+      "type": "verification",
+      "label": "Independent verifier accepts valid PNG"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-verify",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-failed",
+      "type": "diagnostic_branch",
+      "label": "Output identity, bytes, or media validation fails"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-failed",
+      "to": "rv:riverview-v2:workspace-shell:manual-image-open",
+      "type": "recovery_route",
+      "label": "Review history, then submit a new request ID"
+    },
+    {
+      "from": "rv:riverview-v2:workspace-shell:manual-image-download",
+      "to": "rv:riverview-v2:workspace-shell:choose-view",
+      "type": "runtime_transition",
+      "label": "Return to V2 workspace"
     }
   ]
 }

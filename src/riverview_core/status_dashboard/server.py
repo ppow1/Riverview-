@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.40
+# Revision: 1.3.42
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify artifact ownership and group-read layout at the authorized download boundary.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve bounded cancellation reasons through the exact-grant objective route.
@@ -16,6 +16,9 @@
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Filter durable Engineering progress by authenticated conversation origin
 # Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Serve the V2 shell through an allowlisted same-origin HTTPS route.
 # Changed: 2026-10-21 UTC | RV-V2-FULL-DIAGNOSTIC-SNAPSHOT-20261021 | Mark dashboard-served V2 pages so Snapshot mode does not depend on pathname matching.
+# Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Add account-session and CSRF-gated manual ComfyUI routes.
+# Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Initialize bounded query parsing before manual route authorization and handling.
+# Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Serve manual assets from the production V2 source bundle while preserving fixture preview sources.
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -93,6 +96,8 @@ _MAX_THREADS = 16
 _MAX_PAGE = 100
 _DOC_NAME = re.compile(r"^[A-Za-z0-9_-]+\.md$")
 _COMFYUI_ARTIFACT = re.compile(r"^/api/v1/assignments/([A-Za-z0-9:._-]{1,128})/artifacts/([1-8])$")
+_MANUAL_IMAGE_ITEM = re.compile(r"^/api/v1/manual-image-generations/([0-9a-f-]{36})$")
+_MANUAL_IMAGE_FILE = re.compile(r"^/api/v1/manual-image-generations/([0-9a-f-]{36})/image$")
 _NOTICE_WRITE = re.compile(
     r"^/api/v1/notifications/([0-9a-fA-F-]{36})/(delivered|acknowledge)$")
 _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
@@ -259,7 +264,7 @@ class _BoundedHTTPServer(HTTPServer):
                  objective_pipeline, conversation_service, account_auth_service,
                  permission_store, static_dir, proposal_registry,
                  steward_review_exchange=None, resource_telemetry=None,
-                 snapshot_archive=None):
+                 snapshot_archive=None, manual_image_generation=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -270,6 +275,7 @@ class _BoundedHTTPServer(HTTPServer):
         self._proposal_registry = proposal_registry
         self._snapshot_archive = snapshot_archive
         self._snapshot_archive_slots = threading.BoundedSemaphore(1)
+        self._manual_image_generation = manual_image_generation
         self._proposal_lifecycle = None
         if proposal_registry is not None and objective_pipeline is not None:
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
@@ -595,6 +601,11 @@ def make_handler():
         def _dispatch(self):
             request_id = secrets.token_hex(12)
             parsed = urlsplit(self.path)
+            try:
+                query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
+            except ValueError:
+                self._error(400, "invalid_query", request_id)
+                return
             notification_write = (_NOTICE_WRITE.fullmatch(parsed.path)
                                   if self.command == "POST" else None)
             objective_submit = (parsed.path == "/api/v1/objectives" and
@@ -640,6 +651,18 @@ def make_handler():
             proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
             comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
             snapshot_archive = parsed.path == _SNAPSHOT_ARCHIVE and self.command == "POST"
+            manual_image_catalog = (parsed.path == "/api/v1/manual-image-generations/catalog"
+                                    and self.command in {"GET", "HEAD"})
+            manual_image_list = (parsed.path == "/api/v1/manual-image-generations"
+                                 and self.command in {"GET", "HEAD"})
+            manual_image_submit = (parsed.path == "/api/v1/manual-image-generations"
+                                   and self.command == "POST")
+            manual_image_item = (_MANUAL_IMAGE_ITEM.fullmatch(parsed.path)
+                                 if self.command in {"GET", "HEAD"} else None)
+            manual_image_file = (_MANUAL_IMAGE_FILE.fullmatch(parsed.path)
+                                 if self.command in {"GET", "HEAD"} else None)
+            manual_image_api = bool(manual_image_catalog or manual_image_list or
+                                    manual_image_submit or manual_image_item or manual_image_file)
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -654,6 +677,7 @@ def make_handler():
                     and not proposal_work_orders and not proposal_command
                     and not comms5_operation
                     and not snapshot_archive
+                    and not manual_image_submit
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
@@ -683,10 +707,13 @@ def make_handler():
                 except ValueError:
                     self._error(503, "v2_ui_invalid_document", request_id)
                 return
-            v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js)", parsed.path)
+            v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js|manual-image-generation\.(?:js|css))", parsed.path)
             if v2_asset:
                 release_root = _release_root()
-                path = release_root / "website" / "v2" / "assets" / v2_asset.group(1)
+                source_root = (release_root / "website" / "v2" / "deployed"
+                               if v2_asset.group(1).startswith("manual-image-generation")
+                               else release_root / "website" / "v2")
+                path = source_root / "assets" / v2_asset.group(1)
                 kind = "image/svg+xml" if path.suffix == ".svg" else "text/css" if path.suffix == ".css" else "text/javascript"
                 try:
                     if path.is_symlink() or not path.is_file():
@@ -804,6 +831,106 @@ def make_handler():
                 if self.command != "HEAD":
                     self.wfile.write(body)
                 return
+            if manual_image_api:
+                identity = getattr(self, "_account_identity", None)
+                if (not getattr(self, "_account_cookie_authenticated", False) or
+                        not isinstance(identity, dict)):
+                    self._error(403, "manual_generation_account_session_required", request_id)
+                    return
+                try:
+                    self.server._account_auth_service.require_role(identity, "operator", "steward")
+                except Exception:
+                    self._error(403, "manual_generation_not_authorized", request_id)
+                    return
+                service = self.server._manual_image_generation
+                if service is None:
+                    self._error(503, "manual_generation_unavailable", request_id)
+                    return
+                try:
+                    if manual_image_catalog:
+                        if query:
+                            self._error(400, "invalid_query", request_id)
+                        else:
+                            self._json(200, service.catalog(), request_id)
+                        return
+                    if manual_image_submit:
+                        if (self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+                                != "application/json"):
+                            self._error(415, "manual_generation_json_required", request_id)
+                            return
+                        data = self._json_body(8 * 1024)
+                        if set(data) != {"request_id", "workflow_id", "parameters"}:
+                            self._error(400, "manual_generation_request_invalid", request_id)
+                            return
+                        roles = identity.get("roles", ())
+                        role = "steward" if "steward" in roles else "operator"
+                        result = service.submit(request_id=data["request_id"],
+                            actor_id=identity.get("account_id", ""), actor_role=role,
+                            workflow_id=data["workflow_id"], parameters=data["parameters"])
+                        self._json(202, result, request_id)
+                        return
+                    if manual_image_list:
+                        if query and set(query) - {"limit"}:
+                            self._error(400, "invalid_query", request_id)
+                            return
+                        steward = "steward" in identity.get("roles", ())
+                        rows = service.history(None if steward else identity.get("account_id"),
+                            limit=_bounded_limit(query.get("limit", [50])[0]))
+                        self._json(200, {"schema_version": "rv.manual-image.history.v1",
+                                         "items": rows}, request_id)
+                        return
+                    target = manual_image_file or manual_image_item
+                    if target:
+                        request_id_value = target.group(1)
+                        if manual_image_file:
+                            if query and set(query) - {"download"}:
+                                self._error(400, "invalid_query", request_id)
+                                return
+                            values = query.get("download", ["1"])
+                            if len(values) != 1 or values[0] not in {"0", "1"}:
+                                self._error(400, "invalid_query", request_id)
+                                return
+                            pair = service.image_bytes(request_id_value)
+                            if not pair:
+                                self._error(404, "manual_image_not_found", request_id)
+                                return
+                            record, image = pair
+                            if (record.get("actor_id") != identity.get("account_id") and
+                                    "steward" not in identity.get("roles", ())):
+                                self._error(403, "manual_image_not_authorized", request_id)
+                                return
+                            disposition = "attachment" if values[0] == "1" else "inline"
+                            self._send(200, image, "image/png", request_id, extra_headers=(
+                                ("Content-Disposition", f'{disposition}; filename="riverview-manual-{request_id_value}.png"'),
+                                ("X-Content-SHA256", record["artifact"]["sha256"])))
+                            return
+                        if query:
+                            self._error(400, "invalid_query", request_id)
+                            return
+                        record = service.get(request_id_value)
+                        if not record:
+                            self._error(404, "manual_image_not_found", request_id)
+                        elif (record.get("actor_id") != identity.get("account_id") and
+                                "steward" not in identity.get("roles", ())):
+                            self._error(403, "manual_image_not_authorized", request_id)
+                        else:
+                            self._json(200, record, request_id)
+                        return
+                except OverflowError:
+                    self._error(413, "manual_generation_request_too_large", request_id)
+                    return
+                except ValueError:
+                    self._error(400, "manual_generation_request_invalid", request_id)
+                    return
+                except Exception as exc:
+                    from riverview_core.status_dashboard.manual_image_generation import ManualImageError
+                    if isinstance(exc, ManualImageError):
+                        self._error(exc.status, exc.code, request_id)
+                    else:
+                        print(json.dumps({"event": "manual_image_request_failed",
+                            "request_id": request_id, "error_type": type(exc).__name__}), flush=True)
+                        self._error(503, "manual_generation_unavailable", request_id)
+                    return
             if snapshot_archive:
                 identity = getattr(self, "_account_identity", None)
                 if (not getattr(self, "_account_cookie_authenticated", False) or not identity
@@ -851,7 +978,6 @@ def make_handler():
                     self.server._snapshot_archive_slots.release()
                 return
             try:
-                query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
                 if comms5_operation:
                     if (self.headers.get("X-Riverview-Comms5") != "1"
                             or self.headers.get("X-Riverview-Comms5-Principal") != "steward"):
@@ -2201,7 +2327,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  conversation_service=None, account_auth_service=None,
                  permission_store=None, proposal_registry=None,
                  steward_review_exchange=None, resource_telemetry=None,
-                 snapshot_archive=None):
+                 snapshot_archive=None, manual_image_generation=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -2218,7 +2344,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          static_dir=static_dir, proposal_registry=proposal_registry,
                          steward_review_exchange=steward_review_exchange,
                          resource_telemetry=resource_telemetry,
-                         snapshot_archive=snapshot_archive)
+                         snapshot_archive=snapshot_archive,
+                         manual_image_generation=manual_image_generation)
 
 
 def _release_commit() -> str:
@@ -2504,6 +2631,32 @@ def main():
     except (OSError, ValueError):
         snapshot_archive = UnavailableSnapshotArchive("snapshot_archive_configuration_unavailable")
         print(json.dumps({"event": "snapshot_archive_configuration_unavailable"}), flush=True)
+    manual_image_generation = None
+    if os.environ.get("RIVERVIEW_COMFYUI_MANUAL_ENABLED") == "1":
+        try:
+            import grp
+            from riverview_core.status_dashboard.manual_image_generation import (
+                ManualImageGenerationService)
+            endpoint = os.environ.get("RIVERVIEW_COMFYUI_ENDPOINT", "")
+            registry_path = os.environ.get("RIVERVIEW_COMFYUI_WORKFLOW_REGISTRY", "")
+            artifact_root = os.environ.get("RIVERVIEW_COMFYUI_MANUAL_ARTIFACT_ROOT", "")
+            state_root = os.environ.get("RIVERVIEW_COMFYUI_MANUAL_STATE_ROOT", "")
+            if not all((endpoint, registry_path, artifact_root, state_root)):
+                raise ValueError("manual ComfyUI configuration incomplete")
+            group_name = os.environ.get("RIVERVIEW_COMFYUI_MANUAL_ARTIFACT_GROUP", "riverview")
+            group_gid = grp.getgrnam(group_name).gr_gid
+            manual_image_generation = ManualImageGenerationService(
+                endpoint=endpoint, registry_path=registry_path,
+                artifact_root=artifact_root, state_root=state_root,
+                artifact_group_gid=group_gid,
+                timeout_seconds=int(os.environ.get("RIVERVIEW_COMFYUI_TIMEOUT_SECONDS", "900")),
+                poll_interval=float(os.environ.get("RIVERVIEW_COMFYUI_POLL_SECONDS", "1")))
+            print(json.dumps({"event": "manual_comfyui_ready",
+                "workflow_count": len(manual_image_generation.registry._templates),
+                "gpu_selection_supported": False}), flush=True)
+        except Exception as exc:
+            print(json.dumps({"event": "manual_comfyui_unavailable",
+                "error_type": type(exc).__name__}), flush=True)
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
@@ -2513,7 +2666,8 @@ def main():
                                  proposal_registry=proposal_registry,
                                  steward_review_exchange=steward_review_exchange,
                                  resource_telemetry=resource_telemetry,
-                                 snapshot_archive=snapshot_archive)
+                                 snapshot_archive=snapshot_archive,
+                                 manual_image_generation=manual_image_generation)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

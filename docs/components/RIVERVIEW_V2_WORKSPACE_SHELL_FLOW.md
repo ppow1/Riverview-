@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.11
+File Revision: 1.0.12
 Purpose: Show normal, decision, failure, and recovery paths for loopback and authenticated LAN preview
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Extend generated process view for authenticated LAN access
@@ -50,6 +50,18 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_snapshot_local_fallback_5782198a["Retain local ZIP download when archive request fails"]
     g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207["Open the deployed authenticated V1 Grace chat; do not transfer credentials or history across origins"]
     g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5["Keep Comms5 send/receive counts and inspectable messages UNVERIFIED when no authorized event feed exists"]
+    g_rv_riverview_v2_workspace_shell_manual_image_open_94fa6aaf(["Open Manual Image Generation from V2 navigation"])
+    g_rv_riverview_v2_workspace_shell_manual_image_auth_980cfa84{"Require Dashboard account cookie, operator or Steward role, and CSRF for submission"}
+    g_rv_riverview_v2_workspace_shell_manual_image_denied_8b33063e[["Reject missing account session, insufficient role, or invalid CSRF"]]
+    g_rv_riverview_v2_workspace_shell_manual_image_catalog_e52597f6["Discover workflow definitions and parameter bindings from the registered runtime catalog"]
+    g_rv_riverview_v2_workspace_shell_manual_image_validate_666b6204{"Validate UUID, workflow binding, and parameters before persisting the request"}
+    g_rv_riverview_v2_workspace_shell_manual_image_submit_5157edc9["Persist idempotent manual provenance and invoke the existing bounded ComfyUIAction"]
+    g_rv_riverview_v2_workspace_shell_manual_image_progress_6829a78f["Persist execution status and progress from the ComfyUI worker"]
+    g_rv_riverview_v2_workspace_shell_manual_image_interrupted_d3c8d138["Resume durable requests through the existing ComfyUI action journal after Dashboard restart"]
+    g_rv_riverview_v2_workspace_shell_manual_image_verify_f0fc10a3["Independently verify and validate PNG bytes, dimensions, ownership and digest"]
+    g_rv_riverview_v2_workspace_shell_manual_image_download_63653eba["Serve owner-scoped preview and download through the authenticated artifact route"]
+    g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e[["Persist worker, timeout, output, or verification failure without exposing unverified bytes"]]
+    g_rv_riverview_v2_workspace_shell_manual_image_gpu_disabled_fefa7853{"Keep per-request GPU selection disabled while allocator or reservation identity is unavailable"}
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
@@ -99,6 +111,24 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227 -->|Steward opens authenticated V1 Dashboard Grace chat in a separate tab| g_rv_riverview_v2_workspace_shell_grace_chat_handoff_29224207
   g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227 -->|No authorized V2 Comms5 event feed is connected| g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5
   g_rv_riverview_v2_workspace_shell_comms5_unverified_fbb092d5 -->|Snapshot includes status and null counts only; no messages, credentials, or fabricated zeros| g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
+  g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Select Image generation| g_rv_riverview_v2_workspace_shell_manual_image_open_94fa6aaf
+  g_rv_riverview_v2_workspace_shell_manual_image_open_94fa6aaf --> g_rv_riverview_v2_workspace_shell_manual_image_auth_980cfa84
+  g_rv_riverview_v2_workspace_shell_manual_image_auth_980cfa84 -->|diagnostic_branch: Cookie missing, role denied, or CSRF invalid| g_rv_riverview_v2_workspace_shell_manual_image_denied_8b33063e
+  g_rv_riverview_v2_workspace_shell_manual_image_denied_8b33063e -->|recovery_route: Sign in through the Dashboard and retry| g_rv_riverview_v2_workspace_shell_manual_image_open_94fa6aaf
+  g_rv_riverview_v2_workspace_shell_manual_image_auth_980cfa84 -->|Authorized operator or Steward session| g_rv_riverview_v2_workspace_shell_manual_image_catalog_e52597f6
+  g_rv_riverview_v2_workspace_shell_manual_image_catalog_e52597f6 -->|Display configured worker; GPU selection remains unavailable| g_rv_riverview_v2_workspace_shell_manual_image_gpu_disabled_fefa7853
+  g_rv_riverview_v2_workspace_shell_manual_image_gpu_disabled_fefa7853 --> g_rv_riverview_v2_workspace_shell_manual_image_validate_666b6204
+  g_rv_riverview_v2_workspace_shell_manual_image_validate_666b6204 -->|Inputs match the discovered workflow schema| g_rv_riverview_v2_workspace_shell_manual_image_submit_5157edc9
+  g_rv_riverview_v2_workspace_shell_manual_image_validate_666b6204 -->|diagnostic_branch: Unknown workflow or invalid parameter| g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e
+  g_rv_riverview_v2_workspace_shell_manual_image_submit_5157edc9 --> g_rv_riverview_v2_workspace_shell_manual_image_progress_6829a78f
+  g_rv_riverview_v2_workspace_shell_manual_image_submit_5157edc9 -->|diagnostic_branch: Dashboard interruption or indeterminate submit| g_rv_riverview_v2_workspace_shell_manual_image_interrupted_d3c8d138
+  g_rv_riverview_v2_workspace_shell_manual_image_interrupted_d3c8d138 -->|recovery_route: Existing ComfyUI journal resumes the same request identity| g_rv_riverview_v2_workspace_shell_manual_image_progress_6829a78f
+  g_rv_riverview_v2_workspace_shell_manual_image_progress_6829a78f -->|ComfyUI reports output complete| g_rv_riverview_v2_workspace_shell_manual_image_verify_f0fc10a3
+  g_rv_riverview_v2_workspace_shell_manual_image_progress_6829a78f -->|diagnostic_branch: Worker error, conflict, or timeout| g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e
+  g_rv_riverview_v2_workspace_shell_manual_image_verify_f0fc10a3 -->|verification: Independent verifier accepts valid PNG| g_rv_riverview_v2_workspace_shell_manual_image_download_63653eba
+  g_rv_riverview_v2_workspace_shell_manual_image_verify_f0fc10a3 -->|diagnostic_branch: Output identity, bytes, or media validation fails| g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e
+  g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e -->|recovery_route: Review history, then submit a new request ID| g_rv_riverview_v2_workspace_shell_manual_image_open_94fa6aaf
+  g_rv_riverview_v2_workspace_shell_manual_image_download_63653eba -->|Return to V2 workspace| g_rv_riverview_v2_workspace_shell_choose_view_161dc67b
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

@@ -1,0 +1,57 @@
+/*
+Riverview~ Controlled Source
+File: website/v2/assets/manual-image-generation.css
+Component: V2-MANUAL-IMAGE-GENERATION
+File Revision: 1.0.0
+Purpose: Responsive styling for the authenticated manual ComfyUI workspace
+Execution Model: Browser presentation stylesheet
+Observability: Layout and controls verified in V2 browser acceptance
+Dependencies: V2 workspace tokens and manual-image-generation.js DOM IDs
+Authority: Presentation only; no network, credential, GPU, or service authority
+Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Initial controlled stylesheet.
+Contracts: docs/components/RIVERVIEW_V2_MANUAL_IMAGE_GENERATION.md
+Tests: scripts/verify_v2_manual_image_generation_browser.py
+History: Git and revision/backup manifest
+*/
+.manual-image[hidden]{display:none!important}
+.manual-image{display:grid;gap:16px;padding:4px 0 28px}
+.manual-image-heading,.manual-image-history-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.manual-image-heading h2{margin:6px 0;font:400 28px Georgia,"Times New Roman",serif}
+.manual-image-heading button,.manual-image button,.manual-image-download{border:1px solid var(--line);border-radius:7px;background:var(--teal);color:#fff;padding:9px 12px;font:inherit;font-size:11px;font-weight:650;text-decoration:none;cursor:pointer}
+:root[data-theme="dark"] .manual-image-heading button,:root[data-theme="dark"] .manual-image button,:root[data-theme="dark"] .manual-image-download{color:#102522}
+.manual-image button:disabled{opacity:.5;cursor:not-allowed}
+.manual-image-grid{display:grid;grid-template-columns:minmax(280px,.82fr) minmax(320px,1.18fr);gap:14px;align-items:start}
+.manual-image-card{min-width:0;padding:15px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:var(--shadow)}
+.manual-image-card h3{margin:0 0 12px;font-size:14px}
+#manual-image-form{display:grid;gap:10px}
+#manual-image-form label,.manual-image-field label,.manual-image-gpu label{display:block;margin-bottom:4px;color:var(--text-soft);font-size:10px;font-weight:650;text-transform:capitalize}
+#manual-image-form select,#manual-image-form input,#manual-image-form textarea{box-sizing:border-box;width:100%;min-height:36px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);padding:7px 8px;font:inherit;font-size:11px}
+#manual-image-form textarea{min-height:86px;resize:vertical}
+#manual-image-form select:disabled{opacity:.75}
+.manual-image-parameters{display:grid;gap:9px}
+.manual-image-field{min-width:0}
+.manual-image-note{margin:0;color:var(--muted);font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+.manual-image-note[data-state="error"]{color:#aa332d}
+:root[data-theme="dark"] .manual-image-note[data-state="error"]{color:#ffb1a9}
+.manual-image-gpu{display:grid;gap:7px;margin:0;padding:10px;border:1px solid var(--line);border-radius:7px}
+.manual-image-gpu legend{padding:0 4px;font-size:11px;font-weight:700}
+.manual-image-inventory{max-height:180px;overflow:auto;border-top:1px solid var(--line);padding-top:6px}
+.manual-image-inventory h4{margin:3px 0 6px;font-size:10px}
+.manual-image-inventory ul{display:grid;gap:5px;margin:0;padding-left:16px;color:var(--muted);font-size:9px;line-height:1.4}
+.manual-image-result{display:grid;align-content:start;gap:10px}
+.manual-image-preview{display:grid;place-items:center;min-height:250px;max-height:65vh;overflow:auto;border:1px dashed var(--line);border-radius:7px;background:var(--surface-soft);color:var(--muted)}
+.manual-image-preview p{padding:14px;font-size:11px;text-align:center}
+.manual-image-preview img{display:block;max-width:100%;max-height:65vh;object-fit:contain}
+.manual-image-meta{display:grid;gap:3px;min-width:0}
+.manual-image-meta-row{margin:0;font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+.manual-image-meta-row b{color:var(--text-soft)}
+.manual-image-meta-row span{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;overflow-wrap:anywhere}
+.manual-image-download{justify-self:start;margin-top:6px}
+.manual-image-history{display:grid;gap:8px}
+.manual-image-history-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.manual-image-history-item{min-width:0;padding:10px;border:1px solid var(--line);border-radius:7px;background:var(--surface-soft)}
+.manual-image-history-item>b{display:block;font-size:10px;overflow-wrap:anywhere}
+.manual-image-history-item>p{margin:5px 0;color:var(--muted);font-size:9px;overflow-wrap:anywhere}
+.manual-image-history-item button{padding:5px 8px;background:var(--surface);color:var(--ink);font-size:9px}
+@media(max-width:850px){.manual-image-grid{grid-template-columns:1fr}.manual-image-heading{align-items:flex-start}.manual-image-preview{min-height:190px}}
+@media(max-width:520px){.manual-image{gap:10px}.manual-image-heading h2{font-size:23px}.manual-image-card{padding:11px}.manual-image-heading button{padding:7px 8px;font-size:9px}}
