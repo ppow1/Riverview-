@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_PERSISTENT_EXECUTION.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.23
+File Revision: 1.0.24
+Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Document the authenticated exact-grant grounded cancellation and audit contract.
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Document lifecycle criteria, ready-work-first cycle order, and Grace's durable completion decision
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate generation-aware review recovery with active operational diagnostics.
 Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Source the durable publication acknowledgement cycle from the persisted result outbox
@@ -79,7 +80,7 @@ All `/api/v1` operations require `Authorization: Bearer <dashboard credential>`.
 | --- | --- | --- |
 | `POST /api/v1/objectives` | `X-Riverview-Authority` carrying exact `objective.submit` grant for `scope_ref` | JSON `{objective_id, request, acceptance_criteria, scope_ref}`. Returns 202 with `RECEIVED`, `GROUNDED`, or `WAITING_FOR_EVIDENCE`. Body limit 16 KiB; request/evidence limits remain pipeline-enforced. |
 | `POST /api/v1/objectives/{id}/proposal` | Dashboard credential plus exact `assignment.create` grant for objective scope | JSON `{summary, steps:[{step_id, objective, acceptance_criteria, depends_on}], tokens_used}`. Returns 202 once the existing PlanProposal validation and full human criteria checks pass. |
-| `POST /api/v1/objectives/{id}/cancel` | `X-Riverview-Authority` carrying exact `assignment.cancel` grant in the same scope | JSON `{scope_ref}`. Only the existing pre-execution queued/ready cancellation is allowed. |
+| `POST /api/v1/objectives/{id}/cancel` | `X-Riverview-Authority` carrying exact `assignment.cancel` grant in the same scope | JSON `{scope_ref}` with optional bounded `reason` for existing work-order cancellation; grounded cancellation requires an explicit reason. `GROUNDED` may transition to `CANCELLED` only when objective assignment, assignment-ledger row, dispatch event, and active step activity are absent. The append-only cancellation event records principal, reason, resulting revision, and timestamp. `WORK_ORDER_CREATED` remains queued/ready-only. |
 | `GET /api/v1/objectives?limit=N` | Dashboard credential | Bounded objective, assignment state, artifact digest/reference, verifier decision, and source revision projection. |
 | `GET /api/v1/objectives/{id}` | Dashboard credential | Same projection for one objective. |
 | `GET /api/v1/status` | Dashboard credential | Includes Grace service instance, status, heartbeat age, last cycle, cycle count, and sanitized error type when its health migration is present. |
@@ -90,7 +91,7 @@ API errors never log request text or credentials. Missing/invalid exact grants r
 
 The service is configured for one exact `work-order:` scope, a registered executor with `engineering.bounded-artifact.v1`, and a distinct verifier with `assignment.verify.v1`. Its only current worker action writes one assignment-derived JSON artifact in a private 0700 workspace; no shell command, caller-supplied path, model, or arbitrary code execution is available. Artifact bytes are reopened and checked independently before acceptance.
 
-The default runner sets three persisted dispatch failures, three persisted retry-safe lease recoveries, and three persisted verifier invocation failures per attempt before leaving work for operator review. Retry exhaustion and verifier failures remain visible in objective projections. The execution retry ceiling is enforced by the worker recovery coordinator and its `retry_exhausted` record; no retry count is stored only in process memory. Verifier failures are isolated per candidate, so one malformed result cannot starve other assignments in a poll. Conversation result publication retries from objective state and uses a deterministic response ID. Side effects of this bounded artifact action are idempotent by assignment and content. Other capabilities must supply their own effect classification and recovery contract. Cancellation uses the pre-execution exact-grant pipeline path. A running action is never force-cancelled.
+The default runner sets three persisted dispatch failures, three persisted retry-safe lease recoveries, and three persisted verifier invocation failures per attempt before leaving work for operator review. Retry exhaustion and verifier failures remain visible in objective projections. The execution retry ceiling is enforced by the worker recovery coordinator and its `retry_exhausted` record; no retry count is stored only in process memory. Verifier failures are isolated per candidate, so one malformed result cannot starve other assignments in a poll. Conversation result publication retries from objective state and uses a deterministic response ID. Side effects of this bounded artifact action are idempotent by assignment and content. Other capabilities must supply their own effect classification and recovery contract. Cancellation reuses the exact `assignment.cancel` grant and append-only objective event stream; grounded cancellation is idempotent for the same reason, and a running action is never force-cancelled.
 
 ## Runtime configuration and commissioning boundary
 

@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.67",
+      "graph_revision": "1.0.68",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3202,6 +3202,22 @@
           ],
           "verification_evidence": [
             "tests/test_status_dashboard.py",
+            "tests/test_grace_execution.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:grounded-objective-cancellation",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Authorized assignment.cancel may transition GROUNDED to CANCELLED only with an explicit reason and no objective assignment, ledger assignment, dispatch event, or active step; actor, reason, resulting revision, timestamp, and append-only event are retained. Existing WORK_ORDER_CREATED cancellation remains queued/ready-only.",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/status_dashboard/server.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_PERSISTENT_EXECUTION.md"
+          ],
+          "verification_evidence": [
             "tests/test_grace_execution.py"
           ]
         },
@@ -4205,6 +4221,12 @@
         }
       ],
       "edges": [
+        {
+          "from": "rv:grace:operational-integration:governed-objective-api",
+          "to": "rv:grace:operational-integration:grounded-objective-cancellation",
+          "type": "recovery_route",
+          "label": "Steward-authorized exact assignment.cancel retires eligible grounded objectives without Engineering assignment or dispatch"
+        },
         {
           "from": "rv:grace:operational-integration:objective-intake",
           "to": "rv:grace:operational-integration:authority-check",
@@ -15224,6 +15246,7 @@
     "rv:grace:operational-integration:governed-objective-api",
     "rv:grace:operational-integration:grace-rejection-review",
     "rv:grace:operational-integration:grace-satisfied-verifier-recheck",
+    "rv:grace:operational-integration:grounded-objective-cancellation",
     "rv:grace:operational-integration:independent-artifact-check",
     "rv:grace:operational-integration:internal-tool-call",
     "rv:grace:operational-integration:internal-tool-consume",
