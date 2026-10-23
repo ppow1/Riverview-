@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.316",
+      "revision": "1.1.317",
       "sha256": "cd29b05e7f50a0aaabec077e2ad8842436ab3950c5aac18139750b7a775a2fb9",
       "size_bytes": 23559
     },
@@ -92,9 +92,9 @@
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.2.3",
-      "sha256": "aaf031b33c80a247f24dde6d2131e405410cbf0934a54d8f4ef152bd87a49d94",
-      "size_bytes": 29962
+      "revision": "1.2.4",
+      "sha256": "8a911351c5f240f86bb8b6e1529b98e039c97dfc4aee00186c43f734c0be90a6",
+      "size_bytes": 32628
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
@@ -242,9 +242,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.26",
-      "sha256": "254d22ac312849f78f1c6f9359d2e0501626cf0711693b3a331122560de39e95",
-      "size_bytes": 698505
+      "revision": "1.1.27",
+      "sha256": "d345c67788f3b12f605717dccf6471ee58a6a0e0796780dcb03c7777291aeda4",
+      "size_bytes": 700096
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -326,9 +326,9 @@
     },
     "process_graphs/steward-dashboard/status.json": {
       "path": "process_graphs/steward-dashboard/status.json",
-      "revision": "1.1.23",
-      "sha256": "be58976da0e4edb8e8e54991dc784452d21fcac68f938459314ffcc0244b5b0e",
-      "size_bytes": 48923
+      "revision": "1.1.24",
+      "sha256": "874f29e98b3430fc8e5c486995ac074726a33d73bf79661d64e3d2a1d6f8fbf9",
+      "size_bytes": 50329
     },
     "process_graphs/worker-adapter/deterministic-attempt.json": {
       "path": "process_graphs/worker-adapter/deterministic-attempt.json",
@@ -511,6 +511,6 @@
       "size_bytes": 26074
     }
   },
-  "manifest_revision": "1.1.313",
+  "manifest_revision": "1.1.317",
   "updated_at": "2026-10-22T14:46:00Z"
 }

@@ -1,7 +1,7 @@
 <!-- Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.34
+File Revision: 1.1.36
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document safe per-slot context projection and explicit KV-data limitation.
 Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Document the authorized post-deployment path for diagnosing historical Grace grounding failures.
 Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Document authorized Engineering Progress grounding diagnostics and same-objective recovery guidance.
@@ -10,6 +10,8 @@ Authority: Diagnostic and read-only operations only
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Add dedicated telemetry credential, source and rollback runbook.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Add live Grace text-activity diagnostics and distinguish missing server token metrics.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Document mounted-volume sources, host gaps, deduplication, and read-only validation.
+Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Add read-only OCTO Control collection checks and credential failure behavior.
+Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Reject OCTO Control redirects so the local bearer credential remains bound to the fixed loopback request.
 Changed: 2026-10-11 UTC | RV-OPS-COOKBOOK-001 | Link consolidated recovery guide and correct CME unit name
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Link durable notification receipt diagnostics
 Changed: 2026-10-11 UTC | RV-OPS-DASHBOARD-CURRENT-DOCS-RELEASE | Document immutable composite docs release provenance and verification
@@ -47,6 +49,25 @@ Predecessor: .riverview-backups/20261020T153250380083Z/docs/components/STATUS_DA
 History: Git and revision/backup manifest
 -->
 # Status dashboard read-only troubleshooting cookbook
+
+## OCTO1 Bambu status appears unavailable
+
+The Dashboard does not connect to Bambu MQTT or the printer directly. Its
+existing strict-host-key `resource-telemetry` SSH call runs the OCTO1 forced
+command, which then makes a fixed local `GET` to OCTO Control at
+`127.0.0.1:8180/api/v1/bambu/status`. Redirects are rejected so the local
+bearer credential is never forwarded. Check the OCTO1 service/API and its local
+read-only status contract first. The forced command expects
+`/opt/riverview-octo-control/control.token` to be a regular, non-symlink file
+owned by the command's effective user, mode `0400` or `0600`, containing the
+existing OCTO Control token. The collector reads it locally and never prints,
+returns, or copies it. Do not place it in a repository, Dashboard environment,
+browser, or diagnostic output. A missing/incorrect permission, HTTP 401/403,
+malformed response, or stale source is reported as unavailable/stale without
+affecting GPU or storage telemetry. This path issues only a bounded GET and
+does not use the printer's local port 8765 or any control endpoint. If
+commissioning the collector, use the normal OCTO1 controlled package procedure;
+do not manually weaken file permissions or add a new credential.
 
 The dashboard links to the [complete Riverview operations and recovery guide](RIVERVIEW_OPERATIONS_COOKBOOK.md), covering PostgreSQL, migrations, CME, event processing, workers, verification, and backups.
 The [notification delivery contract](NOTIFICATION_DELIVERY.md) and
