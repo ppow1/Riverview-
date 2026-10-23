@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.16
+# Revision: 1.0.17
+# Changed: 2026-10-23 UTC | RV-GRACE-CANCELLED-PROGRESS-20261023 | Keep CANCELLED authoritative over historical failure and blocked activity.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Require active engineering-scope registry and matching capability for live worker health.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Project accepted image downloads beside their assignment verification record.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Expose only independently accepted ComfyUI binary artifact metadata for authorized download.
@@ -784,6 +785,8 @@ class DashboardProjection:
                 assignment_state = row["assignment_state"]
                 if row["status"] == "COMPLETED":
                     lifecycle_status, lifecycle_stage = "completed", "Objective completed"
+                elif row["status"] == "CANCELLED":
+                    lifecycle_status, lifecycle_stage = "cancelled", "Objective cancelled"
                 elif action_needed:
                     lifecycle_status, lifecycle_stage = "blocked", (
                         "Rework escalation pending: Steward action required"
@@ -795,7 +798,7 @@ class DashboardProjection:
                     lifecycle_status, lifecycle_stage = "waiting", "Grace reviewing verifier rejection"
                 elif assignment_state == "awaiting_verification":
                     lifecycle_status, lifecycle_stage = "waiting", "Independent verification"
-                elif assignment_state == "blocked" or row["status"] in {"FAILED", "CANCELLED"}:
+                elif assignment_state == "blocked" or row["status"] == "FAILED":
                     lifecycle_status, lifecycle_stage = "blocked", "Blocked"
                 elif assignment_state in {"queued", "ready", "running"}:
                     lifecycle_status, lifecycle_stage = "working", {
