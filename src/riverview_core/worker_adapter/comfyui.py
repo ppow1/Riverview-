@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/comfyui.py
 # Component: ENGINEERING-COMFYUI-ADAPTER
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept canonical colon-delimited Riverview assignment IDs in durable artifact storage.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Restrict dashboard artifact sharing to group read and traversal.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Keep execution journals private while sharing accepted image artifacts with the dashboard group.
@@ -365,10 +365,15 @@ class ComfyUIAction:
             if record and isinstance(record, dict):
                 status_info = record.get("status", {})
                 prompt_record = record.get("prompt")
-                if (not isinstance(prompt_record, list) or len(prompt_record) < 3 or
+                # ComfyUI history encodes [queue_number, prompt_id, workflow,
+                # extra_data, outputs_to_execute]. Identity is carried in the
+                # extra_data slot (index 3), never in the workflow graph (index 2).
+                if (not isinstance(prompt_record, list) or len(prompt_record) < 4 or
+                        prompt_record[1] != state["prompt_id"] or
                         not isinstance(prompt_record[2], dict) or
-                        prompt_record[2].get("riverview_assignment") != assignment_id or
-                        prompt_record[2].get("riverview_template_sha256") != template_digest):
+                        not isinstance(prompt_record[3], dict) or
+                        prompt_record[3].get("riverview_assignment") != assignment_id or
+                        prompt_record[3].get("riverview_template_sha256") != template_digest):
                     raise ComfyUIError("history_identity_mismatch", execution_started=True)
                 if isinstance(status_info, dict) and status_info.get("status_str") == "error":
                     state["status"] = "failed"

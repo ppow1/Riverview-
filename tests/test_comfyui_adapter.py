@@ -2,9 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_comfyui_adapter.py
 # Component: ENGINEERING-COMFYUI-ADAPTER
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Changed: 2026-10-23 UTC | RIVERVIEW-COMFYUI-REGISTRY-PERMISSION | Assert worker registry config uses a root-readable immutable release path.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Exercise canonical colon-delimited assignment IDs used by Grace.
+# Changed: 2026-10-23 UTC | RV-ISSUE-250 | Match actual ComfyUI history tuple and reject mismatched/stale prompt identity.
 # Purpose: Mock ComfyUI transport, durable execution, recovery, artifact and verifier contracts
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
@@ -43,6 +44,9 @@ class MockComfy:
         self.lose_post_response = False
         self.fail_history_once = False
         self.never_complete = False
+        self.history_assignment_override = None
+        self.history_template_override = None
+        self.history_prompt_id_override = None
         self.lock = threading.Lock()
         owner = self
         class Handler(BaseHTTPRequestHandler):
@@ -74,10 +78,15 @@ class MockComfy:
                     if owner.never_complete:
                         self._json({})
                     else:
-                        self._json({"12345678-1234-1234-1234-123456789abc": {
+                        response_prompt_id = "12345678-1234-1234-1234-123456789abc"
+                        embedded_prompt_id = owner.history_prompt_id_override or response_prompt_id
+                        response_assignment = owner.history_assignment_override or owner.assignment_id
+                        self._json({response_prompt_id: {
                             "status": {"status_str": "success"},
-                            "prompt": [1, {}, {"riverview_assignment": owner.assignment_id,
-                                "riverview_template_sha256": owner.template_sha256}, []],
+                            "prompt": [1, embedded_prompt_id, {}, {
+                                "riverview_assignment": response_assignment,
+                                "riverview_template_sha256": (owner.history_template_override or
+                                    owner.template_sha256)}, []],
                             "outputs": {"2": {"images": [
                                 {"filename": "one.png", "subfolder": "", "type": "output"},
                                 {"filename": "two.png", "subfolder": "", "type": "output"}]}}}})
@@ -197,6 +206,32 @@ class ComfyUIAdapterTests(unittest.TestCase):
         self.assertEqual(updates[-1]["status"], "complete")
         self.assertEqual(updates[-1]["outputs_saved"], 2)
         self.assertNotIn("parameters", updates[-1])
+
+
+    def test_history_rejects_assignment_identity_mismatch_in_extra_data(self):
+        self.mock.history_assignment_override = "assignment:other:0000000000000000000000000000000000000002"
+        with self.assertRaises(ComfyUIError) as caught:
+            self.action(self.assignment, self.grounded)
+        self.assertEqual(caught.exception.code, "history_identity_mismatch")
+        self.assertEqual(self.mock.posts, 1)
+        self.assertEqual(self.mock.views, 0)
+
+    def test_history_rejects_template_digest_mismatch_in_extra_data(self):
+        self.mock.history_template_override = "0" * 64
+        with self.assertRaises(ComfyUIError) as caught:
+            self.action(self.assignment, self.grounded)
+        self.assertEqual(caught.exception.code, "history_identity_mismatch")
+        self.assertEqual(self.mock.posts, 1)
+        self.assertEqual(self.mock.views, 0)
+
+    def test_stale_history_prompt_id_is_not_accepted_as_current_execution(self):
+        self.mock.history_prompt_id_override = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        action = self.make_action()
+        with self.assertRaises(ComfyUIError) as caught:
+            action(self.assignment, self.grounded)
+        self.assertEqual(caught.exception.code, "history_identity_mismatch")
+        self.assertEqual(self.mock.posts, 1)
+        self.assertEqual(self.mock.views, 0)
 
     def test_lost_submission_response_is_indeterminate_and_never_replayed(self):
         self.mock.lose_post_response = True
