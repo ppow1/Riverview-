@@ -3,11 +3,12 @@ Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Document the s
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.17
+File Revision: 1.1.18
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated GPU and inference telemetry projection.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Specify per-slot context counters and unavailable KV-cache bytes.
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Specify authenticated content-free stream activity projection.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Define per-host read-only storage projection and host gaps.
+Changed: 2026-10-23 UTC | ISSUE-242 | Document authenticated Bambu and optional Windows/OCTO2 telemetry, identities, freshness, and unavailable states.
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Specify bounded private Release archival and Steward/CSRF authorization.
 Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Specify byte-identical archive/download handoff and local recovery.
 Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Document role-gated objective access, owner checks, and minimized conversation progress
@@ -352,6 +353,14 @@ Grace activity is correlated through its durable conversation and response reque
 ## Mounted storage capacity projection
 
 `GET /api/v1/resources/telemetry` adds `storage_status`, `storage_observed_at`, and per-host `storage` records in the same authenticated response. Camrui volumes are read with Linux mountinfo plus `statvfs`; OCTO1 volumes are supplied by the existing restricted `resource-telemetry` forced command. The collector admits only supported persistent filesystems, deduplicates bind aliases and shared network filesystems, and returns total/used/available bytes, percent used, mount point, filesystem/device identifier when available, and observation timestamp. Windows development and OCTO2 remain explicitly unavailable until an approved host collector exists. Unavailable measurements are not zero and are excluded from aggregate totals. Collection is request-driven and read-only; no capacity change, mount action, cleanup, or storage scheduling occurs.
+
+### Optional Windows and OCTO2 host telemetry
+
+The same authenticated projection may collect bounded CPU, memory, GPU, and mounted-volume data from the documented Windows development host (`192.168.1.88`) and OCTO2 (`192.168.1.162`) using the fixed `rv-windows-resource-telemetry` / `resource-telemetry` forced commands. Each optional source is contacted only when its dedicated systemd credentials are present: `resource-telemetry-{windows,octo2}-key`, `-known-hosts`, and `-user`. SSH uses strict pinned host-key checking, an isolated known-hosts file, a fixed address and command, and a five-second timeout. Missing credentials or an offline host produce `state: unavailable`, empty measurements, and a stable error code; no zeros are synthesized. OCTO2 is currently offline, so live OCTO2 readings remain deferred. Windows readings remain unavailable until verified dedicated credentials and pinned host identity are commissioned. OCTO1 system CPU/RAM measurements come from `/proc` and are included with the existing GPU source. All these measurements are read-only.
+
+### OCTO1 Bambu P2S and AMS projection
+
+The `octominer1` host may include the sanitized `bambu_printer` projection. The existing OCTO1 forced command performs one fixed, bounded HTTP `GET` to the local OCTO Control status route `127.0.0.1:8180/api/v1/bambu/status`, using the existing OCTO1-local token at `/opt/riverview-octo-control/control.token`. The token stays on OCTO1, must be a regular root-owned file with mode `0400` or `0600`, and is never returned or forwarded. Redirects and proxy use are disabled. Only connection/freshness, print state, temperatures, progress, remaining time/layers, and up to eight AMS material/remaining/color records are projected. Serial numbers, access codes, MQTT details, and raw upstream fields are discarded. Missing/invalid credentials, offline printer, stale data, oversized or malformed response remain explicit `unavailable`/`offline`/`stale` states. No printer-control, slicing, print submission, or MQTT operation is exposed.
 
 Read-only collection on Camrui was compared against `df -B1 -T / /boot/efi` on 2026-10-22; exact total/used/available byte values and timestamps are retained in `evidence/v2-storage-20261022/camrui-mount-observation.json`. This observation validates only Camrui. The current deployed OCTO1 forced-command does not yet emit mount capacity, and Windows development/OCTO2 remain unconnected.
 
