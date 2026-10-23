@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.35
+# Revision: 1.3.36
+# Changed: 2026-10-23 UTC | RV-GRACE-GROUNDED-OBJECTIVE-CANCEL-001 | Pass bounded cancellation reasons through the existing exact-grant objective cancellation route.
 # Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Expose owner-authorized content-free Grace stream activity for measured V2 live text output.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Permit normal Grace derivation when work-order criteria are omitted.
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate knowledge source commit from dashboard code identity.
@@ -1642,11 +1643,15 @@ def make_handler():
                             self._json(202, {"objective_id": objective_id,
                                 "status": result["status"], "assignment_id": result["assignment_id"]}, request_id)
                         else:
-                            if set(data) != {"scope_ref"}:
+                            if (set(data) not in ({"scope_ref"}, {"scope_ref", "reason"}) or
+                                    ("reason" in data and
+                                     (not isinstance(data["reason"], str) or
+                                      not data["reason"].strip() or
+                                      len(data["reason"].strip()) > 1000))):
                                 raise ValueError("invalid cancellation shape")
                             result = pipeline.cancel_work_order(objective_id,
                                 credential=self.headers.get("X-Riverview-Authority", ""),
-                                authority_ref=data["scope_ref"])
+                                authority_ref=data["scope_ref"], reason=data.get("reason"))
                             self._json(200, {"objective_id": objective_id,
                                 "status": result["status"]}, request_id)
                     except Exception as exc:
