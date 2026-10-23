@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.25",
-      "sha256": "c32eba699d815d41bce8e48d9a45e637e4c64adcc4cce45efc244cee1b3c6b02",
-      "size_bytes": 1504905
+      "revision": "1.0.26",
+      "sha256": "87f9282e31f15c3e02435521c866e0aaf98b2c11e626970d33cd042a5b9a54b5",
+      "size_bytes": 1531680
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.325"
+      "revision": "1.1.326"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -59,9 +59,9 @@
     },
     "deploy/comfyui/workflows.json": {
       "path": "deploy/comfyui/workflows.json",
-      "revision": "1.0.1",
-      "sha256": "142940816aa04b7a0fc60d87191509865bda992d6756091b88524691321e5fa1",
-      "size_bytes": 1228
+      "revision": "1.0.2",
+      "sha256": "3eee02a1d0e4d6afc1f19f22f0cbc859219eea53df97b21bb2e5adcfc5e39d92",
+      "size_bytes": 2591
     },
     "deploy/comms5/caddy-comms5-oauth-block.caddy": {
       "path": "deploy/comms5/caddy-comms5-oauth-block.caddy",
@@ -1034,6 +1034,18 @@
       "revision": "1.0.1",
       "sha256": "e6dcaf84b89f46f62563b169c7daa13d41eb33ab5929d90af0e23d3fe182b1ec",
       "size_bytes": 8282
+    },
+    "docs/evidence/issue253/engineering-progress-desktop.png": {
+      "path": "docs/evidence/issue253/engineering-progress-desktop.png",
+      "revision": "1.0.0",
+      "sha256": "f34bc058dcd4f8ab11371141bc33a4fe82a4cbd4207e2938d6954e380255cc06",
+      "size_bytes": 181843
+    },
+    "docs/evidence/issue253/engineering-progress-mobile.png": {
+      "path": "docs/evidence/issue253/engineering-progress-mobile.png",
+      "revision": "1.0.0",
+      "sha256": "98079e1d0fbdc61f26df258e6bd8255ce4676ee41bbb93e69cef31e5e6af12e2",
+      "size_bytes": 61272
     },
     "docs/history/AI_HINTS_rev1.0.0.md": {
       "path": "docs/history/AI_HINTS_rev1.0.0.md",
@@ -8247,6 +8259,12 @@
       "sha256": "9b8b30cd109b9539eaa78d9be6fabb4191715a6847ccc65833bcbd55b1aaecd5",
       "size_bytes": 13686
     },
+    "scripts/verify_v2_engineering_progress_browser.py": {
+      "path": "scripts/verify_v2_engineering_progress_browser.py",
+      "revision": "1.0.0",
+      "sha256": "3b5c69fe7813cc02bfd4993144de9ccc04e9dfab7b418b44049fc5a582d5c41b",
+      "size_bytes": 19996
+    },
     "scripts/verify_worker_inventory_browser.py": {
       "path": "scripts/verify_worker_inventory_browser.py",
       "revision": "1.0.18",
@@ -9566,24 +9584,6 @@
       "revision": "1.0.0",
       "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
       "size_bytes": 2008940
-    },
-    "scripts/verify_v2_engineering_progress_browser.py": {
-      "path": "scripts/verify_v2_engineering_progress_browser.py",
-      "revision": "1.0.0",
-      "sha256": "3b5c69fe7813cc02bfd4993144de9ccc04e9dfab7b418b44049fc5a582d5c41b",
-      "size_bytes": 19996
-    },
-    "docs/evidence/issue253/engineering-progress-desktop.png": {
-      "path": "docs/evidence/issue253/engineering-progress-desktop.png",
-      "revision": "1.0.0",
-      "sha256": "f34bc058dcd4f8ab11371141bc33a4fe82a4cbd4207e2938d6954e380255cc06",
-      "size_bytes": 181843
-    },
-    "docs/evidence/issue253/engineering-progress-mobile.png": {
-      "path": "docs/evidence/issue253/engineering-progress-mobile.png",
-      "revision": "1.0.0",
-      "sha256": "98079e1d0fbdc61f26df258e6bd8255ce4676ee41bbb93e69cef31e5e6af12e2",
-      "size_bytes": 61272
     }
   },
   "manifest_revision": "1.1.326",
