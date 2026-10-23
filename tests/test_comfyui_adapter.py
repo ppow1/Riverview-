@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_comfyui_adapter.py
 # Component: ENGINEERING-COMFYUI-ADAPTER
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Changed: 2026-10-23 UTC | RV-ISSUE-252 | Reproduce the systemd private-umask mode mismatch and retain unsafe path rejection coverage.
+# Changed: 2026-10-23 UTC | RV-ISSUE-256 | Verify the V2 manual registry is sourced from the active Dashboard release.
 # Changed: 2026-10-23 UTC | RIVERVIEW-COMFYUI-REGISTRY-PERMISSION | Assert worker registry config uses a root-readable immutable release path.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Exercise canonical colon-delimited assignment IDs used by Grace.
 # Changed: 2026-10-23 UTC | RV-ISSUE-250 | Match actual ComfyUI history tuple and reject mismatched/stale prompt identity.
@@ -134,6 +135,13 @@ class ComfyUIAdapterTests(unittest.TestCase):
             config,
         )
         self.assertNotIn("RIVERVIEW_COMFYUI_WORKFLOW_REGISTRY=/etc/riverview/", config)
+
+        manual_dropin = Path(__file__).parents[1] / "deploy/systemd/riverview-status-dashboard-manual-comfyui.conf"
+        manual_config = manual_dropin.read_text(encoding="utf-8")
+        self.assertIn(
+            "RIVERVIEW_COMFYUI_WORKFLOW_REGISTRY=/opt/riverview-status-dashboard/current/deploy/comfyui/workflows.json",
+            manual_config,
+        )
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

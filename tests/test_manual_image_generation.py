@@ -2,10 +2,11 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_manual_image_generation.py
 # Component: V2-MANUAL-IMAGE-GENERATION
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Verify durable operator mode through the registered ComfyUI action
 # =============================================================================
 # Changed: 2026-10-23 UTC | RV-ISSUE-250 | Use actual history tuple and cover valid, mismatched and stale identities.
+# Changed: 2026-10-23 UTC | RV-ISSUE-256 | Verify both SD-Turbo and dynamic RealVisXL catalog registrations.
 """Mock ComfyUI execution and independent artifact acceptance for manual mode."""
 import base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -134,11 +135,18 @@ class ManualImageGenerationTests(unittest.TestCase):
 
     def test_registered_workflow_completes_verified_artifact_and_download_bytes(self):
         catalog = self.service.catalog()
-        self.assertEqual([row["workflow_id"] for row in catalog["workflows"]],
-                         ["sd-turbo-text-to-image.v1"])
-        self.assertEqual(catalog["workflows"][0]["fixed_resolution"],
+        self.assertEqual({row["workflow_id"] for row in catalog["workflows"]},
+                         {"realvisxl-v5-photorealistic.v1", "sd-turbo-text-to-image.v1"})
+        turbo = next(row for row in catalog["workflows"]
+                     if row["workflow_id"] == "sd-turbo-text-to-image.v1")
+        photoreal = next(row for row in catalog["workflows"]
+                         if row["workflow_id"] == "realvisxl-v5-photorealistic.v1")
+        self.assertEqual(turbo["fixed_resolution"],
                          {"width": 512, "height": 512})
-        self.assertEqual({item["name"]: item.get("default") for item in catalog["workflows"][0]["parameters"]},
+        self.assertEqual({item["name"]: item.get("default") for item in turbo["parameters"]},
+                         {"prompt": None, "seed": 7})
+        self.assertEqual(photoreal["fixed_resolution"], {"width": 1024, "height": 1024})
+        self.assertEqual({item["name"]: item.get("default") for item in photoreal["parameters"]},
                          {"prompt": None, "seed": 7})
         self.assertFalse(catalog["gpu_selection_supported"])
         self.assertEqual(catalog["worker"]["device"]["name"], "Test GPU")
@@ -157,6 +165,23 @@ class ManualImageGenerationTests(unittest.TestCase):
         self.assertEqual(metadata["artifact"]["sha256"], hashlib.sha256(downloaded).hexdigest())
         self.assertEqual(downloaded, PNG)
         self.assertEqual(self.mock.posts, 1)
+
+    def test_photoreal_workflow_is_registered_and_keeps_turbo_checkpoint_independent(self):
+        registry = self.service.registry
+        graph, template, _ = registry.render("realvisxl-v5-photorealistic.v1", {
+            "prompt": "A dog walking along a sidewalk, candid DSLR photograph, realistic fur, natural lighting, photographic detail, not a painting or illustration.",
+            "seed": 7,
+        })
+        self.assertEqual(template["revision"], "realvisxl-v5-fp16-1024-30step-v1")
+        self.assertEqual(graph["4"]["inputs"]["ckpt_name"], "RealVisXL_V5.0_fp16.safetensors")
+        self.assertEqual(graph["5"]["inputs"], {"width": 1024, "height": 1024, "batch_size": 1})
+        self.assertEqual(graph["3"]["inputs"]["steps"], 30)
+        self.assertEqual(graph["3"]["inputs"]["sampler_name"], "dpmpp_2m")
+        self.assertEqual(graph["3"]["inputs"]["scheduler"], "karras")
+        self.assertIn("painting", graph["7"]["inputs"]["text"])
+        turbo_graph, _, _ = registry.render("sd-turbo-text-to-image.v1", {"prompt": "same scene", "seed": 7})
+        self.assertEqual(turbo_graph["4"]["inputs"]["ckpt_name"], "sd_turbo.safetensors")
+        self.assertEqual(turbo_graph["5"]["inputs"]["width"], 512)
 
 
     def test_history_rejects_cross_assignment_identity_without_retrieving_image(self):
