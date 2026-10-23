@@ -1,9 +1,9 @@
-# =============================================================================
-# RIVERVIEW~ CONTROLLED TEST
+# ======================================================================# RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.61
+# Revision: 1.0.62
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
+# Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve cancellation authorization, audit, idempotency, queue exclusion, and active-work protection tests.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Prove four-step verified completion recovers after restart and ignores conversational review disagreement.
 # Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Verify concurrent grounding failures serialize into distinct durable attempts and duplicate attempt replay is a no-op.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Cover durable sanitized grounding failure codes, persistence, exception redaction, and retry history.
@@ -71,8 +71,7 @@
 # Contracts: docs/components/GRACE_EXECUTION_PIPELINE.md
 # Tests: This file
 # History: Git and .riverview-backups/manifest.jsonl
-# =============================================================================
-"""Model-independent integration test of Grace objective execution."""
+# ======================================================================"""Model-independent integration test of Grace objective execution."""
 
 import hashlib
 import json
@@ -2636,6 +2635,110 @@ class GraceExecutionTests(unittest.TestCase):
             objective_id, credential=self.credentials["steward"], authority_ref=self.scope)
         self.assertEqual(cancelled["status"], "CANCELLED")
         self.assertEqual(self.ledger.get(assignment_id)["state"], "cancelled")
+
+    def test_authorized_grounded_objective_cancellation_is_audited_and_leaves_queue(self):
+        objective_id = "objective:grounded-cancel"
+        grounded = self._create_grounded_reasoning_objective(objective_id)
+        initial_revision = grounded["revision"]
+        self.assertEqual([row["objective_id"] for row in
+            self.pipeline.grounded_objectives(scope_ref=self.scope)], [objective_id])
+
+        with self.assertRaises(ObjectiveNotAuthorized):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=secrets.token_urlsafe(36), authority_ref=self.scope,
+                reason="Obsolete test objective")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
+
+        cancelled = self.pipeline.cancel_work_order(objective_id,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            reason="Obsolete test objective")
+        self.assertEqual(cancelled["status"], "CANCELLED")
+        self.assertEqual(cancelled["revision"], initial_revision + 1)
+        self.assertEqual(self.pipeline.grounded_objectives(scope_ref=self.scope), [])
+        events = [event for event in self.pipeline.objective_events(objective_id)
+                  if event["event_type"] == "objective.cancelled"]
+        self.assertEqual(len(events), 1)
+        event = events[0]
+        self.assertEqual(event["actor_id"], "steward:test")
+        self.assertIsNotNone(event["occurred_at"])
+        self.assertEqual(event["payload"]["reason"], "Obsolete test objective")
+        self.assertEqual(event["payload"]["authorized_principal"], "steward:test")
+        self.assertEqual(event["payload"]["objective_revision"], initial_revision + 1)
+        self.assertTrue(event["payload"]["cancelled_at"])
+
+    def test_grounded_objective_cancellation_requires_reason_and_is_idempotent(self):
+        objective_id = "objective:grounded-cancel-idempotent"
+        grounded = self._create_grounded_reasoning_objective(objective_id)
+        with self.assertRaises(ValueError):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope)
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
+
+        reason = "Duplicate proposal is obsolete"
+        first = self.pipeline.cancel_work_order(objective_id,
+            credential=self.credentials["steward"], authority_ref=self.scope, reason=reason)
+        repeated = self.pipeline.cancel_work_order(objective_id,
+            credential=self.credentials["steward"], authority_ref=self.scope, reason=reason)
+        self.assertEqual(first["revision"], grounded["revision"] + 1)
+        self.assertEqual(repeated["revision"], first["revision"])
+        self.assertEqual(len([event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"] == "objective.cancelled"]), 1)
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope,
+                reason="Different cancellation reason")
+
+    def test_grounded_cancellation_rejects_any_existing_engineering_assignment(self):
+        from psycopg import sql
+
+        objective_id = "objective:grounded-cancel-assignment-exists"
+        self._create_grounded_reasoning_objective(objective_id)
+        assignment_id = "assignment:" + uuid4().hex
+        self.admin.execute(sql.SQL("""INSERT INTO {}.assignments
+            (id,state,owner,authority_ref,objective_ref,workflow_id,workflow_step,
+             correlation_id,updated_at)
+            VALUES (%s,'queued','engineering',%s,%s,'grace.objective-work-order.v1',
+                    'test-step',%s,clock_timestamp())""").format(sql.Identifier(self.schema)),
+            (assignment_id, self.scope, objective_id, objective_id))
+
+        with self.assertRaisesRegex(ObjectiveStateError, "assignment or dispatch history"):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope,
+                reason="Obsolete")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "queued")
+
+    def test_running_engineering_work_remains_uncancellable(self):
+        from riverview_core.resident_reasoning import ArtifactRequirement
+
+        objective_id = "objective:cancel-running"
+        criterion = "reports/cancel.json contains the task and verified repository provenance"
+        self.pipeline.submit_objective(objective_id,
+            "Create reports/cancel.json with the task and verified repository provenance.",
+            [criterion], credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(objective_id)
+        proposal = PlanProposal("Create the requested cancellation test artifact", (
+            PlanStep("create-report", "Create reports/cancel.json", (criterion,),
+                artifact_requirements=(ArtifactRequirement(
+                    "cancel-report", "reports/cancel.json", "application/json",
+                    (criterion,)),)),), 0)
+        self.pipeline.record_proposal(objective_id, proposal)
+        assignment_id = "assignment:" + uuid4().hex
+        self.pipeline.authorize_and_dispatch(objective_id, assignment_id,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            idempotency_key="grounded-cancel-running-" + assignment_id)
+        self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+            "cancel-running-ready-" + assignment_id, actor_id="event-processor:test")
+        self.ledger.transition(assignment_id, "running", "worker_started",
+            "cancel-running-started-" + assignment_id, actor_id="worker:test")
+
+        with self.assertRaisesRegex(ObjectiveStateError, "queued or ready"):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope,
+                reason="Must not interrupt running work")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"],
+                         "WORK_ORDER_CREATED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "running")
 
     def test_dashboard_submission_persistent_restart_worker_verification_and_projection(self):
         import psycopg

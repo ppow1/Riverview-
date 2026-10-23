@@ -738,7 +738,9 @@
         "observed_at",
         "freshness_window_seconds",
         "collection_model",
-        "hosts"
+        "hosts",
+        "storage_status",
+        "storage_observed_at"
       ],
       "properties": {
         "schema_version": {
@@ -763,6 +765,8 @@
         "collection_model": {
           "const": "request_driven_no_cache"
         },
+        "storage_status": {"enum": ["healthy", "partial", "unavailable"]},
+        "storage_observed_at": {"$ref": "#/$defs/timestamp"},
         "hosts": {
           "type": "array",
           "maxItems": 8,
@@ -773,14 +777,16 @@
               "identity_state",
               "state",
               "gpu_inventory",
-              "inference_servers"
+              "inference_servers",
+              "storage"
             ],
             "properties": {
               "host_id": {
                 "enum": [
                   "camrui",
                   "octominer1",
-                  "octominer2"
+                  "octominer2",
+                  "windows-development"
                 ]
               },
               "display_name": {
@@ -789,7 +795,8 @@
               "identity_state": {
                 "enum": [
                   "verified",
-                  "documented_unverified"
+                  "documented_unverified",
+                  "documented_not_connected"
                 ]
               },
               "state": {
@@ -988,6 +995,39 @@
                   "additionalProperties": false
                 }
               }
+              ,"storage": {
+                "type": "object",
+                "required": ["state", "observed_at", "volumes", "error_code"],
+                "properties": {
+                  "state": {"enum": ["healthy", "unavailable"]},
+                  "observed_at": {"$ref": "#/$defs/timestamp"},
+                  "error_code": {"type": ["string", "null"]},
+                  "volumes": {
+                    "type": "array", "maxItems": 64,
+                    "items": {
+                      "type": "object",
+                      "required": ["volume_id", "filesystem_id", "mount_point", "filesystem_type", "device_id", "total_bytes", "used_bytes", "available_bytes", "percent_used", "observed_at", "source"],
+                      "properties": {
+                        "volume_id": {"type": "string", "maxLength": 384},
+                        "filesystem_id": {"type": "string", "maxLength": 384},
+                        "mount_point": {"type": "string", "maxLength": 256},
+                        "filesystem_type": {"type": "string", "maxLength": 24},
+                        "device_id": {"type": ["string", "null"], "maxLength": 256},
+                        "total_bytes": {"type": "integer", "minimum": 1},
+                        "used_bytes": {"type": "integer", "minimum": 0},
+                        "available_bytes": {"type": "integer", "minimum": 0},
+                        "percent_used": {"type": "number", "minimum": 0, "maximum": 100},
+                        "observed_at": {"$ref": "#/$defs/timestamp"},
+                        "source": {"type": "string", "maxLength": 64},
+                        "also_mounted_at": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 256}}
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+
             },
             "additionalProperties": false
           }

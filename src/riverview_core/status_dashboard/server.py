@@ -2,9 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.38
+# Revision: 1.3.39
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify artifact ownership and group-read layout at the authorized download boundary.
+# Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve bounded cancellation reasons through the exact-grant objective route.
 # Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Expose owner-authorized content-free Grace stream activity for measured V2 live text output.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Permit normal Grace derivation when work-order criteria are omitted.
 # Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate knowledge source commit from dashboard code identity.
@@ -1111,6 +1112,9 @@ def make_handler():
                                 any(not isinstance(item, str) or not item.strip() or len(item) > 1000
                                     for item in criteria)):
                             raise ValueError("invalid source sequence or criteria")
+                        suffix = uuid5(NAMESPACE_URL,
+                            f"riverview:grace-conversation-objective:{conversation_id}:{sequence}")
+                        objective_id = "objective:grace-conversation:" + str(suffix)
                         failure_stage = "source_authorization"
                         emit(_INTAKE_LOG, logging.DEBUG, "grace_work_order_intake_started",
                              request_id=request_id, conversation_id=conversation_id,
@@ -1145,9 +1149,6 @@ def make_handler():
                         origin = {"conversation_id": conversation_id,
                                   "source_sequence": sequence}
                         from riverview_core.resident_execution import ObjectiveStateError
-                        suffix = uuid5(NAMESPACE_URL,
-                            f"riverview:grace-conversation-objective:{conversation_id}:{sequence}")
-                        objective_id = "objective:grace-conversation:" + str(suffix)
                         failure_stage = "event_history"
                         existing = _find_conversation_objective(
                             pipeline, conversation_id, sequence)
@@ -1648,11 +1649,15 @@ def make_handler():
                             self._json(202, {"objective_id": objective_id,
                                 "status": result["status"], "assignment_id": result["assignment_id"]}, request_id)
                         else:
-                            if set(data) != {"scope_ref"}:
+                            if (set(data) not in ({"scope_ref"}, {"scope_ref", "reason"}) or
+                                    ("reason" in data and
+                                     (not isinstance(data["reason"], str) or
+                                      not data["reason"].strip() or
+                                      len(data["reason"].strip()) > 1000))):
                                 raise ValueError("invalid cancellation shape")
                             result = pipeline.cancel_work_order(objective_id,
                                 credential=self.headers.get("X-Riverview-Authority", ""),
-                                authority_ref=data["scope_ref"])
+                                authority_ref=data["scope_ref"], reason=data.get("reason"))
                             self._json(200, {"objective_id": objective_id,
                                 "status": result["status"]}, request_id)
                     except Exception as exc:

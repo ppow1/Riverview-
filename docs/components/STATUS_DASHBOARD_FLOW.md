@@ -1,5 +1,5 @@
 <!-- Riverview~ Controlled Document
-**Document Revision:** 1.0.15
+**Document Revision:** 1.0.16
 **Component:** STEWARD-DASHBOARD · generated from canonical JSON
 **Task:** RV-M3.1-001
 **Authority:** Read-only process view; edit the canonical JSON graph only.
@@ -60,6 +60,8 @@ flowchart LR
     g_rv_steward_dashboard_status_resource_model_source_6bb51838["Read allowlisted model health, identity, active slots, and bounded numeric per-slot context; queue and KV-cache byte measurements remain unavailable"]
     g_rv_steward_dashboard_status_resource_render_1188c907["Return timestamped redacted GPU/model/context measurements or explicit per-source unavailable states"]
     g_rv_steward_dashboard_status_resource_slot_context_7a77bdac["Project only numeric llama.cpp /slots context and prompt counters; discard task IDs and prompt fields, and report KV-cache bytes unavailable"]
+    g_rv_steward_dashboard_status_resource_storage_source_1407be11["Read Camrui mounted storage locally and OCTO1 storage through the fixed restricted telemetry command; keep Windows development and OCTO2 unavailable until approved collectors exist"]
+    g_rv_steward_dashboard_status_resource_storage_render_5421a7fc["Return unique mounted volume capacity with timestamps; exclude duplicate filesystem views and keep unavailable hosts out of totals"]
   end
   g_rv_postgres_ledger_assignment_lifecycle_intake_c1d0abf1["Registered target<br/>rv:postgres-ledger:assignment-lifecycle"]
   g_rv_cme_progress_and_recovery_monitor_start_3c5b8496["Registered target<br/>rv:cme:progress-and-recovery"]
@@ -130,6 +132,9 @@ flowchart LR
   g_rv_steward_dashboard_status_resource_model_source_6bb51838 -->|Readiness/model/slot data; queue unavailable| g_rv_steward_dashboard_status_resource_render_1188c907
   g_rv_steward_dashboard_status_resource_model_source_6bb51838 -->|Read bounded numeric context and prompt counters from fixed llama.cpp /slots responses| g_rv_steward_dashboard_status_resource_slot_context_7a77bdac
   g_rv_steward_dashboard_status_resource_slot_context_7a77bdac -->|Return per-slot context projection with raw task and prompt fields removed| g_rv_steward_dashboard_status_resource_render_1188c907
+  g_rv_steward_dashboard_status_resource_telemetry_route_ee6d2f73 -->|Same bounded authenticated resource request collects storage| g_rv_steward_dashboard_status_resource_storage_source_1407be11
+  g_rv_steward_dashboard_status_resource_storage_source_1407be11 -->|Read measured host volumes or preserve explicit unavailable state| g_rv_steward_dashboard_status_resource_storage_render_5421a7fc
+  g_rv_steward_dashboard_status_resource_storage_render_5421a7fc -->|Return unique measured totals and source timestamps| g_rv_steward_dashboard_status_resource_render_1188c907
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

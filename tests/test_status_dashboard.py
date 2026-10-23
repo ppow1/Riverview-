@@ -1,11 +1,11 @@
-# =============================================================================
-# RIVERVIEW~ CONTROLLED TEST
+# ======================================================================# RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.67
+# Revision: 1.0.68
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify accepted ComfyUI images are presented in assignment detail.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Exercise authenticated ComfyUI work-order proposal intake through the dashboard API.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify authenticated verified-binary delivery and reject tampered artifact bytes.
+# Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve authenticated bounded-reason cancellation tests.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Verify durable grounding projection, authenticated scope, redaction, retry guidance, and UI rendering contract.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Align retry-copy assertion with immutable criteria-source semantics.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Cover blank/explicit intake and criteria-source visibility.
@@ -57,8 +57,7 @@
 # Changed: 2026-10-15 UTC | RV-WEBSITE-PL029 | Separate notification rendering, receipt, person-seen and decision states.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-PL038 | Verify searchable canonical traceability catalog and evidence qualification.
 # Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Verify authenticated dynamic capability/workflow inventories, complete source metadata and snapshot affordance.
-# =============================================================================
-"""Security, API, privacy and PostgreSQL integration tests for M3.1."""
+# ======================================================================"""Security, API, privacy and PostgreSQL integration tests for M3.1."""
 
 import json
 import hashlib
@@ -587,6 +586,61 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(pipeline.authorizer.assertion[1:],
                          ("assignment.create", "work-order:engineering"))
         self.assertEqual(payload["assignment_id"], "assignment-comfy")
+    def test_authenticated_objective_cancel_route_preserves_exact_grant_and_reason(self):
+        from riverview_core.resident_execution import ObjectiveNotAuthorized
+
+        objective_id = "objective:dashboard-cancel"
+        scope_ref = "work-order:cancel-test"
+
+        class Pipeline:
+            def __init__(self):
+                self.calls = []
+
+            def cancel_work_order(self, requested_objective, *, credential,
+                                  authority_ref, reason=None):
+                self.calls.append((requested_objective, credential, authority_ref, reason))
+                if credential != "assignment-cancel-credential":
+                    raise ObjectiveNotAuthorized("exact cancellation grant required")
+                return {"status": "CANCELLED"}
+
+        pipeline = Pipeline()
+        self.server._objective_pipeline = pipeline
+
+        def post(data, *, token=None, authority=None):
+            body = json.dumps(data, separators=(",", ":")).encode()
+            headers = {"Content-Type": "application/json", "Content-Length": str(len(body))}
+            if token is not None:
+                headers["Authorization"] = "Bearer " + token
+            if authority is not None:
+                headers["X-Riverview-Authority"] = authority
+            conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+            conn.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
+                         body=body, headers=headers)
+            response = conn.getresponse()
+            status, payload = response.status, json.loads(response.read() or b"{}")
+            conn.close()
+            return status, payload
+
+        request = {"scope_ref": scope_ref, "reason": "Obsolete grounded objective"}
+        self.assertEqual(post(request)[0], 401)
+        self.assertEqual(post(request, token=self.token)[0], 403)
+        self.assertEqual(post(request, token=self.token,
+                              authority="wrong-scope-credential")[0], 403)
+        status, payload = post(request, token=self.token,
+                               authority="assignment-cancel-credential")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["status"], "CANCELLED")
+        self.assertEqual(pipeline.calls[-1], (objective_id,
+            "assignment-cancel-credential", scope_ref, "Obsolete grounded objective"))
+
+        status, _ = post({"scope_ref": scope_ref}, token=self.token,
+                         authority="assignment-cancel-credential")
+        self.assertEqual(status, 200)
+        self.assertIsNone(pipeline.calls[-1][-1])
+
+        status, _ = post({"scope_ref": scope_ref, "reason": "x" * 1001},
+                         token=self.token, authority="assignment-cancel-credential")
+        self.assertEqual(status, 400)
 
     def test_resource_telemetry_route_uses_dashboard_auth_and_is_read_only(self):
         projection = {"schema_version": "rv.dashboard.resource-telemetry.v1",
@@ -983,6 +1037,10 @@ class DashboardHTTPTests(unittest.TestCase):
             def __exit__(self, *_): return False
             def execute(self, *_): return None
             def fetchall(self):
+                if self.pipeline.fail_event_history:
+                    error = RuntimeError("sensitive database detail")
+                    error.sqlstate = "42501"
+                    raise error
                 return ([{"objective_id": self.pipeline.objective["objective_id"]}]
                         if self.pipeline.objective else [])
 
@@ -1001,6 +1059,7 @@ class DashboardHTTPTests(unittest.TestCase):
                 self.ground_count = 0
                 self.authorization_count = 0
                 self.authorization_revoked = False
+                self.fail_event_history = False
                 self.ledger = PipelineLedger(self)
             def authorize_objective_submission(self, _principal_id, _scope_ref):
                 self.authorization_count += 1
@@ -1096,6 +1155,24 @@ class DashboardHTTPTests(unittest.TestCase):
         origin_conflict_status, origin_conflict = post_work_order(None)
         self.assertEqual(origin_conflict_status, 409)
         self.assertEqual(origin_conflict["error"], "work_order_origin_conflict")
+
+        # The deterministic objective identity must be available to diagnostics
+        # even if the event-history lookup fails before it can find a receipt.
+        from uuid import NAMESPACE_URL, uuid5
+        pipeline.fail_event_history = True
+        with self.assertLogs("riverview.dashboard.intake", level="ERROR") as captured:
+            failed_status, failed = post_work_order(None)
+        self.assertEqual(failed_status, 503)
+        self.assertEqual(failed["error"], "work_order_intake_unavailable")
+        diagnostic = json.loads(captured.output[-1].split(":", 2)[-1].strip())
+        expected_id = "objective:grace-conversation:" + str(uuid5(
+            NAMESPACE_URL,
+            f"riverview:grace-conversation-objective:{conversation_id}:6"))
+        self.assertEqual(diagnostic["objective_id"], expected_id)
+        self.assertEqual(diagnostic["failure_stage"], "event_history")
+        self.assertEqual(diagnostic["exception_type"], "RuntimeError")
+        self.assertEqual(diagnostic["sqlstate"], "42501")
+        self.assertNotIn("sensitive database detail", captured.output[-1])
 
     def test_conversation_stream_requires_authentication_and_existing_service(self):
         path="/api/v1/resident/conversations/00000000-0000-4000-8000-000000000001/responses/00000000-0000-4000-8000-000000000002/stream?after=0"

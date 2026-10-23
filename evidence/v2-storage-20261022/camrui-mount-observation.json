@@ -1,0 +1,65 @@
+{
+  "task": "RV-V2-WEBSITE-INTEGRATION-20261022",
+  "host": "camrui",
+  "observed_at_utc": "2026-10-22T19:54:48+00:00",
+  "read_only": true,
+  "collector": "existing dashboard storage_inventory.collect_linux_storage (mountinfo + statvfs)",
+  "independent_comparison_command": [
+    "df",
+    "-B1",
+    "-T",
+    "/",
+    "/boot/efi"
+  ],
+  "independent_df_rows": [
+    {
+      "filesystem": "/dev/sda2",
+      "filesystem_type": "ext4",
+      "total_bytes": 249792131072,
+      "used_bytes": 76829102080,
+      "available_bytes": 160199712768,
+      "percent_used": "33%",
+      "mount_point": "/"
+    },
+    {
+      "filesystem": "/dev/sda1",
+      "filesystem_type": "vfat",
+      "total_bytes": 1124995072,
+      "used_bytes": 6438912,
+      "available_bytes": 1118556160,
+      "percent_used": "1%",
+      "mount_point": "/boot/efi"
+    }
+  ],
+  "collector_rows": [
+    {
+      "volume_id": "camrui:8:2:ext4",
+      "filesystem_id": "camrui:8:2:ext4:/dev/sda2",
+      "mount_point": "/",
+      "filesystem_type": "ext4",
+      "device_id": "/dev/sda2",
+      "total_bytes": 249792131072,
+      "used_bytes": 76829102080,
+      "available_bytes": 160199712768,
+      "percent_used": 30.76,
+      "observed_at": "2026-10-22T19:54:48.163Z",
+      "source": "linux mountinfo + statvfs"
+    },
+    {
+      "volume_id": "camrui:8:1:vfat",
+      "filesystem_id": "camrui:8:1:vfat:/dev/sda1",
+      "mount_point": "/boot/efi",
+      "filesystem_type": "vfat",
+      "device_id": "/dev/sda1",
+      "total_bytes": 1124995072,
+      "used_bytes": 6438912,
+      "available_bytes": 1118556160,
+      "percent_used": 0.57,
+      "observed_at": "2026-10-22T19:54:48.163Z",
+      "source": "linux mountinfo + statvfs"
+    }
+  ],
+  "status": "healthy",
+  "error_code": null,
+  "limitations": "This verifies Camrui only. OCTO1 storage is not yet emitted by the deployed restricted collector; Windows development and OCTO2 do not have an authorized collector connection."
+}

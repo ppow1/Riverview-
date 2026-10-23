@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_mcp.py
 # Component: EXTERNAL-REASONING-MCP-TRANSPORT
-# Revision: 1.2.0
+# Revision: 1.2.1
+# Changed: 2026-10-23 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify provider review subjects preserve legacy omitted optionals and accept typed ComfyUI bindings.
 # Purpose: Exercise MCP Streamable HTTP and OAuth provider identity mapping independently
 # Execution Model: Local ephemeral HTTP server; stdlib client independent of adapter dispatch
 # Observability: HTTP status, protocol negotiation, tool names and sanitized denials
@@ -415,6 +416,30 @@ class IndependentMCPClientTests(unittest.TestCase):
             ExternalReasoningMCPAdapter._review_subject(
                 {"review_subject": {**subject, "revision": 3}},
                 {"review_subject": subject})
+
+
+    def test_review_subject_accepts_typed_comfy_step_and_preserves_legacy_shape(self):
+        from dataclasses import asdict
+        from riverview_core.resident_reasoning import PlanStep
+
+        step = PlanStep("image", "Generate one bounded image", ("one verified PNG",),
+            execution_capability="engineering.comfyui-image.v1",
+            comfyui_workflow_id="sd-turbo-text-to-image.v1",
+            comfyui_parameters={"prompt": "a blue cube", "seed": 11})
+        proposal = {"summary": "Generate a bounded test image", "steps": [asdict(step)]}
+        subject_id = "00000000-0000-4000-8000-000000000104"
+        digest_body = {"subject_id": subject_id, "revision": 1, "proposal": proposal}
+        digest = hashlib.sha256(json.dumps(digest_body, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+        subject = {"schema_version": "rv.grace.proposal-review-subject.v1",
+            **digest_body, "sha256": digest}
+        normalized = ExternalReasoningMCPAdapter._review_subject({},
+            {"review_subject": subject})
+        self.assertEqual(normalized["sha256"], digest)
+        self.assertEqual(normalized["proposal"]["steps"][0]["comfyui_workflow_id"],
+                         "sd-turbo-text-to-image.v1")
+        self.assertEqual(ExternalReasoningMCPAdapter._review_subject({},
+            {"review_subject": _review_subject()})["sha256"], _review_subject()["sha256"])
 
 
 class StewardReviewBridgeTests(unittest.TestCase):

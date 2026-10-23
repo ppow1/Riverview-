@@ -1,7 +1,7 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.67
-Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Complete only from persisted accepted verification for every required step; recover after restart and publish conversation results afterward.
+**Document Revision:** 1.0.68
+Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Show lifecycle criteria separately, prioritize ready work, and gate conversation-origin completion on Grace review.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 **Status:** PARTIALLY IMPLEMENTED — deterministic objective/work-order infrastructure and office-bound ResidentReasoner integration verified in isolated PostgreSQL tests; no live resident/model commissioning.
@@ -27,11 +27,8 @@ action, and independent artifact verification. Deterministic tests do not establ
 live model reasoning, commissioned worker service, dashboard integration, repeated
 unattended operation, or full M4.4 acceptance. For conversation-origin objectives,
 independent verification establishes artifact integrity, scope, provenance, and
-required structure. Grace may evaluate the digest-verified artifact and evidence
-for same-objective continuation or rework, but terminal completion is determined
-by the persisted accepted-verification state of every required step. The existing
-reconciler recovers interrupted completion after restart; conversation result
-publication follows completion and cannot veto or reverse it.
+required structure. Grace then evaluates the digest-verified artifact and evidence;
+only a durable same-cycle `OBJECTIVE_COMPLETE` decision permits objective completion.
 Authoritative negative JSON outcomes and missing explicit artifact literals are
 rejected before substantive review. Nodes distinguish tested infrastructure from
 the remaining operational Grace work.
@@ -107,6 +104,7 @@ flowchart LR
     g_rv_grace_operational_integration_independent_artifact_check_2502f001["Independent artifact verification checks assignment-bound integrity, scope, provenance, required structure, explicit deliverable literals, and rejects negative JSON decisions without treating envelope validity as substantive completion"]
     g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — evidence failures remain pending; incomplete typed proposals remain GROUNDED with a sanitized detail code and resume through the persistent reasoning cycle after the prior plan is explicitly corrected; never bypass proposal or assignment authorization"]]
     g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated exact-grant request persists one receipt; VERIFIED grounding advances RECEIVED or WAITING_FOR_EVIDENCE to GROUNDED atomically, while incomplete evidence stays pending"]
+    g_rv_grace_operational_integration_grounded_objective_cancellation_141266af["Authorized assignment.cancel may transition GROUNDED to CANCELLED only with an explicit reason and no objective assignment, ledger assignment, dispatch event, or active step; actor, reason, resulting revision, timestamp, and append-only event are retained. Existing WORK_ORDER_CREATED cancellation remains queued/ready-only."]
     g_rv_grace_operational_integration_typed_proposal_api_9e97178a["Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority"]
     g_rv_grace_operational_integration_persistent_service_loop_3c9f3eb8["Persistent loop advances existing dispatch, leased worker execution, verification, completion reconciliation, and result publication before potentially slow grounded/external reasoning; it uses the existing CME fair scheduler and persists heartbeat through the narrow runtime ACL"]
     g_rv_grace_operational_integration_dispatch_retry_limit_3d51ab17{"Persist authorization/dispatch failures; stop automatic dispatch after three attempts and expose the proposal for operator attention"}
@@ -163,6 +161,7 @@ flowchart LR
   g_rv_worker_adapter_deterministic_attempt_continuous_cycle_b746f9c4["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_cme_progress_and_recovery_observe_428defda["Registered target<br/>rv:cme:progress-and-recovery"]
   g_rv_outcome_verifier_independent_result_decision_5500806a["Registered target<br/>rv:outcome-verifier:independent-result"]
+  g_rv_grace_operational_integration_governed_objective_api_39b3aa23 -->|recovery_route: Steward-authorized exact assignment.cancel retires eligible grounded objectives without Engineering assignment or dispatch| g_rv_grace_operational_integration_grounded_objective_cancellation_141266af
   g_rv_grace_operational_integration_objective_intake_55567c14 --> g_rv_grace_operational_integration_authority_check_71ce44bf
   g_rv_grace_operational_integration_authority_check_71ce44bf --> g_rv_grace_operational_integration_reason_decompose_d48619ca
   g_rv_grace_operational_integration_reason_decompose_d48619ca --> g_rv_grace_operational_integration_durable_plan_26bc431c
