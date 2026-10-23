@@ -3972,9 +3972,9 @@
         },
         {
           "id": "rv:grace:operational-integration:dual-capability-owner-loops",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "ISOLATED IMPLEMENTATION — owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability",
+          "label": "ISOLATED IMPLEMENTATION — concurrent capability workers use distinct PostgreSQL adapter connections; claims and verifier routing use persisted attempt capability",
           "source_references": [
             "scripts/run_grace_execution_service.py",
             "src/riverview_core/resident_execution/service.py",
@@ -3983,7 +3983,8 @@
           ],
           "documentation_references": [
             "docs/components/GRACE_PERSISTENT_EXECUTION.md",
-            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+            "docs/components/COMFYUI_ENGINEERING_ADAPTER.md"
           ],
           "verification_evidence": [
             "tests/test_grace_execution.py",

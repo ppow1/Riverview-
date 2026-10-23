@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.68
+**Document Revision:** 1.0.69
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Show lifecycle criteria separately, prioritize ready work, and gate conversation-origin completion on Grace review.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -144,7 +144,7 @@ flowchart LR
     g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766["Verify Codex artifacts against the durable dispatch contract; reject authoritative negative JSON outcomes and check explicit content literals while excluding echoed acceptance metadata; missing contract fields fail closed"]
     g_rv_grace_operational_integration_external_advisory_consumer_d4127120["Source implemented; isolated PostgreSQL verified — Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence"]
     g_rv_grace_operational_integration_source_target_dispatch_binding_bbd0e791["ISOLATED IMPLEMENTATION — dispatch snapshots an explicitly Steward-authorized repository reference, immutable commit, paths, tests and proposal-step digest; resident grounding revision remains separate"]
-    g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17["ISOLATED IMPLEMENTATION — owner-session retains its artifact worker and optionally runs a distinct source worker; claims and verifier routing use persisted attempt capability"]
+    g_rv_grace_operational_integration_dual_capability_owner_loops_afceaa17["ISOLATED IMPLEMENTATION — concurrent capability workers use distinct PostgreSQL adapter connections; claims and verifier routing use persisted attempt capability"]
     g_rv_grace_operational_integration_source_enrollment_fail_closed_7bba0087[["Source capability stays unavailable when separate credential, exact grants, registration, allowlist, repository mapping or pinned checkout is missing; artifact worker continues"]]
     g_rv_grace_operational_integration_latest_verifier_rejection_ca00fc0d[["Latest independent REJECTED result remains immutable and is resolved through its durable objective-step assignment link"]]
     g_rv_grace_operational_integration_grace_rejection_review_9f70861f{"For latest independent REJECTED result, Grace may choose exact-criteria correction within three proposals or Steward direction; provider absence creates durable actionable escalation-pending state."}
