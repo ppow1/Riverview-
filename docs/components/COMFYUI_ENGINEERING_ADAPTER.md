@@ -1,6 +1,7 @@
 # ComfyUI Engineering execution adapter
 
-**Document Revision:** 1.0.5
+**Document Revision:** 1.0.6
+**Changed:** 2026-10-23 UTC | RV-COMFYUI-ISOLATED-WORKER-DB
 **Changed:** 2026-10-23 UTC | RV-COMFYUI-ROLLBACK-CAPABILITY
 **Status:** adapter and Grace capability are deployed; OCTOMINER1 ComfyUI runs on the RTX 4090. Authorized Engineering assignment, independent acceptance and artifact download remain unverified without a Steward browser session.
 
@@ -27,6 +28,11 @@ The active `worker:grace-engineering` identity is extended only under its exact
 grant, scoped to `work-order:engineering`. The distinct existing verifier
 identity uses its existing `assignment.verify` grant. The capability adds no
 GPU-management or model-service authority.
+
+When multiple capability workers are polled concurrently, each receives its own
+`PostgresWorkerAdapter` and PostgreSQL connections. They share the registered
+worker identity and exact grants, while keeping overlapping psycopg transaction
+contexts on separate connections.
 
 When enabled, the Grace service includes the ComfyUI capability in the exact
 worker registration identity before starting `ContinuousWorker`. If an existing

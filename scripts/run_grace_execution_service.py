@@ -3,7 +3,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.13
+# Revision: 1.2.14
+# Changed: 2026-10-23 UTC | RV-COMFYUI-ISOLATED-WORKER-DB | Give concurrent ComfyUI and repository workers separate PostgreSQL adapter connections.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Include the enabled ComfyUI capability in the worker's exact persisted startup identity.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Store binary outputs in a dedicated group-readable artifact root while keeping journals private.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Compose ComfyUI as an optional existing ContinuousWorker capability with durable typed dispatch and independent verification.
@@ -287,11 +288,20 @@ def reconcile_codex_startup_recovery(execution_action, recovery, *, scope_ref, w
     return reconcile(recovery, scope_ref=scope_ref, worker_id=worker_id)
 
 
+def isolated_capability_worker_adapter(dsn, schema, authority_schema, *existing_adapters):
+    """Create independent PostgreSQL connections for a concurrently polled worker."""
+    candidate = PostgresWorkerAdapter(dsn, schema=schema, authority_schema=authority_schema)
+    if any(candidate is existing for existing in existing_adapters):
+        raise WorkerServiceConfigurationError("capability_worker_database_connection_not_isolated")
+    return candidate
+
+
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     configure_component_logging()
     ledger = adapter = authority_registry = conversation_store = proposal_registry = None
     source_worker_adapter = None
+    comfy_worker_adapter = None
     try:
         codex_auth_mode = os.environ.get("RIVERVIEW_CODEX_AUTH_MODE", "service")
         credential_unit = (OWNER_SESSION_SERVICE_UNIT
@@ -504,8 +514,10 @@ def main() -> int:
                 comfy_registry = ComfyUIWorkflowRegistry(templates)
                 comfy_group_name = os.environ.get("RIVERVIEW_COMFYUI_ARTIFACT_GROUP", "riverview")
                 comfy_group_gid = grp.getgrnam(comfy_group_name).gr_gid
-                adapter.register_comfyui_capability(worker_id, worker_token, scope_ref)
-                ensure_registered(adapter, worker_id, worker_token,
+                comfy_worker_adapter = isolated_capability_worker_adapter(
+                    dsn, schema, authority_schema, adapter)
+                comfy_worker_adapter.register_comfyui_capability(worker_id, worker_token, scope_ref)
+                ensure_registered(comfy_worker_adapter, worker_id, worker_token,
                     (execution_capability, ComfyUIAction.CAPABILITY), scope_ref)
 
                 def resolve_comfyui_request(assignment):
@@ -531,7 +543,7 @@ def main() -> int:
                     timeout_seconds=float(os.environ.get("RIVERVIEW_COMFYUI_TIMEOUT_SECONDS", "900")),
                     poll_interval=float(os.environ.get("RIVERVIEW_COMFYUI_POLL_SECONDS", "1")),
                     artifact_group_gid=comfy_group_gid)
-                comfy_engine = ContinuousWorker(adapter, worker_id, worker_token,
+                comfy_engine = ContinuousWorker(comfy_worker_adapter, worker_id, worker_token,
                     knowledge=ComfyUIKnowledgeProvider(
                         RepositoryKnowledgeProvider(repo_root, commit), resolve_comfyui_request),
                     action=comfy_action, action_effect_class="retry_safe",
@@ -545,6 +557,9 @@ def main() -> int:
                     "capability": ComfyUIAction.CAPABILITY,
                     "workflow_count": len(templates)}, sort_keys=True))
             except Exception as exc:
+                if comfy_worker_adapter is not None:
+                    comfy_worker_adapter.close()
+                    comfy_worker_adapter = None
                 logging.warning(json.dumps({"event": "grace_comfyui_worker_unavailable",
                     "failure_type": type(exc).__name__}, sort_keys=True))
         if (os.environ.get("RIVERVIEW_SOURCE_WORKER_ENABLED", "0") == "1" and
@@ -692,6 +707,8 @@ def main() -> int:
     finally:
         if source_worker_adapter is not None:
             source_worker_adapter.close()
+        if comfy_worker_adapter is not None:
+            comfy_worker_adapter.close()
         if adapter is not None:
             adapter.close()
         if conversation_store is not None:
