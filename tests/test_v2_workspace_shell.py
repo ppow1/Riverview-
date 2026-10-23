@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_v2_workspace_shell.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.24
+# Revision: 1.0.25
 # Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Verify owner-authorized stream activity is graphed only as measured characters/s, separate from completed token rates.
 # Purpose: Verify V2 preview, authenticated Grace integration, and truthful resource/communications monitor state
 # Execution Model: Request-driven local unittest fixtures
@@ -165,6 +165,10 @@ class WorkspacePreviewTests(unittest.TestCase):
         self.assertIn('id="octo1-gpu-selectors"', html)
         self.assertIn('id="octo1-model-selectors"', html)
         self.assertIn('id="octo1-activity-list"', html)
+        self.assertIn('id="octo1-bambu"', html)
+        self.assertIn('id="octo1-bambu-ams"', html)
+        self.assertIn("system_metrics", monitor)
+        self.assertIn("bambu_printer", monitor)
         self.assertIn("/v2/assets/octominer/x12ultra-front-open-chassis-reference.png", html)
         self.assertIn("/v2/assets/octominer/smart-watchdog-fan-controller-reference.png", html)
         self.assertIn("/v2/assets/octominer/controller-feature-reference.png", html)

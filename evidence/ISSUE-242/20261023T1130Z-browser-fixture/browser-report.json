@@ -1,0 +1,219 @@
+{
+  "browser": "Chrome/155.0.8059.84",
+  "refresh_stability": {
+    "poll_successes": 12,
+    "elapsed_seconds": 60,
+    "max_overlapping_requests": 1,
+    "gpu_nodes_removed": 0,
+    "plain_text_placeholders_added": 0,
+    "host_card_height_before": 2181.78125,
+    "host_card_height_after": 2181.78125,
+    "scroll_y_before": 450,
+    "scroll_y_after": 450,
+    "pending_state": {
+      "allGpuCardsMounted": true,
+      "hostCardMounted": true,
+      "selectorMounted": true,
+      "hostBadge": "REFRESHING",
+      "placeholder": false,
+      "height": 2181.78125,
+      "scrollY": 450
+    },
+    "failure_state": {
+      "mounted": true,
+      "hostMounted": true,
+      "badge": "STALE",
+      "placeholder": false,
+      "height": 2181.78125
+    },
+    "recovery_state": {
+      "badge": "LIVE SOURCE",
+      "mounted": true,
+      "selectorMounted": true,
+      "height": 2181.78125,
+      "utilization": "18%"
+    },
+    "source": "isolated Chrome with explicitly labeled synthetic telemetry; not production hardware evidence"
+  },
+  "source": "isolated local HTTPS browser fixture; synthetic telemetry is explicitly labeled in screenshots",
+  "checks": {
+    "url": "/v2/",
+    "resourceVisible": true,
+    "overviewIntroHidden": true,
+    "authenticatedFetches": [
+      "/api/v1/auth/session",
+      "/api/v1/resident/conversation-session",
+      "/api/v1/resident/conversations",
+      "/api/v1/resident/conversations/fixture-conversation",
+      "/api/v1/auth/session",
+      "/api/v1/resident/conversations/fixture-conversation",
+      "/api/v1/status",
+      "/api/v1/resources/telemetry",
+      "/api/v1/resident/conversations/fixture-conversation/stream-activity?limit=12"
+    ],
+    "machineTitle": "OCTO1\nOctoMiner X12 Ultra",
+    "gpuCount": 6,
+    "modelCount": 2,
+    "serviceMap": "Grace reasoning 80B\nPROCESSING \u00b7 ACTIVE SLOT\nGPU 0, 3, 4, 5\nGrace vision 30B\nREADY \u00b7 IDLE\nGPU 1",
+    "vramSummary": "13.0 GiB / 16.0 GiB \u00b7 81.1% used \u00b7 3.0 GiB free",
+    "bambuState": "CONNECTED",
+    "bambuPrintState": "RUNNING",
+    "bambuProgress": "42%",
+    "amsCount": "1 reported slot(s)",
+    "hostCardCount": 3,
+    "hostText": "VERIFIED HOST TELEMETRYOCTO1LIVE SOURCEGPU inventory6 device(s)Inventory sourcesynthetic local fixture \u00b7 shaped like Dashboard projectionGPU observed2026-10-23T11:29:48.574Z \u00b7 UTCCPUSynthetic fixture CPUCPU utilization31.25%Memory used / total572.2 MiB / 953.7 MiBSystem metrics observed2026-10-23T11:29:48.574Z \u00b7 UTCTesla P100-PCIE-16GB \u00b7 device 013.0 GiB / 16.0 GiB \u00b7 81.1% used \u00b7 3.0 GiB freeUtilization17%VRAM used / total13.0 GiB / 16.0 GiBTemperature48 \u00b0CPower60.4 WGPU fanUnavailableActive servicesgrace-reasoning-80bNVIDIA GeForce RTX 4090 \u00b7 device 116.2 GiB / 24.0 GiB \u00b7 67.7% used \u00b7 7.7 GiB freeUtilization0%VRAM used / total16.2 GiB / 24.0 GiBTemperature37 \u00b0CPower60.4 WGPU fan50%Active servicesgrace-vision-30bNVIDIA GeForce RTX 3060 Ti \u00b7 device 2Unavailable \u00b7 source did not provide a consistent used/total readingUtilization0%VRAM used / totalUnavailable / 8.0 GiBTemperature35 \u00b0CPower60.4 WGPU fan50%Active servicesNone identifiedTesla P100-PCIE-16GB \u00b7 device 313.0 GiB / 16.0 GiB \u00b7 81.1% used \u00b7 3.0 GiB freeUtilization21%VRAM used / total13.0 GiB / 16.0 GiBTemperature35 \u00b0CPower60.4 WGPU fanUnavailableActive servicesgrace-reasoning-80bTesla P100-PCIE-16GB \u00b7 device 413.0 GiB / 16.0 GiB \u00b7 81.1% used \u00b7 3.0 GiB freeUtilization21%VRAM used / total13.0 GiB / 16.0 GiBTemperature35 \u00b0CPower60.4 WGPU fanUnavailableActive servicesgrace-reasoning-80bTesla P100-PCIE-16GB \u00b7 device 513.0 GiB / 16.0 GiB \u00b7 81.1% used \u00b7 3.0 GiB freeUtilization33%VRAM used / total13.0 GiB / 16.0 GiBTemperature35 \u00b0CPower60.4 WGPU fanUnavailableActive servicesgrace-reasoning-80bVERIFIED HOST TELEMETRYCamruiSOURCE UNAVAILABLEGPU inventoryunavailableInventory sourcenot_configuredGPU observed2026-10-23T11:29:48.574Z \u00b7 UTCCPUUnavailableCPU utilizationUnavailableMemory used / totalUnavailableSystem metrics observed2026-10-23T11:29:48.574Z \u00b7 UTCDOCUMENTED \u00b7 IDENTITY UNVERIFIEDOCTO2SOURCE UNAVAILABLEGPU inventoryunavailableInventory sourceUnavailableGPU observedNot reportedCPUUnavailableCPU utilizationUnavailableMemory used / totalUnavailableSystem metrics observedNot reported",
+    "systemMetrics": "GPU inventory6 device(s)Inventory sourcesynthetic local fixture \u00b7 shaped like Dashboard projectionGPU observed2026-10-23T11:29:48.574Z \u00b7 UTCCPUSynthetic fixture CPUCPU utilization31.25%Memory used / total572.2 MiB / 953.7 MiBSystem metrics observed2026-10-23T11:29:48.574Z \u00b7 UTC",
+    "octo2Host": "GPU inventoryunavailableInventory sourceUnavailableGPU observedNot reportedCPUUnavailableCPU utilizationUnavailableMemory used / totalUnavailableSystem metrics observedNot reported",
+    "missingVramSummary": "Unavailable \u00b7 source did not provide a consistent used/total reading",
+    "missingVramNow": null,
+    "vramFill": "width:81.1%",
+    "throughput": [
+      {
+        "model": "grace-reasoning-80b",
+        "latest": "1.2 tokens/s \u00b7 measured",
+        "points": "295.2,20.0 304.8,46.8",
+        "empty": "2 measured provider responses \u00b7 rolling five-minute window",
+        "liveLatest": "17.5 chars/s \u00b7 LIVE",
+        "livePoints": "304.4,39.4 306.3,20.0"
+      },
+      {
+        "model": "grace-vision-30b",
+        "latest": "3.0 tokens/s \u00b7 measured",
+        "points": "290.5,20.0",
+        "empty": "One measured point \u00b7 a second completed response is needed to draw a line.",
+        "liveLatest": "NO LIVE SAMPLE",
+        "livePoints": ""
+      },
+      {
+        "model": "grace-autonomic-0.6b",
+        "latest": "No measured response in window",
+        "points": "",
+        "empty": "Unavailable \u00b7 no successful provider response with both token count and elapsed-time evidence in the last five minutes.",
+        "liveLatest": "NO LIVE SAMPLE",
+        "livePoints": ""
+      }
+    ],
+    "chassisView": "front",
+    "artworkSrc": "/v2/assets/octominer/x12ultra-front-open-chassis-reference.png",
+    "artworkWidth": 1565,
+    "frontHotspots": [
+      "Select front fan 1",
+      "Select front fan 2",
+      "Select front fan 3",
+      "Select front fan 4",
+      "Select front fan 5",
+      "Select right-side front display and control panel"
+    ],
+    "controllerReference": "Manufacturer controller reference \u00b7 installation and live readings unverified",
+    "timeline": "2026-10-23T11:29:48.574Z \u00b7 UTC\n6 GPU readings\n\nGPU 0: 17% \u00b7 48\u00b0C \u00b7 GPU fan Unavailable | GPU 1: 0% \u00b7 37\u00b0C \u00b7 GPU fan 50% | GPU 2: 0% \u00b7 35\u00b0C \u00b7 GPU fan 50% | GPU 3: 21% \u00b7 35\u00b0C \u00b7 GPU fan Unavailable | GPU 4: 21% \u00b7 35\u00b0C \u00b7 GPU fan Unavailable | GPU 5: 33% \u00b7 35\u00b0C \u00b7 GPU fan Unavailable\n\ngrace-reasoning-80b: PROCESSING \u00b7 ACTIVE SLOT \u00b7 slots 1 | grace-vision-30b: READY \u00b7 IDLE \u00b7 slots 0",
+    "attributionNotice": "GPU utilization and active inference slots are live system measurements and are not attributed to a specific Grace request. Streamed characters/s is application-side delivery cadence. Completed tokens/s is router-measured provider-call throughput, including endpoint and transport overhead. These measurements are separate; native model-server token-generation speed is unavailable. Separate observations: GPU use and active-slot counts are not evidence that a specific Grace request reached or generated on a model. Correlated durable conversation evidence appears below when an authorized Grace conversation is connected. This view shows the current signed-in Steward\u2019s selected conversation, request ID, router attempt metadata, and persisted response timestamp. Prompt and response text are excluded. The current llama.cpp API does not provide a correlated server-receipt or prompt/generation timeline; no GPU sample is attributed to a request.",
+    "tracePanel": "fixture-request-trace-001\nCOMPLETED\nRequest created\n2026-10-23T11:29:48.574Z \u00b7 UTC\nAttempt 1 \u00b7 80B reasoning\nlocal.inference.v1 \u00b7 succeeded\nClient call window\n2026-10-23T11:29:48.574Z \u00b7 UTC \u2192 2026-10-23T11:29:48.574Z \u00b7 UTC \u00b7 19,000 ms\nAttempt 2 \u00b7 80B reasoning\nlocal.inference.v1 \u00b7 succeeded\nClient call window\n2026-10-23T11:29:18.577Z \u00b7 UTC \u2192 2026-10-23T11:29:38.577Z \u00b7 UTC \u00b7 20,000 ms\nAttempt 3 \u00b7 30B vision\nlocal.inference.v1 \u00b7 succeeded\nClient call window\n2026-10-23T11:29:23.577Z \u00b7 UTC \u2192 2026-10-23T11:29:33.577Z \u00b7 UTC \u00b7 10,000 ms\nResponse persisted\n2026-10-23T11:29:48.574Z \u00b7 UTC\nRouted stage\n80B reasoning\nReturned token counts\n91 prompt \u00b7 23 completion\nFinish reason\nstop",
+    "traceState": "AVAILABLE",
+    "noDirectHostUrls": true,
+    "noControls": true
+  },
+  "interactive_states": {
+    "fan_detail": "Front fan \u00b7 visual position 3 Fan RPM\nUnavailable \u00b7 OCTO1 controller feed not connected\nPWM, target, and mode\nUnavailable \u00b7 controller channel is not mapped\nRecent history\nUnavailable \u00b7 no verified OCTO1 fan readings\nPhysical position\nManufacturer front-panel image \u00b7 left-to-right visual index only",
+    "open_chassis": {
+      "view": "open",
+      "caption": "The manufacturer reference shows the X12 Ultra internal layout. Live GPU device IDs are not matched to physical riser bays; no GPU locations are overlaid.",
+      "pressed": "true"
+    },
+    "model_mapping": {
+      "title": "Grace reasoning 80B",
+      "allocation": "Loaded model\nQwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf\nService readiness\nready\nGPU allocation\nGPU 0, 3, 4, 5 \u00b7 current service process mapping\nActive slots\n1 / 1\nConfigured context per slot\n16,384 tokens\nServer context across slots\n16,384 token-slots \u00b7 sum of per-slot limits\nSlot 0 prompt-context use\n3,054 / 16,384 tokens \u00b7 18.6% \u00b7 processing\nSlot 0 prompt processed\n116 tokens \u00b7 in progress\nSlot 0 cached prompt tokens\n32\nKV-cache allocation\nUnavailable \u00b7 model server does not expose KV-cache bytes\nQueued requests\nUnavailable \u00b7 not exposed by current server\nPrompt/generation timing\nUnavailable \u00b7 server exposes no stage timing counters\nObservation\n2026-10-23T11:29:48.574Z \u00b7 UTC",
+      "highlight": [
+        "true",
+        "false",
+        "false",
+        "true",
+        "true",
+        "true"
+      ]
+    },
+    "gpu_detail": {
+      "title": "NVIDIA GeForce RTX 4090 \u00b7 device 1",
+      "allocation": "Utilization\n0%\nVRAM used / total\n16.2 GiB / 24.0 GiB \u00b7 67.7% used \u00b7 7.7 GiB free\nVRAM remaining\n7.7 GiB\nTemperature\n37 \u00b0C\nPower\n60.4 W\nGPU fan speed\n50%\nPhysical chassis bay\nUnavailable \u00b7 live GPU device ID is not mapped to a bay\nGPU observation\n2026-10-23T11:29:48.574Z \u00b7 UTC",
+      "highlight": [
+        "false",
+        "true"
+      ]
+    }
+  },
+  "narrow_layout": {
+    "width": 375,
+    "viewport": 390,
+    "consoleWidth": 341,
+    "layout": [
+      {
+        "s": ".app-shell",
+        "left": 0,
+        "right": 375,
+        "width": 375,
+        "display": "block"
+      },
+      {
+        "s": ".rail",
+        "left": -228,
+        "right": -4,
+        "width": 224,
+        "display": "flex"
+      },
+      {
+        "s": ".main-column",
+        "left": 0,
+        "right": 375,
+        "width": 375,
+        "display": "block"
+      },
+      {
+        "s": ".workspace-grid",
+        "left": 0,
+        "right": 375,
+        "width": 375,
+        "display": "flex"
+      },
+      {
+        "s": ".content",
+        "left": 0,
+        "right": 375,
+        "width": 375,
+        "display": "block"
+      },
+      {
+        "s": "#octo1-console",
+        "left": 17,
+        "right": 358,
+        "width": 341,
+        "display": "grid"
+      },
+      {
+        "s": "#octo1-chassis-stage",
+        "left": 53,
+        "right": 322,
+        "width": 269,
+        "display": "block"
+      }
+    ],
+    "buttons": 6,
+    "modelDetailVisible": true,
+    "overflow": []
+  },
+  "octo2_unavailable_card": {
+    "text": "DOCUMENTED \u00b7 IDENTITY UNVERIFIEDOCTO2SOURCE UNAVAILABLEGPU inventoryunavailableInventory sourceUnavailableGPU observedNot reportedCPUUnavailableCPU utilizationUnavailableMemory used / totalUnavailableSystem metrics observedNot reported"
+  },
+  "screenshots": [
+    "octo1-chassis-front-fixture.png",
+    "octo1-bambu-ams-fixture.png",
+    "octo2-unavailable-fixture.png",
+    "octo1-front-fan-detail-fixture.png",
+    "octo1-chassis-open-fixture.png",
+    "octo1-80b-allocation-fixture.png",
+    "octo1-rtx4090-detail-fixture.png",
+    "gpu-cards-pending-refresh-fixture.png",
+    "gpu-cards-stale-fixture.png",
+    "gpu-cards-recovered-fixture.png"
+  ],
+  "browser_errors": [],
+  "evidence_classification": "isolated Chrome fixture; synthetic data only, not live production readings"
+}

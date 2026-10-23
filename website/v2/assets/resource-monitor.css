@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/resource-monitor.css
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.1.6
+Revision: 1.1.7
 Purpose: Style the OCTO1 manufacturer chassis view, telemetry console, and content-free Grace request trace
 Execution Model: Static browser presentation
 Observability: Status colors are paired with visible text labels
@@ -143,3 +143,10 @@ History: Git and revision/backup manifest
 
 /* RV-V2-MOUNTED-STORAGE-001: compact read-only capacity view */
 .resource-storage-hosts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:10px}.storage-host{min-width:0;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--surface,#fff)}.storage-host-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.storage-host-head h4{margin:0;font-size:12px}.storage-volume-list{display:grid;gap:8px;margin-top:10px}.storage-volume{display:grid;gap:3px;padding:9px;border-radius:7px;background:var(--surface-soft,#f8fafa);overflow-wrap:anywhere}.storage-volume-title{font-size:10px}.storage-volume-usage{font-size:10px;color:var(--ink)}.storage-volume-observed,.storage-unavailable{font-size:9px;color:var(--muted)}.storage-unavailable{margin:0;line-height:1.45}
+
+/* RV-V2-BAMBU-READONLY-230: compact, read-only printer state within OCTO1. */
+.bambu-card{display:grid;gap:10px;margin:12px 0;padding:13px;border:1px solid var(--line);border-radius:9px;background:var(--surface,#fff)}
+.bambu-card-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.bambu-card-heading h4{margin:4px 0;font-size:13px}.bambu-card-heading .eyebrow{margin:0;color:#80908e;font-size:8px;font-weight:750;letter-spacing:.13em}
+.bambu-printer-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}.bambu-printer-summary span{display:grid;gap:3px;padding:8px;border-radius:7px;background:var(--surface2,#f7f8f8);color:var(--muted);font-size:8px}.bambu-printer-summary strong{color:var(--ink);font-size:10px;overflow-wrap:anywhere}
+.bambu-progress-track{height:7px;overflow:hidden;border-radius:8px;background:rgba(112,132,126,.15)}.bambu-progress-track span{display:block;width:0;height:100%;border-radius:inherit;background:#438b7d;transition:width .2s ease}.bambu-progress-track[data-state="stale"] span{background:#a98b50}
+.bambu-ams-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:9px}.bambu-ams-heading span{color:var(--muted);font-size:8px}.bambu-ams-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:6px}.bambu-slot{display:grid;grid-template-columns:14px 1fr;gap:2px 6px;align-items:center;min-width:0;padding:8px;border:1px solid var(--line);border-radius:7px}.bambu-slot-color{grid-row:span 3;width:12px;height:34px;border:1px solid rgba(0,0,0,.16);border-radius:4px;background:var(--surface2,#f7f8f8)}.bambu-slot strong{font-size:8px}.bambu-slot span,.bambu-slot small{min-width:0;color:var(--muted);font-size:8px;overflow-wrap:anywhere}.bambu-slot small{font-variant-numeric:tabular-nums}

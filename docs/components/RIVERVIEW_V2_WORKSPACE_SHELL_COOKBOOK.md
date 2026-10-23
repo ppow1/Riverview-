@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.24
+File Revision: 1.0.25
 Purpose: Diagnose and recover V2 workspace, Grace chat, and Communications Activity presentation
 Authority: Read-only diagnostics except the authorized V2 route rollback and Steward-initiated chat
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Document authenticated live GPU/model reads and source gaps.
@@ -15,6 +15,7 @@ Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Verify VRAM missing sta
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Troubleshoot authorized live stream character cadence and unavailable native output-token counters.
 Changed: 2026-10-22 UTC | RV-V2-GRACE-MESSAGE-ACTIONS-001 | Record isolated 60-second menu persistence and action contract checks.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Record storage API semantics and which host measurements remain uncommissioned.
+Changed: 2026-10-23 UTC | ISSUE-242 | Document Bambu/OCTO2 state checks and telemetry freshness semantics.
 History: Git and revision/backup manifest
 -->
 # V2 workspace shell preview: troubleshooting and recovery
@@ -298,3 +299,12 @@ V2 reads `/api/v1/resident/conversations/{conversation_id}/stream-activity?limit
 For conversation UI regression, use `node scripts/verify_v2_grace_menu_chrome.cjs <evidence-dir>`. This starts a temporary HTTPS fixture, calls the production V2 `grace-chat.js`, and checks the same menu DOM node stays open through 12 simulated history refreshes over 60 seconds while preserving scroll and composer value/focus. It also checks chronological transcript clipboard content and the exact existing work-order POST body. All API responses are synthetic: this is not account-authenticated or production work-order acceptance. For live action verification, use the existing authenticated Steward browser session and a disposable authorized request; the backend remains the source of authority.
 
 The mounted storage section consumes per-host `storage` objects from `GET /api/v1/resources/telemetry`; see the Dashboard cookbook for source checks. Confirm the aggregate excludes duplicate filesystem IDs and that unconfigured Windows/OCTO2 sources remain unavailable. Before collection is deployed to OCTO1, the existing forced command will not report storage and the host card must remain unavailable. No credential or host configuration is embedded in the V2 static files.
+
+
+## Issue #242 — V2 Bambu and host telemetry verification
+
+Open Hardware & AI and verify `octo1-bambu-state` against the authenticated Dashboard projection. A healthy panel must carry a recent source observation and only validated print/AMS fields. `offline`, `stale`, `unavailable`, an absent sample, or a failed authenticated request must not produce fabricated zeros. The V2 browser uses same-origin GET only; check the authenticated backend endpoint before diagnosing the panel. If the panel is unavailable while GPU readings are healthy, check whether the OCTO1 restricted telemetry command has been updated to emit the sanitized `bambu_status`; do not call a printer-control route or print the local OCTO Control token.
+
+The same host card can show CPU/RAM while GPU inventory is unavailable. Treat each source timestamp separately. OCTO2 is expected to be offline and should show unavailable measurements (not `0%` or zero capacity); this release's OCTO2 validation is a fixture, not a live host observation. Windows telemetry is uncommissioned until a pinned host key and dedicated forced-command credentials exist.
+
+For deployment rollback, retain the whole active composite release and switch only the documented V2 Nginx alias to its exact predecessor after `nginx -t`; do not replace the directory or overwrite the predecessor. Snapshot remains byte-identical in the candidate.

@@ -2,15 +2,15 @@
   "files": {
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.6",
-      "sha256": "c89eaf4c986c6f7dd1a94b9edb2397d7101e5e44c9b9c8cf8b5832aef5b8d505",
-      "size_bytes": 444204
+      "revision": "1.0.7",
+      "sha256": "fcb27db4599c22268b415d65e40c98664a53739b32823b830c1049eeb2f0d573",
+      "size_bytes": 452666
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.129",
-      "sha256": "56f7af1ee74ac25a058688bd9ee8392c159653c165da2bbfd17eeb42b7389c24",
-      "size_bytes": 32248
+      "revision": "1.1.131",
+      "sha256": "35f2bd3e25bc497944b662e7ff1f6e3de2b249abfca2ab57822208e964cf0de1",
+      "size_bytes": 33350
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -38,21 +38,21 @@
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
-      "revision": "1.0.32",
-      "sha256": "b554a73f0b3a06bb25ea8f0af54672c183f9af26a0c7ed4fcb4591a0a82d9784",
-      "size_bytes": 53197
+      "revision": "1.0.33",
+      "sha256": "3a9746735c7d04218dff659269f0269bc6b64ff157178bc728cf02ff56a3580e",
+      "size_bytes": 55067
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md",
-      "revision": "1.0.24",
-      "sha256": "716efc1a8c8bfbdd20e4998c20761b46e6ab899cfda3d0d231aed0ac1c8ee967",
-      "size_bytes": 45186
+      "revision": "1.0.25",
+      "sha256": "33a25442d0be715aec895c10818223996de8ed069c1791421a805411068d0aba",
+      "size_bytes": 46685
     },
     "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md": {
       "path": "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md",
-      "revision": "1.0.24",
-      "sha256": "dacc863a01676ea523af0ea4f69c41dae18561359a9cbd9c9fb314596fc2fcb4",
-      "size_bytes": 40035
+      "revision": "1.0.26",
+      "sha256": "861f0f90ce40636f652e9b9f467d6f9485d79ee2a4e86fecef9489a547b3fa97",
+      "size_bytes": 41688
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
@@ -411,9 +411,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.68",
-      "sha256": "ef643f012977f2749fddc3577e45ce4e4b7ca76ca448b6d07776798859bb32e1",
-      "size_bytes": 351079
+      "revision": "1.0.70",
+      "sha256": "1a3aa0e1709b0848e0264459d081d5f06c86373a3934ac2b1815e538c4c5295e",
+      "size_bytes": 354363
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
@@ -453,9 +453,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.24",
-      "sha256": "d9a4cc382bb8dbdeee8b3aaf1fd274bcc33259f9010fc405c0bc305d8dcc7f14",
-      "size_bytes": 89059
+      "revision": "1.0.25",
+      "sha256": "d477af916815eb91e7ddc93605f734c470da2d9d1363ff499b55dc449cc72fec",
+      "size_bytes": 91889
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -495,9 +495,9 @@
     },
     "scripts/verify_v2_resource_monitor.cjs": {
       "path": "scripts/verify_v2_resource_monitor.cjs",
-      "revision": "1.4.2",
-      "sha256": "82623675027371388b0554a83697faa3bb7a87a2a1b97159f5820c2b31c3dd02",
-      "size_bytes": 29689
+      "revision": "1.4.3",
+      "sha256": "5f5c071af88b0bdfc47bc4dda7d254816d97e81d2fa00e8539fdb54fadb311d5",
+      "size_bytes": 32288
     },
     "scripts/verify_v2_work_monitor.cjs": {
       "path": "scripts/verify_v2_work_monitor.cjs",
@@ -537,9 +537,9 @@
     },
     "tests/test_v2_workspace_shell.py": {
       "path": "tests/test_v2_workspace_shell.py",
-      "revision": "1.0.23",
-      "sha256": "2a57ca8a0af4f4fe3b342633c07168ac7af64d773ce54fce585ff491ae6f2e2c",
-      "size_bytes": 30428
+      "revision": "1.0.25",
+      "sha256": "a094198e0ea744032bb4a1bf0f3c95ef1e3d32d14cc26f056c8e6e992d7f9420",
+      "size_bytes": 31282
     },
     "website/v2/assets/grace-chat.js": {
       "path": "website/v2/assets/grace-chat.js",
@@ -576,15 +576,15 @@
     },
     "website/v2/assets/resource-monitor.css": {
       "path": "website/v2/assets/resource-monitor.css",
-      "revision": "1.1.6",
-      "sha256": "f6cf2daa172480c5bd434677ec9dd156434767c49d91df109fbe67df31d90bf8",
-      "size_bytes": 22124
+      "revision": "1.1.7",
+      "sha256": "456c1390757919d2bb5ee1b13246aabefc626bdc3558c5b171e4c3f9334b38e6",
+      "size_bytes": 23967
     },
     "website/v2/assets/resource-monitor.js": {
       "path": "website/v2/assets/resource-monitor.js",
-      "revision": "1.4.2",
-      "sha256": "d928fccf3bf6c8fe3e586905fbfbbf0d660760045bb7e133c9f10d18a2c671f9",
-      "size_bytes": 67369
+      "revision": "1.5.0",
+      "sha256": "6fab40513b116dc282db54079ee82c3742148494cfb0080ddcee4dd86a344d94",
+      "size_bytes": 83093
     },
     "website/v2/assets/snapshot.js": {
       "path": "website/v2/assets/snapshot.js",
@@ -618,10 +618,53 @@
     },
     "website/v2/index.html": {
       "path": "website/v2/index.html",
-      "revision": "1.0.17",
-      "sha256": "857faf5c1b93b17d5e5c3bcc4e4cabc55b803d1b3a853507ae154ecee0fdb8a7",
-      "size_bytes": 35443
+      "revision": "1.0.19",
+      "sha256": "a9dccc6fb7147cfbf22eb2ef839ea706d5b05fad9655670ac01abb44b5373973",
+      "size_bytes": 37284
+    },
+    ".riverview-backups/ISSUE-242-live-v2-predecessor/index.html": {
+      "path": ".riverview-backups/ISSUE-242-live-v2-predecessor/index.html",
+      "revision": "1.0.0",
+      "sha256": "94c444fce8781a850f7bd93c1fbbb113c9e0a2bc25c22e30ee7d52500b823b23",
+      "size_bytes": 35759
+    },
+    ".riverview-backups/ISSUE-242-live-v2-predecessor/resource-monitor.css": {
+      "path": ".riverview-backups/ISSUE-242-live-v2-predecessor/resource-monitor.css",
+      "revision": "1.0.0",
+      "sha256": "f6cf2daa172480c5bd434677ec9dd156434767c49d91df109fbe67df31d90bf8",
+      "size_bytes": 22124
+    },
+    ".riverview-backups/ISSUE-242-live-v2-predecessor/resource-monitor.js": {
+      "path": ".riverview-backups/ISSUE-242-live-v2-predecessor/resource-monitor.js",
+      "revision": "1.0.0",
+      "sha256": "ca8f18cf4f018db2b68dfd16af6389eb33614de5236e7121a014f80bf04bb460",
+      "size_bytes": 78159
+    },
+    "evidence/ISSUE-242/20261023T1130Z-browser-fixture/README.md": {
+      "path": "evidence/ISSUE-242/20261023T1130Z-browser-fixture/README.md",
+      "revision": "1.0.0",
+      "sha256": "7265f7a0c35d0bc15b8221126876afb26bd46b6bd93b619f7ef66b9454f1ca72",
+      "size_bytes": 2018
+    },
+    "evidence/ISSUE-242/20261023T1130Z-browser-fixture/browser-report.json": {
+      "path": "evidence/ISSUE-242/20261023T1130Z-browser-fixture/browser-report.json",
+      "revision": "1.0.0",
+      "sha256": "6c459daf73c88b723774b4f2d5b8b75afc85f910d2b4e96e2b84c467436f6bed",
+      "size_bytes": 13021
+    },
+    "evidence/ISSUE-242/20261023T1130Z-browser-fixture/octo1-bambu-ams-fixture.png": {
+      "path": "evidence/ISSUE-242/20261023T1130Z-browser-fixture/octo1-bambu-ams-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "5ca97972cce4878cb668f00d9fccabafa9aa8fe6127b70a8d1257e8456e4d940",
+      "size_bytes": 275377
+    },
+    "evidence/ISSUE-242/20261023T1130Z-browser-fixture/octo2-unavailable-fixture.png": {
+      "path": "evidence/ISSUE-242/20261023T1130Z-browser-fixture/octo2-unavailable-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "5fa1c9d8583951e2840b8e3987583272b5e1632ff953938cb89e3c7b0e0e4a56",
+      "size_bytes": 277157
     }
   },
-  "manifest_revision": "1.1.126"
+  "manifest_revision": "1.1.131",
+  "updated_at": "2026-10-23T11:16:41Z"
 }

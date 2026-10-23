@@ -3765,7 +3765,7 @@
     },
     {
       "graph_id": "rv:riverview-v2:workspace-shell",
-      "graph_revision": "1.0.24",
+      "graph_revision": "1.0.25",
       "component_id": "RIVERVIEW-V2-WORKSPACE-SHELL",
       "workflow_id": "local-static-preview",
       "diagram_order": 80,
@@ -3792,7 +3792,8 @@
         "website/v2/assets/octominer/smart-watchdog-fan-controller-reference.png",
         "website/v2/assets/octominer/controller-feature-reference.png",
         "src/riverview_core/status_dashboard/server.py",
-        "scripts/verify_v2_grace_menu_chrome.cjs"
+        "scripts/verify_v2_grace_menu_chrome.cjs",
+        "tests/test_v2_workspace_shell.py"
       ],
       "documentation_references": [
         "docs/components/RIVERVIEW_V2_CAPABILITY_MATRIX.md",
@@ -5309,6 +5310,53 @@
             "scripts/verify_v2_resource_monitor.cjs",
             "evidence/v2-grace-menu-20261022/live-model-slot-observation.json"
           ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:bambu-read-projection",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Read the sanitized Bambu P2S and AMS projection from authenticated Dashboard resource telemetry; issue no printer controls",
+          "source_references": [
+            "website/v2/assets/resource-monitor.js"
+          ],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_resource_monitor.cjs"
+          ]
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:optional-host-telemetry",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Collect Windows/OCTO2 only through dedicated pinned identities and fixed read-only forced commands; otherwise preserve unavailable state",
+          "source_references": [],
+          "documentation_references": [
+            "docs/components/STATUS_DASHBOARD.md",
+            "docs/components/STATUS_DASHBOARD_COOKBOOK.md"
+          ],
+          "verification_evidence": []
+        },
+        {
+          "id": "rv:riverview-v2:workspace-shell:render-host-system-metrics",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Render timestamped CPU and RAM separately from GPU inventory; mark offline or stale sources without substituting zero",
+          "source_references": [
+            "website/v2/assets/resource-monitor.js",
+            "website/v2/index.html"
+          ],
+          "documentation_references": [
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md",
+            "docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "scripts/verify_v2_resource_monitor.cjs",
+            "tests/test_v2_workspace_shell.py"
+          ]
         }
       ],
       "edges": [
@@ -6062,6 +6110,24 @@
           "to": "rv:riverview-v2:workspace-shell:resource-storage-summary",
           "type": "runtime_transition",
           "label": "Render host volumes and aggregate distinct filesystem identifiers"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:resource-host-telemetry-ssh",
+          "to": "rv:riverview-v2:workspace-shell:bambu-read-projection",
+          "type": "runtime_transition",
+          "label": "OCTO1 collector returns a bounded sanitized printer projection through the existing authenticated read"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:optional-host-telemetry",
+          "to": "rv:riverview-v2:workspace-shell:render-host-system-metrics",
+          "type": "runtime_transition",
+          "label": "Render fresh CPU/RAM separately; absent credentials or offline host remain unavailable"
+        },
+        {
+          "from": "rv:riverview-v2:workspace-shell:bambu-read-projection",
+          "to": "rv:riverview-v2:workspace-shell:octo1-poll-sample",
+          "type": "runtime_transition",
+          "label": "Refresh Bambu print and AMS fields through the existing five-second read-only cadence"
         }
       ]
     },
@@ -8367,6 +8433,7 @@
     "rv:postgres-ledger:migration:update",
     "rv:riverview-v2:workspace-shell:apply-theme",
     "rv:riverview-v2:workspace-shell:authorized-stream-activity",
+    "rv:riverview-v2:workspace-shell:bambu-read-projection",
     "rv:riverview-v2:workspace-shell:check-client",
     "rv:riverview-v2:workspace-shell:check-session",
     "rv:riverview-v2:workspace-shell:choose-presentation",
@@ -8414,12 +8481,14 @@
     "rv:riverview-v2:workspace-shell:octo1-vram-bars",
     "rv:riverview-v2:workspace-shell:open-preview",
     "rv:riverview-v2:workspace-shell:open-v2-route",
+    "rv:riverview-v2:workspace-shell:optional-host-telemetry",
     "rv:riverview-v2:workspace-shell:password-form",
     "rv:riverview-v2:workspace-shell:rate-limited",
     "rv:riverview-v2:workspace-shell:reject-client",
     "rv:riverview-v2:workspace-shell:reject-login-csrf",
     "rv:riverview-v2:workspace-shell:render-fixtures",
     "rv:riverview-v2:workspace-shell:render-grace-center",
+    "rv:riverview-v2:workspace-shell:render-host-system-metrics",
     "rv:riverview-v2:workspace-shell:resource-dashboard-auth",
     "rv:riverview-v2:workspace-shell:resource-dashboard-status",
     "rv:riverview-v2:workspace-shell:resource-filter-refresh",

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.32
+File Revision: 1.0.33
 Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Connect authenticated Hardware view to host telemetry.
@@ -13,6 +13,7 @@ Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Render supplied X12 Ul
 Changed: 2026-10-22 UTC | RV-V2-GRACE-MESSAGE-ACTIONS-001 | Document stable keyed history reconciliation, transcript copy, and authorized conversation objective intake.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Document unique measured storage aggregation and explicit unconfigured host capacity.
 Changed: 2026-10-22 UTC | RV-V2-WEBSITE-INTEGRATION-20261022 | Record read-only 12-sample model slot observation and request-attribution limit.
+Changed: 2026-10-23 UTC | ISSUE-242 | Integrate Bambu status panel and measured host CPU/RAM into the active deployed V2 composite.
 Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Keep measured GPU cards mounted during five-second refresh; mark retained samples stale on source failure
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document VRAM bars, measured router response-rate traces, slot context, and bounded activity paging
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Document content-free live streamed-character cadence and native token-counter limitation.
@@ -277,5 +278,13 @@ Persisted events are reconciled by their durable sequence key. Background histor
 ### Mounted storage capacity
 
 The Resources view displays host-scoped measured mounts from the same authenticated resource telemetry API. It reports mount/device/filesystem identifiers when available, total/used/available bytes, percent used, and last successful observation. The aggregate sums unique `filesystem_id` values only. Host aliases and duplicate filesystem views are not counted twice. The current collector measures Camrui locally and OCTO1 through the restricted existing host command. Windows development and OCTO2 are listed but remain unavailable until their authorized read-only collection path is commissioned; offline or unconfigured storage is never shown as zero. The section performs no disk writes and provides no migration, deletion, or model movement controls.
+
+### Issue #242: Bambu and optional host telemetry
+
+The OCTO1 Resources console includes a read-only Bambu P2S/AMS panel. It consumes only `hosts[host_id=octominer1].bambu_printer` from the existing authenticated `GET /api/v1/resources/telemetry` projection. Print state, progress, nozzle/bed temperatures, remaining time/layer, AMS material, amount, and color are rendered only when the backend supplies validated fields. `healthy`, `offline`, `stale`, and `unavailable` remain distinct; source timestamps govern freshness. The page issues no printer control requests. The collector-side local OCTO Control integration and its credential remain on OCTO1; the Dashboard receives only the reduced projection.
+
+Host cards now also show CPU identity/utilization and memory used/total when `system_metrics` contains fresh numeric measurements. These fields are independent of GPU inventory freshness. A host can show system measurements while its GPU inventory is unavailable; offline/unconfigured sources remain explicit and never become zero values. The optional Windows/OCTO2 collector uses separate pinned host credentials and fixed forced commands. The current production OCTO2 is offline, so fixture acceptance covers the unavailable presentation; no live OCTO2 data is claimed. Windows remains unavailable without its separately provisioned, pinned telemetry identity.
+
+The candidate is composed from the verified active V2 release rather than PR #234's predecessor files. The deployed `snapshot.js`, Grace chat, Work, storage, and all existing hardware graph sources are retained unchanged. The only V2 runtime files changed are `index.html`, `assets/resource-monitor.js`, and `assets/resource-monitor.css`; Snapshot is not overlaid.
 
 **Read-only source observation (2026-10-22 19:53:38–19:54:33 UTC):** Twelve five-second reads of the already-configured model health/model/slot APIs observed all three model services ready; the 80B reported one active slot on nine samples and zero on three. The 0.6B and 30B slot counts remained idle. This establishes that the API source provides changing in-progress occupancy; it does not identify a request or establish characters/tokens per second. The live request-cadence graph remains dependent on the authenticated owner-session stream-activity projection and was not observed in an authenticated browser for this task.

@@ -2,11 +2,12 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.24
+File Revision: 1.0.26
 Purpose: Show LAN preview security, same-origin authenticated Grace chat, Comms5 diagnostics, snapshot, and recovery paths
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Regenerate with read-only objective and assignment projections in Work
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Register OCTO1 dynamic topology, five-second refresh, and source-gap states
+Changed: 2026-10-23 UTC | ISSUE-242 | Register sanitized Bambu/AMS projection and optional host system metric states
 History: Git and revision/backup manifest
 -->
 # Riverview V2 workspace shell and Grace integration flow
@@ -14,7 +15,7 @@ History: Git and revision/backup manifest
 **Task:** `RV-WEB-V2-SHELL-001` · **Component:** `RIVERVIEW-V2-WORKSPACE-SHELL`  
 **Source:** canonical JSON `process_graphs/riverview-v2/workspace-shell.json`; Mermaid below is generated.
 
-The OCTO1 flow uses the authenticated Dashboard telemetry projection, dynamically joins live service labels to GPU devices, and polls every five seconds only while Resources is visible. It pauses on view exit/tab hiding. Unsupported chassis controller readings and request attribution remain explicit unavailable states. See the OCTO1 console section in the component contract and its troubleshooting cookbook.
+The OCTO1 flow uses the authenticated Dashboard telemetry projection, dynamically joins live service labels to GPU devices, and polls every five seconds only while Resources is visible. It pauses on view exit/tab hiding. OCTO1 Bambu status is projected from its authenticated local read-only source; CPU/RAM measurements are shown separately from GPU inventory. Optional Windows/OCTO2 sources remain explicitly unavailable without dedicated pinned identities. Unsupported chassis controller readings and request attribution remain explicit unavailable states. See the OCTO1 console section in the component contract and its troubleshooting cookbook.
 
 ```mermaid
 flowchart LR
@@ -107,6 +108,9 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_grace_keyed_history_actions_7e358756["Reconcile durable conversation events by sequence key; preserve open menu, scroll, input and focus during background refresh"]
     g_rv_riverview_v2_workspace_shell_grace_authorized_work_order_action_1366e2ec["Submit a selected persisted Steward event through the existing grant-checked conversation work-order API; objective intake does not approve execution"]
     g_rv_riverview_v2_workspace_shell_resource_storage_summary_56f51fdf["Render unique measured host storage and truthful unavailable states from the authenticated telemetry projection"]
+    g_rv_riverview_v2_workspace_shell_bambu_read_projection_331c1449["Read the sanitized Bambu P2S and AMS projection from authenticated Dashboard resource telemetry; issue no printer controls"]
+    g_rv_riverview_v2_workspace_shell_optional_host_telemetry_47822069{"Collect Windows/OCTO2 only through dedicated pinned identities and fixed read-only forced commands; otherwise preserve unavailable state"}
+    g_rv_riverview_v2_workspace_shell_render_host_system_metrics_6bd13843["Render timestamped CPU and RAM separately from GPU inventory; mark offline or stale sources without substituting zero"]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e --> g_rv_riverview_v2_workspace_shell_render_fixtures_e2ce6409
@@ -235,6 +239,9 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Grace view reconciles authenticated durable history without replacing stable message nodes| g_rv_riverview_v2_workspace_shell_grace_keyed_history_actions_7e358756
   g_rv_riverview_v2_workspace_shell_grace_keyed_history_actions_7e358756 -->|Steward selects a saved source event; existing Dashboard authorization remains authoritative| g_rv_riverview_v2_workspace_shell_grace_authorized_work_order_action_1366e2ec
   g_rv_riverview_v2_workspace_shell_resource_render_live_d076a2a4 -->|Render host volumes and aggregate distinct filesystem identifiers| g_rv_riverview_v2_workspace_shell_resource_storage_summary_56f51fdf
+  g_rv_riverview_v2_workspace_shell_resource_host_telemetry_ssh_32f5aaf1 -->|OCTO1 collector returns a bounded sanitized printer projection through the existing authenticated read| g_rv_riverview_v2_workspace_shell_bambu_read_projection_331c1449
+  g_rv_riverview_v2_workspace_shell_optional_host_telemetry_47822069 -->|Render fresh CPU/RAM separately; absent credentials or offline host remain unavailable| g_rv_riverview_v2_workspace_shell_render_host_system_metrics_6bd13843
+  g_rv_riverview_v2_workspace_shell_bambu_read_projection_331c1449 -->|Refresh Bambu print and AMS fields through the existing five-second read-only cadence| g_rv_riverview_v2_workspace_shell_octo1_poll_sample_cbc48d81
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 
