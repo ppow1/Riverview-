@@ -1,0 +1,17 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "browser-acceptance.json": {
+      "path": "browser-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "435d2bffe82acdd91b0999383b7cd09b38698f844266663b0525bcb51dc6b2eb",
+      "size_bytes": 2362
+    },
+    "bambu-p2s-ams-fixture.png": {
+      "path": "bambu-p2s-ams-fixture.png",
+      "revision": "1.0.0",
+      "sha256": "1647f73483089d565c6468d427e92d926009d0dc56f6e42613a4198c3b33413d",
+      "size_bytes": 287323
+    }
+  }
+}

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.32
+File Revision: 1.0.33
 Purpose: Specify V2 workspace, center-mounted authenticated Grace chat, and bounded LAN routes
 Authority: Fixture presentation; chat account/session and exact grants remain Dashboard-authorized
 Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Connect authenticated Hardware view to host telemetry.
@@ -10,6 +10,7 @@ Changed: 2026-10-21 UTC | RV-V2-WORK-INTEGRATION-DEPLOY | Integrate Work over th
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Add interactive OCTO1 topology and a source-bounded live activity view
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Read a content-free trace from the authorized durable Grace conversation API
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Render supplied X12 Ultra manufacturer references with interactive, source-bounded selections
+Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Show optional sanitized Bambu P2S/AMS readings from the authenticated resource projection; no browser-to-printer connection or controls.
 Changed: 2026-10-22 UTC | RV-V2-GRACE-MESSAGE-ACTIONS-001 | Document stable keyed history reconciliation, transcript copy, and authorized conversation objective intake.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Document unique measured storage aggregation and explicit unconfigured host capacity.
 Changed: 2026-10-22 UTC | RV-V2-WEBSITE-INTEGRATION-20261022 | Record read-only 12-sample model slot observation and request-attribution limit.

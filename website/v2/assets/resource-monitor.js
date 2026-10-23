@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/assets/resource-monitor.js
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.4.2
+Revision: 1.4.5
 Purpose: Present an interactive manufacturer chassis reference with OCTO1 telemetry and a sanitized Grace request trace
 Execution Model: Same-origin authenticated GETs; five-second polling only while the Resources view is open and visible
 Observability: Source timestamps, freshness, bounded five-minute hardware and model-rate timelines, and request-correlated conversation events
@@ -15,6 +15,8 @@ Changed: 2026-10-22 UTC | RV-V2-GPU-REFRESH-STABILITY | Retain last successful t
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Add in-place VRAM bars, measured provider response-rate graphs, slot context details, and four-item activity paging
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Plot content-free, timestamped streamed-character cadence separately from completed token throughput.
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Render unique host-mounted capacity through the existing authenticated telemetry projection, preserving unavailable/stale states.
+Changed: 2026-10-22 UTC | RV-V2-LIVE-HARDWARE-GRAPHS-001 | Plot measured GPU utilization and active inference-slot occupancy from bounded five-second telemetry samples; clear obsolete storage placeholder.
+Changed: 2026-10-23 UTC | RV-V2-BAMBU-READONLY-230 | Render sanitized Bambu P2S/AMS telemetry from the authenticated resource projection; expose read-only stale/unavailable states.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_resource_monitor.cjs; scripts/verify_v2_octo1_browser.cjs
 History: Git and .riverview-backups/manifest.jsonl
@@ -26,7 +28,8 @@ History: Git and .riverview-backups/manifest.jsonl
   const ACTIVITY_PAGE_SIZE = 4;
   const RATE_WINDOW_MS = 5 * 60 * 1000;
   const RATE_HISTORY_LIMIT = 180;
-  const state = {status:"not-checked",dashboardStatus:null,telemetry:null,requestTrace:null,checkedAt:null,observedAt:null,freshness:"unknown",error:null,telemetryError:null,attempted:false,inFlight:false,viewActive:false,pollHandle:null,history:[],activityPage:0,rateHistory:[],rateKeys:new Set(),liveRateHistory:[],liveRateKeys:new Set(),artworkView:"front",selected:{kind:"overview",id:"overview"}};
+  const HARDWARE_HISTORY_LIMIT = 60;
+  const state = {status:"not-checked",dashboardStatus:null,telemetry:null,requestTrace:null,checkedAt:null,observedAt:null,freshness:"unknown",error:null,telemetryError:null,attempted:false,inFlight:false,viewActive:false,pollHandle:null,history:[],activityPage:0,rateHistory:[],rateKeys:new Set(),liveRateHistory:[],liveRateKeys:new Set(),hardwareHistory:[],hardwareKeys:new Set(),artworkView:"front",selected:{kind:"overview",id:"overview"}};
   const allowedStates = new Set(["healthy","degraded","partial","stale","unknown","unverified","unavailable","not_initialized","inactive","ready"]);
   const $ = (id) => document.getElementById(id);
   const safeState = (value) => allowedStates.has(value) ? value : "unknown";
@@ -100,6 +103,29 @@ History: Git and .riverview-backups/manifest.jsonl
     state.liveRateHistory=state.liveRateHistory.filter(point=>point.at>=cutoff).slice(-600);
     state.liveRateKeys=new Set(state.liveRateHistory.map(point=>point.key));
   };
+  const ingestMeasuredHardwareActivity = (payload) => {
+    const host=Array.isArray(payload?.hosts)?payload.hosts.find(item=>item?.host_id==="octominer1"):null;
+    if(!host)return;
+    const freshnessMs=Math.max(1,Number(payload.freshness_window_seconds)||30)*1000,now=Date.now(),fresh=value=>{const time=isoTime(value),at=time?Date.parse(time):NaN;return Number.isFinite(at)&&at<=now+1000&&now-at<=freshnessMs?time:null;};
+    const inventory=host.gpu_inventory,inventoryAt=inventory?.state==="healthy"?fresh(inventory.observed_at||host.observed_at):null;
+    const gpus=[];
+    if(inventoryAt&&Array.isArray(inventory.devices))inventory.devices.slice(0,32).forEach(gpu=>{
+      if(!Number.isSafeInteger(gpu?.index)||gpu.index<0||gpu.index>31||!Number.isFinite(gpu.utilization_percent)||gpu.utilization_percent<0||gpu.utilization_percent>100)return;
+      const at=fresh(gpu.observed_at)||inventoryAt;gpus.push({index:gpu.index,at,value:gpu.utilization_percent});
+    });
+    const models=[];
+    (Array.isArray(host.inference_servers)?host.inference_servers:[]).slice(0,12).forEach(service=>{
+      const active=service?.active_slots,total=service?.active_slots?.total,slots=service?.slot_context?.slots;
+      if(typeof service?.service_id!=="string"||active?.state!=="measured"||safeCount(active.value)===null||safeCount(total)===null||total<1||active.value>total)return;
+      const at=fresh(service.slot_context?.observed_at||service.observed_at||host.observed_at);if(!at)return;
+      const processing=Array.isArray(slots)?slots.some(slot=>slot?.processing===true):null;
+      models.push({service_id:service.service_id,at,active:active.value,total,processing});
+    });
+    if(!gpus.length&&!models.length)return;
+    const key=[...gpus.map(item=>`gpu:${item.index}:${item.at}:${item.value}`),...models.map(item=>`slot:${item.service_id}:${item.at}:${item.active}/${item.total}:${item.processing}`)].join("|");
+    if(state.hardwareKeys.has(key))return;
+    state.hardwareKeys.add(key);state.hardwareHistory.push({key,gpus,models});state.hardwareHistory=state.hardwareHistory.slice(-HARDWARE_HISTORY_LIMIT);state.hardwareKeys=new Set(state.hardwareHistory.map(sample=>sample.key));
+  };
   const svgNode = (name,className) => {const item=document.createElementNS("http://www.w3.org/2000/svg",name);if(className)item.setAttribute("class",className);return item;};
   const octoHost = () => Array.isArray(state.telemetry?.hosts)?state.telemetry.hosts.find(host=>host?.host_id==="octominer1")||null:null;
   const gpuInventory = (host=octoHost()) => host?.gpu_inventory&&Array.isArray(host.gpu_inventory.devices)?host.gpu_inventory.devices:[];
@@ -168,6 +194,40 @@ History: Git and .riverview-backups/manifest.jsonl
     const host=octoHost();if(!host)return;const observed=machineObserved();const services=octoServices(host);
     state.history.unshift({captured_at:new Date().toISOString(),observed_at:observed,devices:gpuInventory(host).map(gpu=>({index:gpu.index,name:gpu.name,utilization_percent:gpu.utilization_percent,temperature_celsius:gpu.temperature_celsius,fan_percent:gpu.fan_percent,active_services:Array.isArray(gpu.active_services)?gpu.active_services.slice():[]})),models:services.map(service=>({service_id:service.service_id,phase:servicePhase(service),active_slots:service.active_slots?.state==="measured"?service.active_slots.value:null}))});state.history=state.history.slice(0,HISTORY_LIMIT);
   };
+  const ensureHardwareActivityCard = (root,key,title,source) => {
+    let card=directChild(root,"hardwareActivity",key);if(card)return card;
+    card=node("article","octo-throughput-card octo-hardware-activity-card");card.dataset.hardwareActivity=key;
+    const heading=node("div","octo-throughput-heading"),name=node("strong","",title),latest=node("span","octo-throughput-latest");latest.dataset.hardwareActivityLatest="";heading.append(name,latest);
+    const chart=document.createElementNS("http://www.w3.org/2000/svg","svg");chart.setAttribute("class","octo-throughput-chart octo-hardware-activity-chart");chart.setAttribute("viewBox","0 0 320 112");chart.setAttribute("role","img");chart.setAttribute("aria-label",title+" · measured source observations over five minutes");const grid=svgNode("path","octo-rate-grid");grid.setAttribute("d","M24 10V88H310 M24 49H310");chart.append(grid);
+    const legend=node("div","octo-hardware-activity-legend"),empty=node("p","octo-throughput-empty"),provenance=node("p","octo-throughput-source",source);empty.dataset.hardwareActivityEmpty="";legend.dataset.hardwareActivityLegend="";card.append(heading,chart,legend,empty,provenance);root.append(card);return card;
+  };
+  const renderHardwareActivity = (now) => {
+    const root=$("octo1-throughput-chart-grid");if(!root)return;
+    const start=now-RATE_WINDOW_MS,palette=["#438b7d","#b36a35","#5279a7","#8b6ba7","#b34f58","#758c3d"],gpuCard=ensureHardwareActivityCard(root,"gpu-utilization","GPU utilization · measured %","OCTO1 nvidia-smi source snapshots. System-level GPU load is not attributed to a specific Grace request or model.");
+    const gpuSeries=new Map();state.hardwareHistory.forEach(sample=>sample.gpus.forEach(item=>{const at=Date.parse(item.at);if(at>=start&&at<=now){if(!gpuSeries.has(item.index))gpuSeries.set(item.index,[]);gpuSeries.get(item.index).push({at,value:item.value});}}));
+    const gpuLegend=gpuCard.querySelector("[data-hardware-activity-legend]"),gpuSvg=gpuCard.querySelector("svg"),gpuActive=new Set();gpuLegend.replaceChildren();
+    [...gpuSeries.entries()].sort((a,b)=>a[0]-b[0]).forEach(([index,raw],seriesIndex)=>{
+      const points=[...new Map(raw.map(point=>[point.at,point])).values()].sort((a,b)=>a.at-b.at);if(!points.length)return;const id=String(index),color=palette[seriesIndex%palette.length],lineKey="gpu-"+id;gpuActive.add(lineKey);
+      let line=Array.from(gpuSvg.children).find(item=>item.dataset.hardwareLine===lineKey);if(!line){line=svgNode("polyline","octo-rate-line");line.dataset.hardwareLine=lineKey;gpuSvg.append(line);}line.setAttribute("stroke",color);line.setAttribute("points",points.map(point=>`${(24+((point.at-start)/RATE_WINDOW_MS)*286).toFixed(1)},${(88-(point.value/100)*68).toFixed(1)}`).join(" "));
+      let marker=Array.from(gpuSvg.children).find(item=>item.dataset.hardwareMarker===lineKey);if(!marker){marker=svgNode("circle","octo-rate-point");marker.setAttribute("r","3.5");marker.dataset.hardwareMarker=lineKey;gpuSvg.append(marker);}const last=points[points.length-1];marker.setAttribute("fill",color);marker.setAttribute("cx",(24+((last.at-start)/RATE_WINDOW_MS)*286).toFixed(1));marker.setAttribute("cy",(88-(last.value/100)*68).toFixed(1));
+      const label=node("span","",`GPU ${id}`);label.setAttribute("data-hardware-series-label",lineKey);label.setAttribute("style",`color:${color}`);gpuLegend.append(label);
+    });
+    gpuSvg.querySelectorAll("[data-hardware-line]").forEach(item=>{if(!gpuActive.has(item.dataset.hardwareLine))item.remove();});gpuSvg.querySelectorAll("[data-hardware-marker]").forEach(item=>{if(!gpuActive.has(item.dataset.hardwareMarker))item.remove();});
+    const gpuLatest=[...gpuSeries.entries()].flatMap(([index,points])=>points.map(point=>({index,point}))).sort((a,b)=>a.point.at-b.point.at).slice(-1)[0],gpuLabel=gpuCard.querySelector("[data-hardware-activity-latest]"),gpuEmpty=gpuCard.querySelector("[data-hardware-activity-empty]");
+    if(gpuLatest){gpuLabel.textContent=`GPU ${gpuLatest.index}: ${gpuLatest.point.value}% · ${state.telemetryError||now-gpuLatest.point.at>30000?"STALE":"MEASURED"} · ${visibleTime(new Date(gpuLatest.point.at).toISOString())}`;gpuEmpty.textContent=`${gpuSeries.size} GPU utilization series · ${Math.max(...[...gpuSeries.values()].map(points=>points.length))} max source samples · rolling five-minute window.`;}else{gpuLabel.textContent="UNAVAILABLE";gpuEmpty.textContent="No fresh measured GPU utilization observations in the rolling five-minute window.";}
+    const models=[["grace-reasoning-80b","Grace reasoning 80B"],["grace-vision-30b","Grace vision 30B"],["grace-autonomic-0.6b","Grace autonomic 0.6B"]];
+    models.forEach(([modelId,label],seriesIndex)=>{
+      const card=ensureHardwareActivityCard(root,"slots-"+modelId,`${label} · active inference slots`,`Current authenticated model-server slot occupancy. Slot processing and active count are system observations, not request-specific GPU attribution.`),series=[];
+      state.hardwareHistory.forEach(sample=>sample.models.forEach(item=>{if(item.service_id===modelId&&Date.parse(item.at)>=start&&Date.parse(item.at)<=now)series.push({at:Date.parse(item.at),active:item.active,total:item.total,processing:item.processing});}));
+      const points=[...new Map(series.map(point=>[point.at,point])).values()].sort((a,b)=>a.at-b.at),svg=card.querySelector("svg"),key="slots-"+modelId,color=palette[(seriesIndex+2)%palette.length];let line=Array.from(svg.children).find(item=>item.dataset.hardwareLine===key),marker=Array.from(svg.children).find(item=>item.dataset.hardwareMarker===key);
+      if(!line){line=svgNode("polyline","octo-rate-line");line.dataset.hardwareLine=key;svg.append(line);}if(!marker){marker=svgNode("circle","octo-rate-point");marker.setAttribute("r","3.5");marker.dataset.hardwareMarker=key;svg.append(marker);}line.setAttribute("stroke",color);marker.setAttribute("fill",color);
+      const legend=card.querySelector("[data-hardware-activity-legend]");legend.replaceChildren(node("span","",`${label} · active slot count`));legend.children[0].setAttribute("style",`color:${color}`);
+      const latest=card.querySelector("[data-hardware-activity-latest]"),empty=card.querySelector("[data-hardware-activity-empty]");
+      if(!points.length){line.setAttribute("points","");marker.setAttribute("visibility","hidden");latest.textContent="NO FRESH SLOT SAMPLE";empty.textContent="Unavailable · no fresh measured slot occupancy in the rolling five-minute window.";return;}
+      const maximum=Math.max(1,...points.map(point=>point.total)),coords=points.map(point=>({x:24+((point.at-start)/RATE_WINDOW_MS)*286,y:88-(point.active/maximum)*68})),last=points[points.length-1],lastCoord=coords[coords.length-1],conflict=last.processing!==null&&last.processing!==(last.active>0),stateLabel=conflict?"SLOT STATE MISMATCH":last.processing===null?(last.active>0?"PROCESSING":"IDLE"):(last.processing?"PROCESSING":"IDLE");
+      line.setAttribute("points",coords.map(point=>`${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" "));marker.setAttribute("cx",lastCoord.x.toFixed(1));marker.setAttribute("cy",lastCoord.y.toFixed(1));marker.setAttribute("visibility","visible");latest.textContent=`${stateLabel} · ${last.active}/${last.total} · ${state.telemetryError||now-last.at>30000?"STALE":"MEASURED"}`;empty.textContent=`${points.length} source observations · active slot count / configured slots · ${visibleTime(new Date(last.at).toISOString())}.`;
+    });
+  };
   const renderTimeline = () => {
     const root=$("octo1-activity-list");if(!root)return;
     const pages=Math.max(1,Math.ceil(state.history.length/ACTIVITY_PAGE_SIZE));state.activityPage=Math.max(0,Math.min(state.activityPage,pages-1));
@@ -186,6 +246,7 @@ History: Git and .riverview-backups/manifest.jsonl
       ["grace-vision-30b","Grace vision 30B"],
       ["grace-autonomic-0.6b","Grace autonomic 0.6B"]
     ];
+    renderHardwareActivity(now);
     models.forEach(([modelId,label])=>{
       let card=directChild(root,"rateModel",modelId);
       if(!card){card=node("article","octo-throughput-card");card.dataset.rateModel=modelId;const heading=node("div","octo-throughput-heading"),name=node("strong","",label),latest=node("span","octo-throughput-latest");latest.dataset.rateLatest="";heading.append(name,latest);const chart=document.createElementNS("http://www.w3.org/2000/svg","svg");chart.setAttribute("class","octo-throughput-chart");chart.setAttribute("viewBox","0 0 320 112");chart.setAttribute("role","img");chart.setAttribute("aria-label",`${label} measured completion-token response rate over five minutes`);const grid=svgNode("path","octo-rate-grid");grid.setAttribute("d","M24 10V88H310 M24 49H310");const line=svgNode("polyline","octo-rate-line");line.dataset.rateLine="";const point=svgNode("circle","octo-rate-point");point.setAttribute("r","3.5");point.dataset.ratePoint="";chart.append(grid,line,point);const empty=node("p","octo-throughput-empty");empty.dataset.rateEmpty="";const source=node("p","octo-throughput-source","Measured completed output tokens ÷ router-recorded provider-call elapsed time. Includes service/network overhead; this is not server-only GPU token timing.");card.append(heading,chart,empty,source);const live=node("div","octo-live-stream");live.dataset.liveStreamModel=modelId;const liveHeading=node("div","octo-throughput-heading"),liveLabel=node("strong","","Live streamed output · characters/s"),liveLatest=node("span","octo-throughput-latest");liveLatest.dataset.liveRateLatest="";liveHeading.append(liveLabel,liveLatest);const liveChart=document.createElementNS("http://www.w3.org/2000/svg","svg");liveChart.setAttribute("class","octo-throughput-chart octo-live-stream-chart");liveChart.setAttribute("viewBox","0 0 320 112");liveChart.setAttribute("role","img");liveChart.setAttribute("aria-label",`${label} measured streamed response characters per second over five minutes`);const liveGrid=svgNode("path","octo-rate-grid");liveGrid.setAttribute("d","M24 10V88H310 M24 49H310");const liveLine=svgNode("polyline","octo-live-rate-line");liveLine.dataset.liveRateLine="";const livePoint=svgNode("circle","octo-live-rate-point");livePoint.setAttribute("r","3.5");livePoint.dataset.liveRatePoint="";liveChart.append(liveGrid,liveLine,livePoint);const liveEmpty=node("p","octo-throughput-empty");liveEmpty.dataset.liveRateEmpty="";const liveSource=node("p","octo-throughput-source","Application-side received text delta cadence. This is not model-server token throughput or GPU compute speed.");live.append(liveHeading,liveChart,liveEmpty,liveSource);card.append(live);root.append(card);}
@@ -222,8 +283,33 @@ History: Git and .riverview-backups/manifest.jsonl
     });
     if(!root.childElementCount)root.append(node("p","octo-empty","No valid request trace records were returned."));
   };
+  const renderBambu = (host) => {
+    const card=$("octo1-bambu"), source=host?.bambu_printer;
+    if(!card)return;
+    const rawStatus=["healthy","offline","stale","unavailable"].includes(source?.status)?source.status:"unavailable";
+    const observed=isoTime(source?.last_seen_at||source?.observed_at);
+    const age=observed?Math.max(0,Date.now()-Date.parse(observed)):Infinity;
+    const stale=rawStatus==="stale"||rawStatus==="healthy"&&age>(Number(source?.stale_after_seconds)||30)*1000||Boolean(state.telemetryError);
+    const displayStatus=stale?"stale":rawStatus;
+    card.dataset.state=displayStatus;
+    tag("octo1-bambu-state",displayStatus,displayStatus==="healthy"?"CONNECTED":displayStatus.toUpperCase());
+    text("octo1-bambu-observed",observed?`Last printer sample ${visibleTime(observed)}${stale?" · stale":""}.`:"No printer sample timestamp is available.");
+    const printer=source?.printer&&typeof source.printer==="object"?source.printer:{};
+    text("octo1-bambu-print-state",typeof printer.state==="string"&&printer.state?printer.state:"Unavailable");
+    const progress=typeof printer.progress_percent==="number"&&Number.isFinite(printer.progress_percent)&&printer.progress_percent>=0&&printer.progress_percent<=100?printer.progress_percent:null;
+    text("octo1-bambu-progress-label",progress===null?"Unavailable":`${progress}%`);
+    const progressBar=$("octo1-bambu-progress"),progressTrack=progressBar?.parentElement;
+    if(progressBar&&progressTrack){progressBar.style.width=progress===null?"0%":`${progress}%`;if(progress===null)progressTrack.removeAttribute("aria-valuenow");else progressTrack.setAttribute("aria-valuenow",String(progress));progressTrack.setAttribute("aria-valuetext",progress===null?"Unavailable":`${progress}%`);progressTrack.dataset.state=stale?"stale":progress===null?"unavailable":"measured";}
+    text("octo1-bambu-nozzle",typeof printer.nozzle_temperature_c==="number"?`${printer.nozzle_temperature_c} °C`:"Unavailable");
+    text("octo1-bambu-bed",typeof printer.bed_temperature_c==="number"?`${printer.bed_temperature_c} °C`:"Unavailable");
+    text("octo1-bambu-remaining",Number.isInteger(printer.remaining_minutes)?`${printer.remaining_minutes} min`:"Unavailable");
+    text("octo1-bambu-layer",Number.isInteger(printer.layer_number)&&Number.isInteger(printer.total_layers)?`${printer.layer_number} / ${printer.total_layers}`:"Unavailable");
+    const slotsRoot=$("octo1-bambu-ams"),slots=Array.isArray(source?.ams)?source.ams.slice(0,8):[];
+    if(slotsRoot){slotsRoot.querySelectorAll(":scope > .bambu-slot").forEach(item=>item.remove());slotsRoot.querySelectorAll(":scope > .octo-empty").forEach(item=>item.remove());if(!slots.length)slotsRoot.append(node("p","octo-empty","AMS slot telemetry unavailable."));else slots.forEach((slot,index)=>{const item=node("article","bambu-slot"),name=node("strong","",`Slot ${Number.isInteger(slot.slot)?slot.slot+1:index+1}`),material=node("span","",typeof slot.material==="string"&&slot.material?slot.material:"Material unavailable"),remaining=node("small","",typeof slot.remaining==="number"&&slot.remaining>=0?`${slot.remaining}% remaining`:"Remaining amount unavailable"),swatch=node("i","bambu-slot-color");if(swatch.style&&typeof slot.color_hex==="string"&&/^[0-9A-F]{8}$/.test(slot.color_hex))swatch.style.backgroundColor=`#${slot.color_hex.slice(0,6)}`;swatch.setAttribute("aria-hidden","true");item.append(swatch,name,material,remaining);slotsRoot.append(item);});}
+    text("octo1-bambu-ams-count",slots.length?`${slots.length} reported slot(s)`:"Slots unavailable");
+  };
   const renderOctoConsole = () => {
-    const host=octoHost(),inventory=host?.gpu_inventory;const observed=machineObserved();const sourceState=host?.state||"unavailable";tag("octo1-machine-state",safeState(sourceState),sourceState==="healthy"?"LIVE SOURCE":"SOURCE "+sourceState.replaceAll("_"," "));const root=$("octo1-console");if(root)root.dataset.hostState=safeState(sourceState);text("octo1-observed",observed?`GPU source observation ${visibleTime(observed)} · ${observationAge(observed)}.`:"No OCTO1 GPU source timestamp has been received.");text("octo1-gpu-count",inventory?.state==="healthy"?`${gpuInventory(host).length} measured`:(inventory?.state||"Unavailable").replaceAll("_"," "));text("octo1-model-count",octoServices(host).filter(service=>service.state==="ready").length?`${octoServices(host).filter(service=>service.state==="ready").length} ready · ${octoServices(host).length} known`:`${octoServices(host).length} known · readiness unavailable`);text("octo1-age",observed?observationAge(observed):"Not reported");renderSelectionButtons();renderComponentDetail();renderTimeline();renderRequestTrace();renderMeasuredRates();
+    const host=octoHost(),inventory=host?.gpu_inventory;const observed=machineObserved();const sourceState=host?.state||"unavailable";tag("octo1-machine-state",safeState(sourceState),sourceState==="healthy"?"LIVE SOURCE":"SOURCE "+sourceState.replaceAll("_"," "));const root=$("octo1-console");if(root)root.dataset.hostState=safeState(sourceState);text("octo1-observed",observed?`GPU source observation ${visibleTime(observed)} · ${observationAge(observed)}.`:"No OCTO1 GPU source timestamp has been received.");text("octo1-gpu-count",inventory?.state==="healthy"?`${gpuInventory(host).length} measured`:(inventory?.state||"Unavailable").replaceAll("_"," "));text("octo1-model-count",octoServices(host).filter(service=>service.state==="ready").length?`${octoServices(host).filter(service=>service.state==="ready").length} ready · ${octoServices(host).length} known`:`${octoServices(host).length} known · readiness unavailable`);text("octo1-age",observed?observationAge(observed):"Not reported");renderBambu(host);renderSelectionButtons();renderComponentDetail();renderTimeline();renderRequestTrace();renderMeasuredRates();
   };
   const setArtworkView = (view) => {
     const stage=$("octo1-chassis-stage"),caption=$("octo1-chassis-caption"),note=$("octo-chassis-view-note"),image=$("octo1-chassis-artwork");if(!stage||!caption||!note||!image)return;
@@ -295,7 +381,9 @@ History: Git and .riverview-backups/manifest.jsonl
   const renderStorage = () => {
     const root=$("resource-storage-hosts"),stateTag=$("resource-storage-state"),summary=$("resource-storage-summary");
     if(!root||!stateTag||!summary)return;
+    if(!Array.isArray(state.telemetry?.hosts)&&state.attempted){root.querySelectorAll(":scope > p").forEach(item=>{if(item.textContent.trim()==="Storage telemetry has not been requested."||item.dataset.storageInitialStatus==="true"){item.dataset.storageInitialStatus="true";item.textContent=state.inFlight?"Storage telemetry request in progress.":`Storage telemetry unavailable (${safeError(state.telemetryError||state.error||"source_error")}).`;}});}
     const hosts=Array.isArray(state.telemetry?.hosts)?state.telemetry.hosts:[];
+    if(Array.isArray(state.telemetry?.hosts))root.querySelectorAll(":scope > p").forEach(item=>{if(item.textContent.trim()==="Storage telemetry has not been requested."||item.dataset.storageInitialStatus==="true")item.remove();});
     if(!hosts.length){stateTag.textContent=state.telemetryError?"UNAVAILABLE":"NOT OBSERVED";stateTag.dataset.state=state.telemetryError?"unavailable":"unknown";summary.textContent="No authenticated storage observation is available. Capacity is not assumed to be zero.";return;}
     const seenHosts=new Set(),unique=new Map();
     hosts.slice(0,8).forEach(host=>{
@@ -350,7 +438,7 @@ History: Git and .riverview-backups/manifest.jsonl
       const tracePromise=typeof traceReader==="function"?traceReader():Promise.resolve({schema_version:"rv.v2.grace-request-trace.v1",state:"not_connected",observed_at:null,requests:[]});
       const [statusResult,telemetryResult,traceResult]=await Promise.allSettled([fetchJson("/api/v1/status"),fetchJson("/api/v1/resources/telemetry"),tracePromise]);
       if(statusResult.status==="rejected")throw statusResult.reason;
-      if(telemetryResult.status==="fulfilled"&&telemetryResult.value?.schema_version==="rv.dashboard.resource-telemetry.v1"){state.telemetry=telemetryResult.value;state.telemetryError=null;}else state.telemetryError=telemetryResult.status==="rejected"?(telemetryResult.reason?.status?`http_${telemetryResult.reason.status}`:safeError(telemetryResult.reason?.message)):"invalid_telemetry_projection";
+      if(telemetryResult.status==="fulfilled"&&telemetryResult.value?.schema_version==="rv.dashboard.resource-telemetry.v1"){state.telemetry=telemetryResult.value;state.telemetryError=null;ingestMeasuredHardwareActivity(state.telemetry);}else state.telemetryError=telemetryResult.status==="rejected"?(telemetryResult.reason?.status?`http_${telemetryResult.reason.status}`:safeError(telemetryResult.reason?.message)):"invalid_telemetry_projection";
       state.requestTrace=traceResult.status==="fulfilled"&&traceResult.value?.schema_version==="rv.v2.grace-request-trace.v1"?traceResult.value:{schema_version:"rv.v2.grace-request-trace.v1",state:"unavailable",observed_at:null,requests:[]};ingestMeasuredRates(state.requestTrace);ingestLiveStreamRates(state.requestTrace);
       const payload=statusResult.value;if(!payload||payload.schema_version!=="rv.dashboard.status.v1"||!allowedStates.has(payload.projection_status))throw new Error("invalid_dashboard_status_schema");state.dashboardStatus=payload;state.observedAt=isoTime(payload.observed_at);state.freshness=["current","stale","unknown","unavailable"].includes(payload.freshness)?payload.freshness:"unknown";state.status=payload.projection_status==="unavailable"?"unavailable":"partial";if(payload.projection_status==="unavailable")state.error="dashboard_projection_unavailable";if(state.telemetry)snapshotSample();
     }catch(error){state.freshness=state.telemetry?"stale":"unavailable";state.status=error?.status===401?"authentication-required":error?.status===403?"denied":"unavailable";state.error=error?.status?`http_${error.status}`:safeError(error?.message);state.telemetryError=state.error;}
@@ -360,5 +448,5 @@ History: Git and .riverview-backups/manifest.jsonl
   const startPolling=()=>{stopPolling();if(!state.viewActive||document.visibilityState==="hidden")return;state.pollHandle=window.setInterval(()=>{if(state.viewActive&&document.visibilityState!=="hidden")refreshData();},POLL_MS);refreshData();};
   const selectComponent=(id)=>{if(id.startsWith("gpu-"))state.selected={kind:"gpu",id};else if(id.startsWith("model-"))state.selected={kind:"model",id:id.slice(6)};else state.selected={kind:"system",id};renderOctoConsole();};
   document.addEventListener("DOMContentLoaded",()=>{$("resource-refresh")?.addEventListener("click",refreshData);$("resource-filter")?.addEventListener("change",applyFilters);$("resource-search")?.addEventListener("input",applyFilters);$("octo1-activity-previous")?.addEventListener("click",()=>{state.activityPage=Math.max(0,state.activityPage-1);renderTimeline();});$("octo1-activity-next")?.addEventListener("click",()=>{const pages=Math.ceil(state.history.length/ACTIVITY_PAGE_SIZE);state.activityPage=Math.min(pages-1,state.activityPage+1);renderTimeline();});$("octo1-console")?.addEventListener("click",event=>{const viewButton=event.target.closest("[data-octo-artwork-view]");if(viewButton){setArtworkView(viewButton.dataset.octoArtworkView);return;}const button=event.target.closest("[data-octo-component]");if(button)selectComponent(button.dataset.octoComponent);});document.addEventListener("rvv2:view",event=>{const active=event.detail?.view==="resources";state.viewActive=active;$("workspace-main")?.classList.toggle("resources-selected",active);if(active)startPolling();else stopPolling();});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")stopPolling();else if(state.viewActive)startPolling();});render();});
-  window.RiverviewV2ResourceMonitor=Object.freeze({render,refresh:refreshData,snapshotDiagnostics:()=>({status:state.status,dashboard_projection:state.dashboardStatus?state.dashboardStatus.projection_status:"not_observed",freshness:state.freshness,observed_at:state.observedAt,checked_at:state.checkedAt,gpu_inventory:state.telemetry?.status||"unavailable",gpu_utilization:state.telemetry?"values_not_included_in_snapshot_diagnostics":"unavailable",vram:state.telemetry?"values_not_included_in_snapshot_diagnostics":"unavailable",gpu_thermals_power_fan:state.telemetry?"values_not_included_in_snapshot_diagnostics":"unavailable",loaded_models:state.telemetry?"projected":"unavailable",inference_server_readiness:state.telemetry?"projected":"unavailable",inference_jobs_and_queues:state.telemetry?"active_slot_occupancy_projected_queue_depth_unavailable":"unavailable",timeline_samples:state.history.length,request_trace:state.requestTrace?.state||"unavailable",live_stream_activity:state.requestTrace?.stream_activity_state||"unavailable",live_stream_rate_points:state.liveRateHistory.length,native_live_token_counter:"unavailable_from_current_model_server_api",request_attribution:"gpu_request_mapping_unavailable_from_model_server",trace_request_ids_in_snapshot:false,trace_message_bodies_in_snapshot:false,stream_text_in_snapshot:false,diagnostics_include_response_body:false,diagnostics_include_credentials:false})});
+  window.RiverviewV2ResourceMonitor=Object.freeze({render,refresh:refreshData,snapshotDiagnostics:()=>({status:state.status,dashboard_projection:state.dashboardStatus?state.dashboardStatus.projection_status:"not_observed",freshness:state.freshness,observed_at:state.observedAt,checked_at:state.checkedAt,gpu_inventory:state.telemetry?.status||"unavailable",gpu_utilization:state.telemetry?"values_not_included_in_snapshot_diagnostics":"unavailable",vram:state.telemetry?"values_not_included_in_snapshot_diagnostics":"unavailable",gpu_thermals_power_fan:state.telemetry?"values_not_included_in_snapshot_diagnostics":"unavailable",loaded_models:state.telemetry?"projected":"unavailable",inference_server_readiness:state.telemetry?"projected":"unavailable",inference_jobs_and_queues:state.telemetry?"active_slot_occupancy_projected_queue_depth_unavailable":"unavailable",timeline_samples:state.history.length,hardware_activity_samples:state.hardwareHistory.length,request_trace:state.requestTrace?.state||"unavailable",live_stream_activity:state.requestTrace?.stream_activity_state||"unavailable",live_stream_rate_points:state.liveRateHistory.length,native_live_token_counter:"unavailable_from_current_model_server_api",request_attribution:"gpu_request_mapping_unavailable_from_model_server",trace_request_ids_in_snapshot:false,trace_message_bodies_in_snapshot:false,stream_text_in_snapshot:false,diagnostics_include_response_body:false,diagnostics_include_credentials:false})});
 })();

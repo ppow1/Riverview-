@@ -1,0 +1,58 @@
+{
+  "schema_version": "rv.v2.bambu-browser-fixture-evidence.v1",
+  "browser": "Chrome/155.0.8059.84",
+  "source": "isolated local HTTPS Chrome fixture; synthetic telemetry explicitly labeled in browser; not live OCTO1 data",
+  "production_changed": false,
+  "checks": {
+    "printer_card": {
+      "state": "CONNECTED",
+      "printState": "RUNNING",
+      "progress": "42%",
+      "nozzle": "219.5 \u00b0C",
+      "bed": "54 \u00b0C",
+      "ams": 4,
+      "text": "CONNECTED PRINTER \u00b7 READ ONLY\n\nBambu Lab P2S\n\nLast printer sample 2026-10-23T01:25:09.215Z \u00b7 UTC.\n\nCONNECTED\nPrint state\nRUNNING\nProgress\n42%\nNozzle\n219.5 \u00b0C\nBed\n54 \u00b0C\nRemaining\n35 min\nLayer\n71 / 160\nAutomatic Material System\n4 reported slot(s)\nSlot 1\nPLA\n80% remaining\nSlot 2\nPLA\n75% remaining\nSlot 3\nPLA\n50% remaining\nSlot 4\nPETG\n95% remaining"
+    },
+    "stale_offline_unavailable_states_tested": true,
+    "printer_controls_present": false,
+    "direct_printer_host_requests": false,
+    "refresh_cycles": {
+      "poll_successes": 12,
+      "elapsed_seconds": 60,
+      "max_overlapping_requests": 1,
+      "gpu_nodes_removed": 0,
+      "plain_text_placeholders_added": 0,
+      "host_card_height_before": 1929.78125,
+      "host_card_height_after": 1929.78125,
+      "scroll_y_before": 450,
+      "scroll_y_after": 450,
+      "pending_state": {
+        "allGpuCardsMounted": true,
+        "hostCardMounted": true,
+        "selectorMounted": true,
+        "hostBadge": "REFRESHING",
+        "placeholder": false,
+        "height": 1929.78125,
+        "scrollY": 450
+      },
+      "failure_state": {
+        "mounted": true,
+        "hostMounted": true,
+        "badge": "STALE",
+        "placeholder": false,
+        "height": 1929.78125
+      },
+      "recovery_state": {
+        "badge": "LIVE SOURCE",
+        "mounted": true,
+        "selectorMounted": true,
+        "height": 1929.78125,
+        "utilization": "18%"
+      },
+      "source": "isolated Chrome with explicitly labeled synthetic telemetry; not production hardware evidence"
+    },
+    "browser_errors": []
+  },
+  "screenshot": "bambu-p2s-ams-fixture.png",
+  "limitation": "Authenticated production Dashboard projection currently has no Bambu field; backend implementation PR must be deployed before live values can appear. No production deployment was authorized."
+}

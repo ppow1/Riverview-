@@ -8,7 +8,7 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.129",
+      "revision": "1.1.131",
       "sha256": "56f7af1ee74ac25a058688bd9ee8392c159653c165da2bbfd17eeb42b7389c24",
       "size_bytes": 32248
     },
@@ -393,7 +393,7 @@
     },
     "process_graphs/chatgpt-doorbell/browser-runtime.json": {
       "path": "process_graphs/chatgpt-doorbell/browser-runtime.json",
-      "revision": "1.0.5",
+      "revision": "1.0.6",
       "sha256": "8a3126b0cc9c88e5808cc34158aef21b63f629aeba5b6c8a19222c2101dc4873",
       "size_bytes": 23651
     },
@@ -411,9 +411,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.0.68",
-      "sha256": "ef643f012977f2749fddc3577e45ce4e4b7ca76ca448b6d07776798859bb32e1",
-      "size_bytes": 351079
+      "revision": "1.0.70",
+      "sha256": "6c0834aab4443b3311b547073f1f889fb6fe8197c8acf4a846d0fe05d6cc1811",
+      "size_bytes": 352574
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
@@ -453,9 +453,9 @@
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
-      "revision": "1.0.24",
-      "sha256": "d9a4cc382bb8dbdeee8b3aaf1fd274bcc33259f9010fc405c0bc305d8dcc7f14",
-      "size_bytes": 89059
+      "revision": "1.0.26",
+      "sha256": "fda14ac80936caa8de61f2bbdbdf1013e481cf1ae2fab59276dc35524d077fee",
+      "size_bytes": 90373
     },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
@@ -623,5 +623,5 @@
       "size_bytes": 35443
     }
   },
-  "manifest_revision": "1.1.126"
+  "manifest_revision": "1.1.131"
 }
