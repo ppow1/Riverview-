@@ -1,8 +1,8 @@
 # ComfyUI Engineering execution adapter
 
-**Document Revision:** 1.0.1
-**Changed:** 2026-10-23 UTC | RIVERVIEW-COMFYUI-4090-COMMISSIONING
-**Status:** adapter source and mock qualification complete; OCTOMINER1 ComfyUI worker is running on the RTX 4090; authorized Engineering assignment, artifact acceptance and production deployment remain in progress.
+**Document Revision:** 1.0.2
+**Changed:** 2026-10-23 UTC | RIVERVIEW-COMFYUI-REGISTRY-PERMISSION
+**Status:** adapter and Grace capability are deployed; OCTOMINER1 ComfyUI runs on the RTX 4090. Authorized Engineering assignment, independent acceptance and artifact download remain unverified without a Steward browser session.
 
 ## Contract and authority
 
@@ -102,9 +102,11 @@ rejection. Mock results do not count as real GPU acceptance.
 3. Bind the service to the configured GPU UUID through `CUDA_VISIBLE_DEVICES`
    and restrict its unauthenticated API to the Camrui controller source. Use
    writable service-owned user, temp, database, and output paths.
-4. Install the operator-reviewed registry in `deploy/comfyui/workflows.json`;
-   verify models and nodes through `/object_info`. The service has started on
-   OCTOMINER1 and its `/system_stats` and required SD Turbo nodes respond.
+4. Keep the operator-reviewed registry in `deploy/comfyui/workflows.json`, which
+   the worker reads from its root-owned immutable release. Do not place it below
+   `/etc/riverview`: that directory is root-only on Camrui. Verify models and
+   nodes through `/object_info`. The service has started on OCTOMINER1 and its
+   `/system_stats` and required SD Turbo nodes respond.
 5. Enable the Grace worker only after verifying current exact grants and
    confirming no active Engineering assignment will be interrupted by its
    service restart.

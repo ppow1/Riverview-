@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_comfyui_adapter.py
 # Component: ENGINEERING-COMFYUI-ADAPTER
-# Revision: 1.0.1
+# Revision: 1.0.2
+# Changed: 2026-10-23 UTC | RIVERVIEW-COMFYUI-REGISTRY-PERMISSION | Assert worker registry config uses a root-readable immutable release path.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Exercise canonical colon-delimited assignment IDs used by Grace.
 # Purpose: Mock ComfyUI transport, durable execution, recovery, artifact and verifier contracts
 # Tests: This file
@@ -114,6 +115,15 @@ def registry():
 
 
 class ComfyUIAdapterTests(unittest.TestCase):
+    def test_worker_registry_configuration_uses_readable_release_path(self):
+        dropin = Path(__file__).parents[1] / "deploy/systemd/riverview-grace-comfyui.conf"
+        config = dropin.read_text(encoding="utf-8")
+        self.assertIn(
+            "RIVERVIEW_COMFYUI_WORKFLOW_REGISTRY=/opt/riverview-grace-execution/current/deploy/comfyui/workflows.json",
+            config,
+        )
+        self.assertNotIn("RIVERVIEW_COMFYUI_WORKFLOW_REGISTRY=/etc/riverview/", config)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         root = Path(self.temp.name)
