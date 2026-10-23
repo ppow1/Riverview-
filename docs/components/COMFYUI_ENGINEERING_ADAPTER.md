@@ -1,7 +1,7 @@
 # ComfyUI Engineering execution adapter
 
-**Document Revision:** 1.0.2
-**Changed:** 2026-10-23 UTC | RIVERVIEW-COMFYUI-REGISTRY-PERMISSION
+**Document Revision:** 1.0.4
+**Changed:** 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY
 **Status:** adapter and Grace capability are deployed; OCTOMINER1 ComfyUI runs on the RTX 4090. Authorized Engineering assignment, independent acceptance and artifact download remain unverified without a Steward browser session.
 
 ## Contract and authority
@@ -27,6 +27,14 @@ The active `worker:grace-engineering` identity is extended only under its exact
 grant, scoped to `work-order:engineering`. The distinct existing verifier
 identity uses its existing `assignment.verify` grant. The capability adds no
 GPU-management or model-service authority.
+
+When enabled, the Grace service includes the ComfyUI capability in the exact
+worker registration identity before starting `ContinuousWorker`. If an existing
+registration predates the capability, startup adds only that capability through
+the existing exact `worker.register` grant. This keeps the persisted capability
+set consistent across clean restarts. Disabling the capability requires an
+authorized update to that same worker registration before changing the service
+flag; a stale registration fails startup closed.
 
 The endpoint is fixed at worker startup, plain HTTP, and must be a literal
 loopback or private IP address. The current commissioning registration contains
