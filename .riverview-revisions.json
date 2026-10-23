@@ -683,9 +683,9 @@
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
-      "revision": "1.2.4",
-      "sha256": "aaf031b33c80a247f24dde6d2131e405410cbf0934a54d8f4ef152bd87a49d94",
-      "size_bytes": 29962
+      "revision": "1.4.0",
+      "sha256": "eca75b0050a4a81a3c92073803fa718f525c9ce9f4b0a993068d9831c1944a79",
+      "size_bytes": 36914
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
