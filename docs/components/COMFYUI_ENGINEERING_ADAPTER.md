@@ -1,7 +1,7 @@
 # ComfyUI Engineering execution adapter
 
-**Document Revision:** 1.0.4
-**Changed:** 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY
+**Document Revision:** 1.0.5
+**Changed:** 2026-10-23 UTC | RV-COMFYUI-ROLLBACK-CAPABILITY
 **Status:** adapter and Grace capability are deployed; OCTOMINER1 ComfyUI runs on the RTX 4090. Authorized Engineering assignment, independent acceptance and artifact download remain unverified without a Steward browser session.
 
 ## Contract and authority
@@ -34,7 +34,9 @@ registration predates the capability, startup adds only that capability through
 the existing exact `worker.register` grant. This keeps the persisted capability
 set consistent across clean restarts. Disabling the capability requires an
 authorized update to that same worker registration before changing the service
-flag; a stale registration fails startup closed.
+flag. A rollback-capable release can remove only this optional capability under
+the same exact `worker.register` grant. Any other capability-set difference
+still fails startup closed.
 
 The endpoint is fixed at worker startup, plain HTTP, and must be a literal
 loopback or private IP address. The current commissioning registration contains
@@ -122,7 +124,10 @@ rejection. Mock results do not count as real GPU acceptance.
    work-order flow. Verify ComfyUI prompt progress, saved image metadata,
    independent verification and authorized byte-for-byte download.
 7. Deploy only the immutable qualified Camrui release. Preserve the previous
-   dashboard and Grace releases and both integration drop-ins. Roll back by
-   restoring those releases and removing only the ComfyUI drop-ins. Restore the
-   30B only after ComfyUI is stopped and the 4090's VRAM is clear. Recheck 0.6B
-   and 80B health after either service transition.
+   dashboard and Grace releases and both integration drop-ins. To roll back the
+   Grace worker registration, first run the rollback-capable Grace release once
+   with `RIVERVIEW_COMFYUI_ENABLED=0`; startup removes only the ComfyUI
+   capability under the existing exact `worker.register` grant. Then restore
+   the prior Grace release and remove the ComfyUI drop-in. Restore the 30B only
+   after ComfyUI is stopped and the 4090's VRAM is clear. Recheck 0.6B and 80B
+   health after either service transition.

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Validate systemd worker credentials and idempotent registry state
 # Execution Model: Shared startup preflight for supervised executor/verifier units
 # Observability: Safe identity/configuration errors without bearer disclosure
@@ -13,6 +13,7 @@
 # Changed: 2026-10-15 UTC | RV-GRACE-OWNER-SESSION-EXECUTION-001 | Register the owner-session unit and its least-privilege credentials
 # Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Keep persisted worker capability identity stable across ComfyUI service restarts.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Add only the optional ComfyUI capability through the existing exact registration grant.
+# Changed: 2026-10-23 UTC | RV-COMFYUI-ROLLBACK-CAPABILITY | Remove only the optional ComfyUI capability during authorized rollback.
 # Contracts: docs/components/WORKER_ADAPTER.md
 # Tests: tests/test_worker_service.py
 # History: .riverview-backups/manifest.jsonl and Git
@@ -159,6 +160,12 @@ def ensure_registered(adapter: PostgresWorkerAdapter, worker_id: str, token: str
         # A service deployment may add only this optional operation through
         # the existing exact worker.register grant. All other mismatches fail closed.
         adapter.register_comfyui_capability(worker_id, token, scope_ref)
+        return
+    if (current - expected == {adapter.COMFYUI_CAPABILITY} and
+            expected <= current):
+        # Rollback may remove only the optional ComfyUI capability. The
+        # existing exact worker.register grant is checked by this operation.
+        adapter.unregister_comfyui_capability(worker_id, token, scope_ref)
         return
     raise WorkerServiceConfigurationError("registered_worker_mismatch")
 
