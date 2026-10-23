@@ -268,4 +268,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = { COMPOSER_SELECTOR, FIXED_ACTION, OPERATION, READINESS, SEND_SELECTOR, WAKE_TEXT, loadConfig, selectExactTarget, statusSnapshot, validate, verified };
+module.exports = { COMPOSER_SELECTOR, FIXED_ACTION, OPERATION, READINESS, SEND_SELECTOR, WAKE_TEXT, loadConfig, preflight, selectExactTarget, statusSnapshot, validate, verified };

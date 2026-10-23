@@ -23,7 +23,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rv-doorbell-test-'));
 process.env.RIVERVIEW_RUNTIME_ROOT = tempRoot;
-const { COMPOSER_SELECTOR, FIXED_ACTION, OPERATION, READINESS, SEND_SELECTOR, WAKE_TEXT, selectExactTarget, statusSnapshot, validate, verified } = require('../tools/riverview_doorbell_bridge.cjs');
+const { COMPOSER_SELECTOR, FIXED_ACTION, OPERATION, READINESS, SEND_SELECTOR, WAKE_TEXT, preflight, selectExactTarget, statusSnapshot, validate, verified } = require('../tools/riverview_doorbell_bridge.cjs');
 
 const id = '00000000-0000-4000-8000-000000000000';
 const page = value => ({ type: 'page', url: `https://chatgpt.com/c/${value}`, webSocketDebuggerUrl: 'ws://127.0.0.1:9225/devtools/page/test' });
@@ -41,6 +41,7 @@ test('conversation selection accepts only one exact ChatGPT page', () => {
 test('the operation and wake remain fixed, and only a composer transition proves submission', () => {
   assert.equal(OPERATION, 'ring_riverview_doorbell');
   assert.equal(WAKE_TEXT, 'Riverview doorbell v1: inspect the Riverview MCP mailbox.');
+  assert.equal(typeof preflight, 'function');
   assert.equal(verified({ submitted: true, click_invoked: true, composer_cleared: true }), true);
   assert.equal(verified({ submitted: true, click_invoked: true, composer_cleared: false }), false);
   assert.match(COMPOSER_SELECTOR, /role=\\?"textbox/);
