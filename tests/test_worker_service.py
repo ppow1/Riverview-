@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_service.py
 # Component: WORKER-ADAPTER
-# Revision: 1.1.2
+# Revision: 1.1.3
+# Changed: 2026-10-23 UTC | RV-COMFYUI-ROLLBACK-CAPABILITY | Cover exact capability removal and fail-closed registration mismatch handling.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Verify exact ComfyUI capability persistence across service restarts.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Cover grant-bound extension of an already registered Grace worker.
 # Purpose: Enforce service identity, package paths, credentials and unit boundaries
@@ -100,6 +101,96 @@ class WorkerServiceContractTests(unittest.TestCase):
         adapter.register_comfyui_capability.assert_called_once_with(
             "worker:grace-engineering", token, "work-order:engineering")
         adapter.register_worker.assert_not_called()
+
+    def test_rollback_removes_only_comfyui_through_registered_grant_operation(self):
+        token = "t" * 64
+        row = {
+            "credential_sha256": hashlib.sha256(token.encode()).digest(),
+            "capabilities": ["engineering.codex-cli-artifact.v1", "engineering.comfyui-image.v1"],
+            "scope_ref": "work-order:engineering",
+            "active": True,
+        }
+
+        class Cursor:
+            def execute(self, *_args):
+                pass
+
+            def fetchone(self):
+                return row
+
+        class Database:
+            def transaction(self):
+                return nullcontext()
+
+            def cursor(self):
+                return nullcontext(Cursor())
+
+        class Ledger:
+            db = Database()
+
+            @staticmethod
+            def _set_search_path(_cursor):
+                pass
+
+        class Adapter:
+            COMFYUI_CAPABILITY = "engineering.comfyui-image.v1"
+            ledger = Ledger()
+
+            def __init__(self):
+                self.unregister_comfyui_capability = Mock()
+                self.register_comfyui_capability = Mock()
+
+        adapter = Adapter()
+        ensure_registered(adapter, "worker:grace-engineering", token,
+                          configured_worker_capabilities(
+                              "engineering.codex-cli-artifact.v1", comfyui_enabled=False),
+                          "work-order:engineering")
+        adapter.unregister_comfyui_capability.assert_called_once_with(
+            "worker:grace-engineering", token, "work-order:engineering")
+        adapter.register_comfyui_capability.assert_not_called()
+
+    def test_unexpected_registration_differences_still_fail_closed(self):
+        token = "t" * 64
+        row = {
+            "credential_sha256": hashlib.sha256(token.encode()).digest(),
+            "capabilities": ["engineering.codex-cli-artifact.v1", "engineering.comfyui-image.v1",
+                             "engineering.unexpected.v1"],
+            "scope_ref": "work-order:engineering",
+            "active": True,
+        }
+
+        class Cursor:
+            def execute(self, *_args):
+                pass
+
+            def fetchone(self):
+                return row
+
+        class Database:
+            def transaction(self):
+                return nullcontext()
+
+            def cursor(self):
+                return nullcontext(Cursor())
+
+        class Ledger:
+            db = Database()
+
+            @staticmethod
+            def _set_search_path(_cursor):
+                pass
+
+        class Adapter:
+            COMFYUI_CAPABILITY = "engineering.comfyui-image.v1"
+            ledger = Ledger()
+            unregister_comfyui_capability = Mock()
+            register_comfyui_capability = Mock()
+
+        with self.assertRaises(WorkerServiceConfigurationError):
+            ensure_registered(Adapter(), "worker:grace-engineering", token,
+                              configured_worker_capabilities(
+                                  "engineering.codex-cli-artifact.v1", comfyui_enabled=False),
+                              "work-order:engineering")
 
     def test_grace_unit_points_to_its_own_release_and_runner(self):
         unit = (ROOT / "deploy/systemd/riverview-grace-execution.service").read_text()
