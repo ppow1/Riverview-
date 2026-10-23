@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.42
+# Revision: 1.3.43
+# Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Route browser objective cancellation through the linked authenticated principal and server-resolved exact scope.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify artifact ownership and group-read layout at the authorized download boundary.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve bounded cancellation reasons through the exact-grant objective route.
@@ -478,7 +479,7 @@ def make_handler():
             self._account_cookie_authenticated = self._account_identity is not None
             return self._account_cookie_authenticated
 
-        def _objective_account_identity(self):
+        def _objective_account_identity(self, *, state_changing=False):
             """Resolve an account session for sensitive objective projections.
 
             The dashboard bearer authenticates the general API but carries no
@@ -502,7 +503,7 @@ def make_handler():
             try:
                 return service.authenticate(values[0],
                     csrf_token=self.headers.get("X-Riverview-CSRF"),
-                    state_changing=False)
+                    state_changing=state_changing)
             except AuthDenied:
                 return None
 
@@ -1866,22 +1867,43 @@ def make_handler():
                             self._json(202, {"objective_id": objective_id,
                                 "status": result["status"], "assignment_id": result["assignment_id"]}, request_id)
                         else:
-                            if (set(data) not in ({"scope_ref"}, {"scope_ref", "reason"}) or
+                            if (set(data) not in ({"reason"}, {"scope_ref"}, {"scope_ref", "reason"}) or
                                     ("reason" in data and
                                      (not isinstance(data["reason"], str) or
                                       not data["reason"].strip() or
                                       len(data["reason"].strip()) > 1000))):
                                 raise ValueError("invalid cancellation shape")
+                            objective = pipeline.get_objective(objective_id)
+                            if objective is None:
+                                self._error(404, "objective_not_found", request_id)
+                                return
+                            authority_ref = data.get("scope_ref", objective["scope_ref"])
+                            authority_credential = self.headers.get("X-Riverview-Authority")
+                            if not authority_credential:
+                                account_identity = self._objective_account_identity(
+                                    state_changing=True)
+                                if account_identity is not None:
+                                    self.server._account_auth_service.require_role(
+                                        account_identity, "operator", "steward")
+                                    principal_id = account_identity.get("authority_principal_id")
+                                    if not isinstance(principal_id, str) or not principal_id.strip():
+                                        from riverview_core.resident_execution import ObjectiveNotAuthorized
+                                        raise ObjectiveNotAuthorized("account principal unavailable")
+                                    from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                                    authority_credential = InstitutionalPrincipal(principal_id)
+                                else:
+                                    authority_credential = self._conversation_authority()
                             result = pipeline.cancel_work_order(objective_id,
-                                credential=self.headers.get("X-Riverview-Authority", ""),
-                                authority_ref=data["scope_ref"], reason=data.get("reason"))
+                                credential=authority_credential,
+                                authority_ref=authority_ref, reason=data.get("reason"))
                             self._json(200, {"objective_id": objective_id,
                                 "status": result["status"]}, request_id)
                     except Exception as exc:
                         from riverview_core.resident_execution import (
                             ObjectiveNotAuthorized, ObjectiveStateError)
                         from riverview_core.institutional_authority import GrantCheckUnavailable, GrantDenied
-                        if isinstance(exc, (ObjectiveNotAuthorized, GrantDenied)):
+                        from riverview_core.account_auth import AuthDenied
+                        if isinstance(exc, (ObjectiveNotAuthorized, GrantDenied, AuthDenied)):
                             self._error(403, "objective_action_not_authorized", request_id)
                         elif isinstance(exc, GrantCheckUnavailable):
                             self._error(503, "authority_unavailable", request_id)

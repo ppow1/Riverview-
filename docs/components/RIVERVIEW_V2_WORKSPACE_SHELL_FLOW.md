@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL_FLOW.md
 Component: RIVERVIEW-V2-WORKSPACE-SHELL · generated from canonical JSON
-File Revision: 1.0.13
+File Revision: 1.0.14
 Purpose: Show normal, decision, failure, and recovery paths for loopback and authenticated LAN preview
 Authority: Presentation-only process flow; edit canonical JSON graph only
 Changed: 2026-10-20 UTC | RV-WEB-V2-LAN-PREVIEW-001 | Extend generated process view for authenticated LAN access
@@ -39,7 +39,7 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_apply_theme_81b77d1d["Apply Light, Dark, or System theme; persist display preference only"]
     g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc["Cycle left and right sidebars independently through expanded, compact, and hidden"]
     g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e["Restore a hidden sidebar using its accessible floating control"]
-    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Keep V2 chat disconnected and expose the authenticated Dashboard handoff plus unverified Comms5 state"]
+    g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227["Keep Comms5 traffic explicitly unverified and represent unavailable counts as unknown"]
     g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94(["Click Snapshot in the active V2 view"])
     g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b["Collect allowlisted V2 view, fixture context, browser state, and redacted integration diagnostics"]
     g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec["Build bounded versioned package and manifest; integrated mode uses the shared archive contract"]
@@ -62,6 +62,13 @@ flowchart LR
     g_rv_riverview_v2_workspace_shell_manual_image_download_63653eba["Serve owner-scoped preview and download through the authenticated artifact route"]
     g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e[["Persist worker, timeout, output, or verification failure without exposing unverified bytes"]]
     g_rv_riverview_v2_workspace_shell_manual_image_gpu_disabled_fefa7853{"Keep per-request GPU selection disabled while allocator or reservation identity is unavailable"}
+    g_rv_riverview_v2_workspace_shell_grace_session_auth_c58b14e9["Authenticate V2 Grace workspace through the existing Steward account and conversation-session APIs"]
+    g_rv_riverview_v2_workspace_shell_engineering_progress_read_304f615a["Read conversation-linked objectives and assignment lifecycle from the authoritative Dashboard projection"]
+    g_rv_riverview_v2_workspace_shell_engineering_progress_placement_dc84d70c["Keep one Engineering Progress panel in the expanded desktop sidebar or below the complete chat composer otherwise"]
+    g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_eligibility_91f56c4f{"Show Cancel only for an authorized Steward and a safely cancellable grounded or queued objective"}
+    g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_request_d099e547["Submit a reasoned cancellation request through the authenticated Dashboard and exact assignment.cancel grant"]
+    g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_refresh_b7dfa86b["Refresh authoritative lifecycle and show persisted cancellation actor, time, and reason without optimistic state"]
+    g_rv_riverview_v2_workspace_shell_engineering_progress_stale_2d511e8c[["Keep the last successful objective projection and mark it stale when refresh fails"]]
   end
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
   g_rv_riverview_v2_workspace_shell_open_preview_624fa602 --> g_rv_riverview_v2_workspace_shell_serve_static_9f085d0e
@@ -95,7 +102,7 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Cycle either sidebar without changing the other| g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc
   g_rv_riverview_v2_workspace_shell_cycle_sidebars_3ade16cc -->|Hidden state exposes a keyboard-accessible restore button| g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e
   g_rv_riverview_v2_workspace_shell_restore_sidebars_f1b4862e --> g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d
-  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|V2 has no shared Dashboard identity; show the separate secure handoff| g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227
+  g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|Preserve the same-origin account integration; Comms5 traffic remains independently unverified| g_rv_riverview_v2_workspace_shell_integration_unavailable_166ea227
   g_rv_riverview_v2_workspace_shell_choose_presentation_7aa0553d -->|User requests a V2-specific local ZIP| g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94
   g_rv_riverview_v2_workspace_shell_snapshot_click_c7b14d94 --> g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b
   g_rv_riverview_v2_workspace_shell_snapshot_capture_d124e47b -->|Allowlisted state is captured in memory| g_rv_riverview_v2_workspace_shell_snapshot_manifest_bae7acec
@@ -129,6 +136,16 @@ flowchart LR
   g_rv_riverview_v2_workspace_shell_manual_image_verify_f0fc10a3 -->|diagnostic_branch: Output identity, bytes, or media validation fails| g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e
   g_rv_riverview_v2_workspace_shell_manual_image_failed_4974021e -->|recovery_route: Review history, then submit a new request ID| g_rv_riverview_v2_workspace_shell_manual_image_open_94fa6aaf
   g_rv_riverview_v2_workspace_shell_manual_image_download_63653eba -->|Return to V2 workspace| g_rv_riverview_v2_workspace_shell_choose_view_161dc67b
+  g_rv_riverview_v2_workspace_shell_choose_view_161dc67b -->|Open the native V2 Grace conversation| g_rv_riverview_v2_workspace_shell_grace_session_auth_c58b14e9
+  g_rv_riverview_v2_workspace_shell_grace_session_auth_c58b14e9 -->|Steward session and conversation grant are verified| g_rv_riverview_v2_workspace_shell_engineering_progress_read_304f615a
+  g_rv_riverview_v2_workspace_shell_engineering_progress_read_304f615a -->|Render the single authoritative panel from the returned projection| g_rv_riverview_v2_workspace_shell_engineering_progress_placement_dc84d70c
+  g_rv_riverview_v2_workspace_shell_engineering_progress_placement_dc84d70c -->|Steward may inspect an eligible cancellation action| g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_eligibility_91f56c4f
+  g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_eligibility_91f56c4f -->|Current status is eligible and Steward confirms with a reason| g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_request_d099e547
+  g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_request_d099e547 -->|Backend records an authorized lifecycle transition| g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_refresh_b7dfa86b
+  g_rv_riverview_v2_workspace_shell_engineering_progress_cancel_request_d099e547 -->|recovery_route: Denied or stale request refreshes authoritative state; no optimistic cancellation| g_rv_riverview_v2_workspace_shell_engineering_progress_read_304f615a
+  g_rv_riverview_v2_workspace_shell_engineering_progress_read_304f615a -->|diagnostic_branch: Authenticated read fails after a prior successful observation| g_rv_riverview_v2_workspace_shell_engineering_progress_stale_2d511e8c
+  g_rv_riverview_v2_workspace_shell_engineering_progress_stale_2d511e8c -->|recovery_route: Retry on the next bounded refresh; preserve the last result| g_rv_riverview_v2_workspace_shell_engineering_progress_read_304f615a
+  g_rv_riverview_v2_workspace_shell_engineering_progress_placement_dc84d70c -->|Sidebar state or viewport changes; move the same panel and restore chat scroll/focus/draft| g_rv_riverview_v2_workspace_shell_engineering_progress_placement_dc84d70c
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```
 

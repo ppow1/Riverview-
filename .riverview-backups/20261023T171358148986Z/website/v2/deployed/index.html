@@ -1,0 +1,216 @@
+<!--
+Riverview~ Controlled Document
+File: website/v2/deployed/index.html
+Component: RIVERVIEW-V2-WORKSPACE-SHELL
+File Revision: 1.0.20
+Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
+Execution Model: Interactive browser presentation; request-driven Dashboard API calls
+Observability: Live conversation state from rv.resident.conversation.v1; Comms5 stays unverified
+Dependencies: Same-origin static assets under website/v2/assets
+Inputs/Outputs: Local fixture records plus authenticated Grace conversation API; durable messages remain Dashboard-owned
+Authority: Account session plus server-checked resident.conversation.read/send grants; LAN preview
+Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Render live hardware and model projections in the existing monitor.
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-DIGITAL-TWIN | Add interactive OCTO1 live component console and activity timeline.
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Add a bounded durable Grace request trace to OCTO1 activity.
+Changed: 2026-10-21 UTC | RV-V2-OCTO1-PHYSICAL-TWIN-001 | Use original manufacturer chassis artwork with physical front fan hotspots and dynamic telemetry selectors.
+Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Add measured VRAM bars, provider response-rate charts, selected slot-context telemetry, and bounded four-record activity paging.
+Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Add compact per-host mounted storage capacity to Resources.
+Changed: 2026-10-22 UTC | RV-V2-LIVE-HARDWARE-GRAPHS-001 | Clarify independently measured hardware and response graph series.
+Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Connect existing Work view to authenticated read-only objective and assignment status
+Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Add authenticated manual image generation view using dynamic registered workflows.
+Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deployed V2 source under its explicit production bundle path.
+Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
+Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
+History: Git and revision/backup manifest
+-->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Riverview V2 Workspace Preview</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/workspace.css">
+  <link rel="stylesheet" href="assets/communications.css">
+  <link rel="stylesheet" href="assets/resource-monitor.css">
+  <link rel="stylesheet" href="assets/work-monitor.css">
+  <link rel="stylesheet" href="assets/manual-image-generation.css">
+  <script defer src="assets/fixtures.js"></script>
+  <script defer src="assets/resource-monitor.js"></script>
+  <script defer src="assets/work-monitor.js"></script>
+  <script defer src="assets/workspace.js"></script>
+  <script defer src="assets/communications.js"></script>
+  <script defer src="assets/snapshot.js"></script>
+  <script defer src="assets/grace-chat.js"></script>
+  <script defer src="assets/manual-image-generation.js"></script>
+<meta name="rv-v2-snapshot-mode" content="authenticated-dashboard"></head>
+<body>
+  <div class="preview-banner"><span class="dot"></span> V2 preview <b>Fixture workspace · Grace uses secure Dashboard authentication</b></div>
+  <div class="app-shell">
+    <aside class="rail" id="left-sidebar" data-sidebar="left" aria-label="Primary navigation" data-tooltip="Primary navigation">
+      <a class="brand" href="#overview" aria-label="Riverview home" data-tooltip="Go to workspace overview"><span class="brand-mark">R</span><span>Riverview<small>WORKSPACE</small></span></a>
+      <nav id="primary-nav">
+        <button class="nav-item active" data-view="overview" aria-label="Overview" data-tooltip="Show workspace overview"><span aria-hidden="true">⌂</span><span class="nav-label">Overview</span></button>
+        <button class="nav-item" data-view="residents" aria-label="Residents" data-tooltip="Browse resident directory"><span aria-hidden="true">◉</span><span class="nav-label">Residents</span></button>
+        <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show institutional work status and workspace examples"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
+        <button class="nav-item" data-view="image-generation" aria-label="Manual image generation" data-tooltip="Generate and review images through the registered ComfyUI worker"><span aria-hidden="true">▧</span><span class="nav-label">Image generation</span></button>
+        <button class="nav-item" data-view="resources" aria-label="Hardware and AI resources" data-tooltip="Inspect hardware and AI resource telemetry"><span aria-hidden="true">◇</span><span class="nav-label">Hardware &amp; AI</span></button>
+        <button class="nav-item" data-view="knowledge" aria-label="Knowledge" data-tooltip="Browse preview knowledge"><span aria-hidden="true">⌕</span><span class="nav-label">Knowledge</span></button>
+        <button class="nav-item" data-view="communications" aria-label="Communications activity" data-tooltip="Inspect verified Riverview communications activity"><span aria-hidden="true">⇄</span><span class="nav-label">Communications</span></button>
+      </nav>
+      <div class="rail-bottom"><span class="avatar steward">S</span><span>Steward<small>Preview session</small></span></div>
+    </aside>
+
+    <main class="main-column">
+      <header class="topbar"><button id="mobile-menu" aria-label="Toggle navigation" data-tooltip="Open navigation">☰</button><div><span class="eyebrow">RIVERVIEW V2</span><h1 id="page-title">Workspace overview</h1></div><div class="top-actions"><label class="theme-control" for="theme-select" data-tooltip="Choose Light, Dark, or System appearance">Theme <select id="theme-select" aria-label="Color theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><button id="left-state" class="icon-button" type="button" aria-label="Change left sidebar state" data-tooltip="Cycle navigation: expanded, icons, hidden">⇤</button><button id="right-state" class="icon-button" type="button" aria-label="Change right sidebar state" data-tooltip="Cycle context panel: expanded, compact, hidden">⇥</button><span class="status-pill"><i></i> Preview mode</span><button id="help-button" class="icon-button" aria-label="Help" data-tooltip="Help: this is a fixture-only preview">?</button></div></header>
+      <div class="workspace-grid">
+        <button id="left-restore" class="sidebar-restore left-restore" type="button" aria-label="Restore navigation sidebar" data-tooltip="Restore navigation sidebar" hidden>☰</button>
+        <section class="content" id="workspace-main" aria-label="Workspace" data-current-view="overview">
+          <div class="welcome-row"><div><p class="eyebrow">TUESDAY, OCTOBER 20</p><h2>A clear view of the work.</h2><p class="muted">A workspace-first shell, running entirely on local preview fixtures.</p></div><div class="welcome-actions"><div class="fixture-chip">◈ &nbsp;Fixture workspace</div><button id="snapshot-action" class="snapshot-action" type="button" aria-describedby="snapshot-status" data-tooltip="Download a bounded snapshot of this V2 preview view">Snapshot</button></div></div><p id="snapshot-status" class="integration-note">Downloads a bounded ZIP of the current V2 view. Grace message contents are excluded.</p>
+          <div id="overview-content">
+          <div class="metric-grid">
+            <article class="metric-card"><span>Active work</span><strong>04</strong><small>Preview fixture count</small></article>
+            <article class="metric-card"><span>Residents</span><strong>03</strong><small>One named identity, two fixtures</small></article>
+            <article class="metric-card"><span>Needs attention</span><strong>01</strong><small>Sample only · no live status</small></article>
+          </div>
+          <div class="section-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h2 id="view-heading">Resident directory</h2></div><span class="subtle-label">Read-only preview</span></div>
+          <section class="work-monitor" id="work-monitor-workspace" aria-labelledby="work-monitor-heading" data-state="not-checked" hidden>
+            <div class="work-monitor-heading"><div><p class="eyebrow">DURABLE INSTITUTIONAL STATE</p><h2 id="work-monitor-heading">Objectives &amp; assignments</h2><p class="muted">Read-only summaries from the authenticated Riverview Dashboard. Request text, acceptance criteria, artifacts and private event payloads are not displayed.</p></div><span class="work-monitor-state" id="work-source-state" data-state="not-checked">NOT CHECKED</span></div>
+            <div class="work-monitor-toolbar"><p id="work-refresh-status" role="status" aria-live="polite">Open Work on LAN HTTPS to check the existing Dashboard account session and read current objective and assignment summaries.</p><button id="work-refresh" type="button" aria-describedby="work-refresh-status">Refresh</button></div>
+            <label class="work-search">Filter visible records<input id="work-search" type="search" maxlength="100" placeholder="Objective, assignment, state, owner, or progress event"></label>
+            <section class="work-records" aria-labelledby="work-objectives-heading"><h3 id="work-objectives-heading">Objectives</h3><p class="work-source-note">Source: <code>GET /api/v1/objectives?limit=25</code> · database record timestamps are shown as stored.</p><div class="work-table-wrap"><table><caption class="visually-hidden">Persisted objective status, linked assignment, independent verification, and update time</caption><thead><tr><th scope="col">Objective</th><th scope="col">State</th><th scope="col">Assignment</th><th scope="col">Verification</th><th scope="col">Updated</th></tr></thead><tbody id="work-objectives-body"></tbody></table></div><p id="work-objectives-empty" class="work-empty">Objective status has not been checked.</p></section>
+            <section class="work-records" aria-labelledby="work-assignments-heading"><h3 id="work-assignments-heading">Assignment progress</h3><p class="work-source-note">Source: <code>GET /api/v1/assignments?limit=25</code> · progress is the last persisted institutional event, not an estimated percentage.</p><div class="work-table-wrap"><table><caption class="visually-hidden">Persisted assignment state, owner, workflow step and last progress event</caption><thead><tr><th scope="col">Assignment</th><th scope="col">State</th><th scope="col">Owner / step</th><th scope="col">Last progress</th></tr></thead><tbody id="work-assignments-body"></tbody></table></div><p id="work-assignments-empty" class="work-empty">Assignment progress has not been checked.</p></section>
+          </section>
+          <div id="view-content"></div>
+          </div>
+          <section class="manual-image" id="manual-image-workspace" aria-labelledby="manual-image-heading" hidden>
+            <div class="manual-image-heading"><div><p class="eyebrow">OPERATOR MANUAL MODE</p><h2 id="manual-image-heading">Image generation</h2><p class="muted">Uses the registered ComfyUI worker. Requests are recorded to your authenticated account and are separate from Grace and Engineering work.</p></div><button id="manual-image-refresh" type="button">Refresh history</button></div>
+            <p id="manual-image-auth-note" class="manual-image-note" role="status" aria-live="polite">Checking your authenticated Dashboard session…</p>
+            <div class="manual-image-grid">
+              <section class="manual-image-card" aria-labelledby="manual-image-form-heading">
+                <h3 id="manual-image-form-heading">New image</h3>
+                <form id="manual-image-form">
+                  <label for="manual-image-workflow">Registered workflow</label><select id="manual-image-workflow" required disabled><option>Loading registered workflows…</option></select>
+                  <div id="manual-image-parameters" class="manual-image-parameters"></div>
+                  <fieldset class="manual-image-gpu"><legend>GPU worker</legend><label for="manual-image-gpu-select">Execution device</label><select id="manual-image-gpu-select" disabled aria-describedby="manual-image-gpu-status"><option>Loading current worker…</option></select><p id="manual-image-gpu-status" class="manual-image-note">Per-request GPU assignment is unavailable. No device is marked free based on utilization.</p><div id="manual-image-gpu-inventory" class="manual-image-inventory" aria-live="polite"></div></fieldset>
+                  <p id="manual-image-form-status" class="manual-image-note" role="status" aria-live="polite">Sign in with an operator or Steward account to load the workflow catalog.</p>
+                  <button id="manual-image-generate" type="submit" disabled>Generate</button>
+                </form>
+              </section>
+              <section class="manual-image-card manual-image-result" aria-labelledby="manual-image-result-heading">
+                <h3 id="manual-image-result-heading">Latest result</h3>
+                <div id="manual-image-preview" class="manual-image-preview"><p>Generated images appear here after independent file verification.</p></div>
+                <div id="manual-image-result-meta" class="manual-image-meta" aria-live="polite"></div>
+              </section>
+            </div>
+            <section class="manual-image-card manual-image-history" aria-labelledby="manual-image-history-heading"><div class="manual-image-history-heading"><div><h3 id="manual-image-history-heading">Generation history</h3><p class="muted">Your requests and verified artifacts. Stewards can review all operator requests.</p></div></div><div id="manual-image-history-list" aria-live="polite"><p>No generation history has been loaded.</p></div></section>
+          </section>
+          <section class="resource-monitor" id="resource-monitor-workspace" aria-labelledby="resource-monitor-heading" data-state="not-checked" hidden>
+            <div class="resource-heading"><div><p class="eyebrow">OCTO1 · HARDWARE · INFERENCE</p><h2 id="resource-monitor-heading">OCTO1 Hardware &amp; AI</h2><p class="muted">A metric is shown only when its authorized source supplies a value and observation time. Unavailable is not zero.</p></div><span class="resource-state" id="resource-source-state" data-state="not-checked">NOT CHECKED</span></div>
+            <div class="resource-toolbar"><p id="resource-refresh-status" role="status" aria-live="polite">Telemetry is read through the authenticated Dashboard projection. Unavailable sources remain explicitly unavailable.</p><button id="resource-refresh" type="button" aria-describedby="resource-refresh-status">Refresh</button></div>
+            <section class="octo-console" id="octo1-console" aria-labelledby="octo1-title" data-host-state="not-checked">
+              <header class="octo-console-heading"><div><p class="eyebrow">LIVE MACHINE · READ ONLY</p><h3 id="octo1-title">OCTO1 <span>OctoMiner X12 Ultra</span></h3><p id="octo1-observed" class="resource-observed">Waiting for authenticated host telemetry.</p></div><span id="octo1-machine-state" class="resource-tag" data-state="not_initialized">NOT CHECKED</span></header>
+              <div class="octo-console-layout">
+                <section class="octo-machine-view" aria-labelledby="octo1-surface-title">
+                  <div class="octo-machine-view-heading"><div><p class="eyebrow">MANUFACTURER CHASSIS · READ ONLY</p><h4 id="octo1-surface-title">OctoMiner X12 Ultra</h4></div><span class="octo-view-note">GPU device IDs are not mapped to physical bays.</span></div>
+                  <section class="octo-chassis" aria-label="Interactive manufacturer chassis reference">
+                    <div class="octo-chassis-toolbar" role="group" aria-label="Chassis reference view">
+                      <button type="button" data-octo-artwork-view="front" aria-pressed="true">Front panel</button>
+                      <button type="button" data-octo-artwork-view="open" aria-pressed="false">Open-chassis reference</button>
+                      <span id="octo-chassis-view-note">Manufacturer front view · five physical intake fans</span>
+                    </div>
+                    <div class="octo-chassis-stage" id="octo1-chassis-stage" data-artwork-view="front">
+                      <img id="octo1-chassis-artwork" src="/v2/assets/octominer/x12ultra-front-open-chassis-reference.png" alt="Original OctoMiner X12 Ultra manufacturer artwork showing the front face with five evenly spaced fans and the right-side display and controls. The open chassis view is available by selecting Open-chassis reference." loading="lazy" decoding="async">
+                      <div id="octo1-front-hotspots" class="octo-front-hotspots" aria-label="Selectable physical front components">
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-1" style="--hotspot-x:11.4%;--hotspot-y:49%" aria-label="Select front fan 1">01</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-2" style="--hotspot-x:27%;--hotspot-y:49%" aria-label="Select front fan 2">02</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-3" style="--hotspot-x:43%;--hotspot-y:49%" aria-label="Select front fan 3">03</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-4" style="--hotspot-x:59%;--hotspot-y:49%" aria-label="Select front fan 4">04</button>
+                        <button type="button" class="octo-hotspot" data-octo-component="fan-5" style="--hotspot-x:75.5%;--hotspot-y:49%" aria-label="Select front fan 5">05</button>
+                        <button type="button" class="octo-hotspot octo-hotspot-panel" data-octo-component="front-panel" style="--hotspot-x:90%;--hotspot-y:51%" aria-label="Select right-side front display and control panel">Display</button>
+                      </div>
+                    </div>
+                    <p id="octo1-chassis-caption" class="octo-chassis-caption">Fan positions and the right-side front panel follow the manufacturer front image. Per-fan controller channels and internal GPU bay positions are not identified by OCTO1 telemetry.</p>
+                  </section>
+                  <div class="octo-live-summary" id="octo1-live-summary" aria-live="polite"><span>GPU inventory <b id="octo1-gpu-count">Unavailable</b></span><span>Inference services <b id="octo1-model-count">Unavailable</b></span><span>Last source observation <b id="octo1-age">Not reported</b></span></div>
+                  <h5 class="octo-group-label">GPU devices <small>select a device for measurements and active service mapping</small></h5>
+                  <div id="octo1-gpu-selectors" class="octo-device-grid" role="group" aria-label="OCTO1 GPU devices"><p class="octo-empty">Authenticated GPU inventory has not been received.</p></div>
+                  <h5 class="octo-group-label">Grace models <small>GPU assignment is derived from the live GPU process projection</small></h5>
+                  <div id="octo1-model-selectors" class="octo-model-grid" role="group" aria-label="OCTO1 Grace inference models"><p class="octo-empty">Inference service state has not been received.</p></div>
+                  <section class="octo-throughput" aria-labelledby="octo1-throughput-title"><div class="octo-machine-view-heading"><div><p class="eyebrow">MEASURED TELEMETRY · ROLLING 5 MINUTES</p><h4 id="octo1-throughput-title">Live hardware, model, and response activity</h4></div><span class="resource-footnote">Source snapshots update with authenticated five-second polling</span></div><div id="octo1-throughput-chart-grid" class="octo-throughput-grid" aria-live="polite"></div><p class="octo-attribution-note">GPU utilization and active inference slots are live system measurements and are not attributed to a specific Grace request. Streamed characters/s is application-side delivery cadence. Completed tokens/s is router-measured provider-call throughput, including endpoint and transport overhead. These measurements are separate; native model-server token-generation speed is unavailable.</p></section>
+                  <h5 class="octo-group-label">Machine systems <small>select a physical or controller subsystem for verified details</small></h5>
+                  <div id="octo1-system-selectors" class="octo-system-grid" role="group" aria-label="OCTO1 machine systems"><button type="button" data-octo-component="controller" aria-pressed="false"><span>Fan controller</span><small>OCTO1 installation unverified</small></button><button type="button" data-octo-component="thermal" aria-pressed="false"><span>Environmental sensors</span><small>Unavailable</small></button><button type="button" data-octo-component="psu" aria-pressed="false"><span>Power supplies</span><small>Controller feed unavailable</small></button><button type="button" data-octo-component="watchdog" aria-pressed="false"><span>Watchdog</span><small>Controller feed unavailable</small></button></div>
+                  <details class="octo-controller-reference"><summary>Manufacturer controller reference · installation and live readings unverified</summary><div class="octo-controller-reference-grid"><figure><img src="/v2/assets/octominer/smart-watchdog-fan-controller-reference.png" alt="Original manufacturer reference image of a smart watchdog and fan-controller board; not verified as installed in OCTO1" loading="lazy" decoding="async"><figcaption>Manufacturer board illustration. The physical OCTO1 controller identity and placement have not been confirmed.</figcaption></figure><figure><img src="/v2/assets/octominer/controller-feature-reference.png" alt="Original manufacturer controller feature and sensor documentation; it does not establish OCTO1 live telemetry" loading="lazy" decoding="async"><figcaption>Manufacturer capability reference only. It is not a live sensor reading or proof that a feature is connected.</figcaption></figure></div></details>
+                </section>
+                <aside id="octo1-component-detail" class="octo-component-detail" aria-live="polite" aria-labelledby="octo1-detail-title"><p class="eyebrow">SELECTED COMPONENT</p><h4 id="octo1-detail-title">OCTO1 overview</h4><p id="octo1-detail-state">Refresh to load current authorized readings.</p><dl id="octo1-detail-metrics"></dl><p id="octo1-detail-source" class="resource-footnote">All readings are read-only and retain their source timestamp.</p></aside>
+              </div>
+              <section class="octo-activity" aria-labelledby="octo1-activity-title"><div class="octo-machine-view-heading"><div><p class="eyebrow">FIVE-SECOND SOURCE SAMPLES</p><h4 id="octo1-activity-title">Recent hardware activity</h4></div><span id="octo1-poll-state" class="resource-footnote">Auto-refresh runs only while Hardware &amp; AI is open and this tab is visible.</span></div><div id="octo1-activity-list" class="octo-activity-list" aria-live="polite"><p class="octo-empty">No telemetry samples captured in this browser session.</p></div><nav id="octo1-activity-pagination" class="octo-activity-pagination" aria-label="Recent Hardware Activity pages"><button type="button" id="octo1-activity-previous" aria-controls="octo1-activity-list" disabled>Previous</button><span id="octo1-activity-page" aria-live="polite">Page 1 of 1 · no samples</span><button type="button" id="octo1-activity-next" aria-controls="octo1-activity-list" disabled>Next</button></nav><p class="octo-attribution-note"><strong>Separate observations:</strong> GPU use and active-slot counts are not evidence that a specific Grace request reached or generated on a model. Correlated durable conversation evidence appears below when an authorized Grace conversation is connected.</p></section>
+              <section class="octo-request-trace" aria-labelledby="octo1-request-trace-title"><header class="octo-machine-view-heading"><div><p class="eyebrow">AUTHORIZED · DURABLE CONVERSATION EVENTS</p><h4 id="octo1-request-trace-title">Grace request trace</h4></div><span id="octo1-request-trace-state" class="resource-tag" data-state="not_initialized">NOT AVAILABLE</span></header><div id="octo1-request-trace-list" class="octo-request-trace-list" aria-live="polite"><p class="octo-empty">Open Grace chat to load the current authorized conversation trace.</p></div><p class="octo-attribution-note">This view shows the current signed-in Steward’s selected conversation, request ID, router attempt metadata, and persisted response timestamp. Prompt and response text are excluded. The current llama.cpp API does not provide a correlated server-receipt or prompt/generation timeline; no GPU sample is attributed to a request.</p></section>
+            </section>
+            <section id="resource-storage" class="resource-storage" data-resource-card data-resource-kind="hardware" data-search="storage capacity disk mounted volumes free space">
+              <div class="resource-card-top"><div><p class="eyebrow">MOUNTED VOLUMES · READ ONLY</p><h3>Storage capacity</h3></div><span id="resource-storage-state" class="resource-tag" data-state="unavailable">NOT OBSERVED</span></div>
+              <p id="resource-storage-summary" class="resource-footnote">Capacity totals include only unique measured filesystems. Offline or unconfigured hosts remain unavailable.</p>
+              <div id="resource-storage-hosts" class="resource-storage-hosts" aria-live="polite"><p class="resource-footnote">Storage telemetry has not been requested.</p></div>
+            </section>
+            <div class="resource-filters">
+              <label>Filter resources<select id="resource-filter"><option value="all">All sources</option><option value="hardware">Hardware metrics</option><option value="inference">Inference services</option><option value="dashboard">Dashboard work fleet</option></select></label>
+              <label>Find a metric<input id="resource-search" type="search" maxlength="80" placeholder="Host, metric, or source"></label>
+            </div>
+            <details class="resource-advanced"><summary>Advanced source and fleet diagnostics</summary><div class="resource-grid" id="resource-cards" aria-live="polite"><p id="resource-telemetry-state">Live host telemetry has not been requested.</p></div>
+            <section class="resource-hosts" aria-labelledby="resource-hosts-heading">
+              <div class="resource-card-top"><div><p class="eyebrow">VERIFIED SOURCE IDENTITIES</p><h3 id="resource-hosts-heading">Host status</h3></div><span class="resource-tag unavailable">HARDWARE FEED UNAVAILABLE</span></div>
+              <div class="resource-grid" id="resource-host-cards" aria-live="polite"><p>Host status has not been requested.</p></div>
+              <p class="resource-footnote">OctoMiner2 remains explicitly unverified until its host identity and telemetry source are confirmed.</p>
+            </section>
+            <section class="resource-dashboard" data-resource-card data-resource-kind="dashboard" data-search="dashboard worker assignment cme institutional work fleet">
+              <div class="resource-card-top"><div><p class="eyebrow">AUTHENTICATED DASHBOARD PROJECTION</p><h3>Institutional work fleet <span class="resource-subtitle">(not an inference queue)</span></h3></div><span class="resource-tag" id="resource-dashboard-state">NOT CHECKED</span></div>
+              <p id="resource-dashboard-observed" class="resource-observed">No Dashboard observation has been requested.</p>
+              <div class="resource-summary-grid"><div><span>Workers</span><strong id="resource-worker-summary">Unavailable</strong><small>Latest assignment-lease heartbeat health</small></div><div><span>Institutional assignments</span><strong id="resource-assignment-summary">Unavailable</strong><small>Persisted assignment states; not model jobs</small></div><div><span>CME monitor</span><strong id="resource-cme-summary">Unavailable</strong><small>Existing Dashboard projection only</small></div><div><span>Grace execution</span><strong id="resource-grace-summary">Unavailable</strong><small>Existing Dashboard projection only</small></div></div>
+              <details id="resource-diagnostics"><summary>Source diagnostics</summary><p>Dashboard source: <span id="resource-diagnostic-source">not checked</span></p><p>Projection freshness: <span id="resource-diagnostic-freshness">not checked</span></p><p>Last checked: <span id="resource-diagnostic-checked">not checked</span></p><p>Failure class: <span id="resource-diagnostic-error">none</span></p><small>No credentials, response bodies, assignment IDs, or private model payloads are shown in diagnostics.</small></details>
+            </section>
+            </details>
+            <p class="resource-footnote">Measured/live values require a timestamped authorized source. Stale and unavailable values remain distinct. This view does not power, restart, schedule, or invoke any model or host.</p>
+          </section>
+          <section class="grace-workspace" id="grace-workspace" aria-labelledby="grace-workspace-heading" hidden>
+            <div class="grace-workspace-heading"><div><p class="eyebrow">AUTHENTICATED CONVERSATION</p><h2 id="grace-workspace-heading">Talk with Grace</h2><p class="muted">Durable conversation history from the existing Dashboard service.</p></div><span class="live-conversation-badge"><i aria-hidden="true"></i> Grace</span></div>
+            <section class="conversation-card grace-chat" id="grace-chat-root" aria-labelledby="grace-chat-heading" data-state="checking"><div class="conversation-title"><span class="conversation-icon" aria-hidden="true">✳</span><span><b id="grace-chat-heading">Secure Dashboard conversation</b><small id="grace-chat-state" role="status" aria-live="polite">Checking secure Dashboard session…</small></span></div><p id="grace-chat-error" class="grace-chat-error" role="alert" hidden></p><form id="grace-login-form" class="grace-login-form"><label for="grace-email">Dashboard email</label><input id="grace-email" name="email" type="email" autocomplete="username" maxlength="254" required><label for="grace-password">Dashboard password</label><input id="grace-password" name="password" type="password" autocomplete="current-password" maxlength="1024" required><button type="submit">Sign in securely</button><small>Your password is sent only to the existing same-origin Dashboard login API over HTTPS.</small></form><div id="grace-chat-connected" hidden><div class="grace-chat-toolbar"><span id="grace-account-label"></span><button id="grace-refresh" type="button" data-tooltip="Reload durable Grace history">Refresh history</button><button id="grace-new" type="button" data-tooltip="Start a new persisted conversation with the next message">New conversation</button></div><div id="grace-chat-history" class="grace-chat-history" role="log" aria-label="Persisted messages with Grace" aria-live="polite" aria-relevant="additions text" tabindex="0">No conversation loaded.</div><form id="grace-chat-form" class="grace-chat-composer"><label class="visually-hidden" for="grace-message">Message Grace</label><textarea id="grace-message" maxlength="8192" rows="2" required placeholder="Write a message to Grace…"></textarea><button id="grace-send" type="submit">Send</button></form><p id="grace-chat-action-status" class="grace-chat-action-status" role="status" aria-live="polite"></p><dialog id="grace-work-order-dialog" class="grace-work-order-dialog" aria-labelledby="grace-work-order-title"><form id="grace-work-order-form"><h3 id="grace-work-order-title">Create Engineering work order</h3><p class="muted">This submits the selected saved Steward message through the existing authorized objective intake. It does not approve execution.</p><label for="grace-work-order-source">Source message</label><pre id="grace-work-order-source"></pre><label for="grace-work-order-criteria">Acceptance criteria (optional; one per line)</label><textarea id="grace-work-order-criteria" rows="4" maxlength="8192" placeholder="Leave blank for Grace to derive proposed criteria"></textarea><p id="grace-work-order-error" role="status" aria-live="polite"></p><div class="grace-work-order-actions"><button type="button" data-close-work-order>Cancel</button><button id="grace-work-order-submit" type="submit">Submit objective</button></div></form></dialog></div></section>
+          </section>
+          <section class="communications-workspace" id="communications-workspace" aria-labelledby="communications-heading" hidden>
+            <div class="communications-heading"><div><p class="eyebrow">RIVERVIEW ↔ COMMS5 ↔ CHATGPT</p><h2 id="communications-heading">Communications activity</h2><p class="muted">Authoritative message delivery is shown only when a governed, redacted activity source is connected.</p></div><span class="activity-state" id="communications-source-state" data-state="unverified">UNVERIFIED</span></div>
+            <div class="activity-source-alert" id="communications-source-alert" role="status" aria-live="polite"><b>Activity source unavailable</b><p>No authorized read-only Comms5 activity feed is connected to V2. Unknown counts remain unavailable, not zero; no delivery or receipt is inferred.</p><small id="communications-source-detail">Source: not configured · No activity request has been sent.</small></div>
+            <div class="activity-summary" aria-label="Communication counts for selected window">
+              <article><span>Sent</span><strong data-count="outbound">Unavailable</strong><small>Authoritative Comms5 events</small></article>
+              <article><span>Received</span><strong data-count="inbound">Unavailable</strong><small>Correlated inbound events</small></article>
+              <article><span>Pending</span><strong data-count="pending">Unavailable</strong><small>Current lifecycle state</small></article>
+              <article><span>Failed</span><strong data-count="failed">Unavailable</strong><small>Explicit terminal failures</small></article>
+              <article><span>Completed</span><strong data-count="completed">Unavailable</strong><small>Verified completion events</small></article>
+            </div>
+            <section class="activity-ledger" aria-labelledby="activity-ledger-heading">
+              <div class="activity-ledger-heading"><div><h3 id="activity-ledger-heading">Activity ledger</h3><p class="muted">Only redacted lifecycle metadata; message bodies and credentials are never shown.</p></div><button id="communications-refresh" type="button" aria-describedby="communications-refresh-status">Check source</button></div>
+              <p id="communications-refresh-status" class="refresh-status" role="status" aria-live="polite">No activity request has been sent because no authorized source is configured.</p>
+              <div class="activity-filters">
+                <label>Search ledger<input id="communications-search" type="search" maxlength="120" placeholder="Event, destination, correlation ID"></label>
+                <label>Time window<select id="communications-window"><option value="24h">Last 24 hours</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="all">All available</option></select></label>
+                <label>Status<select id="communications-status"><option value="all">All statuses</option><option value="pending">Pending</option><option value="failed">Failed</option><option value="completed">Completed</option></select></label>
+                <label>Direction<select id="communications-direction"><option value="all">All directions</option><option value="outbound">Sent</option><option value="inbound">Received</option></select></label>
+              </div>
+              <div class="activity-table-wrap"><table><caption class="visually-hidden">Timestamped communications lifecycle events</caption><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Direction</th><th scope="col">Destination</th><th scope="col">Status</th><th scope="col">Correlation</th></tr></thead><tbody id="communications-ledger-body"></tbody></table></div>
+              <p id="communications-ledger-empty" class="activity-empty">No ledger records are available because the authoritative source is not connected. This is not evidence of zero traffic.</p>
+              <details class="activity-detail" id="communications-detail"><summary>Selected event details</summary><p>Select a ledger event to inspect its redacted details. Payload content is not exposed.</p></details>
+            </section>
+          </section>
+        </section>
+
+        <aside class="context-panel" id="right-sidebar" data-sidebar="right" data-tooltip="Resident and conversation context" aria-label="Supporting resident and integration context">
+          <div class="context-head"><div><p class="eyebrow">PERSISTENT CONTEXT</p><h2>Keep the thread</h2></div><button class="icon-button" aria-label="Context options (not connected)" disabled data-tooltip="Context actions are not connected">···</button></div>
+          <div class="context-group"><span class="context-label">SELECTED RESIDENT</span><button id="selected-resident" class="resident-context" data-tooltip="Open the Residents directory to select Grace’s authenticated conversation"><span class="avatar grace">G</span><span><b>Grace</b><small>Authenticated conversation · sign-in required</small></span><span class="chevron">›</span></button></div>
+          <div class="context-group links-group"><span class="context-label">TOOLS & CHANNELS</span><a class="tool-link" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" data-tooltip="Opens the separate ChatGPT website; no Riverview context is transferred"><span class="tool-icon chatgpt">✳</span><span><b>ChatGPT</b><small>Open external client</small></span><span class="external">↗</span></a><div class="tool-link muted-link" id="comms5-status" data-state="unverified" data-tooltip="Comms5 transport counters and messages are not exposed to this preview"><span class="tool-icon comms">C</span><span><b>Comms5</b><small>Contract present; V2 traffic UNVERIFIED</small></span><span class="lock" aria-hidden="true">?</span></div><div class="integration-note" id="comms5-diagnostics"><b>Traffic counts: UNVERIFIED</b><p>V2 has no authorized Comms5 event feed. Send and receive counts, payloads, and correlation IDs are unavailable here; they are not reported as zero.</p></div><button class="new-chat" disabled data-tooltip="V2 has no authenticated conversation session">＋ &nbsp;New conversation <span>Unavailable</span></button></div>
+          <div class="panel-foot"><span class="shield">▣</span>Preview workspace<br><small>Grace conversation uses Dashboard account grants</small></div>
+        </aside>
+      </div>
+        <button id="right-restore" class="sidebar-restore right-restore" type="button" aria-label="Restore context panel" data-tooltip="Restore context panel" hidden>◉</button>
+    </main>
+  </div>
+</body>
+</html>

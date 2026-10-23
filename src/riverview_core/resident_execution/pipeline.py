@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.31
+# Revision: 1.1.32
+# Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Accept linked authenticated institutional principals for exact-scope cancellation.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve deployed exact-grant grounded objective cancellation and durable audit evidence.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Complete from durable accepted step state and make duplicate completion calls idempotent; conversation reviews are post-completion delivery only.
@@ -1209,8 +1210,13 @@ class GraceExecutionPipeline:
                             locked["status"] not in {
                                 "GROUNDED", "WORK_ORDER_CREATED", "CANCELLED"}):
                         raise ObjectiveStateError("objective changed before cancellation")
-                    actor = self.authorizer.require(
-                        cur, credential, "assignment.cancel", authority_ref)
+                    from ..institutional_authority.grants import InstitutionalPrincipal
+                    if isinstance(credential, InstitutionalPrincipal):
+                        actor = self.authorizer.require_principal(
+                            cur, credential.principal_id, "assignment.cancel", authority_ref)
+                    else:
+                        actor = self.authorizer.require(
+                            cur, credential, "assignment.cancel", authority_ref)
                     if locked["status"] == "CANCELLED":
                         cur.execute("""SELECT event_type,payload FROM grace_objective_events
                             WHERE objective_id=%s AND idempotency_key IN (%s,%s)

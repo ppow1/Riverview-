@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.36
+File Revision: 1.1.37
+Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Document V2 responsive objective progress, cancellation authorization, and browser recovery checks.
 Changed: 2026-10-23 UTC | RV-COMFYUI-GPU-POOL-20261023 | Record UUID/process telemetry and fail-closed host rollout boundary.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document safe per-slot context projection and explicit KV-data limitation.
 Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Document the authorized post-deployment path for diagnosing historical Grace grounding failures.
@@ -1097,3 +1098,12 @@ After a controlled Dashboard release containing the storage collector, verify th
 - Expected successful result: `riverview-v2-<timestamp>-<capture-id>.zip` is downloaded and the status includes the confirmed private Release link and Copy GitHub Link. Manifest version is `v2`; the archive receipt must match capture ID, filename, size and SHA-256.
 - If GET returns 401/403, authenticate in the dashboard and retry. If archive POST returns 403, reload the dashboard to obtain a fresh CSRF cookie, then click Snapshot once. If archive fails after package creation, retain the local ZIP; do not report archive success. If browser download cannot start after archive confirmation, use the confirmed GitHub release link.
 - Resume point: `/v2/` Snapshot click. No service restart or database migration is needed for the route once the package is installed; deployment and service restart still require their separate release authorization. Rollback removes the V2 route/assets from the dashboard package and returns V2 users to the fixture-only LAN preview; it does not change archive assets or credentials.
+
+
+## V2 Grace Engineering Progress and cancellation
+
+V2 `/v2/` reads linked objective progress from the existing authenticated Dashboard API. A production browser must be signed in through the Steward account; a fixture or standalone preview is not an authenticated production acceptance. Confirm `GET /api/v1/objectives?limit=25&conversation_id=<id>` returns the versioned progress schema before diagnosing a blank panel. The panel polls at five-second intervals with an in-flight guard, and retains its last successful projection with a stale indicator if a later read fails.
+
+The same panel is in the expanded desktop context sidebar. On compact/hidden sidebar or a viewport no wider than 760 px, it belongs after `#grace-chat-root`, below the message composer. If it appears between conversation messages and the composer, inspect the current `index.html`, `assets/grace-chat.js`, and `assets/workspace.css` as one release bundle; do not copy a duplicate panel. Sidebar and resize transitions should preserve message draft, focused selection, transcript scroll, and page scroll. Run `python3 scripts/verify_v2_engineering_progress_browser.py` for synthetic Firefox acceptance; test data and the test TLS certificate are local fixtures only.
+
+Cancel is a request into the existing objective pipeline, not a browser-side state change. The form must send a non-empty reason and the same-origin CSRF header. The Dashboard resolves the objective's persisted scope and passes the authenticated linked institutional principal (or existing explicit authority credential) to `cancel_work_order`; `AuthorityRegistry` must grant the exact `assignment.cancel` scope. Rejection means the browser must refresh and display the authoritative lifecycle, not retry under a wider scope. In-flight execution is not cancelled by this control. A successful HTTP response should be followed by an authoritative progress read containing cancellation reason, actor, and timestamp; that record is sourced from the existing append-only lifecycle events.
