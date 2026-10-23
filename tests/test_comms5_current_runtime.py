@@ -53,6 +53,23 @@ class _Registry:
         self.record["revision"]["lifecycle_status"] = new_status
         return self.record
 
+    def _digest(self, content):
+        return __import__("hashlib").sha256(json.dumps(
+            content, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode()).hexdigest()
+
+    def revise(self, proposal_id, expected_revision, content, **kwargs):
+        self.record["proposal"]["current_revision"] = expected_revision + 1
+        self.record["revision"] = {"revision": expected_revision + 1,
+            "content_sha256": self._digest(content), **content}
+        self.record["proposal"]["content_sha256"] = self.record["revision"]["content_sha256"]
+        self.record["proposal"]["lifecycle_status"] = "DRAFT"
+        self.record["events"].append({"event_type": "proposal.revised",
+            "idempotency_key": kwargs["idempotency_key"],
+            "payload": {"content_sha256": self.record["revision"]["content_sha256"]}})
+        self.revised_kwargs = kwargs
+        return self.record
+
 
 class _Lifecycle:
     def __init__(self):
@@ -241,6 +258,47 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         self.assertEqual(kwargs["created_by"], "steward:camrui")
         self.assertEqual(content["acceptance_criteria"], [])
         self.assertIn("formation_contract", kwargs["provenance"])
+
+    def test_cli_revision_uses_attested_steward_and_is_idempotent(self):
+        proposal_id = "proposal:00000000-0000-4000-8000-000000000001"
+        self.registry.record = {"proposal": {"proposal_id": proposal_id,
+            "lifecycle_status": "DRAFT", "current_revision": 1},
+            "revision": {"revision": 1, "content_sha256": "a" * 64},
+            "events": [], "reviews": [], "work_order_links": []}
+        content = {"title": "Updated", "summary": "Summary", "objective": "Objective",
+            "scope": "Bounded", "proposed_approach": "Inspect", "constraints": [],
+            "acceptance_criteria": ["One evidence check"], "tags": ["comms5"]}
+        args = {"proposal_id": proposal_id, "expected_revision": 1, "content": content,
+            "idempotency_key": "revise-1", "client_id": "codex-cli",
+            "client_type": "cli", "client_name": "Codex CLI"}
+        result = self.operations.execute("comms5_revise_specification", args,
+                                         principal_id="steward:camrui")
+        self.assertEqual(result["revision"], 2)
+        self.assertEqual(result["content_sha256"], self.registry._digest(content))
+        self.assertEqual(self.registry.revised_kwargs["actor_id"], "steward:camrui")
+        self.assertEqual(self.registry.revised_kwargs["provenance"]["source"], "authenticated_comms5")
+        replay = self.operations.execute("comms5_revise_specification", args,
+                                         principal_id="steward:camrui")
+        self.assertEqual(replay["status"], "revision_reused")
+        self.assertEqual(self.registry.record["proposal"]["current_revision"], 2)
+
+    def test_cli_prepare_presents_exact_revision_without_approving_or_promoting(self):
+        proposal_id = "proposal:00000000-0000-4000-8000-000000000001"
+        self.registry.record = {"proposal": {"proposal_id": proposal_id,
+            "lifecycle_status": "DRAFT", "current_revision": 1},
+            "revision": {"revision": 1, "content_sha256": "a" * 64},
+            "events": [], "reviews": [], "work_order_links": []}
+        result = self.operations.execute("comms5_prepare_proposal_for_decision", {
+            "proposal_id": proposal_id, "expected_revision": 1,
+            "expected_content_sha256": "a" * 64,
+            "explicit_steward_confirmation": True, "idempotency_key": "prepare-1"},
+            principal_id="steward:camrui")
+        self.assertEqual(result["status"], "ready_for_steward_decision")
+        self.assertFalse(result["approval_recorded"])
+        self.assertEqual([transition[2] for transition in self.registry.transitions],
+                         ["READY_FOR_REVIEW", "READY_FOR_STEWARD_DECISION"])
+        self.assertEqual(self.lifecycle.decisions, [])
+        self.assertEqual(self.lifecycle.promotions, [])
 
     def test_draft_cancellation_requires_explicit_confirmation(self):
         seed_result = self.operations.execute("comms5_submit_steward_seed", self.seed(),
