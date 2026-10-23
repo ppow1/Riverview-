@@ -107,9 +107,10 @@ async function main() {
   if (process.argv.includes('--status')) {
     let config = null;
     try { config = bridge.loadConfig(); } catch { /* status remains machine-readable when config is missing */ }
-    const readiness = config ? await preflight(config) : {
-      bridge_version: '1.0.2', browser_runtime: false, cdp_available: false,
-      authenticated_session: false, designated_target_configured: false, exact_target_resolvable: false,
+    const readiness = config ? await bridge.preflight() : {
+      bridge_version: '1.0.3', browser_runtime: false, cdp_available: false,
+      authenticated_session: false, composer_ready: false,
+      designated_target_configured: false, exact_target_resolvable: false,
       fixed_action_available: false, ready: false, failure_class: 'RIV-PLY-0010',
     };
     const status = await bridge.statusSnapshot({
