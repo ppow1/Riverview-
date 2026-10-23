@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://riverview.invalid/contracts/dashboard/status-v1.2.schema.json",
-  "description": "Authenticated read-only status, resource telemetry, canonical workflow projection, conversation-owner-scoped objective progress, persistent sanitized grounding diagnostics, and component documentation renderer.",
   "title": "Riverview Status Dashboard API v1.2",
+  "description": "Authenticated read-only status, resource telemetry, canonical workflow projection, conversation-owner-scoped objective progress, persistent sanitized grounding diagnostics, and component documentation renderer; authenticated dashboard projections and bounded Steward operations, including private GitHub snapshot archival.",
   "$defs": {
     "timestamp": {
       "type": [
@@ -279,80 +279,6 @@
           "type": "string",
           "format": "date-time"
         }
-      },
-      "additionalProperties": false
-    },
-    "groundingDiagnostic": {
-      "type": "object",
-      "required": [
-        "event_id",
-        "attempt_id",
-        "objective_id",
-        "objective_revision",
-        "previous_state",
-        "new_state",
-        "stage",
-        "attempted_operation",
-        "outcome",
-        "reason_code",
-        "explanation",
-        "evidence",
-        "responsible_component",
-        "retry",
-        "attempt_started_at"
-      ],
-      "properties": {
-        "event_id": {"type": "string", "format": "uuid"},
-        "attempt_id": {"type": "string", "format": "uuid"},
-        "objective_id": {"type": "string"},
-        "objective_revision": {"type": "integer", "minimum": 1},
-        "source": {"type": ["object", "null"]},
-        "previous_state": {"type": "string"},
-        "new_state": {"type": "string"},
-        "stage": {"type": "string"},
-        "attempted_operation": {"type": "string"},
-        "outcome": {"const": "blocked"},
-        "reason_code": {"type": "string", "pattern": "^[A-Z0-9_]{1,64}$"},
-        "explanation": {"type": "string", "maxLength": 256},
-        "evidence": {
-          "type": "object",
-          "required": ["status", "source_revision", "source_sha256_present", "retrieval_complete", "reference_count", "sha256"],
-          "properties": {
-            "status": {"type": "string"},
-            "source_revision": {"type": ["string", "null"]},
-            "source_sha256_present": {"type": "boolean"},
-            "retrieval_complete": {"type": "boolean"},
-            "reference_count": {"type": "integer", "minimum": 0},
-            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
-          },
-          "additionalProperties": false
-        },
-        "responsible_component": {"type": "string"},
-        "retry": {
-          "type": "object",
-          "required": ["status", "retryable", "automatic", "next_retry_at", "required_actor", "next_permitted_action"],
-          "properties": {
-            "status": {"type": "string"},
-            "retryable": {"type": "boolean"},
-            "automatic": {"type": "boolean"},
-            "next_retry_at": {"$ref": "#/$defs/timestamp"},
-            "required_actor": {"type": "string"},
-            "next_permitted_action": {"type": "string", "maxLength": 256}
-          },
-          "additionalProperties": false
-        },
-        "attempt_started_at": {"type": "string", "format": "date-time"},
-        "failure_type": {"type": "string", "maxLength": 80}
-      },
-      "additionalProperties": false
-    },
-    "groundingAttempt": {
-      "type": "object",
-      "required": ["event_id", "occurred_at", "diagnostic"],
-      "properties": {
-        "event_id": {"type": "string", "format": "uuid"},
-        "occurred_at": {"type": "string", "format": "date-time"},
-        "diagnostic": {"$ref": "#/$defs/groundingDiagnostic"}
       },
       "additionalProperties": false
     },
@@ -729,6 +655,176 @@
       },
       "additionalProperties": false
     },
+    "groundingDiagnostic": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "attempt_id",
+        "objective_id",
+        "objective_revision",
+        "previous_state",
+        "new_state",
+        "stage",
+        "attempted_operation",
+        "outcome",
+        "reason_code",
+        "explanation",
+        "evidence",
+        "responsible_component",
+        "retry",
+        "attempt_started_at"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "attempt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "objective_id": {
+          "type": "string"
+        },
+        "objective_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "previous_state": {
+          "type": "string"
+        },
+        "new_state": {
+          "type": "string"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "attempted_operation": {
+          "type": "string"
+        },
+        "outcome": {
+          "const": "blocked"
+        },
+        "reason_code": {
+          "type": "string",
+          "pattern": "^[A-Z0-9_]{1,64}$"
+        },
+        "explanation": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "status",
+            "source_revision",
+            "source_sha256_present",
+            "retrieval_complete",
+            "reference_count",
+            "sha256"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "source_revision": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source_sha256_present": {
+              "type": "boolean"
+            },
+            "retrieval_complete": {
+              "type": "boolean"
+            },
+            "reference_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "responsible_component": {
+          "type": "string"
+        },
+        "retry": {
+          "type": "object",
+          "required": [
+            "status",
+            "retryable",
+            "automatic",
+            "next_retry_at",
+            "required_actor",
+            "next_permitted_action"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "automatic": {
+              "type": "boolean"
+            },
+            "next_retry_at": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "required_actor": {
+              "type": "string"
+            },
+            "next_permitted_action": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "additionalProperties": false
+        },
+        "attempt_started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "failure_type": {
+          "type": "string",
+          "maxLength": 80
+        }
+      },
+      "additionalProperties": false
+    },
+    "groundingAttempt": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "occurred_at",
+        "diagnostic"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "diagnostic": {
+          "$ref": "#/$defs/groundingDiagnostic"
+        }
+      },
+      "additionalProperties": false
+    },
     "resourceTelemetry": {
       "type": "object",
       "required": [
@@ -765,8 +861,16 @@
         "collection_model": {
           "const": "request_driven_no_cache"
         },
-        "storage_status": {"enum": ["healthy", "partial", "unavailable"]},
-        "storage_observed_at": {"$ref": "#/$defs/timestamp"},
+        "storage_status": {
+          "enum": [
+            "healthy",
+            "partial",
+            "unavailable"
+          ]
+        },
+        "storage_observed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
         "hosts": {
           "type": "array",
           "maxItems": 8,
@@ -947,35 +1051,99 @@
                     },
                     "slot_context": {
                       "type": "object",
-                      "required": ["state", "source", "observed_at", "slots", "kv_cache_bytes"],
+                      "required": [
+                        "state",
+                        "source",
+                        "observed_at",
+                        "slots",
+                        "kv_cache_bytes"
+                      ],
                       "properties": {
-                        "state": {"enum": ["measured", "unavailable"]},
-                        "source": {"const": "llama.cpp /slots numeric fields"},
-                        "observed_at": {"$ref": "#/$defs/timestamp"},
+                        "state": {
+                          "enum": [
+                            "measured",
+                            "unavailable"
+                          ]
+                        },
+                        "source": {
+                          "const": "llama.cpp /slots numeric fields"
+                        },
+                        "observed_at": {
+                          "$ref": "#/$defs/timestamp"
+                        },
                         "slots": {
                           "type": "array",
                           "maxItems": 256,
                           "items": {
                             "type": "object",
-                            "required": ["slot_id", "processing", "context_tokens", "prompt_tokens", "prompt_tokens_processed", "prompt_tokens_cached"],
+                            "required": [
+                              "slot_id",
+                              "processing",
+                              "context_tokens",
+                              "prompt_tokens",
+                              "prompt_tokens_processed",
+                              "prompt_tokens_cached"
+                            ],
                             "properties": {
-                              "slot_id": {"type": "integer", "minimum": 0},
-                              "processing": {"type": ["boolean", "null"]},
-                              "context_tokens": {"type": ["integer", "null"], "minimum": 0},
-                              "prompt_tokens": {"type": ["integer", "null"], "minimum": 0},
-                              "prompt_tokens_processed": {"type": ["integer", "null"], "minimum": 0},
-                              "prompt_tokens_cached": {"type": ["integer", "null"], "minimum": 0}
+                              "slot_id": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "processing": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              },
+                              "context_tokens": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              "prompt_tokens": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              "prompt_tokens_processed": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              },
+                              "prompt_tokens_cached": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ],
+                                "minimum": 0
+                              }
                             },
                             "additionalProperties": false
                           }
                         },
                         "kv_cache_bytes": {
                           "type": "object",
-                          "required": ["state", "value", "reason"],
+                          "required": [
+                            "state",
+                            "value",
+                            "reason"
+                          ],
                           "properties": {
-                            "state": {"const": "unavailable"},
-                            "value": {"type": "null"},
-                            "reason": {"type": "string"}
+                            "state": {
+                              "const": "unavailable"
+                            },
+                            "value": {
+                              "type": "null"
+                            },
+                            "reason": {
+                              "type": "string"
+                            }
                           },
                           "additionalProperties": false
                         }
@@ -994,32 +1162,105 @@
                   },
                   "additionalProperties": false
                 }
-              }
-              ,"storage": {
+              },
+              "storage": {
                 "type": "object",
-                "required": ["state", "observed_at", "volumes", "error_code"],
+                "required": [
+                  "state",
+                  "observed_at",
+                  "volumes",
+                  "error_code"
+                ],
                 "properties": {
-                  "state": {"enum": ["healthy", "unavailable"]},
-                  "observed_at": {"$ref": "#/$defs/timestamp"},
-                  "error_code": {"type": ["string", "null"]},
+                  "state": {
+                    "enum": [
+                      "healthy",
+                      "unavailable"
+                    ]
+                  },
+                  "observed_at": {
+                    "$ref": "#/$defs/timestamp"
+                  },
+                  "error_code": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
                   "volumes": {
-                    "type": "array", "maxItems": 64,
+                    "type": "array",
+                    "maxItems": 64,
                     "items": {
                       "type": "object",
-                      "required": ["volume_id", "filesystem_id", "mount_point", "filesystem_type", "device_id", "total_bytes", "used_bytes", "available_bytes", "percent_used", "observed_at", "source"],
+                      "required": [
+                        "volume_id",
+                        "filesystem_id",
+                        "mount_point",
+                        "filesystem_type",
+                        "device_id",
+                        "total_bytes",
+                        "used_bytes",
+                        "available_bytes",
+                        "percent_used",
+                        "observed_at",
+                        "source"
+                      ],
                       "properties": {
-                        "volume_id": {"type": "string", "maxLength": 384},
-                        "filesystem_id": {"type": "string", "maxLength": 384},
-                        "mount_point": {"type": "string", "maxLength": 256},
-                        "filesystem_type": {"type": "string", "maxLength": 24},
-                        "device_id": {"type": ["string", "null"], "maxLength": 256},
-                        "total_bytes": {"type": "integer", "minimum": 1},
-                        "used_bytes": {"type": "integer", "minimum": 0},
-                        "available_bytes": {"type": "integer", "minimum": 0},
-                        "percent_used": {"type": "number", "minimum": 0, "maximum": 100},
-                        "observed_at": {"$ref": "#/$defs/timestamp"},
-                        "source": {"type": "string", "maxLength": 64},
-                        "also_mounted_at": {"type": "array", "maxItems": 16, "items": {"type": "string", "maxLength": 256}}
+                        "volume_id": {
+                          "type": "string",
+                          "maxLength": 384
+                        },
+                        "filesystem_id": {
+                          "type": "string",
+                          "maxLength": 384
+                        },
+                        "mount_point": {
+                          "type": "string",
+                          "maxLength": 256
+                        },
+                        "filesystem_type": {
+                          "type": "string",
+                          "maxLength": 24
+                        },
+                        "device_id": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 256
+                        },
+                        "total_bytes": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "used_bytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "available_bytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "percent_used": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "observed_at": {
+                          "$ref": "#/$defs/timestamp"
+                        },
+                        "source": {
+                          "type": "string",
+                          "maxLength": 64
+                        },
+                        "also_mounted_at": {
+                          "type": "array",
+                          "maxItems": 16,
+                          "items": {
+                            "type": "string",
+                            "maxLength": 256
+                          }
+                        }
                       },
                       "additionalProperties": false
                     }
@@ -1027,10 +1268,52 @@
                 },
                 "additionalProperties": false
               }
-
             },
             "additionalProperties": false
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "snapshotArchiveResult": {
+      "type": "object",
+      "required": [
+        "status",
+        "snapshot_id",
+        "release_url",
+        "asset_name",
+        "archive_sha256",
+        "archive_size_bytes",
+        "retention"
+      ],
+      "properties": {
+        "status": {
+          "const": "archived"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$"
+        },
+        "release_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://github\\.com/[^/]+/[^/]+/releases/tag/rvdiag-"
+        },
+        "asset_name": {
+          "type": "string",
+          "pattern": "^rvdiag-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}\\.zip$"
+        },
+        "archive_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "archive_size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 101711872
+        },
+        "retention": {
+          "const": "permanent"
         }
       },
       "additionalProperties": false
@@ -1060,6 +1343,9 @@
     },
     {
       "$ref": "#/$defs/resourceTelemetry"
+    },
+    {
+      "$ref": "#/$defs/snapshotArchiveResult"
     }
   ]
 }

@@ -1,11 +1,8 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.25
+// Revision: 1.4.26
 // Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Show only independently accepted ComfyUI outputs with authenticated download links and SHA-256.
-// Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Show persisted grounding blockers, responsibility, authorized retry guidance, and bounded attempt history.
-// Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Display effective criteria and their source in objective projections.
-// Changed: 2026-10-20 UTC | RV-C4-GRACE-WORKORDER-RETRY-UI-001 | Bind work-order intake to persisted message sequence and surface stale-source or dialog failures.
-// Predecessor: .riverview-backups/20261020T153249701305Z/src/riverview_core/status_dashboard/static/app.js (SHA-256 50cc5acbcaebb0cb1f6baeea10274c7eacdd21f60885b9936498303cd0164bb8)
+// Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Preserve archive-plus-download snapshot control behavior.
 // Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Show persistent authenticated objective and assignment progress linked to the active Grace conversation.
 // Changed: 2026-10-16 UTC | RV-WORKER-HEALTH-REPORTING-001 | Label assignment-lease freshness separately from worker process liveness.
 // Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Add account login and Steward access controls
@@ -983,7 +980,7 @@
     dialog.addEventListener("click",(event)=>{if(event.target===dialog)dialog.close();});
     dialog.addEventListener("close",()=>{if(state.chatDialogReturnFocus?.isConnected)state.chatDialogReturnFocus.focus();else {const trigger=document.querySelector("[data-chat-option='details']");if(trigger)trigger.focus();}state.chatDialogReturnFocus=null;});
   });
-  $("snapshot").setAttribute("aria-label","Download comprehensive offline diagnostic snapshot");
+  $("snapshot").setAttribute("aria-label","Snapshot");
   const approvalLink=location.hash.match(/^#account-approval\?enrollment_id=([0-9a-fA-F-]{36})$/);
   if(approvalLink) state.pendingEnrollmentId=approvalLink[1];
   const authLink = location.hash.match(/^#account-verify\?(.*)$/);

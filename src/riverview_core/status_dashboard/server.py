@@ -2,20 +2,20 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.39
+# Revision: 1.3.40
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify artifact ownership and group-read layout at the authorized download boundary.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve bounded cancellation reasons through the exact-grant objective route.
-# Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Expose owner-authorized content-free Grace stream activity for measured V2 live text output.
-# Changed: 2026-10-21 UTC | RV-W4-GRACE-OPTIONAL-CRITERIA-20261021 | Permit normal Grace derivation when work-order criteria are omitted.
-# Changed: 2026-10-21 UTC | RV-GRACE-DASHBOARD-KNOWLEDGE-PIN-001 | Separate knowledge source commit from dashboard code identity.
-# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Accept typed artifact contracts in authenticated proposal submission
-# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Preserve typed ComfyUI workflow requests through authenticated proposal intake.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Preserve Steward/CSRF-gated private Release snapshot archival.
+# Changed: 2026-10-22 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Preserve authenticated GPU, inference and storage telemetry.
+# Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Preserve typed ComfyUI workflow intake and verified artifact retrieval.
 # Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
 # Changed: 2026-10-19 UTC | RV-C1-PR152-SCOPE-PROVENANCE-001 | Enforce Steward/global or exact account-owned conversation scope for objective projections
 # Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-OPERATOR-CALLER-001 | Add authenticated exact-objective rereview request route through the existing pipeline.
 # Changed: 2026-10-18 UTC | RV-GRACE-DUAL-CAPABILITY-001 | Accept typed repository target provenance in source-change proposal intake.
 # Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Filter durable Engineering progress by authenticated conversation origin
+# Changed: 2026-10-20 UTC | RV-WEB-SNAPSHOT-V1-V2-INTEGRATION-001 | Serve the V2 shell through an allowlisted same-origin HTTPS route.
+# Changed: 2026-10-21 UTC | RV-V2-FULL-DIAGNOSTIC-SNAPSHOT-20261021 | Mark dashboard-served V2 pages so Snapshot mode does not depend on pathname matching.
 # Purpose: Serve account-authenticated operational, proposal, capability and snapshot APIs
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
@@ -58,6 +58,7 @@
 # Changed: 2026-10-16 UTC | RV-PROPOSAL-WORK-ORDER-LIFECYCLE-001 | Add authenticated revision decisions, explicit conversational commands, and existing-pipeline promotion API
 # Changed: 2026-10-17 UTC | RV-GRACE-COMMS5-CHAT-WIRING | Attach the existing internal Comms5 read tools to the dashboard Grace router
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Add authenticated live GPU and inference status projection.
+# Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-GITHUB-ARCHIVE-20261020 | Add Steward-only bounded private Release archival endpoint and fail closed on invalid credential configuration.
 # =============================================================================
 """Loopback-only Steward dashboard with read projections and receipt-only writes."""
 
@@ -117,6 +118,7 @@ _PROPOSAL_DECISION = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-
 _PROPOSAL_WORK_ORDERS = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})/work-orders$")
 _PROPOSAL_COMMAND = "/api/v1/institutional-proposals/conversational-command"
 _COMMS5_OPERATION = "/api/v1/internal/comms5/operation"
+_SNAPSHOT_ARCHIVE = "/api/v1/snapshot/archive"
 
 
 class WorkOrderOriginConflict(Exception):
@@ -256,7 +258,8 @@ class _BoundedHTTPServer(HTTPServer):
     def __init__(self, address, handler, *, token, projection, notification_service,
                  objective_pipeline, conversation_service, account_auth_service,
                  permission_store, static_dir, proposal_registry,
-                 steward_review_exchange=None, resource_telemetry=None):
+                 steward_review_exchange=None, resource_telemetry=None,
+                 snapshot_archive=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -265,6 +268,8 @@ class _BoundedHTTPServer(HTTPServer):
         self._account_auth_service = account_auth_service
         self._permission_store = permission_store
         self._proposal_registry = proposal_registry
+        self._snapshot_archive = snapshot_archive
+        self._snapshot_archive_slots = threading.BoundedSemaphore(1)
         self._proposal_lifecycle = None
         if proposal_registry is not None and objective_pipeline is not None:
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
@@ -634,6 +639,7 @@ def make_handler():
                                     if self.command == "POST" else None)
             proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
             comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
+            snapshot_archive = parsed.path == _SNAPSHOT_ARCHIVE and self.command == "POST"
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -647,10 +653,47 @@ def make_handler():
                     and not proposal_revision and not proposal_decision
                     and not proposal_work_orders and not proposal_command
                     and not comms5_operation
+                    and not snapshot_archive
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
                 self._error(405, "read_only_method", request_id)
+                return
+            if parsed.path == "/v2":
+                self.send_response(308)
+                self._headers(request_id)
+                self.send_header("Location", "/v2/")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if parsed.path == "/v2/":
+                release_root = _release_root()
+                path = release_root / "website" / "v2" / "index.html"
+                try:
+                    if path.is_symlink() or not path.is_file():
+                        raise FileNotFoundError
+                    page = path.read_bytes()
+                    marker = b'<meta name="rv-v2-snapshot-mode" content="authenticated-dashboard">'
+                    if b"</head>" not in page or page.count(b"</head>") != 1:
+                        raise ValueError("v2_document_head_invalid")
+                    page = page.replace(b"</head>", marker + b"</head>", 1)
+                    self._send(200, page, "text/html; charset=utf-8", request_id)
+                except OSError:
+                    self._error(503, "v2_ui_unavailable", request_id)
+                except ValueError:
+                    self._error(503, "v2_ui_invalid_document", request_id)
+                return
+            v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js)", parsed.path)
+            if v2_asset:
+                release_root = _release_root()
+                path = release_root / "website" / "v2" / "assets" / v2_asset.group(1)
+                kind = "image/svg+xml" if path.suffix == ".svg" else "text/css" if path.suffix == ".css" else "text/javascript"
+                try:
+                    if path.is_symlink() or not path.is_file():
+                        raise FileNotFoundError
+                    self._send(200, path.read_bytes(), kind + ("; charset=utf-8" if kind != "image/svg+xml" else ""), request_id)
+                except OSError:
+                    self._error(404, "v2_asset_unavailable", request_id)
                 return
             if parsed.path == "/":
                 path = self.server._static_dir / "index.html"
@@ -743,6 +786,8 @@ def make_handler():
                     self._account_error(exc, request_id)
                 return
             if not self._authorized():
+                if snapshot_archive:
+                    self.close_connection = True
                 if getattr(self, "_account_auth_denied", False):
                     self._error(403, "csrf_or_session_check_failed", request_id)
                     return
@@ -758,6 +803,52 @@ def make_handler():
                 self.end_headers()
                 if self.command != "HEAD":
                     self.wfile.write(body)
+                return
+            if snapshot_archive:
+                identity = getattr(self, "_account_identity", None)
+                if (not getattr(self, "_account_cookie_authenticated", False) or not identity
+                        or "steward" not in identity.get("roles", ())):
+                    self.close_connection = True
+                    self._error(403, "snapshot_archive_steward_session_required", request_id)
+                    return
+                if self.server._snapshot_archive is None:
+                    self.close_connection = True
+                    self._error(503, "snapshot_archive_not_configured", request_id)
+                    return
+                if not self.server._snapshot_archive_slots.acquire(blocking=False):
+                    self.close_connection = True
+                    self._error(503, "snapshot_archive_busy", request_id)
+                    return
+                try:
+                    if (self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/zip"
+                            or self.headers.get("Transfer-Encoding")
+                            or not self.headers.get("Content-Length", "").isdigit()):
+                        self.close_connection = True
+                        self._error(400, "snapshot_archive_invalid_request", request_id)
+                        return
+                    length = int(self.headers["Content-Length"])
+                    from riverview_core.status_dashboard.snapshot_archive import MAX_UPLOAD_BYTES
+                    if not 1 <= length <= MAX_UPLOAD_BYTES:
+                        self.close_connection = True
+                        self._error(413, "snapshot_archive_too_large", request_id)
+                        return
+                    payload = self.rfile.read(length)
+                    if len(payload) != length:
+                        self.close_connection = True
+                        self._error(400, "snapshot_archive_invalid_request", request_id)
+                        return
+                    try:
+                        result = self.server._snapshot_archive.archive(payload)
+                    except Exception as exc:
+                        from riverview_core.status_dashboard.snapshot_archive import SnapshotArchiveError
+                        if isinstance(exc, SnapshotArchiveError):
+                            self._error(exc.status, exc.code, request_id)
+                        else:
+                            self._error(502, "snapshot_archive_failed", request_id)
+                        return
+                    self._json(201, result, request_id)
+                finally:
+                    self.server._snapshot_archive_slots.release()
                 return
             try:
                 query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
@@ -2109,7 +2200,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  notification_service=None, objective_pipeline=None,
                  conversation_service=None, account_auth_service=None,
                  permission_store=None, proposal_registry=None,
-                 steward_review_exchange=None, resource_telemetry=None):
+                 steward_review_exchange=None, resource_telemetry=None,
+                 snapshot_archive=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -2125,7 +2217,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          permission_store=permission_store,
                          static_dir=static_dir, proposal_registry=proposal_registry,
                          steward_review_exchange=steward_review_exchange,
-                         resource_telemetry=resource_telemetry)
+                         resource_telemetry=resource_telemetry,
+                         snapshot_archive=snapshot_archive)
 
 
 def _release_commit() -> str:
@@ -2404,6 +2497,13 @@ def main():
             conversation_service = None
     host = os.environ.get("RIVERVIEW_DASHBOARD_HOST", "127.0.0.1")
     port = int(os.environ.get("RIVERVIEW_DASHBOARD_PORT", "8766"))
+    from riverview_core.status_dashboard.snapshot_archive import (
+        GitHubReleaseArchive, UnavailableSnapshotArchive)
+    try:
+        snapshot_archive = GitHubReleaseArchive.from_environment()
+    except (OSError, ValueError):
+        snapshot_archive = UnavailableSnapshotArchive("snapshot_archive_configuration_unavailable")
+        print(json.dumps({"event": "snapshot_archive_configuration_unavailable"}), flush=True)
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
@@ -2412,7 +2512,8 @@ def main():
                                  permission_store=permission_store,
                                  proposal_registry=proposal_registry,
                                  steward_review_exchange=steward_review_exchange,
-                                 resource_telemetry=resource_telemetry)
+                                 resource_telemetry=resource_telemetry,
+                                 snapshot_archive=snapshot_archive)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

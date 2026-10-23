@@ -18,8 +18,14 @@
       "sha256": "cfb151549becbea9455a3df60a594a6fe8032e99a1a980de9122ae81392d8ee9",
       "size_bytes": 416
     },
+    ".riverview-backups/manifest.jsonl": {
+      "path": ".riverview-backups/manifest.jsonl",
+      "revision": "1.0.24",
+      "sha256": "fd17dfc24a9884af12acff2a5c68b6472e97ff9f5f4cce198449855ad9d61463",
+      "size_bytes": 1296735
+    },
     ".riverview-revisions.json": {
-      "revision": "1.1.316"
+      "revision": "1.1.317"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -7841,9 +7847,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.28",
-      "sha256": "5f438463d85d525cf386c231022e53db31090d7fc811182842a594c4382dbf8e",
-      "size_bytes": 713676
+      "revision": "1.1.29",
+      "sha256": "67588505557d84af9897e3a88cf47856d1c07d7f5316264992abb1671df923da",
+      "size_bytes": 766488
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7911,6 +7917,12 @@
       "sha256": "16882fcbc5b27bbe2be626677372054da1d2e29be468b71f1639c20674334e8a",
       "size_bytes": 62906
     },
+    "process_graphs/riverview-v2/workspace-shell.json": {
+      "path": "process_graphs/riverview-v2/workspace-shell.json",
+      "revision": "1.0.10",
+      "sha256": "31b10c71744786d4c02de58b690f6d31dc9cfc3620c788760d42136e5abd8b0f",
+      "size_bytes": 30062
+    },
     "process_graphs/runtime-baseline/runtime-baseline.json": {
       "path": "process_graphs/runtime-baseline/runtime-baseline.json",
       "revision": "1.0.1",
@@ -7925,9 +7937,9 @@
     },
     "process_graphs/steward-dashboard/status.json": {
       "path": "process_graphs/steward-dashboard/status.json",
-      "revision": "1.1.24",
-      "sha256": "be58976da0e4edb8e8e54991dc784452d21fcac68f938459314ffcc0244b5b0e",
-      "size_bytes": 48923
+      "revision": "1.1.27",
+      "sha256": "3e0c4979f57820577b58dab203669a69096ac2976391a6aa1613a8874ab7c44d",
+      "size_bytes": 64046
     },
     "process_graphs/worker-adapter/comfyui-execution.json": {
       "path": "process_graphs/worker-adapter/comfyui-execution.json",
@@ -8829,6 +8841,12 @@
       "sha256": "26a384c6bb0a41d6c8947600ab88241224a47af4b1c56c98ad761a40f4e7958e",
       "size_bytes": 158041
     },
+    "src/riverview_core/status_dashboard/snapshot_archive.py": {
+      "path": "src/riverview_core/status_dashboard/snapshot_archive.py",
+      "revision": "1.0.3",
+      "sha256": "e4565ac463f782a0f7a6881d32eba92c7ebd5944310bbb41fb87af5e5bf4e13a",
+      "size_bytes": 14568
+    },
     "src/riverview_core/status_dashboard/static/app.css": {
       "path": "src/riverview_core/status_dashboard/static/app.css",
       "revision": "1.0.15",
@@ -9459,6 +9477,12 @@
       "sha256": "8caceaa011f5d66cd7d90c618301e4840a2de09070a7b9008cd42ac2d1b2c3e0",
       "size_bytes": 37039
     },
+    "tests/test_snapshot_archive.py": {
+      "path": "tests/test_snapshot_archive.py",
+      "revision": "1.0.2",
+      "sha256": "ded50a026b70f694f6493d78cada10346bb8e6d59ed5803327e5ab0fa3a67deb",
+      "size_bytes": 11188
+    },
     "tests/test_stackmail_tty_security.py": {
       "path": "tests/test_stackmail_tty_security.py",
       "revision": "1.1.0",
@@ -9526,6 +9550,6 @@
       "size_bytes": 15190
     }
   },
-  "manifest_revision": "1.1.316",
+  "manifest_revision": "1.1.317",
   "updated_at": "2026-10-23T02:19:41Z"
 }

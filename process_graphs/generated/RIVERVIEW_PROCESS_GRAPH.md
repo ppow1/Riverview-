@@ -25,6 +25,7 @@ flowchart LR
   g_rv_postgres_ledger_migration_4c89ef23[["POSTGRES-LEDGER<br/>postgres-migration.v1<br/>rv:postgres-ledger:migration"]]
   g_rv_resident_conversation_browser_chat_533a6831[["RESIDENT-CONVERSATION<br/>resident.conversation.v1<br/>rv:resident-conversation:browser-chat"]]
   g_rv_resident_reasoning_runtime_49854a10[["RESIDENT-REASONING<br/>resident.reasoning.v1<br/>rv:resident-reasoning:runtime"]]
+  g_rv_riverview_v2_workspace_shell_9dd363a5[["RIVERVIEW-V2-WORKSPACE-SHELL<br/>local-static-preview<br/>rv:riverview-v2:workspace-shell"]]
   g_rv_runtime_baseline_commissioning_46ff1ccf[["RUNTIME-BASELINE<br/>runtime-baseline.v1<br/>rv:runtime-baseline:commissioning"]]
   g_rv_steward_dashboard_status_75f7c259[["STEWARD-DASHBOARD<br/>status-projection.v1<br/>rv:steward-dashboard:status"]]
   g_rv_worker_adapter_comfyui_execution_67df43f6[["ENGINEERING-COMFYUI-ADAPTER<br/>comfyui-engineering-execution.v1<br/>rv:worker-adapter:comfyui-execution"]]
