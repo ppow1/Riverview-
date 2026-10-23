@@ -35,6 +35,14 @@ def process_one(exchange):
     if not eligible:
         return None
     row = eligible[0]
+    if row["delivery_state"] == "awaiting_delivery":
+        delivery = exchange.begin_delivery(row["request_id"], PROVIDER_ID,
+            owner_id=PROVIDER_PRINCIPAL, lease_seconds=20)
+        if delivery is None:
+            return {"status": "DELIVERY_CLAIM_UNAVAILABLE"}
+        exchange.mark_delivered(row["request_id"], row["correlation_id"], PROVIDER_ID,
+            owner_id=PROVIDER_PRINCIPAL, delivery_token=delivery.claim_token,
+            fence=delivery.fence)
     claim = exchange.claim(row["request_id"], row["correlation_id"],
         provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL, lease_seconds=120)
     if claim is None or claim.duplicate:
@@ -80,6 +88,15 @@ def process_one(exchange):
                 "input_tokens": input_tokens, "output_tokens": output_tokens,
                 "reasoning_tokens": reasoning, "cached_input_tokens": cached, "cost_usd": cost})
         return {"status": "EMPTY_RESPONSE", "usage": {"input_tokens": input_tokens,
+            "output_tokens": output_tokens, "reasoning_tokens": reasoning, "cost_usd": cost}}
+    actual_model = result.get("model")
+    if actual_model != MODEL_ID:
+        exchange.finish_provider_attempt(row["request_id"], row["correlation_id"],
+            status="failed", failure_type="response_model_id_mismatch", usage={
+                "input_tokens": input_tokens, "output_tokens": output_tokens,
+                "reasoning_tokens": reasoning, "cached_input_tokens": cached,
+                "cost_usd": cost, "reported_model": str(actual_model)[:160]})
+        return {"status": "MODEL_ID_MISMATCH", "usage": {"input_tokens": input_tokens,
             "output_tokens": output_tokens, "reasoning_tokens": reasoning, "cost_usd": cost}}
     advisory = {"response_id": result.get("id", ""), "provider_id": PROVIDER_ID,
         "provider_model": MODEL_ID, "advisory": text[:8000], "evidence_references": []}
