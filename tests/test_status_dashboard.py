@@ -562,6 +562,9 @@ class DashboardHTTPTests(unittest.TestCase):
             def __init__(self):
                 self.calls = []
 
+            def get_objective(self, requested_objective):
+                return {"objective_id": requested_objective, "scope_ref": scope_ref}
+
             def cancel_work_order(self, requested_objective, *, credential,
                                   authority_ref, reason=None):
                 self.calls.append((requested_objective, credential, authority_ref, reason))

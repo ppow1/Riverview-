@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+from datetime import time as datetime_time
 from uuid import UUID
 
 import psycopg
@@ -62,6 +63,54 @@ class NotificationService:
     def _connect(self):
         return psycopg.connect(self.dsn, connect_timeout=self.connect_timeout,
                                row_factory=dict_row, application_name="riverview-dashboard-notifications")
+
+    def get_settings(self) -> dict:
+        """Read the one persistent notification policy shared by V2 and Grace."""
+        try:
+            with self._connect() as db, db.cursor() as cur:
+                cur.execute(sql.SQL("SELECT level,quiet_hours_enabled,quiet_start,quiet_end,quiet_timezone,updated_at "
+                                    "FROM {}.notification_settings WHERE settings_id=1").format(
+                                        sql.Identifier(self.schema)))
+                row = cur.fetchone()
+                if row is None:
+                    raise NotificationUnavailable("settings_not_initialized")
+                return {"schema_version": "rv.notification_settings.v1", "status": "available",
+                        "level": row["level"], "quiet_hours": {
+                            "enabled": row["quiet_hours_enabled"],
+                            "start": row["quiet_start"].strftime("%H:%M"),
+                            "end": row["quiet_end"].strftime("%H:%M"),
+                            "timezone": row["quiet_timezone"]},
+                        "critical_policy": {"deliver_during_paused": True,
+                                            "deliver_during_quiet_hours": True},
+                        "updated_at": row["updated_at"].isoformat()}
+        except NotificationUnavailable:
+            raise
+        except psycopg.Error as exc:
+            raise NotificationUnavailable(type(exc).__name__) from None
+
+    def update_settings(self, value: dict) -> dict:
+        """Validate and persist a full replacement of the shared settings row."""
+        from .policy import validate_settings
+        try:
+            value = validate_settings(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(str(exc)) from None
+        quiet = value["quiet_hours"]
+        try:
+            with self._connect() as db, db.cursor() as cur:
+                cur.execute(sql.SQL("UPDATE {}.notification_settings SET level=%s,quiet_hours_enabled=%s,"
+                                    "quiet_start=%s,quiet_end=%s,quiet_timezone=%s,updated_at=clock_timestamp() "
+                                    "WHERE settings_id=1 RETURNING updated_at").format(
+                                        sql.Identifier(self.schema)),
+                            (value["level"], quiet["enabled"], datetime_time.fromisoformat(quiet["start"]),
+                             datetime_time.fromisoformat(quiet["end"]), quiet["timezone"]))
+                if cur.fetchone() is None:
+                    raise NotificationUnavailable("settings_not_initialized")
+            return self.get_settings()
+        except NotificationUnavailable:
+            raise
+        except psycopg.Error as exc:
+            raise NotificationUnavailable(type(exc).__name__) from None
 
     def list_notifications(self, *, limit: int = 25) -> dict:
         limit = min(50, max(1, int(limit)))

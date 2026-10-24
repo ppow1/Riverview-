@@ -29,6 +29,8 @@ from uuid import uuid4
 import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
+from riverview_core.notifications.policy import allowed
+from riverview_core.notifications.ntfy_publisher import NtfyPhonePublisher
 
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 _SERVICE_ID = "notification.dispatcher.v1"
@@ -42,7 +44,7 @@ class NotificationDispatcher:
 
     def __init__(self, dsn: str, *, schema: str = "public", poll_interval: float = 2.0,
                  max_backoff_seconds: float = 30.0, batch_size: int = 100,
-                 service_id: str = _SERVICE_ID):
+                 service_id: str = _SERVICE_ID, phone_publisher=None):
         if not isinstance(schema, str) or not _SCHEMA.fullmatch(schema):
             raise ValueError("invalid PostgreSQL schema")
         if not 0.05 <= poll_interval <= 3600 or not poll_interval <= max_backoff_seconds <= 3600:
@@ -56,6 +58,7 @@ class NotificationDispatcher:
         self.batch_size = batch_size
         self.service_id = service_id
         self.instance_id = uuid4()
+        self.phone_publisher = phone_publisher or _publisher_from_environment()
 
     def _connection(self):
         return psycopg.connect(self.dsn, connect_timeout=3, row_factory=dict_row,
@@ -156,11 +159,90 @@ class NotificationDispatcher:
                             ON CONFLICT(idempotency_key) DO NOTHING""",
                             (notice["notification_id"],
                              f"queued:{row['event_id']}"))
+                        self._queue_phone(cur, row, notice["notification_id"])
                 self._health(cur, status="healthy", scanned=len(rows), created=created,
                              requests=requests)
-                return {"status": "healthy", "scanned": len(rows),
+            delivered = self._deliver_phone_batch()
+            return {"status": "healthy", "scanned": len(rows),
                         "notifications_created": created,
-                        "decision_requests_created": requests}
+                        "decision_requests_created": requests,
+                        "phone_deliveries": delivered}
+
+    def _settings(self, cur):
+        cur.execute("""SELECT level,quiet_hours_enabled,quiet_start,quiet_end,quiet_timezone
+                       FROM notification_settings WHERE settings_id=1""")
+        row = cur.fetchone()
+        if not row:
+            raise RuntimeError("notification settings unavailable")
+        return {"level": row["level"], "quiet_hours": {
+            "enabled": row["quiet_hours_enabled"], "start": row["quiet_start"].strftime("%H:%M"),
+            "end": row["quiet_end"].strftime("%H:%M"), "timezone": row["quiet_timezone"]}}
+
+    def _queue_phone(self, cur, row, notification_id):
+        settings = self._settings(cur)
+        ok, reason = allowed(row["event_type"], settings)
+        if not ok:
+            cur.execute("""INSERT INTO notification_suppressions(source_event_id,event_type,reason)
+                           VALUES (%s,%s,%s) ON CONFLICT DO NOTHING""",
+                        (row["event_id"], row["event_type"], reason))
+        cur.execute("""INSERT INTO notification_phone_deliveries
+            (notification_id,delivery_state,suppression_reason)
+            VALUES (%s,%s,%s) ON CONFLICT DO NOTHING""",
+            (notification_id, "pending" if ok else "suppressed", None if ok else reason))
+
+    def _deliver_phone_batch(self):
+        if self.phone_publisher is None:
+            return 0
+        delivered = 0
+        with self._connection() as db:
+            with db.transaction(), db.cursor() as cur:
+                cur.execute(sql.SQL("SELECT set_config('search_path', %s, true)"), (self.schema,))
+                cur.execute("""SELECT d.notification_id,n.event_type,n.source_event_id
+                    FROM notification_phone_deliveries d
+                    JOIN attention_notifications n USING(notification_id)
+                    WHERE d.delivery_state IN ('pending','failed','sending')
+                      AND d.next_attempt_at <= clock_timestamp()
+                      AND (d.lease_until IS NULL OR d.lease_until < clock_timestamp())
+                    ORDER BY d.next_attempt_at,d.notification_id LIMIT %s
+                    FOR UPDATE OF d SKIP LOCKED""", (self.batch_size,))
+                rows = cur.fetchall()
+                claimed = []
+                for row in rows:
+                    settings = self._settings(cur)
+                    ok, reason = allowed(row["event_type"], settings)
+                    if not ok:
+                        cur.execute("""UPDATE notification_phone_deliveries SET delivery_state='suppressed',
+                            suppression_reason=%s,lease_until=NULL,updated_at=clock_timestamp()
+                            WHERE notification_id=%s""", (reason,row["notification_id"]))
+                        cur.execute("""INSERT INTO notification_suppressions(source_event_id,event_type,reason)
+                            VALUES (%s,%s,%s) ON CONFLICT(source_event_id) DO UPDATE SET reason=excluded.reason""",
+                            (row["source_event_id"],row["event_type"],reason))
+                        continue
+                    cur.execute("""UPDATE notification_phone_deliveries SET delivery_state='sending',
+                        attempts=attempts+1,lease_until=clock_timestamp()+interval '30 seconds',
+                        suppression_reason=NULL,updated_at=clock_timestamp() WHERE notification_id=%s""",
+                        (row["notification_id"],))
+                    event_type = row["event_type"]
+                    claimed.append((row["notification_id"], event_type))
+            for notification_id, event_type in claimed:
+                try:
+                    message_id = self.phone_publisher.publish(event_type)
+                except Exception as exc:
+                    with db.transaction(), db.cursor() as cur:
+                        cur.execute(sql.SQL("SELECT set_config('search_path', %s, true)"), (self.schema,))
+                        cur.execute("""UPDATE notification_phone_deliveries SET delivery_state='failed',
+                            last_failure_type=%s,lease_until=NULL,next_attempt_at=clock_timestamp()+
+                            LEAST(interval '5 minutes',interval '5 seconds'*power(2,LEAST(attempts,6))),
+                            updated_at=clock_timestamp() WHERE notification_id=%s""",
+                            (type(exc).__name__,notification_id))
+                else:
+                    with db.transaction(), db.cursor() as cur:
+                        cur.execute(sql.SQL("SELECT set_config('search_path', %s, true)"), (self.schema,))
+                        cur.execute("""UPDATE notification_phone_deliveries SET delivery_state='sent',
+                            ntfy_message_id=%s,last_failure_type=NULL,lease_until=NULL,updated_at=clock_timestamp()
+                            WHERE notification_id=%s""", (message_id,notification_id))
+                        delivered += 1
+        return delivered
 
     def _record_failure(self, error_type: str) -> None:
         try:
@@ -209,6 +291,23 @@ def main():
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     logging.basicConfig(level=os.environ.get("RIVERVIEW_LOG_LEVEL", "INFO"))
     dispatcher.run_forever(stop)
+
+
+def _publisher_from_environment():
+    base_url = os.environ.get("RIVERVIEW_NTFY_PUBLISH_URL")
+    token_credential = os.environ.get("CREDENTIALS_DIRECTORY")
+    if not base_url or not token_credential:
+        return None
+    from pathlib import Path
+    credential_dir = Path(token_credential)
+    try:
+        token = (credential_dir / "ntfy-token").read_text(encoding="utf-8").strip()
+        topic = (credential_dir / "ntfy-topic").read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not token or not topic:
+        return None
+    return NtfyPhonePublisher(base_url, topic=topic, token=token)
 
 
 if __name__ == "__main__":

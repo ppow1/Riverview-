@@ -1,0 +1,75 @@
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: src/riverview_core/notifications/ntfy_publisher.py
+# Component: NOTIFICATION-DELIVERY
+# Revision: 1.0.0
+# Purpose: Publish durable dispatcher notices over the existing private NTFY transport
+# Authority: May publish to the preconfigured protected phone topic only
+# =============================================================================
+"""Minimal authenticated NTFY publisher for already-authorized dispatcher notices."""
+
+from __future__ import annotations
+
+import json
+import re
+import urllib.error
+import urllib.request
+
+
+_MESSAGES = {
+    "assignment_stalled": "An assignment has stopped making progress.",
+    "deadline_missed": "An active assignment passed its deadline.",
+    "assignment_attention": "An assignment needs Steward attention.",
+    "recovery_requested": "An execution lease needs recovery.",
+    "monitor_failed": "The notification monitor reported a failure.",
+    "grace_objective_blocked": "Grace has blocked an objective and needs Steward attention.",
+    "attention_resolved": "A previous attention condition has cleared.",
+}
+_PRIORITY = {"assignment_stalled": 4, "assignment_attention": 4,
+             "attention_resolved": 3, "deadline_missed": 5,
+             "recovery_requested": 5, "monitor_failed": 5,
+             "grace_objective_blocked": 4}
+
+
+class NtfyPublishError(RuntimeError):
+    """Safe transport failure with no URL, topic, or credential in its message."""
+
+
+class NtfyPhonePublisher:
+    def __init__(self, base_url: str, *, topic: str, token: str, timeout: float = 8):
+        if not isinstance(base_url, str) or not re.fullmatch(r"https?://[^/]+(?::[0-9]+)?", base_url):
+            raise ValueError("invalid NTFY publisher origin")
+        if not isinstance(topic, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", topic):
+            raise ValueError("invalid NTFY topic credential")
+        if not isinstance(token, str) or not token or "\n" in token or "\r" in token:
+            raise ValueError("invalid NTFY token credential")
+        if not 1 <= timeout <= 30:
+            raise ValueError("invalid NTFY timeout")
+        self.base_url = base_url.rstrip("/")
+        self._topic = topic
+        self._token = token
+        self.timeout = timeout
+
+    def publish(self, event_type: str) -> str:
+        message = _MESSAGES.get(event_type)
+        if message is None:
+            raise ValueError("unclassified phone notification")
+        request = urllib.request.Request(
+            f"{self.base_url}/{self._topic}", data=message.encode("utf-8"), method="POST",
+            headers={"Authorization": f"Bearer {self._token}",
+                     "Title": "Riverview notification",
+                     "Priority": str(_PRIORITY[event_type]), "Tags": "riverview",
+                     "Content-Type": "text/plain; charset=utf-8"})
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        try:
+            with opener.open(request, timeout=self.timeout) as response:
+                payload = json.loads(response.read(8192))
+                message_id = payload.get("id") if response.status == 200 else None
+                if not isinstance(message_id, str) or not message_id:
+                    raise NtfyPublishError("unexpected_ntfy_response")
+                return message_id
+        except urllib.error.HTTPError as exc:
+            raise NtfyPublishError(f"ntfy_http_{exc.code}") from None
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            if isinstance(exc, NtfyPublishError):
+                raise
+            raise NtfyPublishError(type(exc).__name__) from None
