@@ -74,6 +74,8 @@ limits are documented in `NOTIFICATION_IPHONE_UPSTREAM_RELAY.md`.
 | `GET /api/v1/notifications?limit=n` | Authenticated, read-only, maximum 50 notifications and dispatcher health. | Projection only. |
 | `POST /api/v1/notifications/{uuid}/delivered` | Empty body; record client rendering receipt after visible render. | Receipt only. |
 | `POST /api/v1/notifications/{uuid}/acknowledge` | Empty body; requires `delivered_at`; append receipt acknowledgment. | Receipt only; cannot decide. |
+| `GET /api/v1/notification-settings` | Read the persistent Steward notification policy. | Shared notification settings row. |
+| `PUT /api/v1/notification-settings` | Replace level and quiet-hours policy; body is bounded JSON. | Steward preference update. |
 
 Every route is loopback and Host-header checked. API access requires the
 existing dashboard bearer over the same origin. Request bodies, browser URLs,
@@ -82,15 +84,42 @@ receipt before delivery returns conflict; malformed/unknown notices return
 not-found; database errors return unavailable. There is no endpoint that can
 change `steward_decision_requests.status`.
 
+`GET` and `PUT /api/v1/notification-settings` use the same dashboard bearer
+authorization and `NotificationService` store as the V2 settings page. Grace
+must call these same routes using the existing authenticated integration
+credential; it must not cache or maintain a second settings store. Example:
+
+```sh
+curl -H "Authorization: Bearer $RIVERVIEW_DASHBOARD_TOKEN" \
+  https://riverview.example/api/v1/notification-settings
+curl -X PUT -H "Authorization: Bearer $RIVERVIEW_DASHBOARD_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data '{"level":"important","quiet_hours":{"enabled":true,"start":"22:00","end":"07:00","timezone":"America/New_York"}}' \
+  https://riverview.example/api/v1/notification-settings
+```
+
+Levels are `all`, `important`, `critical_only`, and `paused`. Dispatcher
+classification treats `deadline_missed`, `recovery_requested`, and
+`monitor_failed` as critical; `assignment_stalled` and `assignment_attention`
+as important; and `attention_resolved` as normal. Critical notices bypass both
+Paused and quiet hours. Quiet-hour times are local to the supplied IANA time
+zone; equal start and end times mean all day. Filtering is applied by the
+durable dispatcher and suppressed source events are recorded once, so a later
+preference change does not replay old events. NTFY's installed phone-test CLI
+is not an event publishing path; this policy does not filter manually published
+NTFY messages. The current Grace runtime has no separate registered settings
+client in this release; the API is the shared integration contract, and Grace
+must be given its existing integration credential before it can call the routes.
+
 ## Persistence and migration
 
-Migration `0006_durable_notifications` is an additive explicit migration under
-the selected schema. It has no startup DDL. Before applying it to the shared
+Migrations `0006_durable_notifications` and `0007_notification_settings` are additive explicit migrations under
+the selected schema. They have no startup DDL. Before applying them to the shared
 `riverview_dev` schema, record preflight inventory, create a protected custom
 format PostgreSQL backup, verify its checksum, and restore it to a disposable
 cluster with successful `pg_restore --list` and application connectivity. Then
 apply the reviewed migration with the controlled migration runner and verify
-all four relations, migration checksum, grants, and M3.1/M2.4 health. Preserve
+all notification-owned relations, migration checksums, grants, and M3.1/M2.4 health. Preserve
 M1.1/M1.2/M1.3/M2.4 services and all existing assignment/event rows.
 
 Rollback is forward recovery: do not drop the additive tables after records

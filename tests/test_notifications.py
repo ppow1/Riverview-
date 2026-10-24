@@ -34,6 +34,9 @@ from riverview_core.notifications import (NotificationConflict, NotificationDisp
 from riverview_core.postgres_ledger import PostgresLedger
 from riverview_core.postgres_migrations import apply_migrations
 from riverview_core.status_dashboard.server import DashboardHTTPServer
+from riverview_core.notifications.policy import allowed, quiet_now
+from datetime import datetime, time, timezone
+from riverview_core.notifications.policy import validate_settings
 
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
 ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
@@ -44,6 +47,19 @@ class _NoopProjection:
 
 
 class _FakeNotificationService:
+    settings = {"schema_version":"rv.notification_settings.v1","status":"available","level":"all",
+                "quiet_hours":{"enabled":False,"start":"22:00","end":"07:00","timezone":"UTC"},
+                "critical_policy":{"deliver_during_paused":True,"deliver_during_quiet_hours":True},
+                "updated_at":"2026-10-11T00:00:00+00:00"}
+
+    def get_settings(self):
+        return self.settings
+
+    def update_settings(self, value):
+        value = validate_settings(value)
+        self.settings = {**self.settings, **value}
+        return self.settings
+
     def list_notifications(self, *, limit=25):
         return {"schema_version": "rv.notifications.v1", "status": "available",
                 "observed_at": "2026-10-11T00:00:00+00:00", "dispatcher": {"status": "healthy"},
@@ -115,6 +131,45 @@ class NotificationHTTPTests(unittest.TestCase):
         status, body = self.request("POST", f"/api/v1/notifications/{notice}/delivered",
                                     token=self.token, body="x")
         self.assertEqual(status, 400)
+
+    def test_notification_settings_api_requires_bearer_and_updates_shared_service(self):
+        path = "/api/v1/notification-settings"
+        self.assertEqual(self.request("GET", path)[0], 401)
+        payload = {"level":"paused","quiet_hours":{"enabled":True,"start":"21:30",
+                   "end":"06:30","timezone":"America/New_York"}}
+        status, body = self.request("PUT", path, token=self.token, body=json.dumps(payload))
+        self.assertEqual(status, 200)
+        self.assertEqual(body["level"], "paused")
+        self.assertEqual(self.request("GET", path, token=self.token)[1]["quiet_hours"]["timezone"],
+                         "America/New_York")
+        self.assertEqual(self.request("PUT", path, body=json.dumps(payload))[0], 401)
+        bad = {**payload, "level":"everything"}
+        self.assertEqual(self.request("PUT", path, token=self.token, body=json.dumps(bad))[0], 400)
+
+
+class NotificationPolicyTests(unittest.TestCase):
+    def setUp(self):
+        self.settings = {"level":"all","quiet_hours":{"enabled":False,"start":"22:00",
+                         "end":"07:00","timezone":"UTC"}}
+
+    def test_levels_and_critical_bypass(self):
+        self.settings["level"] = "important"
+        self.assertTrue(allowed("assignment_stalled", self.settings)[0])
+        self.assertFalse(allowed("attention_resolved", self.settings)[0])
+        self.settings["level"] = "critical_only"
+        self.assertFalse(allowed("assignment_stalled", self.settings)[0])
+        self.settings["level"] = "paused"
+        self.assertFalse(allowed("assignment_stalled", self.settings)[0])
+        self.assertTrue(allowed("monitor_failed", self.settings)[0])
+
+    def test_quiet_hours_wrap_midnight_and_critical_bypasses(self):
+        self.settings["quiet_hours"] = {"enabled":True,"start":"22:00","end":"07:00","timezone":"UTC"}
+        self.assertTrue(quiet_now(self.settings["quiet_hours"], datetime(2026,1,1,23,tzinfo=timezone.utc)))
+        self.assertFalse(quiet_now(self.settings["quiet_hours"], datetime(2026,1,1,12,tzinfo=timezone.utc)))
+        self.assertFalse(allowed("assignment_stalled", self.settings,
+                                 datetime(2026,1,1,23,tzinfo=timezone.utc))[0])
+        self.assertTrue(allowed("deadline_missed", self.settings,
+                                datetime(2026,1,1,23,tzinfo=timezone.utc))[0])
 
     def test_dispatcher_unit_is_dedicated_credentialled_and_non_root(self):
         unit = (ROOT / "deploy/systemd/riverview-notification-dispatcher.service").read_text()
@@ -191,6 +246,22 @@ class NotificationPostgresTests(unittest.TestCase):
         self.assertEqual(len(notice), 1)
         self.assertEqual(notice[0]["assignment_id"], assignment)
         self.assertEqual(len(self.rows("notification_events")), 1)
+
+    def test_settings_persist_and_filter_dispatcher_boundary(self):
+        original = self.service.get_settings()
+        self.assertEqual(original["level"], "all")
+        changed = self.service.update_settings({"level":"critical_only","quiet_hours":{
+            "enabled":False,"start":"22:00","end":"07:00","timezone":"UTC"}})
+        self.assertEqual(changed["level"], "critical_only")
+        self.assertEqual(NotificationService(DSN, schema=self.schema).get_settings()["level"], "critical_only")
+        assignment = self.create_assignment("filtered")
+        self.stale_event(assignment)
+        result = self.dispatcher.scan_once()
+        self.assertEqual(result["notifications_created"], 0)
+        self.assertEqual(result["notifications_suppressed"], 1)
+        self.assertEqual(self.rows("attention_notifications"), [])
+        self.assertEqual(len(self.rows("notification_suppressions")), 1)
+        self.assertEqual(self.dispatcher.scan_once()["scanned"], 0)
 
     def test_receipt_states_are_ordered_idempotent_and_never_resolve_request(self):
         assignment = self.create_assignment("awaiting", awaiting=True)

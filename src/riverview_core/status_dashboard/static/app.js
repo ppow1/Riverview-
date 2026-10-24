@@ -1,19 +1,21 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
-// Revision: 1.0.4
+// Revision: 1.0.5
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
   const state = {token: sessionStorage.getItem("rv.dashboard.token") || "", status: null,
     assignments: [], events: [], attention: [], attentionStatus: "unknown", workers: [], assignmentCursor: null,
     workerCursor: null, eventCursor: 0, olderEventCursor: null, notifications: [], notificationStatus: "unknown", activeView: "overview",
-    recentErrors: [], navSamples: [], lastFetch: 0, timer: null};
+    recentErrors: [], navSamples: [], lastFetch: 0, timer: null, notificationSettings: null};
   const esc = (value) => String(value ?? "—").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const human = (value) => String(value || "unknown").replaceAll("_", " ").replaceAll(".", " · ");
-  const api = async (path, timeout = 2600, method = "GET") => {
+  const api = async (path, timeout = 2600, method = "GET", payload = null) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const response = await fetch(path, {method, headers: {Authorization: `Bearer ${state.token}`, Accept: "application/json"},
+      const headers = {Authorization: `Bearer ${state.token}`, Accept: "application/json"};
+      if (payload !== null) headers["Content-Type"] = "application/json";
+      const response = await fetch(path, {method, headers, body: payload === null ? undefined : JSON.stringify(payload),
         cache: "no-store", credentials: "omit", signal: controller.signal});
       if (!response.ok) throw new Error(`http_${response.status}`);
       return await response.json();
@@ -154,6 +156,18 @@
     try { renderNotifications(await api("/api/v1/notifications?limit=25")); }
     catch (error) { state.notificationStatus = "unavailable"; $("notification-state").textContent = "Notification source unavailable"; $("notification-list").innerHTML = noData(`No delivery is claimed (${error.message}).`); }
   }
+  async function loadNotificationSettings() {
+    try {
+      const settings = await api("/api/v1/notification-settings");
+      state.notificationSettings = settings;
+      $("notification-level").value = settings.level;
+      $("quiet-enabled").checked = settings.quiet_hours.enabled;
+      $("quiet-start").value = settings.quiet_hours.start;
+      $("quiet-end").value = settings.quiet_hours.end;
+      $("quiet-timezone").value = settings.quiet_hours.timezone;
+      $("settings-state").textContent = `Saved ${when(settings.updated_at)} · critical alerts bypass Paused and quiet hours.`;
+    } catch (error) { $("settings-state").textContent = `Settings unavailable (${error.message}).`; }
+  }
   async function loadWorkers(append = false) {
     if (!state.token) return;
     if (state.status?.workers?.status === "not_initialized") {
@@ -201,17 +215,18 @@
       sessionStorage.setItem("rv.dashboard.token", token);
       $("login-error").textContent = ""; showWorkspace(); renderStatus(s);
       await Promise.all([loadAssignments(), loadEvents()]);
+      if (state.activeView === "notification-settings") await loadNotificationSettings();
       await refreshStatus();
     state.timer = setInterval(() => { refreshStatus(); if (document.visibilityState === "visible") { loadEvents(true); } }, 5000);
     } catch (error) { state.token = ""; $("login-error").textContent = `Connection failed: ${error.message}. Check the source and credential.`; }
   }
   function navigate(name) {
     const start = performance.now();
-    const view = ["overview","assignments","activity","workflows","notifications"].includes(name) ? name : "overview";
+    const view = ["overview","assignments","activity","workflows","notifications","notification-settings"].includes(name) ? name : "overview";
     state.activeView = view;
     document.querySelectorAll(".view").forEach((node) => { const active = node.id === `view-${view}`; node.hidden = !active; node.classList.toggle("active", active); });
     document.querySelectorAll(".nav-item").forEach((node) => node.classList.toggle("selected", node.dataset.view === view));
-    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",activity:"Activity",workflows:"Process workflows",notifications:"Notifications"})[view];
+    $("page-title").textContent = ({overview:"Operations overview",assignments:"Assignments",activity:"Activity",workflows:"Process workflows",notifications:"Notifications","notification-settings":"Notification settings"})[view];
     history.replaceState(null,"",`#${view}`);
     const duration = performance.now() - start;
     state.navSamples.push({view,ms:duration}); state.navSamples=state.navSamples.slice(-100);
@@ -220,6 +235,7 @@
     if (view === "assignments" && !state.assignments.length) loadAssignments();
     if (view === "activity" && !state.events.length) loadEvents();
     if (view === "notifications") loadNotifications();
+    if (view === "notification-settings" && state.token) loadNotificationSettings();
   }
   document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.view)));
   document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => navigate(b.dataset.go)));
@@ -230,6 +246,18 @@
   $("more-events").addEventListener("click", () => loadOlderEvents());
   $("more-workers").addEventListener("click", () => loadWorkers(true));
   $("refresh-notifications").addEventListener("click", loadNotifications);
+  $("notification-settings-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {level:$("notification-level").value, quiet_hours:{enabled:$("quiet-enabled").checked,
+      start:$("quiet-start").value,end:$("quiet-end").value,timezone:$("quiet-timezone").value.trim()}};
+    $("settings-state").textContent = "Saving…";
+    try {
+      const saved = await api("/api/v1/notification-settings", 4000, "PUT", payload);
+      state.notificationSettings = saved;
+      $("settings-state").textContent = `Saved ${when(saved.updated_at)}.`;
+      toast("Notification settings saved.");
+    } catch (error) { $("settings-state").textContent = `Save failed (${error.message}).`; }
+  });
   $("snapshot").addEventListener("click", async () => {
     try {
       const bundle = await api("/api/v1/snapshot");
