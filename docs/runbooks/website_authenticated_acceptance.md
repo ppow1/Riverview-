@@ -41,7 +41,7 @@ for check in report["checks"]:
 PY
 ```
 
-The same latest report is displayed in the V2 **Website verification** panel and at `https://riverview.ionoge.com/v2/verification/latest.json` from the LAN. Its rows identify `PASS`, `FAIL`, `WARNING`, and `SKIPPED` with reasons. For runner output, use `sudo journalctl -u riverview-website-acceptance@full.service --since today --no-pager`. Never print or copy the protected persona credential file.
+The same latest report is displayed in the V2 **Website verification** panel and at `https://192.168.1.155/v2/verification/latest.json` from the LAN. This IP URL is the verified production route; its rows identify `PASS`, `FAIL`, `WARNING`, and `SKIPPED` with reasons. For runner output, use `sudo journalctl -u riverview-website-acceptance@full.service --since today --no-pager`. Never print or copy the protected persona credential file.
 
 Verified on 2026-10-24 from the production host: the light unit completed with result `success`, exit 0, and report `PASS` (2 checks); the full unit completed with result `success`, exit 0, and report `WARNING` (37 PASS, 0 FAIL, 3 SKIPPED). The full report was written to `/var/lib/riverview-website-acceptance/latest.json` and served through the V2 report endpoint. The three intentional skips are Grace conversation authority for the test identity, absence of disposable production cancellation data, and a durable Snapshot archive write.
 
