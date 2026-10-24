@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.6
+# Revision: 1.0.7
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Confirm fixed scope-validation codes are operator-visible without model text.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Verify an active pipeline keeps its startup release identity after runtime pointer changes.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-REVIEW-DIAGNOSTICS-20261024 | Assert safe reviewer failure detail is correlated and private text is excluded.
 # Purpose: Verify durable supervisory grading and bounded Luna retry selection
@@ -89,6 +90,9 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
         from riverview_core.resident_execution.service import _safe_rework_review_failure_detail
         self.assertEqual(_safe_rework_review_failure_detail(
             ConversationUnavailable("private provider echo")), "conversation_unavailable")
+        self.assertEqual(_safe_rework_review_failure_detail(ConversationUnavailable(
+            "Grace rework decision exceeded the original assignment scope: criteria_to_address_out_of_scope")),
+            "Grace rework decision exceeded the original assignment scope: criteria_to_address_out_of_scope")
         self.assertIsNone(_safe_rework_review_failure_detail(RuntimeError("private text")))
 
     def test_cme_diagnostic_attempts_have_distinct_escalation_identities(self):

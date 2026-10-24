@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.50
+# Revision: 1.0.51
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Retain fixed rework decision validation codes while excluding model-provided text.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-REVIEW-DIAGNOSTICS-20261024 | Record a safe review stage and allowlisted ConversationUnavailable detail for bounded same-release recovery diagnosis.
 # Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-MINIMAL-RETRY-20261024 | Permit one minimal-evidence evaluation attempt after a compact retry receives the same exact HTTP 400 input rejection.
 # Changed: 2026-10-24 UTC | RV-GRACE-CME-ESCALATION-ID-FALLBACK-20261024 | Give the bounded fourth diagnostic attempt its own deterministic escalation identity.
@@ -102,6 +103,16 @@ _SAFE_REWORK_REVIEW_FAILURE_DETAILS = frozenset({
     "Grace rework response exceeded its bound",
     "office model binding changed before rework response",
     "authority check unavailable",
+    "Grace rework decision exceeded the original assignment scope: decision_contract_invalid",
+    "Grace rework decision exceeded the original assignment scope: decision_value_invalid",
+    "Grace rework decision exceeded the original assignment scope: unavailable_artifact_cannot_be_accepted",
+    "Grace rework decision exceeded the original assignment scope: rationale_invalid",
+    "Grace rework decision exceeded the original assignment scope: criteria_list_invalid",
+    "Grace rework decision exceeded the original assignment scope: criteria_item_invalid",
+    "Grace rework decision exceeded the original assignment scope: criteria_to_address_out_of_scope",
+    "Grace rework decision exceeded the original assignment scope: criteria_list_has_duplicates",
+    "Grace rework decision exceeded the original assignment scope: rework_instruction_invalid",
+    "Grace rework decision exceeded the original assignment scope: steward_stop_fields_invalid",
 })
 
 

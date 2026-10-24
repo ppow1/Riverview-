@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.29
+# Revision: 1.2.30
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Distinguish fixed rework-contract rejection reasons and clarify that verifier diagnostic keys are not authorized acceptance criteria.
 # Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Persist timestamped stream-delta character counts and expose an owner-authorized content-free activity projection.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Request constrained JSON for the fail-closed review contract and clarify supplied authority/evidence boundaries.
 # Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Add sanitized parse metadata and one-shot expiring private capture for a target review response
@@ -2214,7 +2215,10 @@ class ResidentConversationService:
                     "completion. Do not request Codex rework just because wording differs. A rework "
                     "instruction must be "
                     "specific, at most 512 characters, and address only items copied exactly from the "
-                    "persisted assignment acceptance criteria. Do not change the objective, assignment, "
+                    "persisted assignment acceptance criteria. In criteria_to_address, copy complete "
+                    "strings only from assignment_acceptance_criteria; verifier_criteria keys are "
+                    "diagnostic flags and are never authorized criteria. If no exact criterion applies, "
+                    "choose STEWARD_AUTHORIZATION_REQUIRED. Do not change the objective, assignment, "
                     "repository, accepted scope, or criteria. If the defect cannot be corrected within "
                     "the existing criteria and authority, choose STEWARD_AUTHORIZATION_REQUIRED with "
                     "correction_instruction null and an empty criteria_to_address. Current authority "
@@ -2287,25 +2291,36 @@ class ResidentConversationService:
             except (ValueError, TypeError):
                 raise ConversationUnavailable("Grace rework decision was invalid") from None
         allowed_criteria = set(context["step_acceptance_criteria"])
-        if (not isinstance(decision, dict) or set(decision) != {
-                "decision", "rationale", "correction_instruction", "criteria_to_address"} or
-                decision["decision"] not in {"OBJECTIVE_SATISFIED", "REWORK_PROPOSED",
-                                              "STEWARD_AUTHORIZATION_REQUIRED"} or
-                (review_unavailable == "integrity_check_failed" and
-                 decision["decision"] == "OBJECTIVE_SATISFIED") or
-                not isinstance(decision["rationale"], str) or not decision["rationale"].strip() or
-                len(decision["rationale"]) > 1000 or not isinstance(decision["criteria_to_address"], list) or
-                not set(decision["criteria_to_address"]) <= allowed_criteria or
-                len(set(decision["criteria_to_address"])) != len(decision["criteria_to_address"]) or
-                (decision["decision"] == "REWORK_PROPOSED" and
-                    (not isinstance(decision["correction_instruction"], str) or
-                     not decision["correction_instruction"].strip() or
-                     len(decision["correction_instruction"]) > 512 or
-                     not decision["criteria_to_address"])) or
-                (decision["decision"] == "STEWARD_AUTHORIZATION_REQUIRED" and
-                    (decision["correction_instruction"] is not None or
-                     decision["criteria_to_address"]))):
-            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope")
+        if not isinstance(decision, dict) or set(decision) != {
+                "decision", "rationale", "correction_instruction", "criteria_to_address"}:
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: decision_contract_invalid")
+        if decision["decision"] not in {"OBJECTIVE_SATISFIED", "REWORK_PROPOSED",
+                                        "STEWARD_AUTHORIZATION_REQUIRED"}:
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: decision_value_invalid")
+        if (review_unavailable == "integrity_check_failed" and
+                decision["decision"] == "OBJECTIVE_SATISFIED"):
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: unavailable_artifact_cannot_be_accepted")
+        if (not isinstance(decision["rationale"], str) or not decision["rationale"].strip() or
+                len(decision["rationale"]) > 1000):
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: rationale_invalid")
+        criteria_to_address = decision["criteria_to_address"]
+        if not isinstance(criteria_to_address, list):
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: criteria_list_invalid")
+        if any(not isinstance(item, str) for item in criteria_to_address):
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: criteria_item_invalid")
+        if not set(criteria_to_address) <= allowed_criteria:
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: criteria_to_address_out_of_scope")
+        if len(set(criteria_to_address)) != len(criteria_to_address):
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: criteria_list_has_duplicates")
+        if (decision["decision"] == "REWORK_PROPOSED" and
+                (not isinstance(decision["correction_instruction"], str) or
+                 not decision["correction_instruction"].strip() or
+                 len(decision["correction_instruction"]) > 512 or
+                 not criteria_to_address)):
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: rework_instruction_invalid")
+        if (decision["decision"] == "STEWARD_AUTHORIZATION_REQUIRED" and
+                (decision["correction_instruction"] is not None or criteria_to_address)):
+            raise ConversationUnavailable("Grace rework decision exceeded the original assignment scope: steward_stop_fields_invalid")
         current = self._authorize_office_binding()
         if (current.get("binding_revision") != binding.get("binding_revision") or
                 current.get("implementation_id") != binding.get("implementation_id") or

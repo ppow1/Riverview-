@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.16
+# Revision: 1.0.17
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Verify precise safe scope-failure diagnostics and clarify verifier keys cannot authorize rework.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Assert strict structured-output request and supplied-authority clarification for final reviews.
 # Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Test sanitized review parse metadata and one-shot private response capture
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
@@ -596,10 +597,33 @@ class GraceConversationResultTests(unittest.TestCase):
         self.router.content = json.dumps({"decision": "REWORK_PROPOSED", "rationale": "Fix it.",
             "correction_instruction": "Change more scope.",
             "criteria_to_address": ["unapproved criterion"]})
-        with self.assertRaisesRegex(ConversationUnavailable, "exceeded the original assignment scope"):
+        with self.assertRaisesRegex(ConversationUnavailable,
+                "criteria_to_address_out_of_scope"):
             self.service.review_rejected_work_order(context)
         self.assertEqual(self.rework_decisions, [])
         self.assertEqual(self.store.responses, {})
+
+    def test_rework_review_prompt_separates_verifier_flags_from_authorized_criteria(self):
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Create deliverable",
+            "step_acceptance_criteria": ["criterion one"],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"artifact_semantic_outcome_not_negative": False},
+                "summary": "Rejected."}})
+        self.router.content = json.dumps({"decision": "REWORK_PROPOSED",
+            "rationale": "The listed criterion needs correction.",
+            "correction_instruction": "Address the exact assigned criterion.",
+            "criteria_to_address": ["criterion one"]})
+
+        result = self.service.review_rejected_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        system_prompt = self.router.calls[0][0][0]["content"]
+        self.assertIn("verifier_criteria keys are diagnostic flags", system_prompt)
+        self.assertIn("copy complete strings only from assignment_acceptance_criteria",
+                      system_prompt)
 
     def test_grace_reviews_digest_verified_artifact_and_can_accept_substantive_content(self):
         body = ("# Production evidence\n\nThe checked-in files describe implementation only; "
