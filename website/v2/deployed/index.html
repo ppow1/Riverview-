@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: website/v2/deployed/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.23
+File Revision: 1.0.24
+Changed: 2026-10-24 UTC | RV-V2-OCTOMINER-PHYSICAL-BAYS-20261024 | Number twelve physical bays per manufacturer cable sequence and keep host GPU IDs separate.
 Changed: 2026-10-24 UTC | RV-WEB-AUTHENTICATED-ACCEPTANCE | Add the redacted latest acceptance report to the V2 overview.
 Changed: 2026-10-24 UTC | RV-V2-GRACE-CANCELLATION-INTEGRATION | Add confirmation-bound cancellation from Objectives, Engineering Progress, and exact-ID Grace chat commands.
 Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
@@ -35,7 +36,7 @@ History: Git and revision/backup manifest
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/workspace.css">
   <link rel="stylesheet" href="assets/communications.css">
-  <link rel="stylesheet" href="assets/resource-monitor.css">
+  <link rel="stylesheet" href="assets/resource-monitor.css?rev=octo-bays-20261024">
   <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=living-roadmap-20261024">
@@ -43,7 +44,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/notification-settings.css">
   <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
   <script defer src="assets/fixtures.js"></script>
-  <script defer src="assets/resource-monitor.js"></script>
+  <script defer src="assets/resource-monitor.js?rev=octo-bays-20261024"></script>
   <script defer src="assets/work-evidence-adapter.js?rev=blocker-20261024"></script>
   <script defer src="assets/work-evidence.js?rev=blocker-20261024"></script>
   <script defer src="assets/living-roadmap-data.js?rev=living-roadmap-20261024"></script>
@@ -145,7 +146,7 @@ History: Git and revision/backup manifest
               <header class="octo-console-heading"><div><p class="eyebrow">LIVE MACHINE · READ ONLY</p><h3 id="octo1-title">OCTO1 <span>OctoMiner X12 Ultra</span></h3><p id="octo1-observed" class="resource-observed">Waiting for authenticated host telemetry.</p></div><span id="octo1-machine-state" class="resource-tag" data-state="not_initialized">NOT CHECKED</span></header>
               <div class="octo-console-layout">
                 <section class="octo-machine-view" aria-labelledby="octo1-surface-title">
-                  <div class="octo-machine-view-heading"><div><p class="eyebrow">MANUFACTURER CHASSIS · READ ONLY</p><h4 id="octo1-surface-title">OctoMiner X12 Ultra</h4></div><span class="octo-view-note">GPU device IDs are not mapped to physical bays.</span></div>
+                  <div class="octo-machine-view-heading"><div><p class="eyebrow">MANUFACTURER CHASSIS · READ ONLY</p><h4 id="octo1-surface-title">OctoMiner X12 Ultra</h4></div><span class="octo-view-note">12 physical bays · left-to-right order follows manufacturer cable numbering</span></div>
                   <section class="octo-chassis" aria-label="Interactive manufacturer chassis reference">
                     <div class="octo-chassis-toolbar" role="group" aria-label="Chassis reference view">
                       <button type="button" data-octo-artwork-view="front" aria-pressed="true">Front panel</button>
@@ -162,8 +163,24 @@ History: Git and revision/backup manifest
                         <button type="button" class="octo-hotspot" data-octo-component="fan-5" style="--hotspot-x:75.5%;--hotspot-y:49%" aria-label="Select front fan 5">05</button>
                         <button type="button" class="octo-hotspot octo-hotspot-panel" data-octo-component="front-panel" style="--hotspot-x:90%;--hotspot-y:51%" aria-label="Select right-side front display and control panel">Display</button>
                       </div>
+                      <div id="octo1-bay-hotspots" class="octo-bay-hotspots" aria-label="Twelve physical GPU bays numbered left to right">
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-12" style="--hotspot-x:20%;--hotspot-y:61%" aria-label="Select physical GPU bay 12">12</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-11" style="--hotspot-x:25.3%;--hotspot-y:59%" aria-label="Select physical GPU bay 11">11</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-10" style="--hotspot-x:30.6%;--hotspot-y:57%" aria-label="Select physical GPU bay 10">10</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-9" style="--hotspot-x:35.9%;--hotspot-y:55%" aria-label="Select physical GPU bay 9">09</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-8" style="--hotspot-x:41.2%;--hotspot-y:53%" aria-label="Select physical GPU bay 8">08</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-7" style="--hotspot-x:46.5%;--hotspot-y:51%" aria-label="Select physical GPU bay 7">07</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-6" style="--hotspot-x:51.8%;--hotspot-y:49%" aria-label="Select physical GPU bay 6">06</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-5" style="--hotspot-x:57.1%;--hotspot-y:47%" aria-label="Select physical GPU bay 5">05</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-4" style="--hotspot-x:62.4%;--hotspot-y:45%" aria-label="Select physical GPU bay 4">04</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-3" style="--hotspot-x:67.7%;--hotspot-y:43%" aria-label="Select physical GPU bay 3">03</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-2" style="--hotspot-x:73%;--hotspot-y:41%" aria-label="Select physical GPU bay 2">02</button>
+                        <button type="button" class="octo-bay-hotspot" data-octo-component="bay-1" style="--hotspot-x:78.3%;--hotspot-y:39%" aria-label="Select physical GPU bay 1">01</button>
+                      </div>
                     </div>
                     <p id="octo1-chassis-caption" class="octo-chassis-caption">Fan positions and the right-side front panel follow the manufacturer front image. Per-fan controller channels and internal GPU bay positions are not identified by OCTO1 telemetry.</p>
+                    <p class="octo-chassis-caption">Bay order evidence: <a href="https://octominer.eu/wp-content/uploads/2021/11/X12ULTRA_QUICK_START_GUIDE_V.1.pdf.pdf" target="_blank" rel="noopener noreferrer">manufacturer Quick Start Guide</a> says cable 1 starts at the right and continues right-to-left. Physical bay IDs remain separate from NVIDIA indices and PCIe addresses.</p>
+                    <p class="octo-chassis-caption">Physical bay numbering evidence: <a href="https://octominer.eu/wp-content/uploads/2021/11/X12ULTRA_QUICK_START_GUIDE_V.1.pdf.pdf" target="_blank" rel="noopener noreferrer">OctoMiner X12 Ultra Quick Start Guide</a> (cable 1 starts at the right; sequence proceeds right-to-left). GPU indices and PCIe addresses are separate identifiers.</p>
                   </section>
                   <div class="octo-live-summary" id="octo1-live-summary" aria-live="polite"><span>GPU inventory <b id="octo1-gpu-count">Unavailable</b></span><span>Inference services <b id="octo1-model-count">Unavailable</b></span><span>Last source observation <b id="octo1-age">Not reported</b></span></div>
                   <h5 class="octo-group-label">GPU devices <small>select a device for measurements and active service mapping</small></h5>
