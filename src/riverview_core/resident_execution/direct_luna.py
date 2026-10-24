@@ -128,10 +128,25 @@ def process_one(exchange):
         with urllib.request.urlopen(request, timeout=45) as response:
             result = json.loads(response.read(256 * 1024))
     except Exception as exc:
-        # Type only: HTTP errors can contain request material or credentials.
+        # Preserve only safe HTTP metadata; never log the provider error body or headers wholesale.
+        failure_usage = None
+        safe_error = {"failure_type": type(exc).__name__}
+        if isinstance(exc, urllib.error.HTTPError):
+            status_code = exc.code if type(exc.code) is int and 100 <= exc.code <= 599 else None
+            provider_request_id = None
+            if exc.headers is not None:
+                candidate = exc.headers.get("x-request-id")
+                if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,128}", candidate):
+                    provider_request_id = candidate
+            failure_usage = {"http_status": status_code,
+                **({"provider_request_id": provider_request_id} if provider_request_id else {})}
+            safe_error.update(failure_usage)
         exchange.finish_provider_attempt(row["request_id"], row["correlation_id"],
-            status="failed", failure_type=type(exc).__name__)
-        return {"status": "API_FAILED", "failure_type": type(exc).__name__}
+            status="failed", failure_type=type(exc).__name__, usage=failure_usage)
+        request_id, correlation_id = _response_ids(row)
+        LOG.warning(json.dumps({"event": "luna_api_request_failed", "request_id": request_id,
+            "correlation_id": correlation_id, **safe_error}, sort_keys=True))
+        return {"status": "API_FAILED", **safe_error}
     usage = result.get("usage") or {}
     input_tokens = int(usage.get("input_tokens", 0))
     output_tokens = int(usage.get("output_tokens", 0))

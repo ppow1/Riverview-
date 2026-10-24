@@ -322,17 +322,29 @@ class DurableExternalReasoningExchange:
             return None
         payload = row.get("request_payload", {})
         assignment = payload.get("assignment") if isinstance(payload, dict) else None
+        if not isinstance(assignment, dict) and isinstance(payload, dict):
+            original_request = payload.get("original_request")
+            assignment = (original_request.get("assignment")
+                if isinstance(original_request, dict) else None)
         assignment = assignment if isinstance(assignment, dict) else {}
         assignment_id = assignment.get("assignment_id")
         progress_seq = assignment.get("cme_progress_seq")
         if request_type == "cme_diagnostic_recovery" and assignment_id is not None:
-            cur.execute("""SELECT 1 FROM grace_supervisory_authorization_events
-                WHERE authorization_id=%s AND event_type='luna_reserved'
-                  AND objective_id=%s AND payload->>'request_type'=%s
-                  AND payload->>'assignment_id'=%s
-                  AND payload->>'cme_progress_seq' IS NOT DISTINCT FROM %s LIMIT 1""",
+            progress = str(progress_seq) if progress_seq is not None else None
+            cur.execute("""SELECT 1 FROM grace_supervisory_authorization_events e
+                WHERE e.authorization_id=%s AND e.event_type='luna_reserved'
+                  AND e.objective_id=%s AND e.payload->>'request_type'=%s
+                  AND (
+                    (e.payload->>'assignment_id'=%s AND
+                     e.payload->>'cme_progress_seq' IS NOT DISTINCT FROM %s)
+                    OR EXISTS (
+                        SELECT 1 FROM external_reasoning_exchanges x
+                        WHERE x.request_id=e.request_id
+                          AND x.request_payload->'original_request'->'assignment'->>'assignment_id'=%s
+                          AND x.request_payload->'original_request'->'assignment'->>'cme_progress_seq'
+                              IS NOT DISTINCT FROM %s)) LIMIT 1""",
                 (auth["authorization_id"], row.get("objective_id"), request_type,
-                 str(assignment_id), str(progress_seq) if progress_seq is not None else None))
+                 str(assignment_id), progress, str(assignment_id), progress))
             if cur.fetchone():
                 return None
         cur.execute("""SELECT

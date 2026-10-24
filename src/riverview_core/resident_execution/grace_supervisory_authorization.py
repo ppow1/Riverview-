@@ -93,7 +93,11 @@ class GraceSupervisoryAuthorization:
             cur.execute("""SELECT a.authorization_id,a.authority_grant_id,a.authorized_by,
                     a.total_budget_usd,a.per_request_limit_usd,a.scope,a.status,a.activated_at,a.valid_until,
                     COALESCE(sum((e.payload->>'cost_usd')::numeric)
-                        FILTER (WHERE e.event_type='luna_settled'),0) AS spent,
+                        FILTER (WHERE e.event_type='luna_settled'
+                          AND COALESCE((e.payload->>'cost_is_reserved_estimate')::boolean,false)=false),0) AS spent,
+                    COALESCE(sum((e.payload->>'cost_usd')::numeric)
+                        FILTER (WHERE e.event_type='luna_settled'
+                          AND COALESCE((e.payload->>'cost_is_reserved_estimate')::boolean,false)=true),0) AS unresolved,
                     COALESCE(sum((e.payload->>'reserved_cost_usd')::numeric)
                         FILTER (WHERE e.event_type='luna_reserved' AND NOT EXISTS (
                             SELECT 1 FROM grace_supervisory_authorization_events s
@@ -111,6 +115,7 @@ class GraceSupervisoryAuthorization:
         if row is None:
             return {"status": "not_authorized"}
         spent = row["spent"]
+        unresolved = row["unresolved"]
         outstanding = row["outstanding"]
         state = row["status"]
         if state == "active" and not linked_grant_active:
@@ -122,8 +127,10 @@ class GraceSupervisoryAuthorization:
             "authority_grant_active": linked_grant_active,
             "scope": row["scope"], "total_budget_usd": format(row["total_budget_usd"], ".8f"),
             "per_request_limit_usd": format(row["per_request_limit_usd"], ".8f"),
-            "spent_usd": format(spent, ".8f"), "reserved_usd": format(outstanding, ".8f"),
-            "available_usd": format(row["total_budget_usd"] - spent - outstanding, ".8f"),
+            "spent_usd": format(spent, ".8f"),
+            "unresolved_cost_usd": format(unresolved, ".8f"),
+            "reserved_usd": format(outstanding, ".8f"),
+            "available_usd": format(row["total_budget_usd"] - spent - unresolved - outstanding, ".8f"),
             "request_count": int(row["requests"]), "expires_at": row["valid_until"].isoformat()
                 if row["valid_until"] else None}
 

@@ -1,5 +1,6 @@
 """Offline API-response parsing and exchange-submission tests; no provider calls."""
 import hashlib
+import io
 import json
 import unittest
 from types import SimpleNamespace
@@ -115,6 +116,23 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
         self.assertIn("TypeError", detail)
         self.assertIn("UUID", detail)
         self.assertNotIn("sk-abcdefghijklmno", detail)
+
+    def test_http_failure_records_only_safe_status_and_request_id_without_retry(self):
+        exchange = _Exchange()
+        error = direct_luna.urllib.error.HTTPError("https://api.openai.com/v1/responses",
+            429, "rate limited", {"x-request-id": "req_fixture_123"},
+            io.BytesIO(b"private provider error body"))
+        with patch.object(direct_luna, "_api_key", return_value="synthetic-key"), \
+             patch.object(direct_luna.urllib.request, "urlopen", side_effect=error):
+            outcome = direct_luna.process_one(exchange)
+        self.assertEqual(outcome["status"], "API_FAILED")
+        self.assertEqual(outcome["http_status"], 429)
+        self.assertEqual(outcome["provider_request_id"], "req_fixture_123")
+        self.assertEqual(exchange.finished[-1]["usage"], {
+            "http_status": 429, "provider_request_id": "req_fixture_123"})
+        self.assertEqual(exchange.submitted, [])
+        self.assertEqual(exchange.failures, [])
+        self.assertNotIn("private provider error body", json.dumps(outcome))
 
     def test_output_allowances_are_per_request_type_and_sent_to_responses(self):
         for request_type, limit in (("cme_diagnostic_recovery", 4096),

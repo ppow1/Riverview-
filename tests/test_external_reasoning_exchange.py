@@ -406,7 +406,8 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         with patch.dict(os.environ, {"RIVERVIEW_AUTHORITY_SCHEMA": self.schema}):
             cme = {"objective_id": self.objective, "proposal_revision": 2,
                 "request_id": uuid4(), "request_payload": {"request_type": "cme_diagnostic_recovery",
-                    "assignment": {"assignment_id": "work-order:test", "cme_progress_seq": 17}}}
+                    "original_request": {"assignment": {"assignment_id": "work-order:test",
+                        "cme_progress_seq": 17}}}}
             with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
                 self.assertEqual(self.exchange._reserve_supervisory_luna_call(cur,cme,0.05),str(auth_id))
@@ -415,8 +416,37 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
                 self.ledger._set_search_path(cur)
                 self.assertIsNone(self.exchange._reserve_supervisory_luna_call(cur,duplicate,0.05),
                     "same assignment and no-progress sequence cannot create another paid call")
+            from dataclasses import replace
+            legacy_original = replace(self.original, assignment={
+                "assignment_id":"work-order:legacy", "cme_progress_seq":27})
+            legacy_envelope = EscalationRequest.create(legacy_original,
+                reason="capability_gap", target_provider_id=PROVIDER,
+                max_tokens=128, timeout_seconds=30)
+            legacy_receipt = self.exchange.submit(legacy_envelope, legacy_original,
+                principal_id=RESIDENT, authorize=self.authorized,
+                originating_resident_id=RESIDENT, objective_id=self.objective,
+                conversation_id=self.conversation_id, message_sequence=5,
+                idempotency_key="legacy-reservation-request", classification="institutional",
+                deadline_at=self.clock_value + timedelta(minutes=5),
+                source_references=("legacy-cme-event",))
+            self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorization_events
+                (authorization_id,event_type,idempotency_key,objective_id,request_id,payload)
+                VALUES (%s,'luna_reserved',%s,%s,%s,%s::jsonb)""").format(
+                    self.sql.Identifier(self.schema)), (auth_id,"legacy-null-progress-reservation",
+                    self.objective,legacy_receipt.request_id,json.dumps({
+                        "request_type":"cme_diagnostic_recovery","assignment_id":None,
+                        "cme_progress_seq":None,"reserved_cost_usd":0.05})))
+            legacy_candidate = {"objective_id":self.objective,"proposal_revision":2,
+                "request_id":uuid4(),"request_payload":{"request_type":"cme_diagnostic_recovery",
+                    "original_request":{"assignment":{"assignment_id":"work-order:legacy",
+                        "cme_progress_seq":27}}}}
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.assertIsNone(self.exchange._reserve_supervisory_luna_call(
+                    cur,legacy_candidate,0.05),
+                    "legacy reservation must be deduplicated from the durable request context")
             advanced = {**cme,"request_id":uuid4(),"request_payload":{"request_type":"cme_diagnostic_recovery",
-                "assignment":{"assignment_id":"work-order:test","cme_progress_seq":18}}}
+                "original_request":{"assignment":{"assignment_id":"work-order:test","cme_progress_seq":18}}}}
             evaluation = {**cme,"request_id":uuid4(),"request_payload":{"request_type":"performance_evaluation"}}
             for row in (advanced,evaluation):
                 with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
@@ -433,7 +463,7 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
                     self.sql.Identifier(self.schema)), (auth_id,"synthetic-budget-exhaustion:"+str(auth_id),
                         json.dumps({"cost_usd":"4.90"})))
             blocked = {**advanced,"request_id":uuid4(),"request_payload":{"request_type":"cme_diagnostic_recovery",
-                "assignment":{"assignment_id":"work-order:test","cme_progress_seq":19}}}
+                "original_request":{"assignment":{"assignment_id":"work-order:test","cme_progress_seq":19}}}}
             with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
                 self.assertIsNone(self.exchange._reserve_supervisory_luna_call(cur,blocked,0.05),
@@ -477,6 +507,16 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         status = controller.status()
         self.assertEqual(status["authorization_id"],active["authorization_id"])
         self.assertEqual(status["available_usd"],"5.00000000")
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorization_events
+            (authorization_id,event_type,idempotency_key,request_id,payload)
+            VALUES (%s,'luna_settled',%s,%s,%s::jsonb)""").format(
+                self.sql.Identifier(self.schema)), (active["authorization_id"],
+                "unresolved-cost-test-001",uuid4(),json.dumps({"cost_usd":"0.05",
+                    "cost_is_reserved_estimate":True,"usage":{}})))
+        status = controller.status()
+        self.assertEqual(status["spent_usd"],"0.00000000")
+        self.assertEqual(status["unresolved_cost_usd"],"0.05000000")
+        self.assertEqual(status["available_usd"],"4.95000000")
         revoked = controller.revoke(actor_id=steward,authorization_id=active["authorization_id"],
             explicit_steward_confirmation=True,idempotency_key="grace-supervision-revoke-001")
         self.assertEqual(revoked["status"],"revoked")
