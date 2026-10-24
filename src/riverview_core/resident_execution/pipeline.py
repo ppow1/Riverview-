@@ -584,6 +584,23 @@ class GraceExecutionPipeline:
         # original request or accepted criteria; the adapter allowlist is only
         # a second, operator-configured ceiling.
         approved_source_scope = [objective["request"], *objective["acceptance_criteria"]]
+        # A Steward may approve CLI-accessible diagnostic evidence without
+        # naming every deterministic output filename. Permit only the
+        # objective/revision-bound JSON path under diagnostics/; the artifact
+        # worker separately pins the repository, checks the exact persisted
+        # contract, rejects symlinks/traversal, and stores output in its private
+        # artifact root. This does not authorize source changes or other paths.
+        diagnostic_evidence_approved = any(
+            isinstance(criterion, str) and
+            "cli-accessible diagnostic evidence" in criterion.casefold()
+            for criterion in objective["acceptance_criteria"])
+        objective_match = re.fullmatch(
+            r"objective:proposal:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):r([1-9][0-9]*)",
+            objective_id)
+        diagnostic_artifact_suffix = (
+            f"_{objective_match.group(1)}_r{objective_match.group(2)}.json"
+            if objective_match and int(objective_match.group(2)) == objective["revision"]
+            else None)
         for step in proposal.steps:
             if step.execution_capability == "engineering.codex-cli-source-change.v1":
                 target_values = (step.repository_reference, step.repository_revision)
@@ -600,7 +617,10 @@ class GraceExecutionPipeline:
             elif step.execution_capability == "engineering.codex-cli-artifact.v1":
                 if any(not any(re.search(r"(?<![A-Za-z0-9._/-])" + re.escape(item.path) +
                                          r"(?![A-Za-z0-9_/-]|\.(?=[A-Za-z0-9._/-]))", text)
-                               for text in approved_source_scope)
+                               for text in approved_source_scope) and not (
+                                   diagnostic_evidence_approved and
+                                   diagnostic_artifact_suffix is not None and
+                                   item.path == f"diagnostics/{item.name}{diagnostic_artifact_suffix}")
                        for item in step.artifact_requirements):
                     raise ObjectiveStateError(
                         "artifact path is absent from the Steward-approved objective scope")

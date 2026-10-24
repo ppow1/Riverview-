@@ -1074,6 +1074,43 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(self.pipeline.get_objective(objective_id)["acceptance_criteria"],
                          objective["acceptance_criteria"])
 
+    def test_cli_diagnostic_artifact_paths_are_objective_and_revision_bound(self):
+        from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
+
+        def objective_id():
+            return f"objective:proposal:{uuid4()}:r2"
+
+        criterion = (
+            "CLI-accessible diagnostic evidence identifies objective, reasoning, and outcome.")
+        valid_id = objective_id()
+        valid_uuid = valid_id.split(":")[-2]
+        valid = self.pipeline.submit_objective(valid_id,
+            "Create one bounded diagnostic evidence artifact using the approved artifact workflow.",
+            [criterion], credential=self.credentials["steward"], scope_ref=self.scope)
+        grounded = self.pipeline.ground_objective(valid_id)
+        self.assertEqual(grounded["revision"], 2)
+
+        def proposal(path):
+            return PlanProposal("Record bounded diagnostic evidence", (
+                PlanStep("evidence", "Record the approved diagnostic evidence", (criterion,),
+                    artifact_requirements=(ArtifactRequirement("evidence", path,
+                        "application/json", (criterion,)),)),), 0)
+
+        invalid_id = objective_id()
+        self.pipeline.submit_objective(invalid_id,
+            "Create one bounded diagnostic evidence artifact using the approved artifact workflow.",
+            [criterion], credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(invalid_id)
+        with self.assertRaisesRegex(ObjectiveStateError, "artifact path is absent"):
+            self.pipeline.record_proposal(invalid_id, proposal(
+                f"diagnostics/evidence_{valid_uuid}_r2.json"))
+
+        stored = self.pipeline.record_proposal(valid_id, proposal(
+            f"diagnostics/evidence_{valid_uuid}_r2.json"))
+        self.assertEqual(stored["status"], "PROPOSED")
+        self.assertEqual(stored["proposal"]["steps"][0]["artifact_requirements"][0]["path"],
+                         f"diagnostics/evidence_{valid_uuid}_r2.json")
+
     def test_lifecycle_criteria_remain_durable_without_receipt_work_steps(self):
         from riverview_core.resident_reasoning import lifecycle_evidence_event
 
