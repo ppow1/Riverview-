@@ -293,6 +293,34 @@ class AuthorityRegistry:
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 
+    def issue_grace_autonomy_experiment_grant(self, *, actor_id, grant_id, scope_ref,
+                                               valid_until):
+        """Issue only the fixed Grace experiment grant for a transport-authenticated Steward."""
+        self._validate_expiry(valid_until)
+        if (not isinstance(actor_id, str) or not isinstance(grant_id, str) or
+                not isinstance(scope_ref, str)):
+            raise ValueError("experiment grant identity is invalid")
+        try:
+            with self.db.transaction(), self.db.cursor() as cur:
+                cur.execute("SELECT set_config('search_path', %s, true)", (self.schema,))
+                cur.execute(psycopg.sql.SQL(
+                    "SELECT {}.issue_grace_autonomy_experiment_grant(%s,%s,%s,%s)"
+                ).format(psycopg.sql.Identifier(self.schema)),
+                    (actor_id, grant_id, scope_ref, valid_until))
+                row = cur.fetchone()
+                if row is None:
+                    raise AuthorityDenied("experiment authority was not issued")
+                return row[0] if not hasattr(row, "values") else next(iter(row.values()))
+        except (AuthorityDenied, ValueError):
+            raise
+        except psycopg.Error as exc:
+            # Do not return SQL or connection details through the caller.
+            if getattr(exc, "sqlstate", None) == "P0001":
+                raise AuthorityDenied("authenticated Steward grant rejected") from None
+            raise RegistryUnavailable(type(exc).__name__) from None
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
     def authorize(self, credential, action, scope_ref):
         if not action or not scope_ref:
             raise ValueError("action and scope_ref are required")

@@ -1320,6 +1320,57 @@
           ]
         }
       ]
+    },
+    {
+      "name": "comms5_authorize_grace_experiment",
+      "title": "Authorize bounded Grace autonomy experiment",
+      "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution.",
+      "inputSchema": {
+        "properties": {
+          "objective_id": {
+            "description": "Exact approved Grace autonomy objective; other objectives are rejected.",
+            "title": "Objective Id",
+            "type": "string"
+          },
+          "objective_revision": {
+            "description": "Exact approved revision, currently 2.",
+            "title": "Objective Revision",
+            "type": "integer"
+          },
+          "explicit_steward_confirmation": {
+            "description": "Approve the complete 24-hour, $5 total experiment envelope with up to five recoveries and two Luna requests.",
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "description": "Stable key for this one standing authorization operation.",
+            "title": "Idempotency Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "objective_id",
+          "objective_revision",
+          "explicit_steward_confirmation",
+          "idempotency_key"
+        ],
+        "title": "comms5_authorize_grace_experimentArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
     }
   ],
   "read_only_payloads": {
@@ -2148,6 +2199,19 @@
             "authenticated Steward transport"
           ],
           "description": "Lock or unlock durable resource policy against lower-authority changes."
+        },
+        {
+          "name": "authorize_grace_experiment",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "objective_id",
+            "objective_revision",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "authenticated Steward transport"
+          ],
+          "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution.",
+          "camrui_implementation_status": "IMPLEMENTED"
         }
       ],
       "classifications": [
@@ -2309,6 +2373,12 @@
         "operation": "seed_lineage",
         "field": "steward_attention_required",
         "meaning": "true means do not self-promote or bypass the checkpoint"
+      },
+      "authorize_grace_experiment": {
+        "objective_id": "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2",
+        "objective_revision": 2,
+        "explicit_steward_confirmation": true,
+        "idempotency_key": "grace-autonomy-luna-r2-20261023"
       }
     },
     "describe:contract_info": {
@@ -2546,6 +2616,18 @@
       "description": "Lock or unlock durable resource policy against lower-authority changes.",
       "response": "bounded JSON metadata; protected payloads are omitted",
       "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:authorize_grace_experiment": {
+      "operation": "authorize_grace_experiment",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "objective_id",
+        "objective_revision",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "authenticated Steward transport"
+      ],
+      "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution."
     }
   }
 }

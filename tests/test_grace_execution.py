@@ -394,6 +394,65 @@ class CodingWorkOrderContractTests(unittest.TestCase):
 
 
 class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
+    def test_revision_failure_fence_survives_immutable_release_change(self):
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        class Cursor:
+            row = {"blocked": True}
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def execute(self, query, params):
+                self.query, self.params = query, params
+            def fetchone(self): return self.row
+
+        class DB:
+            def __init__(self): self.cursor_value = Cursor()
+            def cursor(self): return self.cursor_value
+
+        class Ledger:
+            def __init__(self): self.db = DB()
+            def _set_search_path(self, _cursor): pass
+
+        service = object.__new__(GraceExecutionService)
+        service.pipeline = SimpleNamespace(ledger=Ledger())
+        self.assertTrue(service._proposal_rejection_blocked("objective:test:r2", 2))
+        query = service.pipeline.ledger.db.cursor_value.query
+        self.assertNotIn("runtime_revision", query)
+        self.assertEqual(service.pipeline.ledger.db.cursor_value.params[:2],
+                         ("objective:test:r2", "2"))
+
+    def test_recorded_objective_criteria_have_one_lifecycle_binding_in_offline_fixture(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.resident_reasoning import PlanProposal, PlanStep, lifecycle_evidence_event
+
+        criteria = (
+            "An eligible disposable diagnostic objective is promoted only following explicit Steward approval of the exact proposal revision and digest.",
+            "Exactly one bounded diagnostic work order is formed and queued under the existing assignment.create and execution authorization checks.",
+            "Grace processes the approved objective using its configured local reasoning model and records reasoning state transitions.",
+            "Exactly one authorized GPT-6 Luna advisory escalation is issued through the durable external reasoning exchange, with no uncontrolled retries.",
+            "The Luna request and response are durably correlated to the objective, with actual token usage and cost recorded.",
+            "Grace durably consumes the Luna advisory response without treating it as approval or execution authority.",
+            "The objective shows an observable post-consumption state transition or a precise durable failure reason.",
+            "CLI-accessible diagnostic evidence identifies objective, authorization, reasoning, exchange, consumption, and outcome without disclosing protected credentials.",
+        )
+        self.assertEqual(lifecycle_evidence_event(criteria[0]), "proposal.approved_and_promoted")
+        self.assertTrue(all(lifecycle_evidence_event(item) is None for item in criteria[1:]))
+        plan = PlanProposal("Bounded diagnostic plan", (
+            PlanStep("form", "Form bounded diagnostic work", (criteria[1],)),
+            PlanStep("process", "Process the objective", (criteria[2],)),
+            PlanStep("escalate", "Request bounded Luna advice", (criteria[3], criteria[4])),
+            PlanStep("consume", "Consume and inspect the advisory", (criteria[5], criteria[6], criteria[7])),
+        ), 128)
+        diagnostic = GraceExecutionService._criteria_binding_diagnostics(plan, criteria)
+        self.assertEqual(diagnostic["missing_approved_criterion_indices"], [1])
+        corrected = PlanProposal(plan.summary, plan.steps, plan.tokens_used,
+            system_owned_criteria=(criteria[0],))
+        corrected_diagnostic = GraceExecutionService._criteria_binding_diagnostics(
+            corrected, criteria)
+        self.assertEqual(corrected_diagnostic["missing_approved_criterion_indices"], [])
+        self.assertEqual(corrected_diagnostic["invalid_system_owned_criterion_indices"], [])
+
     def test_incomplete_acceptance_proposal_has_safe_detail_code(self):
         from riverview_core.resident_execution.service import GraceExecutionService
 
@@ -405,7 +464,12 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
                 "proposal must bind every original criterion to an Engineering step or a supported lifecycle event")),
             "PROPOSAL_CRITERIA_BINDING_REJECTED")
         self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
+            ObjectiveStateError("approved-promotion lifecycle evidence is not durably bound")),
+            "PROPOSAL_LIFECYCLE_EVIDENCE_UNBOUND")
+        self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
             RuntimeError("untrusted provider message")), "REASONING_CYCLE_FAILED")
+        self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
+            ObjectiveStateError("untrusted provider message")), "REASONING_CYCLE_FAILED")
 
     def test_single_step_recovery_binds_exact_steward_criteria_without_widening_scope(self):
         from riverview_core.resident_execution.service import GraceExecutionService
@@ -602,6 +666,51 @@ class GraceExecutionTests(unittest.TestCase):
             ["artifact contains the task and verified repository provenance"],
             credential=self.credentials["steward"], scope_ref=self.scope)
         return self.pipeline.ground_objective(row["objective_id"])
+
+    def test_luna_acceptance_fixture_reproduces_and_repairs_only_index_one(self):
+        from riverview_core.resident_reasoning import PlanProposal, PlanStep
+
+        criteria = (
+            "An eligible disposable diagnostic objective is promoted only following explicit Steward approval of the exact proposal revision and digest.",
+            "Exactly one bounded diagnostic work order is formed and queued under the existing assignment.create and execution authorization checks.",
+            "Grace processes the approved objective using its configured local reasoning model and records reasoning state transitions.",
+            "Exactly one authorized GPT-6 Luna advisory escalation is issued through the durable external reasoning exchange, with no uncontrolled retries.",
+            "The Luna request and response are durably correlated to the objective, with actual token usage and cost recorded.",
+            "Grace durably consumes the Luna advisory response without treating it as approval or execution authority.",
+            "The objective shows an observable post-consumption state transition or a precise durable failure reason.",
+            "CLI-accessible diagnostic evidence identifies objective, authorization, reasoning, exchange, consumption, and outcome without disclosing protected credentials.",
+        )
+        objective_id = "objective:offline-luna-validator:" + uuid4().hex
+        submitted = self.pipeline.submit_objective(objective_id,
+            "Exercise the approved Grace/Luna diagnostic acceptance plan.", list(criteria),
+            credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.ground_objective(submitted["objective_id"])
+        proposal = PlanProposal("Bounded Luna acceptance work", (
+            PlanStep("work-order", "Queue the authorized diagnostic work", (criteria[1],)),
+            PlanStep("grace", "Process the existing objective locally", (criteria[2],)),
+            PlanStep("exchange", "Issue and correlate one bounded Luna advisory",
+                     (criteria[3], criteria[4])),
+            PlanStep("consume", "Consume advice and record observable outcome",
+                     (criteria[5], criteria[6], criteria[7])),
+        ), 64)
+        with self.assertRaisesRegex(ObjectiveStateError,
+                "bind every original criterion to an Engineering step"):
+            self.pipeline.record_proposal(submitted["objective_id"], proposal)
+
+        corrected = PlanProposal(proposal.summary, proposal.steps, proposal.tokens_used,
+            system_owned_criteria=(criteria[0],))
+        with self.assertRaisesRegex(ObjectiveStateError,
+                "approved-promotion lifecycle evidence is not durably bound"):
+            self.pipeline.record_proposal(submitted["objective_id"], corrected)
+
+        original_evidence_check = self.pipeline.proposal_promotion_evidence
+        self.pipeline.proposal_promotion_evidence = lambda _cur, _objective, criterion: criterion == criteria[0]
+        try:
+            stored = self.pipeline.record_proposal(submitted["objective_id"], corrected)
+        finally:
+            self.pipeline.proposal_promotion_evidence = original_evidence_check
+        self.assertEqual(stored["proposal"]["system_owned_criteria"], [criteria[0]])
+        self.assertEqual(stored["acceptance_criteria"], list(criteria))
 
     def test_single_work_order_lifecycle_criterion_requires_one_step_and_one_dispatch(self):
         from riverview_core.resident_reasoning import ArtifactRequirement

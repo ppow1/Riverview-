@@ -42,15 +42,16 @@ class Comms5MCPTests(unittest.TestCase):
         canonical = json.dumps(catalog["tools"][:21], separators=(",", ":"), ensure_ascii=False).encode()
         self.assertEqual(hashlib.sha256(canonical).hexdigest(), "d13698b1ad415d152f481c1a5360166ef1519b4ebd74944f0836f3341701a807")
         result = app().handle(rpc("tools/list"))["result"]["tools"]
-        self.assertEqual(len(result), 25)
+        self.assertEqual(len(result), 26)
+        self.assertIn("comms5_authorize_grace_experiment", [tool["name"] for tool in result])
         self.assertEqual([tool["name"] for tool in result], [tool["name"] for tool in catalog["tools"]])
-        self.assertEqual([tool["name"] for tool in result[-4:]], [
-            "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
-            "reasoning_exchange_submit_response", "reasoning_exchange_status"])
+        exchange_names = ["reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
+            "reasoning_exchange_submit_response", "reasoning_exchange_status"]
+        by_name = {tool["name"]: tool for tool in result}
         self.assertTrue(all(tool["securitySchemes"] == [{"type": "oauth2", "scopes": ["comms5"]}] for tool in result))
         from riverview_core.resident_execution.external_reasoning_mcp import ExternalReasoningMCPAdapter
         shared = {tool["name"]: tool["inputSchema"] for tool in ExternalReasoningMCPAdapter.tools()}
-        self.assertEqual({tool["name"]: tool["inputSchema"] for tool in result[-4:]}, shared)
+        self.assertEqual({name: by_name[name]["inputSchema"] for name in exchange_names}, shared)
         call = app().handle(rpc("tools/call", {"name": "comms5_contract_info", "arguments": {}}))
         payload = json.loads(call["result"]["content"][0]["text"])
         self.assertEqual(payload["contract"], "riverview-comms-contract:5.0")
@@ -83,7 +84,7 @@ class Comms5MCPTests(unittest.TestCase):
         help_result = application.handle(rpc("tools/call", {"name": "comms5_help", "arguments": {}}))
         help_value = json.loads(help_result["result"]["content"][0]["text"])
         self.assertEqual(help_value["contract"]["contract"], "riverview-comms-contract:5.0")
-        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 16)
+        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 17)
         capabilities = application.handle(rpc("tools/call", {"name": "comms5_capabilities", "arguments": {}}))
         capability_value = json.loads(capabilities["result"]["content"][0]["text"])
         self.assertEqual(sum(op["camrui_implementation_status"] == "IMPLEMENTED" for op in capability_value["operations"]), 5)
@@ -380,7 +381,7 @@ class Comms5MCPTests(unittest.TestCase):
             with urlopen(request, timeout=2) as response:
                 result = json.loads(response.read())
                 self.assertEqual(response.status, 200)
-                self.assertEqual(len(result["result"]["tools"]), 25)
+                self.assertEqual(len(result["result"]["tools"]), 26)
         finally:
             server.shutdown()
             server.server_close()

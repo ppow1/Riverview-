@@ -52,16 +52,18 @@ class Comms5Operations:
         "comms5_objective_status", "comms5_recent_steward_submissions",
         "comms5_revalidate_and_queue_work", "comms5_set_resource_policy",
         "comms5_set_resource_policy_lock",
+        "comms5_authorize_grace_experiment",
         "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
         "reasoning_exchange_submit_response", "reasoning_exchange_status",
     })
 
     def __init__(self, proposal_registry, proposal_lifecycle, objective_pipeline=None,
-                 steward_review_bridge=None):
+                 steward_review_bridge=None, authority_registry=None):
         self.registry = proposal_registry
         self.lifecycle = proposal_lifecycle
         self.pipeline = objective_pipeline
         self.steward_review_bridge = steward_review_bridge
+        self.authority_registry = authority_registry
 
     def create_draft_record(self, content, *, actor_id, origin_kind,
                             source_references, provenance, idempotency_key):
@@ -106,6 +108,19 @@ class Comms5Operations:
         actor = self._actor(principal_id)
         if tool not in self.SUPPORTED:
             raise ValueError("operation_not_supported")
+        if tool == "comms5_authorize_grace_experiment":
+            if arguments.get("explicit_steward_confirmation") is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            if self.pipeline is None or self.authority_registry is None:
+                raise RuntimeError("experiment_authorization_unavailable")
+            if set(arguments) != {"objective_id", "objective_revision",
+                                  "explicit_steward_confirmation", "idempotency_key"}:
+                raise ValueError("experiment_authorization_fields_invalid")
+            from .grace_experiment_authorization import GraceExperimentAuthorization
+            return GraceExperimentAuthorization(self.pipeline, self.authority_registry).activate(
+                actor_id=actor, objective_id=arguments["objective_id"],
+                revision=arguments["objective_revision"],
+                idempotency_key=self._idempotency(arguments["idempotency_key"]))
         if tool.startswith("reasoning_exchange_"):
             if self.steward_review_bridge is None:
                 raise RuntimeError("external_reasoning_exchange_unavailable")

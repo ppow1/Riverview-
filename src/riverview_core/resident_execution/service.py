@@ -244,16 +244,21 @@ class GraceExecutionService:
                      self.external_reasoning_exchange.has_terminal_review_for_objective(candidate_id))):
                 continue
             recovery_request_id = None
+            experiment_authorization = None
             if (type(candidate_revision) is int and
                     self._proposal_rejection_blocked(candidate_id, candidate_revision)):
                 recovery_request_id = self._claim_approved_recovery(candidate_id,
                                                                     candidate_revision)
                 if recovery_request_id is None:
-                    continue
+                    experiment_authorization = self._claim_experiment_recovery(
+                        candidate_id, candidate_revision)
+                    if experiment_authorization is None:
+                        continue
             if (recovery_request_id is None and
                     self._reasoning_failure_count(candidate_id) >= self.MAX_REASONING_FAILURES):
                 continue
-            candidate = {**row, "recovery_request_id": recovery_request_id}
+            candidate = {**row, "recovery_request_id": recovery_request_id,
+                "experiment_authorization": experiment_authorization}
             break
         if candidate is None:
             return False
@@ -261,7 +266,8 @@ class GraceExecutionService:
         self._current_objective_id = objective_id
         try:
             self._record_reasoning_attempt(objective_id,
-                recovery_request_id=candidate.get("recovery_request_id"))
+                recovery_request_id=candidate.get("recovery_request_id"),
+                experiment_authorization=candidate.get("experiment_authorization"))
             result = self.resident_reasoner.propose(
                 objective_id, trigger="persistent_resident_cycle",
                 token_budget=self.resident_token_budget)
@@ -311,6 +317,8 @@ class GraceExecutionService:
                         classification=classification, proposal_id=proposal_id,
                         proposal_revision=proposal_revision, source_references=references,
                         review_subject=review_subject)
+                    self._record_experiment_outcome(candidate.get("experiment_authorization"),
+                        outcome="escalation_queued", detail_code=None)
                     return True
                 proposal_persist_started = time.monotonic()
                 proposal_to_persist = result.proposal
@@ -391,8 +399,11 @@ class GraceExecutionService:
                     "operation": "pipeline.record_proposal",
                     "elapsed_ms": round((time.monotonic() - proposal_persist_started) * 1000),
                 }, sort_keys=True))
+                self._record_experiment_outcome(candidate.get("experiment_authorization"),
+                    outcome="proposal_persisted", detail_code=None)
                 return True
-            self._record_reasoning_failure(objective_id, result=result)
+            self._record_reasoning_failure(objective_id, result=result,
+                experiment_authorization=candidate.get("experiment_authorization"))
         except Exception as exc:
             detail_code = self._reasoning_failure_detail_code(exc)
             blocked_revision = (candidate_revision
@@ -400,7 +411,8 @@ class GraceExecutionService:
                 type(candidate_revision) is int else None)
             failure_count = self._record_reasoning_failure(objective_id,
                 failure_type=type(exc).__name__, detail_code=detail_code,
-                blocked_revision=blocked_revision)
+                blocked_revision=blocked_revision,
+                experiment_authorization=candidate.get("experiment_authorization"))
             LOG.warning(json.dumps({"event": "resident_reasoning_cycle_failed",
                 "objective_id": objective_id,
                 "failure_type": type(exc).__name__,
@@ -414,12 +426,39 @@ class GraceExecutionService:
     @staticmethod
     def _reasoning_failure_detail_code(exc):
         """Expose only a fixed diagnostic code; never log exception or prompt text."""
-        if (type(exc).__name__ == "ObjectiveStateError" and
-                str(exc) == "proposal omits one or more human acceptance criteria"):
-            return "PROPOSAL_OMITS_ACCEPTANCE_CRITERIA"
-        if (type(exc).__name__ == "ObjectiveStateError" and
-                str(exc) == "proposal must bind every original criterion to an Engineering step or a supported lifecycle event"):
-            return "PROPOSAL_CRITERIA_BINDING_REJECTED"
+        if type(exc).__name__ == "ObjectiveStateError":
+            # Keep validator evidence useful without persisting model output or
+            # arbitrary exception text. These strings are internal fixed errors.
+            return {
+                "proposal omits one or more human acceptance criteria":
+                    "PROPOSAL_OMITS_ACCEPTANCE_CRITERIA",
+                "proposal must bind every original criterion to an Engineering step or a supported lifecycle event":
+                    "PROPOSAL_CRITERIA_BINDING_REJECTED",
+                "approved-promotion lifecycle evidence is not durably bound":
+                    "PROPOSAL_LIFECYCLE_EVIDENCE_UNBOUND",
+                "proposal cannot use missing or incomplete evidence":
+                    "PROPOSAL_EVIDENCE_INCOMPLETE",
+                "proposal acceptance-criteria source is invalid":
+                    "PROPOSAL_CRITERIA_SOURCE_INVALID",
+                "Grace-derived proposal criteria are empty, excessive, or duplicated":
+                    "PROPOSAL_DERIVED_CRITERIA_INVALID",
+                "source-change target identity and commit must be Steward-authorized":
+                    "PROPOSAL_SOURCE_TARGET_UNAUTHORIZED",
+                "source-change path is absent from the Steward-approved objective scope":
+                    "PROPOSAL_SOURCE_PATH_UNAUTHORIZED",
+                "artifact path is absent from the Steward-approved objective scope":
+                    "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+                "external advisory provenance is invalid":
+                    "PROPOSAL_EXTERNAL_ADVISORY_INVALID",
+                "external advisory correlation is invalid":
+                    "PROPOSAL_EXTERNAL_CORRELATION_INVALID",
+                "exact proposal review evidence is invalid":
+                    "PROPOSAL_REVIEW_EVIDENCE_INVALID",
+                "final proposal does not match its exact review subject":
+                    "PROPOSAL_REVIEW_BINDING_REJECTED",
+                "objective changed during proposal":
+                    "PROPOSAL_OBJECTIVE_STATE_CHANGED",
+            }.get(str(exc), "REASONING_CYCLE_FAILED")
         return "REASONING_CYCLE_FAILED"
 
     @staticmethod
@@ -492,6 +531,16 @@ class GraceExecutionService:
                 "reason_codes": reasons}
 
     def _runtime_revision(self):
+        # Immutable releases carry their own source marker. Prefer it over a
+        # systemd drop-in that can outlive a release switch and mislabel events.
+        try:
+            from pathlib import Path
+            marker = Path(__file__).resolve().parents[3] / "SOURCE_COMMIT"
+            value = marker.read_text(encoding="ascii").strip()
+            if re.fullmatch(r"[0-9a-f]{40}", value):
+                return value
+        except (OSError, UnicodeError):
+            pass
         value = os.environ.get("RIVERVIEW_SOURCE_COMMIT", "")
         return value if re.fullmatch(r"[0-9a-f]{40}", value) else "unversioned"
 
@@ -503,10 +552,9 @@ class GraceExecutionService:
                 WHERE objective_id=%s AND event_type='execution.reasoning_failed'
                   AND payload->>'status'='BLOCKED'
                   AND payload->>'objective_revision'=%s
-                  AND payload->>'runtime_revision'=%s
                   AND payload->>'detail_code'=ANY(%s)
                 ORDER BY sequence DESC LIMIT 1""",
-                (objective_id, str(objective_revision), self._runtime_revision(),
+                (objective_id, str(objective_revision),
                  list(self.PERSISTED_PROPOSAL_BLOCK_CODES)))
             return cur.fetchone() is not None
 
@@ -521,11 +569,18 @@ class GraceExecutionService:
                 (objective_id, self._runtime_revision(), objective_id))
             return int(cur.fetchone()["failures"])
 
-    def _record_reasoning_attempt(self, objective_id, *, recovery_request_id=None):
+    def _record_reasoning_attempt(self, objective_id, *, recovery_request_id=None,
+                                  experiment_authorization=None):
         request_id = str(uuid4())
         key = f"grace-reasoning-attempt:{objective_id}:{request_id}"
-        payload = ({"authorized_recovery_request_id": recovery_request_id,
-                    "recovery_attempt_limit": 1} if recovery_request_id else {})
+        payload = {}
+        if recovery_request_id:
+            payload.update({"authorized_recovery_request_id": recovery_request_id,
+                            "recovery_attempt_limit": 1})
+        if experiment_authorization:
+            payload.update({"experiment_authorization_id": experiment_authorization["authorization_id"],
+                "experiment_recovery_attempt": experiment_authorization["attempt_number"],
+                "experiment_recovery_limit": 5})
         with self.pipeline.ledger.db.transaction():
             with self.pipeline.ledger.db.cursor() as cur:
                 self.pipeline.ledger._set_search_path(cur)
@@ -536,6 +591,94 @@ class GraceExecutionService:
                     ON CONFLICT (idempotency_key) DO NOTHING""",
                     (objective_id, key, json.dumps(payload, sort_keys=True,
                         separators=(",", ":"))))
+
+    def _claim_experiment_recovery(self, objective_id, objective_revision):
+        """Atomically consume one exact, non-repeating use of the standing grant."""
+        from .grace_experiment_authorization import ACTION, GraceExperimentAuthorization
+        scope_ref = GraceExperimentAuthorization.scope_ref(objective_id, objective_revision)
+        try:
+            with self.pipeline.ledger.db.transaction(), self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""SELECT * FROM grace_experiment_authorizations
+                    WHERE objective_id=%s AND objective_revision=%s AND status='active'
+                      AND activated_at<=clock_timestamp() AND expires_at>clock_timestamp()
+                    ORDER BY activated_at DESC LIMIT 1 FOR UPDATE""",
+                    (objective_id, objective_revision))
+                auth = cur.fetchone()
+                if auth is None:
+                    return None
+                grant = self.pipeline.authorizer.require_principal(
+                    cur, "resident:grace", ACTION, scope_ref)
+                if grant["grant_id"] != auth["authority_grant_id"]:
+                    return None
+                cur.execute("""SELECT count(*) AS used FROM grace_experiment_authorization_events
+                    WHERE authorization_id=%s AND event_type='recovery_claimed'""",
+                    (auth["authorization_id"],))
+                used = int(cur.fetchone()["used"])
+                if used >= int(auth["max_recovery_attempts"]):
+                    return None
+                cur.execute("""SELECT payload FROM grace_experiment_authorization_events
+                    WHERE authorization_id=%s AND event_type='reasoning_outcome'
+                    ORDER BY occurred_at DESC,event_id DESC LIMIT 1""",
+                    (auth["authorization_id"],))
+                prior = cur.fetchone()
+                if prior and prior["payload"].get("outcome") == "failed" and \
+                        prior["payload"].get("runtime_revision") == self._runtime_revision():
+                    LOG.info(json.dumps({"event":"grace_experiment_retry_suppressed",
+                        "objective_id":objective_id,"authorization_id":str(auth["authorization_id"]),
+                        "reason":"same_runtime_failure_has_no_new_diagnostic_information"},sort_keys=True))
+                    return None
+                attempt_number = used + 1
+                auth_id = str(auth["authorization_id"])
+                cur.execute("""INSERT INTO grace_experiment_authorization_events
+                    (authorization_id,event_type,idempotency_key,objective_id,payload)
+                    VALUES (%s,'recovery_claimed',%s,%s,%s::jsonb)""",
+                    (auth["authorization_id"],
+                     f"grace-experiment:{auth_id}:recovery:{attempt_number}",objective_id,
+                     json.dumps({"attempt_number":attempt_number,
+                         "attempt_limit":int(auth["max_recovery_attempts"]),
+                         "objective_revision":objective_revision},sort_keys=True)))
+                event_payload=json.dumps({"authorization_id":auth_id,
+                    "authority_grant_id":auth["authority_grant_id"],
+                    "attempt_number":attempt_number,"attempt_limit":5,
+                    "objective_revision":objective_revision},sort_keys=True)
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.recovery_authorized',%s,
+                        'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (objective_id,f"grace-experiment-recovery:{auth_id}:{attempt_number}",
+                     event_payload))
+                return {"authorization_id":auth_id,"attempt_number":attempt_number}
+        except Exception as exc:
+            LOG.warning(json.dumps({"event":"grace_experiment_authorization_unavailable",
+                "objective_id":objective_id,"failure_type":type(exc).__name__},sort_keys=True))
+            return None
+
+    def _record_experiment_outcome(self, experiment_authorization, *, outcome, detail_code,
+                                   failure_type=None):
+        if not experiment_authorization:
+            return
+        auth_id=experiment_authorization["authorization_id"]
+        attempt_number=experiment_authorization["attempt_number"]
+        payload={"outcome":outcome,"attempt_number":attempt_number,
+            "runtime_revision":self._runtime_revision()}
+        if detail_code:
+            payload["detail_code"]=detail_code
+        if failure_type and re.fullmatch(r"[A-Za-z0-9_]{1,80}",failure_type):
+            payload["failure_type"]=failure_type
+        try:
+            with self.pipeline.ledger.db.transaction(), self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO grace_experiment_authorization_events
+                    (authorization_id,event_type,idempotency_key,objective_id,payload)
+                    VALUES (%s,'reasoning_outcome',%s,%s,%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (auth_id,f"grace-experiment:{auth_id}:outcome:{attempt_number}",
+                     self._current_objective_id,json.dumps(payload,sort_keys=True)))
+        except Exception as exc:
+            LOG.warning(json.dumps({"event":"grace_experiment_outcome_record_failed",
+                "authorization_id":auth_id,"failure_type":type(exc).__name__},sort_keys=True))
 
     def _claim_approved_recovery(self, objective_id, objective_revision):
         """Consume one exact, unexpired Steward authorization; never lifts other fences."""
@@ -591,7 +734,8 @@ class GraceExecutionService:
             return None
 
     def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None,
-                                  detail_code=None, blocked_revision=None):
+                                  detail_code=None, blocked_revision=None,
+                                  experiment_authorization=None):
         status = getattr(getattr(result, "status", None), "value", None)
         detail_code = detail_code or getattr(result, "detail_code", None)
         request_id = getattr(result, "request_id", None)
@@ -618,6 +762,8 @@ class GraceExecutionService:
                     ON CONFLICT (idempotency_key) DO NOTHING""",
                     (objective_id, key, json.dumps(payload, sort_keys=True,
                                                   separators=(",", ":"))))
+        self._record_experiment_outcome(experiment_authorization,
+            outcome="failed", detail_code=detail_code, failure_type=failure_type)
         return self._reasoning_failure_count(objective_id)
 
     def revalidate_rejected_one(self, assignment_id=None):

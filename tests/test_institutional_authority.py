@@ -81,6 +81,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0007_audited_office_role_update",
             "0008_resident_permission_profiles",
             "0009_worker_registration_retirement_event",
+            "0010_grace_autonomy_experiment_grant",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:
@@ -90,6 +91,33 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             with self.assertRaises(IdentityConflict):
                 self.registry.bootstrap_steward("steward:second")
 
+    def test_experiment_grant_requires_authenticated_exact_grant_and_is_idempotent(self):
+        from datetime import datetime, timedelta, timezone
+        from riverview_core.institutional_authority import AuthorityDenied
+        grant_id = "grant:grace-autonomy:" + str(uuid4())
+        scope = ("grace-autonomy:objective:proposal:"
+                 "e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2")
+        expiry = datetime.now(timezone.utc) + timedelta(hours=24)
+        self.admin.execute(f"""INSERT INTO {self.schema}.institutional_principals
+            (principal_id,principal_kind) VALUES ('resident:grace','resident')""")
+        self.assertEqual(self.registry.issue_grace_autonomy_experiment_grant(
+            actor_id="steward:test", grant_id=grant_id, scope_ref=scope,
+            valid_until=expiry), grant_id)
+        self.assertEqual(self.registry.issue_grace_autonomy_experiment_grant(
+            actor_id="steward:test", grant_id=grant_id, scope_ref=scope,
+            valid_until=expiry), grant_id)
+        with self.assertRaises(AuthorityDenied):
+            self.registry.issue_grace_autonomy_experiment_grant(
+                actor_id="steward:unregistered", grant_id=grant_id,
+                scope_ref=scope, valid_until=expiry)
+        result=self.admin.execute(f"""SELECT count(*) FROM {self.schema}.authority_grants
+            WHERE grant_id=%s AND principal_id='resident:grace'
+              AND action='grace.experiment.execute' AND scope_ref=%s
+              AND valid_until=%s AND revoked_at IS NULL""",(grant_id,scope,expiry)).fetchone()[0]
+        self.assertEqual(result,1)
+        events=self.admin.execute(f"""SELECT count(*) FROM {self.schema}.institutional_authority_events
+            WHERE grant_id=%s AND event_type='authority_granted'""",(grant_id,)).fetchone()[0]
+        self.assertEqual(events,1)
     def test_office_role_update_is_steward_only_cas_and_preserves_binding(self):
         from riverview_core.institutional_authority import AuthorityDenied, IdentityConflict
         self.registry.create_office(self.steward_token, "office:grace-role",

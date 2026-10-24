@@ -11,8 +11,8 @@ PROVIDER_ID = "gpt-6-luna"
 MODEL_ID = "gpt-6-luna"
 PROVIDER_PRINCIPAL = "service:provider-gpt-6-luna"
 BASELINE_TOTAL = 0.04104010
-ADDITIONAL_LIMIT = 0.25
 TOTAL_CREDIT = 5.0
+ADDITIONAL_LIMIT = round(TOTAL_CREDIT - BASELINE_TOTAL, 8)
 RESERVED_CALL_COST = 0.01
 LOG = logging.getLogger("riverview.grace_execution")
 

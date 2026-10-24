@@ -152,6 +152,22 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
                 "client_id": "client", "client_type": "chat", "client_name": "ChatGPT",
                 "authenticated_principal": "resident:attacker"}
 
+    def test_experiment_grant_requires_one_explicit_attested_steward_action(self):
+        tool = "comms5_authorize_grace_experiment"
+        arguments = {"objective_id": "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2",
+            "objective_revision": 2, "explicit_steward_confirmation": True,
+            "idempotency_key": "grace-autonomy-test-authorization"}
+        operations = Comms5Operations(self.registry, self.lifecycle,
+            objective_pipeline=SimpleNamespace(ledger=object()), authority_registry=object())
+        with self.assertRaisesRegex(PermissionError, "explicit Steward confirmation"):
+            operations.execute(tool, {**arguments, "explicit_steward_confirmation": False},
+                principal_id="steward:camrui")
+        with self.assertRaisesRegex(ValueError, "experiment_authorization_scope_invalid"):
+            operations.execute(tool, arguments, principal_id="steward:spoofed")
+        with self.assertRaisesRegex(ValueError, "experiment_authorization_fields_invalid"):
+            operations.execute(tool, {**arguments, "authenticated_principal": "steward:camrui"},
+                principal_id="steward:camrui")
+
     def test_seed_is_persisted_as_unapproved_proposal_using_attested_identity(self):
         result = self.operations.execute("comms5_submit_steward_seed", self.seed(),
                                          principal_id="steward:camrui")

@@ -262,7 +262,7 @@ class _BoundedHTTPServer(HTTPServer):
                  objective_pipeline, conversation_service, account_auth_service,
                  permission_store, static_dir, proposal_registry,
                  steward_review_exchange=None, resource_telemetry=None,
-                 snapshot_archive=None):
+                 snapshot_archive=None, authority_registry=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -271,6 +271,7 @@ class _BoundedHTTPServer(HTTPServer):
         self._account_auth_service = account_auth_service
         self._permission_store = permission_store
         self._proposal_registry = proposal_registry
+        self._authority_registry = authority_registry
         self._snapshot_archive = snapshot_archive
         self._snapshot_archive_slots = threading.BoundedSemaphore(1)
         self._proposal_lifecycle = None
@@ -284,7 +285,8 @@ class _BoundedHTTPServer(HTTPServer):
             self._comms5_operations = Comms5Operations(
                 proposal_registry, self._proposal_lifecycle, objective_pipeline,
                 steward_review_bridge=(StewardReviewBridge(steward_review_exchange)
-                    if steward_review_exchange is not None else None))
+                    if steward_review_exchange is not None else None),
+                authority_registry=authority_registry)
         self._static_dir = Path(static_dir)
         self._resource_telemetry = resource_telemetry
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
@@ -2308,7 +2310,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  conversation_service=None, account_auth_service=None,
                  permission_store=None, proposal_registry=None,
                  steward_review_exchange=None, resource_telemetry=None,
-                 snapshot_archive=None):
+                 snapshot_archive=None, authority_registry=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -2325,7 +2327,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          static_dir=static_dir, proposal_registry=proposal_registry,
                          steward_review_exchange=steward_review_exchange,
                          resource_telemetry=resource_telemetry,
-                         snapshot_archive=snapshot_archive)
+                         snapshot_archive=snapshot_archive,
+                         authority_registry=authority_registry)
 
 
 def _release_commit() -> str:
@@ -2476,6 +2479,7 @@ def main():
     conversation_service = None
     conversation_store = None
     authority_registry = None
+    comms5_authority_registry = None
     proposal_registry = None
     schema = os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev")
     try:
@@ -2611,6 +2615,15 @@ def main():
     except (OSError, ValueError):
         snapshot_archive = UnavailableSnapshotArchive("snapshot_archive_configuration_unavailable")
         print(json.dumps({"event": "snapshot_archive_configuration_unavailable"}), flush=True)
+    if objective_pipeline is not None:
+        try:
+            from riverview_core.institutional_authority import AuthorityRegistry
+            comms5_authority_registry = AuthorityRegistry(dsn,
+                schema=os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority"),
+                runtime_safe=True)
+        except Exception as exc:
+            print(json.dumps({"event": "comms5_experiment_authority_unavailable",
+                              "error_type": type(exc).__name__}), flush=True)
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
@@ -2620,7 +2633,8 @@ def main():
                                  proposal_registry=proposal_registry,
                                  steward_review_exchange=steward_review_exchange,
                                  resource_telemetry=resource_telemetry,
-                                 snapshot_archive=snapshot_archive)
+                                 snapshot_archive=snapshot_archive,
+                                 authority_registry=comms5_authority_registry)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)
@@ -2636,6 +2650,8 @@ def main():
             conversation_store.close()
         if authority_registry is not None:
             authority_registry.close()
+        if comms5_authority_registry is not None:
+            comms5_authority_registry.close()
 
 
 if __name__ == "__main__":
