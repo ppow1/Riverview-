@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.3
+# Revision: 1.1.4
+# Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Expose durable request payload metadata to the bounded evaluation retry gate.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Bind system-owned lifecycle criteria into exact external review subjects
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept sanitized C2 bridge exception codes as terminal ambiguous receipts.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Bind duplicate receipt replay to a one-way lease-token digest.
@@ -696,7 +697,8 @@ class DurableExternalReasoningExchange:
         with self.ledger.db.cursor() as cur:
             self._set_path(cur)
             cur.execute("""SELECT request_id::text AS request_id,
-                    correlation_id::text AS correlation_id,delivery_state,last_error_code
+                    correlation_id::text AS correlation_id,delivery_state,last_error_code,
+                    request_payload
                 FROM external_reasoning_exchanges WHERE idempotency_key=%s""",
                 (idempotency_key,))
             row = cur.fetchone()

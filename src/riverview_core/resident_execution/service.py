@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.44
+# Revision: 1.0.45
+# Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Permit one re-request only after durable JSON truncation at the former 512-token output cap.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-DIAGNOSTICS-20261023 | Record criterion-index mismatch diagnostics without retaining generated proposal text.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-RECOVERY-20261023 | Rebind only unchanged Steward criteria to one existing bounded step after the exact criteria-binding rejection.
@@ -1571,7 +1572,16 @@ class GraceExecutionService:
                     for event in events):
                 continue
             evaluation_key = "performance-evaluation:" + trigger_id
-            if exchange.request_for_idempotency(evaluation_key):
+            prior_evaluation = exchange.request_for_idempotency(evaluation_key)
+            retry_key = evaluation_key + ":bounded-output-retry-1"
+            prior_retry = exchange.request_for_idempotency(retry_key) if prior_evaluation else None
+            blocked_prior_ids = {str((event.get("payload") or {}).get("request_id"))
+                for event in events if event["event_type"] ==
+                    "resident.performance.evaluation_blocked" and
+                    (event.get("payload") or {}).get("reason_code") == "JSONDecodeError"}
+            selected_key = self._select_performance_evaluation_request(
+                trigger_id, prior_evaluation, prior_retry, blocked_prior_ids)
+            if selected_key is None:
                 continue
             office = reasoner.registry.authorize_office_state(reasoner._credential, reasoner.office_id)
             from ..resident_reasoning import ReasoningRequest
@@ -1607,7 +1617,7 @@ class GraceExecutionService:
                     "request_id": event["payload"].get("request_id"),
                     "correlation_id": event["payload"].get("correlation_id")}
                     for event in events if event["event_type"].startswith("external_reasoning.")][-8:]}
-            request_id = str(uuid5(NAMESPACE_URL, "rv-performance-evaluation:" + trigger_id))
+            request_id = str(uuid5(NAMESPACE_URL, "rv-performance-evaluation:" + selected_key))
             request = ReasoningRequest(request_id=request_id, office_id=reasoner.office_id,
                 assignment_id=objective_id, assignment_revision=str(objective["revision"]),
                 binding_revision=office["binding_revision"],
@@ -1620,12 +1630,27 @@ class GraceExecutionService:
                 target_provider_id="gpt-6-luna", max_tokens=2048, timeout_seconds=45,
                 escalation_id=request_id)
             return self.request_external_reasoning(escalation, request,
-                idempotency_key=evaluation_key,
+                idempotency_key=selected_key,
                 deadline_at=datetime.now(timezone.utc) + timedelta(minutes=20),
                 proposal_id=reference["proposal_id"], proposal_revision=reference["revision"],
                 source_references=(trigger_id,), source_kind="performance_evaluation",
                 request_type="performance_evaluation")
         return None
+
+    @staticmethod
+    def _select_performance_evaluation_request(trigger_id, prior_request,
+            prior_retry, blocked_prior_ids):
+        """Allow one exact retry when the old evaluation was truncated by its 512-token cap."""
+        base_key = "performance-evaluation:" + str(trigger_id)
+        if prior_request is None:
+            return base_key
+        payload = prior_request.get("request_payload")
+        max_tokens = payload.get("max_tokens") if isinstance(payload, dict) else None
+        if (prior_request.get("delivery_state") != "grace_consumed" or
+                prior_request.get("request_id") not in blocked_prior_ids or
+                type(max_tokens) is not int or max_tokens > 512 or prior_retry is not None):
+            return None
+        return base_key + ":bounded-output-retry-1"
 
     @staticmethod
     def _performance_evaluation_evidence(events):

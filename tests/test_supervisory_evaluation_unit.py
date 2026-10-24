@@ -50,6 +50,22 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             [completed, recovery])
         self.assertEqual(selected, [completed, recovery])
 
+    def test_evaluation_retry_is_limited_to_one_proven_truncation(self):
+        choose = GraceExecutionService._select_performance_evaluation_request
+        trigger = "step-event"
+        prior = {"request_id": "old-request", "delivery_state": "grace_consumed",
+            "request_payload": {"max_tokens": 512}}
+        retry_key = "performance-evaluation:step-event:bounded-output-retry-1"
+        self.assertEqual(choose(trigger, None, None, set()),
+            "performance-evaluation:step-event")
+        self.assertEqual(choose(trigger, prior, None, {"old-request"}), retry_key)
+        self.assertIsNone(choose(trigger, prior, None, set()))
+        self.assertIsNone(choose(trigger, prior, {"request_id": "retry"}, {"old-request"}))
+        self.assertIsNone(choose(trigger, {**prior,
+            "request_payload": {"max_tokens": 2048}}, None, {"old-request"}))
+        self.assertIsNone(choose(trigger, {**prior,
+            "delivery_state": "awaiting_response"}, None, {"old-request"}))
+
     def test_real_evaluation_feedback_is_durably_correlated_for_grace_and_steward(self):
         service = GraceExecutionService.__new__(GraceExecutionService)
         service.pipeline = _Pipeline()
