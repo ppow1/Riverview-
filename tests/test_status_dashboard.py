@@ -661,16 +661,22 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(pipeline.calls, [(objective_id,
             InstitutionalPrincipal("steward:linked-account"), scope_ref,
             "Duplicate request; no longer needed")])
+        status, _, optional_reason = self.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
+            token=self.token, cookie="rv_account_session=account-session", csrf="csrf-token",
+            body=b"{}", content_type="application/json")
+        self.assertEqual(status, 200, optional_reason)
+        self.assertEqual(pipeline.calls[-1], (objective_id,
+            InstitutionalPrincipal("steward:linked-account"), scope_ref, None))
         status, _, denied = self.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
             token=self.token, cookie="rv_account_session=account-nonsteward", csrf="csrf-token",
             body=body, content_type="application/json")
         self.assertEqual(status, 403, denied)
-        self.assertEqual(len(pipeline.calls), 1)
+        self.assertEqual(len(pipeline.calls), 2)
         status, _, missing_csrf = self.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
             token=self.token, cookie="rv_account_session=account-session",
             body=body, content_type="application/json")
         self.assertEqual(status, 403, missing_csrf)
-        self.assertEqual(len(pipeline.calls), 2)
+        self.assertEqual(len(pipeline.calls), 3)
         self.assertEqual(pipeline.calls[-1][1], "")
 
     def test_resource_telemetry_route_uses_dashboard_auth_and_is_read_only(self):

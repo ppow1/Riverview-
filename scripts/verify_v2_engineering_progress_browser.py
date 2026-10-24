@@ -27,7 +27,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACTS = ROOT / "docs/evidence/issue253"
@@ -47,8 +47,9 @@ class FixtureState:
         self.objective_active = 0
         self.objective_max_active = 0
         self.cancel_posts = 0
-        self.cancelled = False
+        self.cancelled = {}
         self.last_reason = None
+        self.last_objective_id = None
         self.last_unmatched_path = None
 
     def snapshot(self):
@@ -57,7 +58,8 @@ class FixtureState:
                     "objective_active": self.objective_active,
                     "objective_max_active": self.objective_max_active,
                     "cancel_posts": self.cancel_posts,
-                    "cancelled": self.cancelled,
+                    "cancelled": dict(self.cancelled),
+                    "last_objective_id": self.last_objective_id,
                     "last_unmatched_path": self.last_unmatched_path}
 
 
@@ -74,6 +76,16 @@ def main():
          "lifecycle_status": "WORK_ORDER_CREATED", "lifecycle_stage": "work_order_created",
          "assignment_id": "assignment:fixture-queued", "assignment_state": "ready",
          "latest_event": {"event_type": "assignment.queued", "occurred_at": "2026-10-23T17:01:00Z"},
+         "cancellation": None},
+        {"objective_id": "objective:fixture-command", "status": "WORK_ORDER_CREATED",
+         "lifecycle_status": "WORK_ORDER_CREATED", "lifecycle_stage": "work_order_created",
+         "assignment_id": "assignment:fixture-command", "assignment_state": "queued",
+         "latest_event": {"event_type": "assignment.queued", "occurred_at": "2026-10-23T17:02:00Z"},
+         "cancellation": None},
+        {"objective_id": "objective:fixture-running", "status": "WORK_ORDER_CREATED",
+         "lifecycle_status": "WORK_ORDER_CREATED", "lifecycle_stage": "engineering_executing",
+         "assignment_id": "assignment:fixture-running", "assignment_state": "running",
+         "latest_event": {"event_type": "assignment.started", "occurred_at": "2026-10-23T17:03:00Z"},
          "cancellation": None},
     ]
 
@@ -114,22 +126,25 @@ def main():
             if path == f"/api/v1/resident/conversations/{CONVERSATION}":
                 self.send_json(200, {"conversation_id": CONVERSATION, "events": []}); return
             if path.startswith("/api/v1/objectives"):
-                with state.lock:
-                    state.objective_gets += 1
-                    state.objective_active += 1
-                    state.objective_max_active = max(state.objective_max_active, state.objective_active)
+                tracked_progress = "conversation_id" in parse_qs(urlsplit(self.path).query)
+                if tracked_progress:
+                    with state.lock:
+                        state.objective_gets += 1
+                        state.objective_active += 1
+                        state.objective_max_active = max(state.objective_max_active, state.objective_active)
                 try:
-                    time.sleep(0.8)
+                    if tracked_progress: time.sleep(0.8)
                     items = [dict(item) for item in objectives]
-                    if state.cancelled:
-                        item = items[0]
-                        item["status"] = item["lifecycle_status"] = "CANCELLED"
-                        item["cancellation"] = {"reason": state.last_reason,
-                            "cancelled_at": "2026-10-23T17:02:00Z", "actor_id": "steward:fixture"}
+                    for item in items:
+                        if item["objective_id"] in state.cancelled:
+                            item["status"] = item["lifecycle_status"] = "CANCELLED"
+                            item["cancellation"] = {"reason": state.cancelled[item["objective_id"]],
+                                "cancelled_at": "2026-10-23T17:02:00Z", "actor_id": "steward:fixture"}
                     self.send_json(200, {"schema_version": "rv.dashboard.objective_progress.v1",
                         "status": "available", "observed_at": "2026-10-23T17:02:01Z", "items": items})
                 finally:
-                    with state.lock: state.objective_active -= 1
+                    if tracked_progress:
+                        with state.lock: state.objective_active -= 1
                 return
             with state.lock: state.last_unmatched_path = path
             self.send_json(404, {"error": "fixture_not_found"})
@@ -146,8 +161,10 @@ def main():
                 if not isinstance(payload.get("reason"), str) or not payload["reason"].strip():
                     self.send_json(400, {"error": "reason_required"}); return
                 with state.lock:
-                    state.cancel_posts += 1; state.cancelled = True
+                    state.cancel_posts += 1
                     state.last_reason = payload["reason"]
+                    state.last_objective_id = path.split("/")[-2]
+                    state.cancelled[state.last_objective_id] = payload["reason"]
                 self.send_json(200, {"objective_id": path.split("/")[-2], "status": "CANCELLED"}); return
             with state.lock: state.last_unmatched_path = path
             self.send_json(404, {"error": "fixture_not_found"})
@@ -207,7 +224,7 @@ def main():
             js("window.__errors=[]; addEventListener('error',e=>window.__errors.push(String(e.message||'error'))); addEventListener('unhandledrejection',()=>window.__errors.push('unhandled_rejection'))")
             js("document.querySelector('[data-view=\"residents\"]').click(); document.querySelector('[data-resident-id=\"grace-preview\"]').click()")
             wait_for("document.getElementById('engineering-progress-panel').parentElement.id==='right-sidebar' && !document.getElementById('engineering-progress-panel').hidden")
-            wait_for("document.querySelectorAll('#engineering-progress-list article').length===2")
+            wait_for("document.querySelectorAll('#engineering-progress-list article').length===4")
             initial = js("return {parent:document.getElementById('engineering-progress-panel').parentElement.id, visible:!document.getElementById('engineering-progress-panel').hidden, fallbackHidden:document.getElementById('engineering-progress-fallback').hidden, cards:document.querySelectorAll('#engineering-progress-list article').length, composerBefore:document.getElementById('grace-message').value}")
             js("const box=document.getElementById('grace-message');box.value='draft stays through sidebar changes';box.focus();box.setSelectionRange(5,14);const log=document.getElementById('grace-chat-history');for(const [k,v] of Object.entries({height:'160px',maxHeight:'160px',minHeight:'160px',flex:'none',overflowY:'auto'}))log.style.setProperty(k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase()),v,'important');const filler=document.createElement('div');filler.style.cssText='flex:0 0 1400px;height:1400px';filler.textContent='Synthetic scroll fixture';log.append(filler);log.scrollTop=17;window.__panel=document.getElementById('engineering-progress-panel');window.scrollTo(0,40)")
             # Expanded -> compact -> hidden -> restore; the same panel must move only to the fallback.
@@ -256,7 +273,7 @@ def main():
             # Exercise eligible cancel UI against disposable fixture and verify refreshed authoritative result.
             js("document.getElementById('right-restore').click()")
             wait_for("document.getElementById('engineering-progress-panel').parentElement.id==='right-sidebar'")
-            js("document.querySelector('[data-cancel-objective=\"objective:fixture-grounded\"]').click()")
+            js("document.querySelector('[data-cancel-objective=\"objective:fixture-queued\"]').click()")
             js("document.getElementById('engineering-cancel-reason').value='fixture cancellation acceptance';document.getElementById('engineering-cancel-form').requestSubmit()")
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline:
@@ -264,6 +281,31 @@ def main():
                     break
                 time.sleep(0.1)
             else: raise RuntimeError("fixture_cancel_refresh_not_observed")
+            # The Objectives table shows the exact objective action only for eligible Steward records.
+            js("document.querySelector('[data-view=\"work\"]').click()")
+            wait_for("document.querySelector('#work-objectives-body [data-open-objective-cancellation=\"objective:fixture-grounded\"]')")
+            if js("return Boolean(document.querySelector('#work-objectives-body [data-open-objective-cancellation=\"objective:fixture-running\"]'))"):
+                raise RuntimeError("running_objective_exposed_cancel_action")
+            js("document.querySelector('#work-objectives-body [data-open-objective-cancellation=\"objective:fixture-grounded\"]').click()")
+            wait_for("document.getElementById('engineering-cancel-dialog').open && document.getElementById('engineering-cancel-target').textContent.includes('objective:fixture-grounded')")
+            js("document.getElementById('engineering-cancel-reason').value='work table cancellation';document.getElementById('engineering-cancel-form').requestSubmit()")
+            wait_for("document.querySelector('#work-objectives-body tr[data-objective-id=\"objective:fixture-grounded\"]')?.textContent.includes('CANCELLED') && !document.querySelector('#work-objectives-body [data-open-objective-cancellation=\"objective:fixture-grounded\"]')")
+            if state.snapshot()["last_objective_id"] != "objective:fixture-grounded":
+                raise RuntimeError("work_table_cancel_used_wrong_objective")
+            # Conversational commands resolve exact assignment IDs, show confirmation, then use the same API.
+            js("document.querySelector('[data-view=\"residents\"]').click();document.querySelector('[data-resident-id=\"grace-preview\"]').click()")
+            wait_for("document.getElementById('grace-chat-connected') && !document.getElementById('grace-chat-connected').hidden")
+            js("const box=document.getElementById('grace-message');box.value='Grace, cancel work order assignment:fixture-command';document.getElementById('grace-chat-form').requestSubmit()")
+            wait_for("document.getElementById('engineering-cancel-dialog').open && document.getElementById('engineering-cancel-target').textContent.includes('objective:fixture-command')")
+            js("document.getElementById('engineering-cancel-reason').value='chat cancellation';document.getElementById('engineering-cancel-form').requestSubmit()")
+            wait_for("document.querySelector('#engineering-progress-list').textContent.includes('chat cancellation')")
+            if state.snapshot()["last_objective_id"] != "objective:fixture-command":
+                raise RuntimeError("conversational_cancel_used_wrong_objective")
+            cancel_count = state.snapshot()["cancel_posts"]
+            js("const box=document.getElementById('grace-message');box.value='Grace, cancel the stalled engineering objective';document.getElementById('grace-chat-form').requestSubmit()")
+            wait_for("document.getElementById('grace-chat-action-status').textContent.includes('no stalled flag')")
+            if state.snapshot()["cancel_posts"] != cancel_count:
+                raise RuntimeError("ambiguous_stalled_command_cancelled_without_clarification")
             final_state = state.snapshot()
             browser_errors = js("return window.__errors")
             report = {"result": "PASS", "browser": subprocess.check_output(["firefox", "--version"], text=True).strip(),
@@ -273,7 +315,12 @@ def main():
                     "max_concurrent_requests": final_state["objective_max_active"],
                     "transition_during_inflight_request": during_request_transition},
                 "fixture_cancel": {"post_count": final_state["cancel_posts"],
-                    "durable_refresh_reflected_reason": final_state["cancelled"]},
+                    "cancelled_objectives": sorted(final_state["cancelled"]),
+                    "engineering_progress_work_order_cancelled": "objective:fixture-queued" in final_state["cancelled"],
+                    "engineering_progress_refresh_reflected_reason": final_state["cancelled"].get("objective:fixture-queued") == "fixture cancellation acceptance",
+                    "work_table_correct_objective": "objective:fixture-grounded" in final_state["cancelled"],
+                    "grace_command_exact_work_order": "objective:fixture-command" in final_state["cancelled"],
+                    "stalled_command_requested_clarification": True},
                 "browser_errors": browser_errors,
                 "screenshots": [str(ARTIFACTS / "engineering-progress-desktop.png"),
                     str(ARTIFACTS / "engineering-progress-mobile.png")]}
