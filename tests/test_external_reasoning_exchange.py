@@ -33,6 +33,7 @@ import os
 import hashlib
 import http.client
 import json
+from unittest.mock import patch
 import secrets
 import socket
 import threading
@@ -289,6 +290,98 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
     def _service(self, clock=None):
         return DurableExternalReasoningExchange(self.ledger, self.router,
             actor_id=RESIDENT, clock=clock or (lambda: self.clock_value))
+
+    def test_grace_experiment_amendment_preserves_usage_and_is_idempotent(self):
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.grace_experiment_authorization import (
+            GraceExperimentAuthorization,
+        )
+
+        auth_id = "a38cb2cc-cbd1-5867-ac44-b2721935f324"
+        objective_id = "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2"
+        authority_grant = "grant:grace-autonomy:" + auth_id
+        luna_grant = "grace-luna-direct-20261023-v1"
+        scope = "grace-autonomy:" + objective_id
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES ('steward:camrui','steward'),
+                ('resident:grace','resident')""").format(self.sql.Identifier(self.schema)))
+        for grant_id, action, scope_ref in (
+            (authority_grant, "grace.experiment.execute", scope),
+            (luna_grant, "resident.reasoning.escalate", "provider:gpt-6-luna"),
+        ):
+            self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,'resident:grace',%s,%s,'steward:camrui','test-fixture')""").format(
+                    self.sql.Identifier(self.schema)), (grant_id, action, scope_ref))
+        inserted = self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_experiment_authorizations
+            (authorization_id,experiment_key,objective_id,objective_revision,source_event_id,
+             authority_grant_id,luna_authority_grant_id,authorized_by,authority_reference,
+             idempotency_key,total_budget_usd,prior_spend_usd,max_recovery_attempts,
+             max_luna_requests,expires_at,status)
+            VALUES (%s,'grace-autonomy-luna-r2',%s,2,%s,%s,%s,'steward:camrui',
+             'authenticated-comms5-steward','grace-autonomy-luna-r2-20261023',5.00,
+             0.04104010,5,2,clock_timestamp()+interval '23 hours','active')
+            RETURNING expires_at""").format(self.sql.Identifier(self.schema)),
+            (auth_id, objective_id, uuid4(), authority_grant, luna_grant)).fetchone()
+        expiry = inserted[0].isoformat()
+        event_rows = []
+        for index in range(4):
+            event_rows.append((f"amend-fixture-recovery-{index}", "recovery_claimed", {}))
+        for index, cost in enumerate(("0.00039370", "0.00040080")):
+            event_rows.append((f"amend-fixture-reserved-{index}", "luna_reserved", {}))
+            event_rows.append((f"amend-fixture-settled-{index}", "luna_settled", {"cost_usd": cost}))
+        for key, event_type, payload in event_rows:
+            self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_experiment_authorization_events
+                (authorization_id,event_type,idempotency_key,objective_id,payload)
+                VALUES (%s,%s,%s,%s,%s::jsonb)""").format(self.sql.Identifier(self.schema)),
+                (auth_id, event_type, key, objective_id, json.dumps(payload)))
+        authorizer = GraceExperimentAuthorization(
+            SimpleNamespace(ledger=self.ledger), SimpleNamespace(schema=self.schema))
+        request = dict(actor_id="steward:camrui", authorization_id=auth_id,
+            objective_id=objective_id, revision=2, expected_max_luna_requests=2,
+            new_max_luna_requests=4, expected_used_luna_requests=2,
+            expected_used_recoveries=4, expected_cumulative_spend_usd=0.04183460,
+            total_budget_usd=5, expires_at=expiry,
+            explicit_steward_confirmation=True,
+            idempotency_key="grace-autonomy-luna-r2-amend-20261024")
+        result = authorizer.amend_luna_request_limit(**request)
+        self.assertTrue(result["amendment_event_id"])
+        self.assertEqual(result["remaining_luna_requests"], 2)
+        self.assertEqual(result["used_recoveries"], 4)
+        self.assertEqual(result["cumulative_spend_usd"], 0.04183460)
+        self.assertEqual(self.admin.execute(self.sql.SQL("SELECT max_luna_requests FROM {}.grace_experiment_authorizations WHERE authorization_id=%s").format(
+            self.sql.Identifier(self.schema)), (auth_id,)).fetchone()[0], 4)
+        self.assertEqual(self.admin.execute(self.sql.SQL("""SELECT count(*) FROM {}.grace_experiment_authorization_events
+            WHERE authorization_id=%s AND event_type='amended'""").format(
+                self.sql.Identifier(self.schema)), (auth_id,)).fetchone()[0], 1)
+        self.assertTrue(self.admin.execute("SELECT has_column_privilege('riverview_core',%s,'max_luna_requests','UPDATE')",
+            (self.schema + ".grace_experiment_authorizations",)).fetchone()[0])
+        with patch.dict(os.environ, {"RIVERVIEW_AUTHORITY_SCHEMA": self.schema}):
+            with self.ledger.db.transaction():
+                with self.ledger.db.cursor() as cur:
+                    self.ledger._set_search_path(cur)
+                    cme_row = {"objective_id": objective_id, "proposal_revision": 2,
+                        "request_id": uuid4(), "request_payload": {
+                            "request_type": "cme_diagnostic_recovery"}}
+                    self.assertEqual(self.exchange._reserve_experiment_luna_call(cur,
+                        cme_row, 0.01), auth_id)
+                    duplicate_cme = {**cme_row, "request_id": uuid4()}
+                    self.assertIsNone(self.exchange._reserve_experiment_luna_call(cur,
+                        duplicate_cme, 0.01))
+                    evaluation_row = {**cme_row, "request_id": uuid4(),
+                        "request_payload": {"request_type": "performance_evaluation"}}
+                    self.assertEqual(self.exchange._reserve_experiment_luna_call(cur,
+                        evaluation_row, 0.01), auth_id)
+                    unallocated_row = {**cme_row, "request_id": uuid4(),
+                        "request_payload": {"request_type": "objective_reasoning"}}
+                    self.assertIsNone(self.exchange._reserve_experiment_luna_call(cur,
+                        unallocated_row, 0.01))
+        replay = authorizer.amend_luna_request_limit(**request)
+        self.assertTrue(replay["idempotent_replay"])
+        self.assertEqual(replay["used_luna_requests"], 4)
+        with self.assertRaisesRegex(ValueError, "experiment_amendment_scope_invalid"):
+            authorizer.amend_luna_request_limit(**{**request,
+                "expected_cumulative_spend_usd": 0.04183461})
 
     def _grace_service(self, exchange, *, initiate_external=False, targets=()):
         from riverview_core.institutional_authority import ExactGrantAuthorizer

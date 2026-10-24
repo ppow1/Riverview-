@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 import json
 import threading
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -167,6 +167,41 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "experiment_authorization_fields_invalid"):
             operations.execute(tool, {**arguments, "authenticated_principal": "steward:camrui"},
                 principal_id="steward:camrui")
+
+    def test_experiment_amendment_is_exact_and_steward_gated(self):
+        tool = "comms5_amend_grace_experiment"
+        arguments = {
+            "authorization_id": "a38cb2cc-cbd1-5867-ac44-b2721935f324",
+            "objective_id": "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2",
+            "objective_revision": 2,
+            "expected_max_luna_requests": 2,
+            "new_max_luna_requests": 4,
+            "expected_used_luna_requests": 2,
+            "expected_used_recoveries": 4,
+            "expected_cumulative_spend_usd": 0.04183460,
+            "total_budget_usd": 5.0,
+            "expires_at": "2026-10-25T09:11:16.041229-04:00",
+            "explicit_steward_confirmation": True,
+            "idempotency_key": "grace-autonomy-luna-r2-amend-20261024",
+        }
+        pipeline = SimpleNamespace(ledger=object())
+        operations = Comms5Operations(self.registry, self.lifecycle,
+            objective_pipeline=pipeline, authority_registry=object())
+        with self.assertRaisesRegex(PermissionError, "authenticated Steward"):
+            operations.execute(tool, arguments, principal_id="resident:grace")
+        with self.assertRaisesRegex(PermissionError, "explicit Steward confirmation"):
+            operations.execute(tool, {**arguments, "explicit_steward_confirmation": False},
+                principal_id="steward:camrui")
+        with self.assertRaisesRegex(ValueError, "experiment_amendment_fields_invalid"):
+            operations.execute(tool, {**arguments, "unexpected": True},
+                principal_id="steward:camrui")
+        with patch("riverview_core.resident_execution.grace_experiment_authorization.GraceExperimentAuthorization.amend_luna_request_limit",
+                   return_value={"status": "active"}) as amend:
+            result = operations.execute(tool, arguments, principal_id="steward:camrui")
+        self.assertEqual(result, {"status": "active"})
+        self.assertEqual(amend.call_args.kwargs["actor_id"], "steward:camrui")
+        self.assertEqual(amend.call_args.kwargs["revision"], 2)
+        self.assertTrue(amend.call_args.kwargs["explicit_steward_confirmation"])
 
     def test_seed_is_persisted_as_unapproved_proposal_using_attested_identity(self):
         result = self.operations.execute("comms5_submit_steward_seed", self.seed(),
@@ -438,9 +473,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 28)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 29)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(28 - len(status), 0)
+        self.assertEqual(29 - len(status), 0)
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler

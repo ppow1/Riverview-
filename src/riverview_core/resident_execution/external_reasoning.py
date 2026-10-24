@@ -314,6 +314,23 @@ class DurableExternalReasoningExchange:
         auth = cur.fetchone()
         if auth is None:
             return None
+        cur.execute("""SELECT occurred_at,payload FROM grace_experiment_authorization_events
+            WHERE authorization_id=%s AND event_type='amended'
+            ORDER BY occurred_at,event_id LIMIT 1""", (auth["authorization_id"],))
+        amendment = cur.fetchone()
+        request_type = (row.get("request_payload", {}).get("request_type")
+            if isinstance(row.get("request_payload"), dict) else None)
+        if amendment is not None:
+            allocations = amendment["payload"].get("additional_request_allocations", {})
+            allocation = allocations.get(request_type, 0) if isinstance(allocations, dict) else 0
+            if type(allocation) is not int or allocation < 1:
+                return None
+            cur.execute("""SELECT count(*) AS used FROM grace_experiment_authorization_events
+                WHERE authorization_id=%s AND event_type='luna_reserved'
+                  AND occurred_at>%s AND payload->>'request_type'=%s""",
+                (auth["authorization_id"], amendment["occurred_at"], request_type))
+            if int(cur.fetchone()["used"]) >= allocation:
+                return None
         authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
         cur.execute(sql.SQL("SELECT {}.active_grace_autonomy_experiment_grant(%s,%s) AS grant_id").format(
             sql.Identifier(authority_schema)), (auth["authority_grant_id"], scope_ref))
@@ -351,7 +368,8 @@ class DurableExternalReasoningExchange:
             ON CONFLICT (idempotency_key) DO NOTHING""",
             (auth["authorization_id"], f"grace-experiment:{auth_id}:luna:{row['request_id']}",
              objective_id, row["request_id"], _json({"reserved_cost_usd": reserved_cost,
-                "provider_id": "gpt-6-luna", "proposal_revision": revision})))
+                "provider_id": "gpt-6-luna", "proposal_revision": revision,
+                **({"request_type": request_type} if amendment is not None else {})})))
         return auth_id
 
     def _settle_experiment_luna_call(self, cur, row, usage, status):

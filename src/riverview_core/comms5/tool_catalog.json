@@ -1597,6 +1597,33 @@
           ]
         }
       ]
+    },
+    {
+      "name": "comms5_amend_grace_experiment",
+      "title": "Amend bounded Grace autonomy experiment",
+      "description": "One authenticated, audited amendment of the existing r2 experiment from two to four total Luna requests. The two new slots are restricted to one CME diagnostic recovery request and one performance evaluation request. Preserves consumed requests, recovery count, original $5 ceiling, objective scope, and exact expiration. Does not create a grant or reset counters.",
+      "inputSchema": {
+        "properties": {
+          "authorization_id": {"description": "Exact active authorization ID to amend.", "type": "string"},
+          "objective_id": {"description": "Exact original r2 objective.", "type": "string"},
+          "objective_revision": {"description": "Exact proposal revision, 2.", "type": "integer"},
+          "expected_max_luna_requests": {"description": "Current total request ceiling, 2.", "type": "integer"},
+          "new_max_luna_requests": {"description": "Amended total ceiling, 4; previously used requests remain counted.", "type": "integer"},
+          "expected_used_luna_requests": {"description": "Expected already reserved requests, 2.", "type": "integer"},
+          "expected_used_recoveries": {"description": "Expected already claimed recoveries, 4.", "type": "integer"},
+          "expected_cumulative_spend_usd": {"description": "Expected cumulative spend at approval, $0.04183460.", "type": "number"},
+          "total_budget_usd": {"description": "Unchanged experiment ceiling, $5.00.", "type": "number"},
+          "expires_at": {"description": "Exact original authorization expiry; this amendment does not extend it.", "type": "string"},
+          "explicit_steward_confirmation": {"description": "Approve this exact amendment through authenticated Steward transport.", "type": "boolean"},
+          "idempotency_key": {"description": "Stable one-use amendment key.", "type": "string"}
+        },
+        "required": ["authorization_id", "objective_id", "objective_revision", "expected_max_luna_requests", "new_max_luna_requests", "expected_used_luna_requests", "expected_used_recoveries", "expected_cumulative_spend_usd", "total_budget_usd", "expires_at", "explicit_steward_confirmation", "idempotency_key"],
+        "additionalProperties": false,
+        "title": "comms5_amend_grace_experimentArguments",
+        "type": "object"
+      },
+      "annotations": {"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+      "securitySchemes": [{"type": "oauth2", "scopes": ["comms5"]}]
     }
   ],
   "read_only_payloads": {
@@ -2463,6 +2490,27 @@
           ],
           "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution.",
           "camrui_implementation_status": "IMPLEMENTED"
+          },
+          {
+            "name": "amend_grace_experiment",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "authorization_id",
+              "objective_id",
+              "objective_revision",
+              "expected_max_luna_requests",
+              "new_max_luna_requests",
+              "expected_used_luna_requests",
+              "expected_used_recoveries",
+              "expected_cumulative_spend_usd",
+              "total_budget_usd",
+              "expires_at",
+              "explicit_steward_confirmation",
+              "idempotency_key",
+              "authenticated Steward transport"
+            ],
+            "description": "Amend only the existing r2 authorization from two to four total requests: one additional CME diagnostic recovery and one performance evaluation. Preserve consumed counts, recovery limit, cumulative $5 ceiling, objective scope, and expiry.",
+            "camrui_implementation_status": "IMPLEMENTED"
         }
       ],
       "classifications": [
@@ -2630,6 +2678,20 @@
         "objective_revision": 2,
         "explicit_steward_confirmation": true,
         "idempotency_key": "grace-autonomy-luna-r2-20261023"
+      },
+      "amend_grace_experiment": {
+        "authorization_id": "a38cb2cc-cbd1-5867-ac44-b2721935f324",
+        "objective_id": "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2",
+        "objective_revision": 2,
+        "expected_max_luna_requests": 2,
+        "new_max_luna_requests": 4,
+        "expected_used_luna_requests": 2,
+        "expected_used_recoveries": 4,
+        "expected_cumulative_spend_usd": 0.04183460,
+        "total_budget_usd": 5.0,
+        "expires_at": "2026-10-25T09:11:16.041229-04:00",
+        "explicit_steward_confirmation": true,
+        "idempotency_key": "grace-autonomy-luna-r2-amend-20261024"
       },
       "revise_specification": {
         "proposal_id": "proposal:00000000-0000-4000-8000-000000000001",
@@ -2913,6 +2975,28 @@
         "authenticated Steward transport"
       ],
       "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution."
+    },
+    "describe:amend_grace_experiment": {
+      "operation": "amend_grace_experiment",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "authorization_id",
+        "objective_id",
+        "objective_revision",
+        "expected_max_luna_requests",
+        "new_max_luna_requests",
+        "expected_used_luna_requests",
+        "expected_used_recoveries",
+        "expected_cumulative_spend_usd",
+        "total_budget_usd",
+        "expires_at",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "authenticated Steward transport"
+      ],
+      "description": "Append-only Steward authorization to increase the existing r2 grant from two to four total Luna requests, allocating the two new slots to one CME diagnostic recovery and one performance evaluation. No counters, budget, objective scope, recovery limit, or expiry are reset or widened.",
+      "response": "bounded authorization metadata and amendment event ID; no credentials or request content",
+      "idempotency": "One exact idempotency key; replay returns the same amendment and conflicts on changed scope."
     },
     "describe:revise_specification": {
       "contract": "riverview-comms-contract:5.0",

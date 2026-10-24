@@ -45,6 +45,7 @@ _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_set_resource_policy",
     "comms5_set_resource_policy_lock",
     "comms5_authorize_grace_experiment",
+    "comms5_amend_grace_experiment",
     "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
     "reasoning_exchange_submit_response", "reasoning_exchange_status",
 }
@@ -95,6 +96,7 @@ class DashboardReadBackend:
         "comms5_set_resource_policy": "IMPLEMENTED",
         "comms5_set_resource_policy_lock": "IMPLEMENTED",
         "comms5_authorize_grace_experiment": "IMPLEMENTED",
+        "comms5_amend_grace_experiment": "IMPLEMENTED",
         "reasoning_exchange_list_requests": "IMPLEMENTED",
         "reasoning_exchange_claim_request": "IMPLEMENTED",
         "reasoning_exchange_submit_response": "IMPLEMENTED",

@@ -53,6 +53,7 @@ class Comms5Operations:
         "comms5_revalidate_and_queue_work", "comms5_set_resource_policy",
         "comms5_set_resource_policy_lock",
         "comms5_authorize_grace_experiment",
+        "comms5_amend_grace_experiment",
         "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
         "reasoning_exchange_submit_response", "reasoning_exchange_status",
     })
@@ -121,6 +122,25 @@ class Comms5Operations:
                 actor_id=actor, objective_id=arguments["objective_id"],
                 revision=arguments["objective_revision"],
                 idempotency_key=self._idempotency(arguments["idempotency_key"]))
+        if tool == "comms5_amend_grace_experiment":
+            required = {"authorization_id", "objective_id", "objective_revision",
+                "expected_max_luna_requests", "new_max_luna_requests",
+                "expected_used_luna_requests", "expected_used_recoveries",
+                "expected_cumulative_spend_usd", "total_budget_usd", "expires_at",
+                "explicit_steward_confirmation", "idempotency_key"}
+            if set(arguments) != required:
+                raise ValueError("experiment_amendment_fields_invalid")
+            if arguments["explicit_steward_confirmation"] is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            if self.pipeline is None or self.authority_registry is None:
+                raise RuntimeError("experiment_authorization_unavailable")
+            from .grace_experiment_authorization import GraceExperimentAuthorization
+            values = {key: value for key, value in arguments.items()
+                      if key not in {"idempotency_key", "explicit_steward_confirmation"}}
+            values["revision"] = values.pop("objective_revision")
+            return GraceExperimentAuthorization(self.pipeline, self.authority_registry).amend_luna_request_limit(
+                actor_id=actor, explicit_steward_confirmation=True,
+                idempotency_key=self._idempotency(arguments["idempotency_key"]), **values)
         if tool.startswith("reasoning_exchange_"):
             if self.steward_review_bridge is None:
                 raise RuntimeError("external_reasoning_exchange_unavailable")
