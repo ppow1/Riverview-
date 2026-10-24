@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.4
+# Revision: 1.0.5
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-REVIEW-DIAGNOSTICS-20261024 | Assert safe reviewer failure detail is correlated and private text is excluded.
 # Purpose: Verify durable supervisory grading and bounded Luna retry selection
 # Execution Model: Offline unit tests
 # Observability: unittest assertions and exit status
@@ -19,6 +20,7 @@ from types import SimpleNamespace
 from uuid import NAMESPACE_URL, uuid5
 
 from riverview_core.resident_execution.service import GraceExecutionService
+from riverview_core.resident_execution.conversation import ConversationUnavailable
 
 
 class _Pipeline:
@@ -36,6 +38,43 @@ class _Pipeline:
 
 
 class SupervisoryEvaluationUnitTests(unittest.TestCase):
+    def test_rejected_rework_failure_logs_allowlisted_detail_without_free_text(self):
+        from types import SimpleNamespace
+
+        objective_id = "objective:test:rejected-review"
+        assignment_id = "assignment:test:rejected-review"
+        context = {"objective_id": objective_id, "assignment_id": assignment_id,
+            "origin": {"conversation_id": "00000000-0000-0000-0000-000000000001",
+                       "source_sequence": 1},
+            "completion": {"verification_id": "00000000-0000-0000-0000-000000000002"},
+            "rework_attempt_count": 0}
+        pending = []
+        pipeline = SimpleNamespace(MAX_GOVERNED_REWORK_ATTEMPTS=3,
+            pending_rejected_work_order_reviews=lambda **_kwargs: [context],
+            record_rework_escalation_pending=lambda _context, reason: pending.append(reason))
+        service = object.__new__(GraceExecutionService)
+        service.pipeline = pipeline
+        service.dispatch_credential = "synthetic"
+        service.verifiers = {}
+        service.rejected_work_order_publisher = lambda _context: (_ for _ in ()).throw(
+            ConversationUnavailable("bound reasoning provider unavailable"))
+
+        with self.assertLogs("riverview.grace_execution", level="WARNING") as captured:
+            self.assertEqual(service.publish_rejected_work_order_reviews(), 0)
+
+        log_line = captured.output[0]
+        record = json.loads(log_line[log_line.index("{"):])
+        self.assertEqual(record["objective_id"], objective_id)
+        self.assertEqual(record["assignment_id"], assignment_id)
+        self.assertEqual(record["failure_stage"], "resident_rework_review")
+        self.assertEqual(record["failure_detail"], "bound reasoning provider unavailable")
+        self.assertEqual(pending, ["review_provider_unavailable"])
+        self.assertNotIn("synthetic", captured.output[0])
+        from riverview_core.resident_execution.service import _safe_rework_review_failure_detail
+        self.assertEqual(_safe_rework_review_failure_detail(
+            ConversationUnavailable("private provider echo")), "conversation_unavailable")
+        self.assertIsNone(_safe_rework_review_failure_detail(RuntimeError("private text")))
+
     def test_cme_diagnostic_attempts_have_distinct_escalation_identities(self):
         event_id = "c7558b01-8004-4a44-8344-4bf0fe0ae27e"
         identify = GraceExecutionService._cme_diagnostic_escalation_id

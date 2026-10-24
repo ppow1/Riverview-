@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.49
+# Revision: 1.0.50
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-REVIEW-DIAGNOSTICS-20261024 | Record a safe review stage and allowlisted ConversationUnavailable detail for bounded same-release recovery diagnosis.
 # Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-MINIMAL-RETRY-20261024 | Permit one minimal-evidence evaluation attempt after a compact retry receives the same exact HTTP 400 input rejection.
 # Changed: 2026-10-24 UTC | RV-GRACE-CME-ESCALATION-ID-FALLBACK-20261024 | Give the bounded fourth diagnostic attempt its own deterministic escalation identity.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Bound Luna supervisory output to the verified 512-token envelope and permit one durable low-output fallback after the bounded retry fails at transport.
@@ -80,6 +81,36 @@ from .verifier import BoundedArtifactVerifier
 from .worker import CAPABILITY, BoundedLocalCodingWorker
 
 LOG = logging.getLogger("riverview.grace_execution")
+
+_SAFE_REWORK_REVIEW_FAILURE_DETAILS = frozenset({
+    "digest-verified assignment artifact set is required for Grace review",
+    "assignment artifact review identity is invalid",
+    "Codex artifact review snapshot failed its integrity bound",
+    "digest-verified Codex artifact text is required for Grace review",
+    "governed rework handler unavailable",
+    "current resident binding unavailable",
+    "bound reasoning provider unavailable",
+    "80B rejection review capability unavailable",
+    "persisted rework response provenance is incomplete",
+    "Grace rework review was incomplete",
+    "Grace rework decision was invalid",
+    "Grace rework decision exceeded the original assignment scope",
+    "office model binding changed during rejection review",
+    "governed rework decision was not durably recorded",
+    "durable proposal-origin rework receipt handler unavailable",
+    "proposal-origin rework receipt was not durably recorded",
+    "Grace rework response exceeded its bound",
+    "office model binding changed before rework response",
+    "authority check unavailable",
+})
+
+
+def _safe_rework_review_failure_detail(exc):
+    """Expose only stable, source-defined reviewer failure codes."""
+    if type(exc).__name__ != "ConversationUnavailable":
+        return None
+    detail = str(exc)
+    return detail if detail in _SAFE_REWORK_REVIEW_FAILURE_DETAILS else "conversation_unavailable"
 
 
 class GraceExecutionService:
@@ -1129,13 +1160,16 @@ class GraceExecutionService:
                 self.pipeline.record_rework_escalation_pending(
                     context, "review_provider_uncommissioned")
                 continue
+            failure_stage = "artifact_review"
             try:
                 review_context = self._with_grace_artifact_review(context)
                 if context.get("origin") is None:
                     review_context["current_authority_evidence"] = (
                         self.pipeline.rework_review_authority_evidence(
                             context, credential=self.dispatch_credential))
+                failure_stage = "resident_rework_review"
                 receipt = self.rejected_work_order_publisher(review_context)
+                failure_stage = "receipt_validation"
                 if (not isinstance(receipt, dict) or
                         receipt.get("status") not in {"published", "already_published", "recorded"} or
                         receipt.get("verification_id") !=
@@ -1150,11 +1184,15 @@ class GraceExecutionService:
             except Exception as exc:
                 self.pipeline.record_rework_escalation_pending(
                     context, "review_provider_unavailable")
-                LOG.warning(json.dumps({"event": "grace_rejected_result_review_failed",
+                diagnostic = {"event": "grace_rejected_result_review_failed",
                     "objective_id": context.get("objective_id"),
                     "assignment_id": context.get("assignment_id"),
                     "verification_id": context.get("completion", {}).get("verification_id"),
-                    "failure_type": type(exc).__name__}, sort_keys=True))
+                    "failure_type": type(exc).__name__, "failure_stage": failure_stage}
+                failure_detail = _safe_rework_review_failure_detail(exc)
+                if failure_detail:
+                    diagnostic["failure_detail"] = failure_detail
+                LOG.warning(json.dumps(diagnostic, sort_keys=True))
         return published
 
     def reconcile_proposal_lifecycle(self):
