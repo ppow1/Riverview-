@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.40
+# Revision: 1.0.41
+# Changed: 2026-10-23 UTC | RV-GRACE-REASONING-FAILURE-FENCE-20261023 | Fence repeated objective reasoning failures by runtime revision and persist a safe blocked diagnostic.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Route only explicitly configured typed ComfyUI proposal steps to the existing capability worker.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Reconcile the latest verified step first so terminal evidence uses the final completion cycle after restart.
 # Changed: 2026-10-21 UTC | W4-GRACE-REASONING-DIAGNOSTICS-20261021 | Correlate objective proposal persistence outcomes with the resident request
@@ -58,6 +59,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -82,6 +84,7 @@ class GraceExecutionService:
 
     MAX_REASONING_FAILURES = 3
     REASONING_FAILURE_WINDOW_SECONDS = 60
+    PERSISTED_PROPOSAL_BLOCK_CODES = frozenset({"PROPOSAL_CRITERIA_BINDING_REJECTED"})
 
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,
@@ -231,6 +234,10 @@ class GraceExecutionService:
         candidate = None
         for row in rows:
             candidate_id = row["objective_id"]
+            candidate_revision = row.get("revision")
+            if (type(candidate_revision) is int and
+                    self._proposal_rejection_blocked(candidate_id, candidate_revision)):
+                continue
             if self._reasoning_failure_count(candidate_id) >= self.MAX_REASONING_FAILURES:
                 continue
             if (self.external_reasoning_exchange is not None and
@@ -322,12 +329,20 @@ class GraceExecutionService:
             self._record_reasoning_failure(objective_id, result=result)
         except Exception as exc:
             detail_code = self._reasoning_failure_detail_code(exc)
-            self._record_reasoning_failure(objective_id, failure_type=type(exc).__name__,
-                                           detail_code=detail_code)
+            blocked_revision = (candidate_revision
+                if detail_code in self.PERSISTED_PROPOSAL_BLOCK_CODES and
+                type(candidate_revision) is int else None)
+            failure_count = self._record_reasoning_failure(objective_id,
+                failure_type=type(exc).__name__, detail_code=detail_code,
+                blocked_revision=blocked_revision)
             LOG.warning(json.dumps({"event": "resident_reasoning_cycle_failed",
                 "objective_id": objective_id,
                 "failure_type": type(exc).__name__,
-                "detail_code": detail_code}, sort_keys=True))
+                "detail_code": detail_code,
+                "consecutive_failure_count": failure_count,
+                "reasoning_status": "BLOCKED" if blocked_revision is not None else "RETRY_LIMITED",
+                **({"objective_revision": blocked_revision}
+                   if blocked_revision is not None else {})}, sort_keys=True))
         return False
 
     @staticmethod
@@ -336,15 +351,39 @@ class GraceExecutionService:
         if (type(exc).__name__ == "ObjectiveStateError" and
                 str(exc) == "proposal omits one or more human acceptance criteria"):
             return "PROPOSAL_OMITS_ACCEPTANCE_CRITERIA"
+        if (type(exc).__name__ == "ObjectiveStateError" and
+                str(exc) == "proposal must bind every original criterion to an Engineering step or a supported lifecycle event"):
+            return "PROPOSAL_CRITERIA_BINDING_REJECTED"
         return "REASONING_CYCLE_FAILED"
+
+    def _runtime_revision(self):
+        value = os.environ.get("RIVERVIEW_SOURCE_COMMIT", "")
+        return value if re.fullmatch(r"[0-9a-f]{40}", value) else "unversioned"
+
+    def _proposal_rejection_blocked(self, objective_id, objective_revision):
+        """Suppress deterministic proposal rejection repeats for this objective revision."""
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT 1 FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='execution.reasoning_failed'
+                  AND payload->>'status'='BLOCKED'
+                  AND payload->>'objective_revision'=%s
+                  AND payload->>'runtime_revision'=%s
+                  AND payload->>'detail_code'=ANY(%s)
+                ORDER BY sequence DESC LIMIT 1""",
+                (objective_id, str(objective_revision), self._runtime_revision(),
+                 list(self.PERSISTED_PROPOSAL_BLOCK_CODES)))
+            return cur.fetchone() is not None
 
     def _reasoning_failure_count(self, objective_id):
         with self.pipeline.ledger.db.cursor() as cur:
             self.pipeline.ledger._set_search_path(cur)
             cur.execute("""SELECT count(*) AS failures FROM grace_objective_events
                 WHERE objective_id=%s AND event_type='execution.reasoning_failed'
-                  AND occurred_at >= clock_timestamp()-make_interval(secs => %s)""",
-                (objective_id, self.REASONING_FAILURE_WINDOW_SECONDS))
+                  AND payload->>'runtime_revision'=%s
+                  AND sequence > COALESCE((SELECT max(sequence) FROM grace_objective_events
+                      WHERE objective_id=%s AND event_type='work_order.proposed'),0)""",
+                (objective_id, self._runtime_revision(), objective_id))
             return int(cur.fetchone()["failures"])
 
     def _record_reasoning_attempt(self, objective_id):
@@ -361,7 +400,7 @@ class GraceExecutionService:
                     (objective_id, key))
 
     def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None,
-                                  detail_code=None):
+                                  detail_code=None, blocked_revision=None):
         status = getattr(getattr(result, "status", None), "value", None)
         detail_code = detail_code or getattr(result, "detail_code", None)
         request_id = getattr(result, "request_id", None)
@@ -374,8 +413,11 @@ class GraceExecutionService:
         if not isinstance(failure_type, str) or not re.fullmatch(r"[A-Za-z0-9_]{1,80}", failure_type):
             failure_type = None
         key = f"grace-reasoning-failure:{objective_id}:{request_id}"
-        payload = {"status": status, "detail_code": detail_code,
-                   "failure_type": failure_type}
+        payload = {"status": "BLOCKED" if type(blocked_revision) is int else status,
+                   "detail_code": detail_code, "failure_type": failure_type,
+                   "runtime_revision": self._runtime_revision()}
+        if type(blocked_revision) is int:
+            payload["objective_revision"] = blocked_revision
         with self.pipeline.ledger.db.transaction():
             with self.pipeline.ledger.db.cursor() as cur:
                 self.pipeline.ledger._set_search_path(cur)
@@ -385,6 +427,7 @@ class GraceExecutionService:
                     ON CONFLICT (idempotency_key) DO NOTHING""",
                     (objective_id, key, json.dumps(payload, sort_keys=True,
                                                   separators=(",", ":"))))
+        return self._reasoning_failure_count(objective_id)
 
     def revalidate_rejected_one(self, assignment_id=None):
         """Append a new verifier decision after a verifier revision correction.

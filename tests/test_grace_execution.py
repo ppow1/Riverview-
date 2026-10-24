@@ -1,7 +1,8 @@
-# ======================================================================# RIVERVIEW~ CONTROLLED TEST
+# =============================================================================
+# RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.63
+# Revision: 1.0.64
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify Grace persists the exact configured worker capability set.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve cancellation authorization, audit, idempotency, queue exclusion, and active-work protection tests.
@@ -396,6 +397,10 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
         error = ObjectiveStateError("proposal omits one or more human acceptance criteria")
         self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(error),
                          "PROPOSAL_OMITS_ACCEPTANCE_CRITERIA")
+        self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
+            ObjectiveStateError(
+                "proposal must bind every original criterion to an Engineering step or a supported lifecycle event")),
+            "PROPOSAL_CRITERIA_BINDING_REJECTED")
         self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
             RuntimeError("untrusted provider message")), "REASONING_CYCLE_FAILED")
 
