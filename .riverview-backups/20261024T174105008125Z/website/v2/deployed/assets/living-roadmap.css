@@ -1,0 +1,35 @@
+.living-roadmap{max-width:1200px;padding:4px 0 30px;color:var(--ink)}
+.living-roadmap[hidden]{display:none!important}
+.roadmap-header,.roadmap-section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.roadmap-header h2{margin:5px 0;font:500 27px Georgia,"Times New Roman",serif}
+.roadmap-header p:not(.eyebrow),.roadmap-lifecycle-note,.roadmap-provenance,.roadmap-live-items>p,.roadmap-section-heading p{color:var(--muted);font-size:11px;line-height:1.5}
+.roadmap-source-state{max-width:250px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-size:10px}
+.roadmap-tools{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.roadmap-tools label{display:grid;gap:5px;min-width:150px;color:var(--muted);font-size:10px;font-weight:650}
+.roadmap-tools input,.roadmap-tools select{min-height:35px;border:1px solid var(--line);border-radius:6px;padding:7px 9px;background:var(--surface);color:var(--ink);font:inherit}
+.roadmap-tools label:first-child{flex:1;min-width:220px}
+.roadmap-priority-note{margin:-5px 0 10px;color:var(--muted);font-size:9px;line-height:1.4}
+.living-roadmap h3{margin:17px 0 9px;font:500 19px Georgia,"Times New Roman",serif}
+.roadmap-legend{padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--surface-soft)}
+.roadmap-legend h3{margin:0 0 9px;font-size:13px}
+#roadmap-status-legend{display:flex;flex-wrap:wrap;gap:7px}
+.roadmap-status{display:inline-flex;align-items:center;gap:5px;width:max-content;padding:3px 7px;border:1px solid var(--line);border-radius:20px;color:var(--muted);font-size:9px;font-weight:700;white-space:nowrap}
+.roadmap-status-icon{display:inline-grid;place-items:center;min-width:12px;font-size:12px}
+.roadmap-status-active{color:#fff;background:#347558;border-color:#347558}.roadmap-status-in_progress{color:#176f8a;background:#e6f4f7;border-color:#a3d5df}.roadmap-status-stalled,.roadmap-status-blocked{color:#903c35;background:#fff0ed;border-color:#e7b5ad}.roadmap-status-waiting{color:#826820;background:#fff8df;border-color:#e6d7a0}.roadmap-status-parked{color:#655d84;background:#f3f0fa;border-color:#ccc4e0}.roadmap-status-canceled{color:#6c7379;background:#f1f2f3;border-color:#d0d4d7}.roadmap-status-completed{color:#2b6b46;background:#edf8f0;border-color:#abd5b5}.roadmap-status-unknown{color:#5f6971;background:#f3f5f6;border-style:dashed}
+.roadmap-priority{padding:3px 7px;border-radius:4px;background:var(--pale);color:var(--teal);font-size:9px;font-weight:750;white-space:nowrap}.roadmap-priority-unassigned{background:var(--surface-soft);color:var(--muted);border:1px dashed var(--line)}
+.roadmap-workstreams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.roadmap-workstream-card{min-width:0;padding:13px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.roadmap-workstream-heading{display:flex;flex-wrap:wrap;align-items:center;gap:7px}.roadmap-workstream-heading h4{flex:1;min-width:160px;margin:0;font-size:14px}.roadmap-workstream-card>p,.roadmap-workstream-detail p{font-size:11px;line-height:1.5;color:var(--muted)}
+.roadmap-workstream-detail>summary{color:var(--teal);cursor:pointer;font-size:10px;font-weight:650}
+.roadmap-lifecycle{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.roadmap-lane{min-width:0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-soft)}.roadmap-lane h4{margin:0 0 8px;font:600 12px system-ui;color:var(--ink)}
+.roadmap-item{margin:6px 0;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:10px}
+.roadmap-item-summary{display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none}.roadmap-item-summary::-webkit-details-marker{display:none}.roadmap-item-title{flex:1;min-width:0;line-height:1.35}.roadmap-item-body{padding-top:7px}.roadmap-item-body>p{font-size:10px;line-height:1.5;overflow-wrap:anywhere}.roadmap-item-meta{display:flex;flex-wrap:wrap;gap:7px;color:var(--muted)}
+.roadmap-tags,.roadmap-links{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.roadmap-tag{padding:3px 6px;border-radius:10px;background:var(--surface-soft);color:var(--muted);font-size:9px}.roadmap-links a{color:var(--teal);font-size:10px;font-weight:650}
+.roadmap-empty{color:var(--muted);font-size:10px;line-height:1.45}.roadmap-section-heading{align-items:center}.roadmap-section-heading h3{margin-bottom:3px}.roadmap-section-heading p{margin:3px 0}.roadmap-section-heading button{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);cursor:pointer}
+.roadmap-live-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.roadmap-provenance{margin-top:16px;border-top:1px solid var(--line);padding-top:10px}
+.roadmap-evidence-label{padding:6px 8px;border-left:3px solid var(--teal);background:var(--surface-soft);font-weight:700;color:var(--muted)}
+.roadmap-live-facts{display:grid;grid-template-columns:minmax(120px,.75fr) minmax(0,1.5fr);gap:5px 10px;margin:9px 0;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-soft);font-size:10px;line-height:1.45}
+.roadmap-live-facts dt{font-weight:700;color:var(--muted)}.roadmap-live-facts dd{margin:0;overflow-wrap:anywhere;color:var(--ink)}
+:root[data-theme="dark"] .roadmap-status-in_progress{background:#20363b;color:#a6d8e2}:root[data-theme="dark"] .roadmap-status-active{background:#244632;color:#c0e6ca}:root[data-theme="dark"] .roadmap-status-parked{background:#302d3c;color:#d1c9ed}
+@media(max-width:900px){.roadmap-lifecycle{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.roadmap-header,.roadmap-section-heading{flex-direction:column}.roadmap-workstreams,.roadmap-lifecycle,.roadmap-live-items{grid-template-columns:1fr}.roadmap-source-state{max-width:none}.roadmap-tools{display:grid;grid-template-columns:1fr 1fr}.roadmap-tools label:first-child{grid-column:1/-1}}

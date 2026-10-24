@@ -1,5 +1,6 @@
 // Revision: 1.0.0
 /* Normalizes authorized objective projections without asserting workstream relationships. */
+// File Revision: 1.0.0
 (() => {
   "use strict";
   const statusMap = (item = {}) => {
@@ -20,14 +21,32 @@
     const raw = typeof item.request === "string" ? item.request.replace(/\s+/g, " ").trim() : "";
     return raw ? raw.slice(0, 160) + (raw.length > 160 ? "…" : "") : "Riverview objective";
   };
-  const objective = (item = {}) => Object.freeze({
-    status: statusMap(item), title: titleFor(item),
-    stage: item.lifecycle_stage || "Stage unavailable in objective projection",
-    updatedAt: item.updated_at || null,
-    objectiveId: item.objective_id || null,
-    assignmentId: item.assignment_id || null,
-    summary: item.rework?.rationale || item.latest_event?.event_type || "No blocker or progress reason recorded in this projection."
-  });
+  const objective = (item = {}) => {
+    const status = statusMap(item);
+    const rationale = typeof item.rework?.rationale === "string" && item.rework.rationale.trim()
+      ? item.rework.rationale.trim() : "";
+    let blocker = "No blocker recorded in the objective projection.";
+    if (item.steward_action_required) blocker = rationale || "Steward action is required; rationale is unavailable in this projection.";
+    else if (status === "blocked") blocker = rationale || "The record is blocked; a reason is unavailable in this projection.";
+    else if (status === "waiting") blocker = item.lifecycle_stage || "Waiting reason unavailable in this projection.";
+    const latestEvent = item.latest_event && typeof item.latest_event === "object" ? {
+      type: item.latest_event.event_type || null, occurredAt: item.latest_event.occurred_at || null
+    } : null;
+    const verification = item.verification && typeof item.verification === "object" ? {
+      decision: item.verification.decision || null, summary: item.verification.summary || null
+    } : null;
+    return Object.freeze({
+      status, title: titleFor(item),
+      stage: item.lifecycle_stage || "Stage unavailable in objective projection",
+      assignmentState: item.assignment_state || null,
+      blocker, latestEvent, verification,
+      updatedAt: item.updated_at || null,
+      objectiveId: item.objective_id || null,
+      assignmentId: item.assignment_id || null,
+      dependencies: null,
+      summary: rationale || latestEvent?.type || "No blocker or progress reason recorded in this projection."
+    });
+  };
   const filterItems = (items = [], {query = "", tag = "", priority = ""} = {}) => {
     const needle = String(query).trim().toLowerCase();
     return items.filter((item) => {

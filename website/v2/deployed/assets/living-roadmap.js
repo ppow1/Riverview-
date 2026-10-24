@@ -1,5 +1,6 @@
 // Revision: 1.0.0
 /* Reusable, read-only Living Roadmap view over canonical planning references and protected work state. */
+// File Revision: 1.0.0
 (() => {
   "use strict";
   const data = window.RiverviewV2LivingRoadmapData;
@@ -60,10 +61,25 @@
     summary.append(statusNode(item.status), node("strong", item.title, "roadmap-item-title"), priorityNode(item.priority));
     details.append(summary);
     const body = node("div", null, "roadmap-item-body");
+    body.append(node("p", live ? item.evidenceLabel : "Documented roadmap intent / delivery evidence · not a live lifecycle status.", "roadmap-evidence-label"));
     const meta = node("p", null, "roadmap-item-meta");
     meta.append(node("span", item.workstream || (live ? "Current Riverview objective" : "Planning item")),
       node("span", `Stage: ${item.stage}`));
     body.append(meta, node("p", item.detail || item.summary));
+    if (live) {
+      const facts = node("dl", null, "roadmap-live-facts");
+      const addFact = (label, value) => {
+        const term = node("dt", label), description = node("dd", value || "Unavailable in this API projection");
+        facts.append(term, description);
+      };
+      addFact("Authoritative lifecycle stage", item.stage);
+      addFact("Assignment state", item.assignmentState);
+      addFact(item.status === "blocked" || item.status === "waiting" ? "Recorded blocker / waiting reason" : "Blocker", item.blocker);
+      addFact("Dependencies", item.dependencies || "Not exposed by the authenticated objective API; none inferred.");
+      addFact("Latest event", item.latestEvent?.type ? `${item.latestEvent.type}${item.latestEvent.occurredAt ? ` · ${new Date(item.latestEvent.occurredAt).toLocaleString()}` : " · timestamp unavailable"}` : "No event returned by the API.");
+      if (item.verification) addFact("Latest verification", `${item.verification.decision || "Decision unavailable"}${item.verification.summary ? ` · ${item.verification.summary}` : ""}`);
+      body.append(facts);
+    }
     if (item.sourcePriority) body.append(node("p", `Source priority: ${item.sourcePriority} (the source board does not use P0–P3).`));
     if (item.tags?.length) {
       const tags = node("div", null, "roadmap-tags");
@@ -135,6 +151,8 @@
       const view = adapter.objective(raw);
       const item = {
         ...view, workstream:"Current Riverview objective", priority:"unassigned", tags:["live", "objective", "engineering"],
+        assignmentState:view.assignmentState,
+        evidenceLabel:state.status === "available" ? "Verified live operational record · authenticated Riverview objective projection (not a canonical roadmap item)." : "Stale last-read operational record · refresh to verify current status.",
         detail:[view.summary, view.updatedAt ? `Last updated ${new Date(view.updatedAt).toLocaleString()}.` : "Updated time unavailable."].join(" "),
         links:[
           ...(view.objectiveId ? [{label:"Open objective record", href:`/api/v1/objectives/${encodeURIComponent(view.objectiveId).replaceAll("%3A", ":")}`}] : []),
