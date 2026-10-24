@@ -575,8 +575,15 @@ class DurableExternalReasoningExchange:
             return cur.fetchone() is not None
 
     def fail_provider_response_submission(self, request_id, correlation_id, *,
-            provider_id, principal_id, claim_token, fence):
+            provider_id, principal_id, claim_token, fence,
+            failure_type=None, failure_detail=None):
         """Terminally fence a paid attempt whose response could not be submitted."""
+        if failure_type is not None and (not isinstance(failure_type, str) or
+                not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,79}", failure_type)):
+            raise ValueError("provider submission failure type is invalid")
+        if failure_detail is not None and (not isinstance(failure_detail, str) or
+                len(failure_detail) > 240 or re.search(r"[\r\n\t]", failure_detail)):
+            raise ValueError("provider submission failure detail is invalid")
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self._set_path(cur)
@@ -598,7 +605,9 @@ class DurableExternalReasoningExchange:
                 self._event(cur, row, "provider_response_submission_failed",
                     "provider-response-submission-failed", principal_id,
                     {"state": "failed", "error_code": "provider_response_submission_failed",
-                     "provider_id": provider_id, "fence": fence})
+                     "provider_id": provider_id, "fence": fence,
+                     **({"failure_type": failure_type} if failure_type else {}),
+                     **({"failure_detail": failure_detail} if failure_detail else {})})
         return True
 
     def has_terminal_review_for_objective(self, objective_id: str) -> bool:

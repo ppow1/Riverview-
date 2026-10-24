@@ -1481,7 +1481,7 @@ class GraceExecutionService:
         request = ReasoningRequest(request_id=original_id, office_id=reasoner.office_id,
             assignment_id=objective_id, assignment_revision=str(objective["revision"]),
             binding_revision=binding_revision, implementation_revision=implementation_revision,
-            trigger="cme_diagnostic_recovery", token_budget=192, assignment=source,
+            trigger="cme_diagnostic_recovery", token_budget=512, assignment=source,
             verified_knowledge=(), prior_plan=None,
             external_reasoning_targets=reasoner.external_reasoning_targets,
             correlation_id=original_id)
@@ -1490,7 +1490,7 @@ class GraceExecutionService:
             escalation_source += ":transport-retry-1"
         escalation_id = str(uuid5(NAMESPACE_URL, escalation_source))
         envelope = EscalationRequest.create(request, reason="capability_gap",
-            target_provider_id="gpt-6-luna", max_tokens=192, timeout_seconds=30,
+            target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
             escalation_id=escalation_id)
         return self.request_external_reasoning(envelope, request,
             idempotency_key=idempotency_key,
@@ -1529,11 +1529,7 @@ class GraceExecutionService:
         events = self.pipeline.objective_events(objective_id)
         existing = any(event["event_type"] == "resident.performance.evaluation_recorded"
                        for event in events)
-        evidence = [event for event in events if
-            event["event_type"] == "objective.completed" or
-            (event["event_type"] == "execution.step_verified" and
-             (event["payload"] or {}).get("step_id") == "s2") or
-            event["event_type"] == "resident.reasoning.cme_recovery_evaluated"]
+        evidence = self._performance_evaluation_evidence(events)
         if existing or not evidence:
             return None
         latest = evidence[-1]
@@ -1580,12 +1576,12 @@ class GraceExecutionService:
             assignment_id=objective_id, assignment_revision=str(objective["revision"]),
             binding_revision=office["binding_revision"],
             implementation_revision=office["implementation_revision"],
-            trigger="performance_evaluation", token_budget=384, assignment=assignment,
+            trigger="performance_evaluation", token_budget=512, assignment=assignment,
             verified_knowledge=(), prior_plan=None,
             external_reasoning_targets=reasoner.external_reasoning_targets,
             correlation_id=request_id)
         escalation = EscalationRequest.create(request, reason="low_confidence",
-            target_provider_id="gpt-6-luna", max_tokens=384, timeout_seconds=30,
+            target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
             escalation_id=request_id)
         return self.request_external_reasoning(escalation, request,
             idempotency_key=evaluation_key,
@@ -1593,6 +1589,15 @@ class GraceExecutionService:
             proposal_id=reference["proposal_id"], proposal_revision=2,
             source_references=(str(latest["event_id"]),),
             source_kind="performance_evaluation", request_type="performance_evaluation")
+
+    @staticmethod
+    def _performance_evaluation_evidence(events):
+        """Select durable success or completed-escalation evidence for grading."""
+        return [event for event in events if
+            event["event_type"] == "objective.completed" or
+            (event["event_type"] == "execution.step_verified" and
+             (event["payload"] or {}).get("step_id") == "s2") or
+            event["event_type"] == "resident.reasoning.cme_recovery_evaluated"]
 
     @staticmethod
     def _json_advisory(consumed, schema, allowed_fields):

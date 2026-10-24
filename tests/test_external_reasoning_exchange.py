@@ -1062,6 +1062,31 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.assertEqual(self.exchange.status(receipt.request_id,
             receipt.correlation_id)["delivery_state"], "awaiting_response")
 
+    def test_paid_response_submission_failure_keeps_sanitized_durable_detail(self):
+        receipt = self._submit(idem="paid-submission-diagnostic")
+        claim = self._deliver_and_claim(receipt)
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.exchange._set_path(cur)
+                row = self.exchange._lock(cur, receipt.request_id,
+                                          receipt.correlation_id)
+                self.exchange._event(cur, row, "provider_attempt_settled",
+                    "fixture-paid-attempt", PROVIDER,
+                    {"status": "settled", "usage": {"cost_usd": 0.001}})
+        detail = "TypeError: can only concatenate str (not 'UUID') to str"
+        self.assertTrue(self.exchange.fail_provider_response_submission(
+            receipt.request_id, receipt.correlation_id, provider_id=PROVIDER,
+            principal_id=PROVIDER, claim_token=claim.claim_token, fence=claim.fence,
+            failure_type="TypeError", failure_detail=detail))
+        events = self.exchange.events(receipt.request_id, receipt.correlation_id)
+        failed = [event for event in events if event["event_type"] ==
+                  "provider_response_submission_failed"]
+        self.assertEqual(len(failed), 1)
+        self.assertEqual(failed[0]["payload"]["failure_type"], "TypeError")
+        self.assertEqual(failed[0]["payload"]["failure_detail"], detail)
+        self.assertEqual(self.exchange.status(receipt.request_id,
+            receipt.correlation_id)["delivery_state"], "failed")
+
     def test_expired_claim_is_fenced_and_late_response_expires_once(self):
         receipt = self._submit(idem="lease-expiry")
         claim = self._deliver_and_claim(receipt, lease=1)

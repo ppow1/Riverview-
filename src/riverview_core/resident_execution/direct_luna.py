@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import urllib.request
 import urllib.error
 
@@ -14,12 +15,25 @@ BASELINE_TOTAL = 0.04104010
 TOTAL_CREDIT = 5.0
 ADDITIONAL_LIMIT = round(TOTAL_CREDIT - BASELINE_TOTAL, 8)
 RESERVED_CALL_COST = 0.01
+MAX_OUTPUT_TOKENS = 512
 LOG = logging.getLogger("riverview.grace_execution")
 
 
 def _response_ids(row):
     """Normalize database UUID objects at the JSON and string-key boundary."""
     return str(row["request_id"]), str(row["correlation_id"])
+
+
+def _safe_failure_detail(exc):
+    """Keep a short exception diagnosis while stripping credentials and controls."""
+    detail = str(exc)
+    detail = re.sub(r"(?i)bearer\s+[^\s,;]+", "Bearer [REDACTED]", detail)
+    detail = re.sub(r"\bsk-[A-Za-z0-9_-]{8,}\b", "[REDACTED]", detail)
+    detail = re.sub(r"(?i)(api[_ -]?key|authorization|password|token)\s*[:=]\s*[^\s,;]+",
+                    r"\1=[REDACTED]", detail)
+    detail = re.sub(r"[\r\n\t]+", " ", detail)
+    detail = re.sub(r"[^A-Za-z0-9 .,:()'/_=+\-\[\]]", "?", detail)
+    return f"{type(exc).__name__}: {detail[:200]}"
 
 
 def _api_key():
@@ -66,8 +80,8 @@ def process_one(exchange):
         return {"status": "BUDGET_OR_REPEAT_BLOCKED"}
     payload = row["request_payload"]
     request_type = payload.get("request_type", "objective_reasoning")
-    max_output_tokens = payload.get("max_tokens", 192)
-    if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 512:
+    max_output_tokens = payload.get("max_tokens", MAX_OUTPUT_TOKENS)
+    if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= MAX_OUTPUT_TOKENS:
         exchange.finish_provider_attempt(row["request_id"], row["correlation_id"],
             status="failed", failure_type="request_token_budget_invalid")
         return {"status": "REQUEST_TOKEN_BUDGET_INVALID"}
@@ -152,10 +166,16 @@ def process_one(exchange):
             review_subject_sha256=(payload.get("review_subject") or {}).get("sha256"),
             provider_usage=provenance)
     except Exception as exc:
+        detail = _safe_failure_detail(exc)
         exchange.fail_provider_response_submission(row["request_id"], row["correlation_id"],
             provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL,
-            claim_token=str(claim.claim_token), fence=claim.fence)
+            claim_token=str(claim.claim_token), fence=claim.fence,
+            failure_type=type(exc).__name__, failure_detail=detail)
+        LOG.error(json.dumps({"event": "luna_response_submission_failed",
+            "request_id": request_id, "correlation_id": correlation_id,
+            "failure_detail": detail}, sort_keys=True))
         return {"status": "RESPONSE_SUBMISSION_FAILED", "failure_type": type(exc).__name__,
+            "failure_detail": detail,
             "usage": provenance}
     LOG.info(json.dumps({"event": "luna_api_usage", **provenance}, sort_keys=True))
     return {"status": "RESPONSE_SUBMITTED", "request_id": row["request_id"],
