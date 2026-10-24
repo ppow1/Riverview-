@@ -278,15 +278,13 @@ class _BoundedHTTPServer(HTTPServer):
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
             self._proposal_lifecycle = ProposalLifecycle(proposal_registry, objective_pipeline)
         self._comms5_operations = None
-        if (proposal_registry is not None or steward_review_exchange is not None
-                or notification_service is not None):
+        if proposal_registry is not None or steward_review_exchange is not None:
             from riverview_core.resident_execution.comms5_operations import Comms5Operations
             from riverview_core.resident_execution.external_reasoning_mcp import StewardReviewBridge
             self._comms5_operations = Comms5Operations(
                 proposal_registry, self._proposal_lifecycle, objective_pipeline,
                 steward_review_bridge=(StewardReviewBridge(steward_review_exchange)
-                    if steward_review_exchange is not None else None),
-                notification_service=notification_service)
+                    if steward_review_exchange is not None else None))
         self._static_dir = Path(static_dir)
         self._resource_telemetry = resource_telemetry
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)

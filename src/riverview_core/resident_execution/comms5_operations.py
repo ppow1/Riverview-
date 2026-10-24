@@ -54,16 +54,14 @@ class Comms5Operations:
         "comms5_set_resource_policy_lock",
         "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
         "reasoning_exchange_submit_response", "reasoning_exchange_status",
-        "comms5_get_notification_settings", "comms5_set_notification_settings",
     })
 
     def __init__(self, proposal_registry, proposal_lifecycle, objective_pipeline=None,
-                 steward_review_bridge=None, notification_service=None):
+                 steward_review_bridge=None):
         self.registry = proposal_registry
         self.lifecycle = proposal_lifecycle
         self.pipeline = objective_pipeline
         self.steward_review_bridge = steward_review_bridge
-        self.notification_service = notification_service
 
     def create_draft_record(self, content, *, actor_id, origin_kind,
                             source_references, provenance, idempotency_key):
@@ -112,19 +110,6 @@ class Comms5Operations:
             if self.steward_review_bridge is None:
                 raise RuntimeError("external_reasoning_exchange_unavailable")
             return self.steward_review_bridge.call_tool(actor, tool, arguments)
-        if tool in {"comms5_get_notification_settings", "comms5_set_notification_settings"}:
-            if self.notification_service is None:
-                raise RuntimeError("notification_settings_unavailable")
-            if tool == "comms5_get_notification_settings":
-                if arguments:
-                    raise ValueError("arguments_not_allowed")
-                return {"status": "available", "executed": True,
-                        "settings": self.notification_service.get_settings()}
-            value = arguments.get("settings")
-            if set(arguments) != {"settings"} or not isinstance(value, dict):
-                raise ValueError("settings_required")
-            return {"status": "updated", "executed": True,
-                    "settings": self.notification_service.update_settings(value)}
         if tool == "comms5_submit_steward_seed":
             text = arguments.get("seed_text")
             if not isinstance(text, str) or not text.strip() or len(text.encode("utf-8")) > 4000:
