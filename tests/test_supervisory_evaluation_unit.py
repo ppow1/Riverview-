@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.5
+# Revision: 1.0.6
+# Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Verify an active pipeline keeps its startup release identity after runtime pointer changes.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-REVIEW-DIAGNOSTICS-20261024 | Assert safe reviewer failure detail is correlated and private text is excluded.
 # Purpose: Verify durable supervisory grading and bounded Luna retry selection
 # Execution Model: Offline unit tests
@@ -17,10 +18,12 @@
 import json
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 from uuid import NAMESPACE_URL, uuid5
 
 from riverview_core.resident_execution.service import GraceExecutionService
 from riverview_core.resident_execution.conversation import ConversationUnavailable
+from riverview_core.resident_execution.pipeline import AuthorizedAssignmentIntake, GraceExecutionPipeline
 
 
 class _Pipeline:
@@ -38,6 +41,19 @@ class _Pipeline:
 
 
 class SupervisoryEvaluationUnitTests(unittest.TestCase):
+    def test_pipeline_pins_runtime_release_identity_at_construction(self):
+        ledger = object()
+        intake = object.__new__(AuthorizedAssignmentIntake)
+        intake.ledger = ledger
+        first_release = "a" * 40
+        next_release = "b" * 40
+        with patch.object(GraceExecutionPipeline, "_discover_runtime_release_id",
+                          return_value=first_release):
+            pipeline = GraceExecutionPipeline(ledger, object(), intake, object())
+        with patch.object(GraceExecutionPipeline, "_discover_runtime_release_id",
+                          return_value=next_release):
+            self.assertEqual(pipeline.runtime_release_id(), first_release)
+
     def test_rejected_rework_failure_logs_allowlisted_detail_without_free_text(self):
         from types import SimpleNamespace
 

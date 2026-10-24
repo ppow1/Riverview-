@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.32
+# Revision: 1.1.33
+# Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Pin retry-hold release identity at pipeline construction so an old process cannot adopt a newly switched symlink.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve deployed exact-grant grounded objective cancellation and durable audit evidence.
@@ -121,6 +122,7 @@ class GraceExecutionPipeline:
         self.authorizer = authorizer
         self.assignment_intake = assignment_intake
         self.knowledge = knowledge
+        self._runtime_release_id = self._discover_runtime_release_id()
 
     def _event(self, cur, objective_id, event_type, idem, actor_id, payload):
         cur.execute("""INSERT INTO grace_objective_events
@@ -129,14 +131,18 @@ class GraceExecutionPipeline:
             (objective_id, event_type, idem, actor_id, _json(payload)))
 
     @staticmethod
-    def runtime_release_id():
-        """Identify the immutable release so a failed reviewer runs once per release."""
+    def _discover_runtime_release_id():
+        """Read the immutable release identity once when the pipeline is constructed."""
         try:
             commit = (Path(__file__).resolve().parents[3] / "SOURCE_COMMIT").read_text(
                 encoding="ascii").strip()
         except (OSError, UnicodeError):
             return "development"
         return commit if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", commit) else "unpackaged"
+
+    def runtime_release_id(self):
+        """Return the startup-pinned release so runtime pointer changes cannot affect this process."""
+        return self._runtime_release_id
 
     def authorize_objective_submission(self, principal_id, scope_ref):
         """Recheck the existing exact objective.submit grant for an idempotent retry."""
