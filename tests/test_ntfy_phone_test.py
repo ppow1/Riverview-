@@ -1,3 +1,12 @@
+"""
+File: tests/test_ntfy_phone_test.py
+Component: NOTIFICATION-DELIVERY
+Revision: 1.0.0
+Purpose: Verify safe handling and request shape of the iPhone ntfy test CLI
+Authority: Test-only
+Changed: 2026-10-24 UTC | RV-IPHONE-NTFY-UPSTREAM-001 | Add CLI safety tests
+"""
+
 import importlib.util
 import io
 import json

@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# File: scripts/ntfy_phone_test.py
+# Component: NOTIFICATION-DELIVERY
+# Revision: 1.0.0
+# Purpose: Send a protected-credential ntfy iPhone acceptance notice
+# Authority: Notification transport only
+# Changed: 2026-10-24 UTC | RV-IPHONE-NTFY-UPSTREAM-001 | Add private-topic test CLI
 """Send one recognizable test notice through the installed private ntfy topic."""
 
 from __future__ import annotations
