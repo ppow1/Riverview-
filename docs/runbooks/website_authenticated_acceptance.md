@@ -1,6 +1,6 @@
 # Riverview authenticated website acceptance
 
-Document Revision: 1.0.0
+Document Revision: 1.0.2
 
 ## Personas and authority
 
@@ -12,7 +12,7 @@ An unlinked test Steward can test authenticated notification preferences. It can
 
 `run_website_acceptance.py light` checks actual LAN HTTPS V2 availability. `run_website_acceptance.py full` uses Firefox/geckodriver against `/v2/`, signs into each seeded account through the normal account API, verifies role enforcement and logout, reads notification preferences through the live API and page, and writes the same stored values back for persistence readback. It never submits a Grace message or cancels a production objective.
 
-The installed `riverview-website-acceptance-light.timer` runs every 15 minutes. `riverview-website-acceptance-full.timer` runs every four hours. Timestamped results are in `/var/lib/riverview-website-acceptance/latest.json` and are exposed in the V2 overview and at `/v2/verification/latest.json`. Reports contain check names and statuses only, not credentials, settings values, conversation content, or topic identifiers.
+The installed `riverview-website-acceptance-light.timer` runs every 15 minutes. `riverview-website-acceptance-full.timer` runs every four hours. Timestamped results are in `/var/lib/riverview-website-acceptance/latest.json` and are exposed in the V2 overview and at `/v2/verification/latest.json`. Reports contain check names and statuses only, not credentials, settings values, conversation content, or topic identifiers. The deployment procedure obtains the ChromeDriver build matching installed native Chrome from Google's Chrome for Testing metadata and validates the archive before installation. The runner verifies the browser and driver major versions on every full run.
 
 Failures are queued once per incident as `monitor_failed` in the existing `riverview_dev.cme_monitor_events` table. The current notification dispatcher applies its normal policy and NTFY transport. A recovery clears the active deduplication incident; a later failure opens a new incident.
 

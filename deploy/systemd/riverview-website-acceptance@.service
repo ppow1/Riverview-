@@ -1,4 +1,4 @@
-# Revision: 1.0.0
+# Revision: 1.0.1
 [Unit]
 Description=Riverview V2 %i website acceptance
 After=network-online.target postgresql.service
@@ -10,6 +10,7 @@ User=admin1
 Group=www-data
 WorkingDirectory=/opt/riverview-website-acceptance/current
 Environment=PYTHONPATH=/opt/riverview-website-acceptance/current/src:/opt/riverview-website-acceptance/current/scripts
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:/snap/bin
 Environment="RIVERVIEW_DATABASE_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-website-acceptance"
 Environment=RIVERVIEW_ACCEPTANCE_ORIGIN=https://192.168.1.155
 LoadCredential=personas.json:/etc/riverview/website-acceptance/personas.json

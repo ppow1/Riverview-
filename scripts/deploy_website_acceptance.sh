@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Revision: 1.0.0
+# Revision: 1.0.1
 set -euo pipefail
 
 repo=${1:-$(pwd)}
@@ -9,6 +9,7 @@ if [[ ! "$release" =~ ^RV-WEB-V2-ACCEPTANCE-[A-Za-z0-9._-]{4,64}$ ]]; then
   echo 'FAIL: release ID must be RV-WEB-V2-ACCEPTANCE-<commit>' >&2; exit 2
 fi
 
+python3 "$repo/scripts/install_acceptance_chromedriver.py"
 python3 "$repo/scripts/verify_v2_acceptance_candidate.py" "$repo/website/v2/deployed"
 PYTHONPATH="$repo/src" python3 -m unittest tests.test_website_acceptance
 [[ -f /etc/riverview/website-acceptance/personas.json && ! -L /etc/riverview/website-acceptance/personas.json ]] || { echo 'FAIL: protected persona credential is missing'; exit 2; }
@@ -61,7 +62,7 @@ PY
 release_root="/opt/riverview-website-acceptance/releases/$(git -C "$repo" rev-parse --short=12 HEAD)"
 if [[ -e "$release_root" ]]; then echo 'FAIL: acceptance release path already exists'; exit 2; fi
 install -d -m 0755 "$release_root/scripts" "$release_root/src/riverview_core"
-install -m 0755 "$repo/scripts/run_website_acceptance.py" "$repo/scripts/seed_website_test_personas.py" "$release_root/scripts/"
+install -m 0755 "$repo/scripts/run_website_acceptance.py" "$repo/scripts/seed_website_test_personas.py" "$repo/scripts/install_acceptance_chromedriver.py" "$release_root/scripts/"
 cp -a "$repo/src/riverview_core/account_auth" "$release_root/src/riverview_core/"
 install -m 0644 "$repo/src/riverview_core/__init__.py" "$release_root/src/riverview_core/__init__.py"
 install -m 0644 "$repo/deploy/systemd/riverview-website-acceptance@.service" /etc/systemd/system/
