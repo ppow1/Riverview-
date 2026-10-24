@@ -1898,9 +1898,29 @@ class GraceExecutionPipeline:
             verification_id = str(verification["verification_id"])
             receipt_types = {"conversation.rework_review_published",
                              "engineering.rework_review_recorded"}
-            if any(event["event_type"] in receipt_types and
-                    event["payload"].get("verification_id") == verification_id for event in events):
-                continue
+            review_receipts = [event for event in events if
+                event["event_type"] in receipt_types and
+                event["payload"].get("verification_id") == verification_id]
+            review_generation = 1
+            reopened_after_release_change = False
+            if review_receipts:
+                last_receipt = review_receipts[-1]
+                if conversation_origin:
+                    continue
+                if (last_receipt["event_type"] != "engineering.rework_review_recorded" or
+                        last_receipt["payload"].get("decision") !=
+                            "STEWARD_AUTHORIZATION_REQUIRED" or
+                        last_receipt["payload"].get("runtime_release_id") ==
+                            self.runtime_release_id()):
+                    continue
+                prior_generation = last_receipt["payload"].get("review_generation", 1)
+                # A release change may reopen this authorization stop once so
+                # Grace can see current server-derived facts. It must not turn
+                # into an unbounded series of model reviews after deployments.
+                if type(prior_generation) is not int or prior_generation != 1:
+                    continue
+                review_generation = prior_generation + 1
+                reopened_after_release_change = True
             same_release_hold = any(event["event_type"] ==
                 "engineering.rework_escalation_pending" and
                 event["payload"].get("verification_id") == verification_id and
@@ -1911,7 +1931,10 @@ class GraceExecutionPipeline:
             matching_decisions = [event for event in events if event["event_type"] in {
                 "engineering.rework_decided", "engineering.rejection_reviewed"} and
                 event["payload"].get("assignment_id") == assignment_id and
-                event["payload"].get("verification_id") == verification_id]
+                event["payload"].get("verification_id") == verification_id and
+                event.get("idempotency_key") == (f"grace-rework-decision:{verification_id}" if
+                    review_generation == 1 else
+                    f"grace-rework-decision:{verification_id}:review:{review_generation}")]
             decision_event = matching_decisions[-1] if matching_decisions else None
             if (not verification or verification["decision"] != "REJECTED" or
                     verification["attempt_status"] != "succeeded" or
@@ -1947,10 +1970,10 @@ class GraceExecutionPipeline:
                 "step_id": step["step_id"], "step_objective": step["objective"],
                 "step_acceptance_criteria": list(step["acceptance_criteria"]),
                 "submitter_id": row["submitter_id"], "origin": origin,
-                "completion": completion}
+                "completion": completion, "review_generation": review_generation}
             if not conversation_origin:
                 item["proposal_reference"] = proposal_reference
-            if decision_event:
+            if decision_event and not reopened_after_release_change:
                 item["persisted_decision"] = decision_event["payload"]
             item["rework_attempt_count"] = sum(1 for event in events
                 if event["event_type"] == "engineering.rework_decided" and
@@ -1961,6 +1984,58 @@ class GraceExecutionPipeline:
                 break
         return pending
 
+    def rework_review_authority_evidence(self, context, *, credential):
+        """Return read-only current work-order and exact assignment grant facts."""
+        if (not isinstance(context, dict) or
+                not all(isinstance(context.get(key), str) and context[key]
+                    for key in ("objective_id", "assignment_id"))):
+            raise ValueError("rework review authority subject is invalid")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT o.objective_id,o.status AS objective_status,o.revision,
+                        o.assignment_id AS objective_assignment_id,
+                        a.state AS assignment_state,a.objective_ref,
+                        a.authority_ref,a.id AS assignment_id
+                    FROM grace_objectives o JOIN assignments a
+                      ON a.id=o.assignment_id
+                    WHERE o.objective_id=%s AND a.id=%s""",
+                    (context["objective_id"], context["assignment_id"]))
+                row = cur.fetchone()
+                if (not row or row["objective_id"] != context["objective_id"] or
+                        row["objective_status"] != "WORK_ORDER_CREATED" or
+                        row["objective_assignment_id"] != context["assignment_id"] or
+                        row["assignment_id"] != context["assignment_id"]):
+                    raise ObjectiveStateError("same active work-order assignment is required")
+                if row["objective_ref"] != context["objective_id"]:
+                    raise ObjectiveStateError("assignment objective correlation changed")
+                try:
+                    grant = self.assignment_intake.authorizer.require(
+                        cur, credential, self.assignment_intake.ACTION, row["authority_ref"])
+                except Exception as exc:
+                    if type(exc).__name__ == "GrantDenied":
+                        grant = None
+                    else:
+                        raise ObjectiveStateError("assignment authority evidence is unavailable") from None
+                cur.execute("""SELECT EXISTS (SELECT 1 FROM grace_objective_events
+                    WHERE objective_id=%s AND event_type='work_order.dispatched'
+                      AND payload->>'assignment_id'=%s) AS dispatched""",
+                    (context["objective_id"], context["assignment_id"]))
+                dispatched = bool(cur.fetchone()["dispatched"])
+        return {"schema": "rv.grace-rework-authority-evidence.v1", "read_only": True,
+            "objective_id": context["objective_id"],
+            "objective_status": row["objective_status"],
+            "objective_revision": int(row["revision"]),
+            "assignment_id": row["assignment_id"],
+            "assignment_state": row["assignment_state"],
+            "assignment_scope": row["authority_ref"],
+            "work_order_dispatched": dispatched,
+            "assignment_create_grant": {"active": grant is not None,
+                "action": self.assignment_intake.ACTION,
+                "scope_ref": row["authority_ref"],
+                "principal_id": grant["principal_id"] if grant else None,
+                "grant_id": grant["grant_id"] if grant else None}}
+
     def record_rework_decision(self, context, decision, *, credential):
         """Persist Grace's bounded reject/stop decision and governed same-assignment requeue."""
         if (not isinstance(context, dict) or not isinstance(decision, dict) or
@@ -1970,9 +2045,11 @@ class GraceExecutionPipeline:
         verification_id = context.get("completion", {}).get("verification_id")
         objective_id, assignment_id = context.get("objective_id"), context.get("assignment_id")
         criteria = context.get("step_acceptance_criteria")
+        review_generation = context.get("review_generation", 1)
         if (not isinstance(verification_id, str) or not isinstance(objective_id, str) or
                 not isinstance(assignment_id, str) or not isinstance(criteria, list) or
-                not criteria or decision["decision"] not in {
+                not criteria or type(review_generation) is not int or
+                not 1 <= review_generation <= 5 or decision["decision"] not in {
                     "OBJECTIVE_SATISFIED", "REWORK_PROPOSED",
                     "STEWARD_AUTHORIZATION_REQUIRED"} or
                 not isinstance(decision["rationale"], str) or
@@ -1998,8 +2075,10 @@ class GraceExecutionPipeline:
             "acceptance_criteria_sha256": hashlib.sha256(
                 _json(criteria).encode("utf-8")).hexdigest()}
         satisfied = decision["decision"] == "OBJECTIVE_SATISFIED"
-        idem = (f"grace-rejection-review:{verification_id}" if satisfied else
-                f"grace-rework-decision:{verification_id}")
+        base_idem = (f"grace-rejection-review:{verification_id}" if satisfied else
+                     f"grace-rework-decision:{verification_id}")
+        idem = base_idem if review_generation == 1 else (
+            f"grace-rework-decision:{verification_id}:review:{review_generation}")
         event_type = "engineering.rejection_reviewed" if satisfied else "engineering.rework_decided"
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
@@ -2170,14 +2249,19 @@ class GraceExecutionPipeline:
             raise ValueError("proposal-origin review receipt is invalid")
         objective_id, assignment_id = context["objective_id"], context["assignment_id"]
         verification_id = context["completion"].get("verification_id")
-        if not isinstance(verification_id, str) or not verification_id:
+        review_generation = context.get("review_generation", 1)
+        if (not isinstance(verification_id, str) or not verification_id or
+                type(review_generation) is not int or not 1 <= review_generation <= 5):
             raise ValueError("proposal-origin verifier identity is required")
-        expected_request_id = str(uuid5(NAMESPACE_URL,
-            "riverview:grace-rework-review:" + objective_id + ":" + assignment_id + ":" +
-            verification_id))
+        request_subject = ("riverview:grace-rework-review:" + objective_id + ":" +
+            assignment_id + ":" + verification_id)
+        if review_generation > 1:
+            request_subject += f":review:{review_generation}"
+        expected_request_id = str(uuid5(NAMESPACE_URL, request_subject))
         if request_id != expected_request_id:
             raise ValueError("proposal-origin rework request correlation is invalid")
-        key = f"grace-rework-review-recorded:{verification_id}"
+        key = (f"grace-rework-review-recorded:{verification_id}" if review_generation == 1 else
+               f"grace-rework-review-recorded:{verification_id}:review:{review_generation}")
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
@@ -2191,10 +2275,12 @@ class GraceExecutionPipeline:
                     WHERE assignment_id=%s ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""",
                     (assignment_id,))
                 latest = cur.fetchone()
+                decision_key = (f"grace-rework-decision:{verification_id}" if review_generation == 1 else
+                    f"grace-rework-decision:{verification_id}:review:{review_generation}")
                 cur.execute("""SELECT payload FROM grace_objective_events
                     WHERE objective_id=%s AND idempotency_key=ANY(%s)""", (objective_id,
-                    [f"grace-rework-decision:{verification_id}",
-                     f"grace-rejection-review:{verification_id}"]))
+                    [decision_key] if review_generation > 1 else
+                    [decision_key, f"grace-rejection-review:{verification_id}"]))
                 decision = cur.fetchone()
                 if (not objective or objective["status"] != "WORK_ORDER_CREATED" or
                         objective["assignment_id"] != assignment_id or not assignment or
@@ -2207,7 +2293,9 @@ class GraceExecutionPipeline:
                 payload = {"assignment_id": assignment_id,
                     "verification_id": verification_id,
                     "request_id": request_id,
-                    "decision": decision["payload"].get("decision")}
+                    "decision": decision["payload"].get("decision"),
+                    "review_generation": review_generation,
+                    "runtime_release_id": self.runtime_release_id()}
                 self._event(cur, objective_id, "engineering.rework_review_recorded", key,
                     "office:grace", payload)
                 cur.execute("SELECT event_type,payload FROM grace_objective_events "

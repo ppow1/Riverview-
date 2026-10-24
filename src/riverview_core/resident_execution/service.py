@@ -1127,6 +1127,10 @@ class GraceExecutionService:
                 continue
             try:
                 review_context = self._with_grace_artifact_review(context)
+                if context.get("origin") is None:
+                    review_context["current_authority_evidence"] = (
+                        self.pipeline.rework_review_authority_evidence(
+                            context, credential=self.dispatch_credential))
                 receipt = self.rejected_work_order_publisher(review_context)
                 if (not isinstance(receipt, dict) or
                         receipt.get("status") not in {"published", "already_published", "recorded"} or

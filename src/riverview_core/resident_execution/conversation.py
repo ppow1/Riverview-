@@ -2097,11 +2097,14 @@ class ResidentConversationService:
             "step_objective", "step_acceptance_criteria"}
         optional = {"objective_status", "persisted_decision", "artifact_review",
                     "artifact_review_unavailable", "proposal_reference",
-                    "rework_attempt_count"}
+                    "rework_attempt_count", "review_generation",
+                    "current_authority_evidence"}
         if (not isinstance(context, dict) or not required <= set(context) or
                 set(context) - required - optional):
             raise ValueError("rejected Engineering result context is invalid")
         completion, origin = context["completion"], context["origin"]
+        review_generation = context.get("review_generation", 1)
+        current_authority_evidence = context.get("current_authority_evidence")
         proposal_origin = origin is None
         proposal_reference = context.get("proposal_reference")
         valid_proposal_origin = (isinstance(proposal_reference, dict) and
@@ -2128,6 +2131,15 @@ class ResidentConversationService:
                 not isinstance(context["step_acceptance_criteria"], list) or
                 not context["step_acceptance_criteria"]):
             raise ValueError("durable verifier rejection and exact objective origin are required")
+        if (type(review_generation) is not int or not 1 <= review_generation <= 5 or
+                (proposal_origin and review_generation > 1 and
+                    (not isinstance(current_authority_evidence, dict) or
+                     current_authority_evidence.get("schema") !=
+                        "rv.grace-rework-authority-evidence.v1" or
+                     current_authority_evidence.get("read_only") is not True or
+                     current_authority_evidence.get("objective_id") != context["objective_id"] or
+                     current_authority_evidence.get("assignment_id") != context["assignment_id"]))):
+            raise ValueError("current proposal-origin authority evidence is required")
         artifact = completion.get("artifact") if isinstance(completion.get("artifact"), dict) else {}
         review_unavailable = context.get("artifact_review_unavailable")
         if review_unavailable not in {None, "integrity_check_failed"}:
@@ -2158,9 +2170,11 @@ class ResidentConversationService:
         elif "80b" not in str(getattr(provider, "model", "")).lower():
             raise ConversationUnavailable("80B rejection review capability unavailable")
         verification_id = completion["verification_id"]
-        request_id = uuid5(NAMESPACE_URL,
-            "riverview:grace-rework-review:" + context["objective_id"] + ":" +
+        request_subject = ("riverview:grace-rework-review:" + context["objective_id"] + ":" +
             context["assignment_id"] + ":" + verification_id)
+        if review_generation > 1:
+            request_subject += f":review:{review_generation}"
+        request_id = uuid5(NAMESPACE_URL, request_subject)
         if not proposal_origin and self.store.has_assistant_response(request_id):
             receipt = self.store.assistant_response_receipt(request_id)
             if not receipt or not all(receipt.get(key) for key in (
@@ -2190,7 +2204,10 @@ class ResidentConversationService:
                     "persisted assignment acceptance criteria. Do not change the objective, assignment, "
                     "repository, accepted scope, or criteria. If the defect cannot be corrected within "
                     "the existing criteria and authority, choose STEWARD_AUTHORIZATION_REQUIRED with "
-                    "correction_instruction null and an empty criteria_to_address. Never claim acceptance, "
+                    "correction_instruction null and an empty criteria_to_address. Current authority "
+                    "evidence is read-only server-derived state for this exact objective and assignment; "
+                    "use it to avoid mistaking stale artifact text for current authorization. It is not "
+                    "approval and does not widen scope or replace the execution/verifier gates. Never claim acceptance, "
                     "verification, or execution. If the artifact review status is integrity_check_failed, "
                     "the artifact text was withheld; do not choose OBJECTIVE_SATISFIED. Propose bounded "
                     "rework only when verifier evidence identifies an in-scope correction, otherwise "
@@ -2204,6 +2221,8 @@ class ResidentConversationService:
                     "assignment_step_id": context["step_id"],
                     "assignment_step_objective": context["step_objective"],
                     "assignment_acceptance_criteria": context["step_acceptance_criteria"],
+                    "review_generation": review_generation,
+                    "current_authority_evidence": current_authority_evidence,
                     "independent_rejection": {key: completion.get(key) for key in (
                         "decision", "verification_id", "attempt_id", "verifier_id",
                         "verifier_revision", "criteria", "evidence_references", "summary",

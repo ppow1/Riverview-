@@ -1927,6 +1927,74 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(events[0]["payload"]["verification_id"], persisted["verification_id"])
         self.assertEqual(events[0]["payload"]["request_id"], request_id)
 
+    def test_steward_stop_can_be_re_reviewed_once_after_release_with_current_authority_facts(self):
+        proposal_reference = {"proposal_id":"proposal:18ec0798-a441-494d-b45e-68cf99e72cd2",
+            "revision":2, "content_sha256":"a" * 64,
+            "approval_event_key":"proposal-approved:test", "source_references":[],
+            "privacy_classification":"institutional", "retention_policy":"minimum_required",
+            "approved_purpose":"Bounded proposal-origin re-review regression test",
+            "objective_submit_grant_id":"grant:test"}
+        objective_id, assignment_id, criteria, _action, worker, verifier = \
+            self._create_rework_fixture("proposal-rereview", proposal_reference=proposal_reference)
+        with self.admin.cursor() as cur:
+            cur.execute("UPDATE " + self.schema + ".grace_objectives "
+                "SET proposal=jsonb_set(proposal,'{system_owned_criteria}',%s::jsonb) "
+                "WHERE objective_id=%s", (json.dumps(["Approved proposal promotion"]), objective_id))
+        self.pipeline.proposal_promotion_evidence = lambda _cur, _objective, _criterion: True
+        first = worker.run_once(assignment_id=assignment_id)
+        self.adapter.verify_attempt(assignment_id, first["attempt_id"], self.verifier_id,
+            self.credentials["verifier"], verifier,
+            idempotency_key="proposal-origin-stop:" + assignment_id)
+        context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        self.assertEqual(context["review_generation"], 1)
+        stop = {"decision":"STEWARD_AUTHORIZATION_REQUIRED",
+            "rationale":"The previous review lacked current authoritative grant facts.",
+            "correction_instruction":None, "criteria_to_address":[]}
+        self.pipeline.record_rework_decision(context, stop,
+            credential=self.credentials["steward"])
+        from uuid import NAMESPACE_URL, uuid5
+        first_request = str(uuid5(NAMESPACE_URL,
+            "riverview:grace-rework-review:" + objective_id + ":" + assignment_id + ":" +
+            context["completion"]["verification_id"]))
+        self.pipeline.record_rework_review_recorded(context, first_request)
+        self.assertEqual(self.pipeline.pending_rejected_work_order_reviews(), [])
+
+        self.pipeline.runtime_release_id = lambda: "f" * 40
+        second_context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        self.assertEqual(second_context["review_generation"], 2)
+        before = self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".grace_objective_events WHERE objective_id=%s", (objective_id,)).fetchone()[0]
+        authority = self.pipeline.rework_review_authority_evidence(
+            second_context, credential=self.credentials["steward"])
+        after = self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".grace_objective_events WHERE objective_id=%s", (objective_id,)).fetchone()[0]
+        self.assertEqual(before, after)
+        self.assertTrue(authority["read_only"])
+        self.assertTrue(authority["assignment_create_grant"]["active"])
+        self.assertEqual(authority["assignment_id"], assignment_id)
+
+        rework = {"decision":"REWORK_PROPOSED",
+            "rationale":"The current work-order and exact assignment grant are active; correct the evidence report.",
+            "correction_instruction":"Use the read-only authoritative runtime evidence in the assigned diagnostic artifact.",
+            "criteria_to_address":criteria[:1]}
+        self.pipeline.record_rework_decision(second_context, rework,
+            credential=self.credentials["steward"])
+        second_request = str(uuid5(NAMESPACE_URL,
+            "riverview:grace-rework-review:" + objective_id + ":" + assignment_id + ":" +
+            context["completion"]["verification_id"] + ":review:2"))
+        self.pipeline.record_rework_review_recorded(second_context, second_request)
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "ready")
+        decisions = [event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"] == "engineering.rework_decided"]
+        receipts = [event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"] == "engineering.rework_review_recorded"]
+        self.assertEqual([event["payload"]["decision"] for event in decisions],
+            ["STEWARD_AUTHORIZATION_REQUIRED", "REWORK_PROPOSED"])
+        self.assertEqual(len(receipts), 2)
+        self.assertEqual(receipts[-1]["payload"]["review_generation"], 2)
+        self.assertEqual(receipts[-1]["payload"]["request_id"], second_request)
+        self.assertEqual(self.pipeline.pending_rejected_work_order_reviews(), [])
+
     def test_diagnostic_runtime_evidence_is_read_only_and_limited_to_exact_references(self):
         historical_id = "objective:grace-conversation:74b28df1-ea8e-5944-8bde-0ff56b117794"
         self.pipeline.submit_objective(historical_id, "Historical cancelled objective",

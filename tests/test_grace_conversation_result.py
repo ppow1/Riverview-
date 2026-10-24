@@ -497,6 +497,14 @@ class GraceConversationResultTests(unittest.TestCase):
                 "objective_submit_grant_id": "grant:test"},
             "step_id": "s2", "step_objective": "Write the runtime diagnostic",
             "rework_attempt_count": 0,
+            "review_generation": 2,
+            "current_authority_evidence": {"schema":"rv.grace-rework-authority-evidence.v1",
+                "read_only":True, "objective_id":objective_id,
+                "assignment_id":"assignment:grace:demo", "objective_status":"WORK_ORDER_CREATED",
+                "assignment_state":"rework_required", "assignment_scope":"work-order:engineering",
+                "work_order_dispatched":True, "assignment_create_grant":{"active":True,
+                    "action":"assignment.create", "scope_ref":"work-order:engineering",
+                    "principal_id":"steward:test", "grant_id":"grant:test"}},
             "step_acceptance_criteria": ["Include authoritative runtime evidence."],
             "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
                 "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
@@ -515,6 +523,11 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(result["status"], "recorded")
         self.assertEqual(result["verification_id"], context["completion"]["verification_id"])
         self.assertEqual(recorded[0][0], objective_id)
+        expected_request = str(uuid5(NAMESPACE_URL,
+            "riverview:grace-rework-review:" + objective_id + ":assignment:grace:demo:" +
+            context["completion"]["verification_id"] + ":review:2"))
+        self.assertEqual(result["request_id"], expected_request)
+        self.assertEqual(recorded[0][1], expected_request)
         self.assertEqual(len(self.store.responses), 0)
         self.assertEqual(self.rework_decisions[0][1]["decision"], "REWORK_PROPOSED")
 
@@ -529,6 +542,26 @@ class GraceConversationResultTests(unittest.TestCase):
             "step_id": "s2", "step_objective": "Inspect runtime history",
             "step_acceptance_criteria": ["criterion"]})
         with self.assertRaisesRegex(ValueError, "exact objective origin"):
+            self.service.review_rejected_work_order(context)
+        self.assertEqual(self.router.calls, [])
+
+    def test_proposal_origin_re_review_requires_current_read_only_authority_evidence(self):
+        from uuid import NAMESPACE_URL, uuid5
+        proposal_id = "proposal:18ec0798-a441-494d-b45e-68cf99e72cd2"
+        objective_id = ("objective:proposal:" + str(uuid5(NAMESPACE_URL,
+            f"riverview:proposal-work-order:{proposal_id}:r2")) + ":r2")
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"objective_id":objective_id, "origin":None,
+            "proposal_reference":{"proposal_id":proposal_id, "revision":2,
+                "content_sha256":"a"*64, "approval_event_key":"approval:test",
+                "objective_submit_grant_id":"grant:test"},
+            "step_id":"s2", "step_objective":"Correct diagnostic evidence",
+            "step_acceptance_criteria":["Include authoritative runtime evidence."],
+            "review_generation":2,
+            "completion":{"decision":"REJECTED", "assignment_id":"assignment:grace:demo",
+                "verification_id":"275e3c42-1114-4c5a-9e5f-84c437e6fd1f"}})
+        with self.assertRaisesRegex(ValueError, "current proposal-origin authority evidence"):
             self.service.review_rejected_work_order(context)
         self.assertEqual(self.router.calls, [])
 
