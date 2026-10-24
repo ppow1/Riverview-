@@ -1,3 +1,4 @@
+# Revision: 1.0.0
 """Focused regression checks for live V2 notification settings acceptance."""
 import unittest
 from pathlib import Path

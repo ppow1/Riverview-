@@ -1,3 +1,6 @@
+/*
+Revision: 1.0.0
+*/
 .work-evidence-details{min-width:185px;max-width:360px;font-size:10px}
 .work-evidence-details>summary{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);cursor:pointer;font-weight:650;white-space:nowrap}
 .work-evidence-details[open]{position:relative;z-index:1;min-width:min(360px,80vw);padding:8px;border:1px solid var(--line);border-radius:7px;background:var(--surface,#fff);box-shadow:0 5px 20px #17251e20;white-space:normal}

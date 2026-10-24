@@ -1,3 +1,4 @@
+<!-- Document Revision: 1.0.0 -->
 # Command Center artwork reference
 
 **Status: original binary pending transfer.** This directory is reserved for the Steward-supplied reference recorded in [Issue #271](https://github.com/ppow1/Riverview-/issues/271). The local Camrui checkout and Downloads folder did not contain the expected file, and the authorized Windows connection documented so far is Windows-to-Camrui only. Do not create, trace, crop, or substitute an image for the original.

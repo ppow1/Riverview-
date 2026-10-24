@@ -1,0 +1,24 @@
+.work-evidence-details{min-width:185px;max-width:360px;font-size:10px}
+.work-evidence-details>summary{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);cursor:pointer;font-weight:650;white-space:nowrap}
+.work-evidence-details[open]{position:relative;z-index:1;min-width:min(360px,80vw);padding:8px;border:1px solid var(--line);border-radius:7px;background:var(--surface,#fff);box-shadow:0 5px 20px #17251e20;white-space:normal}
+.work-evidence-fields{display:grid;grid-template-columns:minmax(105px,1fr) minmax(120px,1.5fr);gap:5px 9px;margin:10px 0;color:var(--ink);font-size:10px}
+.work-evidence-fields dt{color:var(--muted);font-weight:600}.work-evidence-fields dd{margin:0;overflow-wrap:anywhere}
+.work-evidence-links{display:flex;flex-wrap:wrap;gap:9px;padding:7px 0;border-top:1px solid var(--line)}
+.work-evidence-links a{color:var(--teal);font-size:10px;font-weight:650}
+.work-evidence-assignment-detail{max-height:330px;overflow:auto}
+.work-evidence-assignment-detail h4{margin:10px 0 5px;font-size:10px}
+.work-evidence-assignment-detail p,.work-evidence-assignment-detail li{font-size:9px;line-height:1.45}
+.work-evidence-assignment-detail ul,.work-evidence-assignment-detail ol{padding-left:20px}
+.work-evidence-events li{display:grid;gap:2px;padding:5px 0;border-bottom:1px solid var(--line)}
+.work-evidence-events time,.work-evidence-events small{color:var(--muted);font-size:9px;overflow-wrap:anywhere}
+.work-record-link{padding:3px 5px;border:0;background:transparent;color:var(--teal);font:inherit;font-size:9px;text-align:left;text-decoration:underline;cursor:pointer;overflow-wrap:anywhere}
+.work-blocker-cell{min-width:190px;color:var(--muted)}
+.work-related-highlight{outline:2px solid var(--teal);outline-offset:-2px;background:#edf7f4}
+.work-monitor[data-state="stale"] .work-monitor-state{border-color:#b89542;color:#886500;background:#fff7dc}
+.engineering-progress-item>.work-evidence-details{max-width:none;margin-top:12px}
+.engineering-progress-item>.work-evidence-details[open]{position:static}
+@media(max-width:680px){.work-evidence-details{max-width:none}.work-evidence-fields{grid-template-columns:1fr}.work-evidence-fields dd{margin-bottom:4px}}
+:root[data-theme="dark"] .work-evidence-details[open]{box-shadow:0 5px 20px #0008}
+:root[data-theme="dark"] .work-related-highlight{background:#203730}
+.work-objectives-table{min-width:1320px}.work-assignments-table{min-width:980px}
+.work-sort{display:inline-grid;gap:6px;margin:8px 12px 0 0;color:var(--muted);font-size:9px;font-weight:650}.work-sort select{min-height:32px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit}

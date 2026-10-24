@@ -1,3 +1,4 @@
+// Revision: 1.0.0
 /* Read-only adapters for the existing authenticated Riverview operational APIs. */
 (() => {
   "use strict";
