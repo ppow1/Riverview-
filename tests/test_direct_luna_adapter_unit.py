@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_direct_luna_adapter_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify bounded Luna adapter requests and sanitized exchange outcomes
 # Execution Model: Offline unit tests; provider calls are mocked
 # Observability: unittest assertions and exit status
@@ -9,6 +9,7 @@
 # Authority: Tests only; no credentials or live external requests
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Verify provider admission denials terminate without API calls or charges.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Assert qualified 512-token limits
+# Changed: 2026-10-24 UTC | RV-LUNA-ERROR-MESSAGE-DIAGNOSTICS-20261024 | Verify validation messages remain useful while echoed text and credentials are redacted.
 # History: Git and .riverview-backups/manifest.jsonl
 """Offline API-response parsing and exchange-submission tests; no provider calls."""
 import hashlib
@@ -168,7 +169,8 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
         exchange = _Exchange(request_type="performance_evaluation", max_tokens=512)
         error_body = json.dumps({"error": {"type": "invalid_request_error",
             "code": "unsupported_value", "param": "max_output_tokens",
-            "message": "sensitive echoed prompt text"}}).encode()
+            "message": "Invalid input value: 'sensitive echoed prompt text'; "
+                       "api_key=sk-abcdefghijklmno; email pat@example.com"}}).encode()
         error = direct_luna.urllib.error.HTTPError("https://api.openai.com/v1/responses",
             400, "bad request", {"x-request-id": "req_fixture_400"}, io.BytesIO(error_body))
         with patch.object(direct_luna, "_api_key", return_value="synthetic-key"), \
@@ -177,7 +179,13 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
         self.assertEqual(outcome["provider_error_type"], "invalid_request_error")
         self.assertEqual(outcome["provider_error_code"], "unsupported_value")
         self.assertEqual(outcome["provider_error_param"], "max_output_tokens")
+        self.assertEqual(outcome["provider_error_message"],
+            "Invalid input value: [REDACTED]; api_key=[REDACTED]; email [REDACTED]")
         self.assertNotIn("sensitive echoed prompt text", json.dumps(outcome))
+        self.assertNotIn("sk-abcdefghijklmno", json.dumps(outcome))
+        self.assertNotIn("pat@example.com", json.dumps(outcome))
+        self.assertEqual(exchange.finished[-1]["usage"]["provider_error_message"],
+            outcome["provider_error_message"])
 
     def test_output_allowances_are_per_request_type_and_sent_to_responses(self):
         for request_type, limit in (("cme_diagnostic_recovery", 512),

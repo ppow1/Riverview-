@@ -1,11 +1,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/direct_luna.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Close provider-denied requests with a fenced zero-charge exchange event.
 # Purpose: Submit authorized bounded Luna requests through Grace's durable exchange
 # Execution Model: Request-driven adapter
-# Observability: Sanitized durable exchange outcomes; no raw provider error body
+# Observability: Sanitized durable exchange outcomes and bounded redacted provider diagnostics
 # Dependencies: Python urllib; Grace external reasoning exchange
 # Authority: Fixed provider and request types; caller enforces exact grant and budget
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Bound supervisory output and compact evaluation schema
@@ -14,6 +14,7 @@
 """Single-call GPT-6 Luna transport over Grace's existing durable exchange."""
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Match the provider-verified 512-token supervisory ceiling and constrain evaluation output to the durable schema.
 # Changed: 2026-10-24 UTC | RV-LUNA-SAFE-HTTP-DIAGNOSTICS | Persist allowlisted provider error identifiers without retaining raw error bodies.
+# Changed: 2026-10-24 UTC | RV-LUNA-ERROR-MESSAGE-DIAGNOSTICS-20261024 | Persist bounded provider validation text after redacting quoted and credential-like values.
 from __future__ import annotations
 
 import json
@@ -58,7 +59,7 @@ def _safe_failure_detail(exc):
 
 
 def _safe_http_error_fields(exc):
-    """Extract only provider error identifiers; never persist the raw error body."""
+    """Extract safe provider error identifiers and bounded sanitized diagnostics."""
     try:
         body = exc.read(8192)
         decoded = json.loads(body.decode("utf-8", errors="strict"))
@@ -74,6 +75,21 @@ def _safe_http_error_fields(exc):
         value = error.get(name.removeprefix("provider_error_"))
         if isinstance(value, str) and re.fullmatch(pattern, value):
             fields[name] = value
+    message = error.get("message")
+    if isinstance(message, str):
+        detail = re.sub(r"(?i)bearer\s+[^\s,;]+", "Bearer [REDACTED]", message)
+        detail = re.sub(r"\bsk-[A-Za-z0-9_-]{8,}\b", "[REDACTED]", detail)
+        detail = re.sub(r"(?i)(api[_ -]?key|authorization|password|token)\s*[:=]\s*[^\s,;]+",
+                        r"\1=[REDACTED]", detail)
+        detail = re.sub(r"'[^'\r\n]*'|\"[^\"\r\n]*\"|`[^`\r\n]*`", "[REDACTED]", detail)
+        detail = re.sub(r"[A-Za-z0-9_./+=-]{80,}", "[REDACTED]", detail)
+        detail = re.sub(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b",
+                        "[REDACTED]", detail)
+        detail = re.sub(r"[\r\n\t]+", " ", detail)
+        detail = re.sub(r"[^A-Za-z0-9 .,:;()'/_=+\-\[\]]", "?", detail)
+        detail = detail.strip()[:240]
+        if detail:
+            fields["provider_error_message"] = detail
     return fields
 
 
