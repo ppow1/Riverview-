@@ -901,6 +901,10 @@ class GraceExecutionTests(unittest.TestCase):
         # Reconstruct the service over the same durable ledger, as after a process
         # restart or immutable release switch. No in-memory retry counter is shared.
         restarted = self._reasoning_service(CountingReasoner())
+        # Keep this regression focused on the persisted failure fence, independent
+        # of optional recovery tables absent from the base test migration set.
+        restarted._claim_approved_recovery = lambda *_args: None
+        restarted._claim_experiment_recovery = lambda *_args: None
         self.assertFalse(restarted.reason_one_grounded_objective())
         after = [event for event in self.pipeline.objective_events(objective_id)
                  if event["event_type"] == "execution.reasoning_attempted"]
