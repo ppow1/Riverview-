@@ -144,6 +144,13 @@ class _GraceReasoningProvider:
 
 
 class ReviewSubjectUnitTests(unittest.TestCase):
+    def test_direct_luna_normalizes_database_uuid_before_response_and_idempotency(self):
+        from riverview_core.resident_execution.direct_luna import _response_ids
+        request_id, correlation_id = uuid4(), uuid4()
+        normalized = _response_ids({"request_id": request_id, "correlation_id": correlation_id})
+        self.assertEqual(normalized, (str(request_id), str(correlation_id)))
+        self.assertEqual("luna:" + normalized[0], "luna:" + str(request_id))
+
     def test_event_origin_exchange_is_typed_and_conversation_hash_shape_is_unchanged(self):
         from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
         request = ReasoningRequest(request_id=str(uuid4()), office_id=OFFICE,

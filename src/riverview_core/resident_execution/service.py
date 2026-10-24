@@ -1426,8 +1426,19 @@ class GraceExecutionService:
         if details.get("state") != "rework_required":
             return None
         event_id = stall["event_id"]
-        if exchange.request_for_idempotency("cme-recovery:" + event_id):
-            return None
+        idempotency_key = "cme-recovery:" + event_id
+        prior_request = exchange.request_for_idempotency(idempotency_key)
+        diagnostic_attempt = 1
+        if prior_request:
+            # A single second request is allowed only after a paid API response
+            # was lost at the adapter boundary and durably marked terminal.
+            if (prior_request["delivery_state"] != "failed" or
+                    prior_request["last_error_code"] != "provider_response_submission_failed"):
+                return None
+            diagnostic_attempt = 2
+            idempotency_key += ":transport-retry-1"
+            if exchange.request_for_idempotency(idempotency_key):
+                return None
         authority_evidence = self.pipeline.rework_review_authority_evidence(
             context, credential=self.dispatch_credential)
         objective_events = self.pipeline.objective_events(objective_id)
@@ -1448,6 +1459,8 @@ class GraceExecutionService:
         from ..resident_reasoning import ReasoningRequest
         from ..reasoning_escalation import EscalationRequest
         original_id = str(uuid5(NAMESPACE_URL, "rv-cme-recovery-original:" + event_id))
+        if diagnostic_attempt == 2:
+            original_id = str(uuid5(NAMESPACE_URL, original_id + ":transport-retry-1"))
         source = {"objective_id": objective_id, "objective_revision": objective["revision"],
             "proposal_id": reference["proposal_id"], "proposal_revision": 2,
             "assignment_id": assignment_id, "step_id": context["step_id"],
@@ -1463,6 +1476,7 @@ class GraceExecutionService:
             "verifier_evidence_references": context["completion"].get("evidence_references", [])[:8],
             "assignment_authority": authority_evidence,
             "recovery_history": recovery_history,
+            "diagnostic_attempt": diagnostic_attempt,
             "approved_scope_unchanged": True}
         request = ReasoningRequest(request_id=original_id, office_id=reasoner.office_id,
             assignment_id=objective_id, assignment_revision=str(objective["revision"]),
@@ -1471,12 +1485,15 @@ class GraceExecutionService:
             verified_knowledge=(), prior_plan=None,
             external_reasoning_targets=reasoner.external_reasoning_targets,
             correlation_id=original_id)
-        escalation_id = str(uuid5(NAMESPACE_URL, "rv-cme-recovery-escalation:" + event_id))
+        escalation_source = "rv-cme-recovery-escalation:" + event_id
+        if diagnostic_attempt == 2:
+            escalation_source += ":transport-retry-1"
+        escalation_id = str(uuid5(NAMESPACE_URL, escalation_source))
         envelope = EscalationRequest.create(request, reason="capability_gap",
             target_provider_id="gpt-6-luna", max_tokens=192, timeout_seconds=30,
             escalation_id=escalation_id)
         return self.request_external_reasoning(envelope, request,
-            idempotency_key="cme-recovery:" + event_id,
+            idempotency_key=idempotency_key,
             deadline_at=datetime.now(timezone.utc) + timedelta(minutes=20),
             proposal_id=reference["proposal_id"], proposal_revision=2,
             source_references=(event_id, assignment_id, context["completion"]["verification_id"]),

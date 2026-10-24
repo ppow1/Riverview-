@@ -17,6 +17,11 @@ RESERVED_CALL_COST = 0.01
 LOG = logging.getLogger("riverview.grace_execution")
 
 
+def _response_ids(row):
+    """Normalize database UUID objects at the JSON and string-key boundary."""
+    return str(row["request_id"]), str(row["correlation_id"])
+
+
 def _api_key():
     path = os.path.join(os.environ.get("CREDENTIALS_DIRECTORY", ""), "luna-openai-env")
     if not os.path.isabs(path) or not os.path.isfile(path):
@@ -45,7 +50,14 @@ def process_one(exchange):
             fence=delivery.fence)
     claim = exchange.claim(row["request_id"], row["correlation_id"],
         provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL, lease_seconds=120)
-    if claim is None or claim.duplicate:
+    if claim is None:
+        return None
+    if claim.duplicate:
+        if exchange.provider_attempt_is_settled(row["request_id"]):
+            exchange.fail_provider_response_submission(row["request_id"], row["correlation_id"],
+                provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL,
+                claim_token=claim.claim_token, fence=claim.fence)
+            return {"status": "PAID_RESPONSE_SUBMISSION_FENCED"}
         return None
     if not exchange.begin_provider_attempt(row["request_id"], row["correlation_id"],
             principal_id=PROVIDER_PRINCIPAL, reserved_cost=RESERVED_CALL_COST,
@@ -122,8 +134,9 @@ def process_one(exchange):
             "output_tokens": output_tokens, "reasoning_tokens": reasoning, "cost_usd": cost}}
     advisory = {"response_id": result.get("id", ""), "provider_id": PROVIDER_ID,
         "provider_model": MODEL_ID, "advisory": text[:8000], "evidence_references": []}
+    request_id, correlation_id = _response_ids(row)
     response = {"schema_version": exchange.RESPONSE_SCHEMA,
-        "request_id": row["request_id"], "correlation_id": row["correlation_id"], **advisory}
+        "request_id": request_id, "correlation_id": correlation_id, **advisory}
     provenance = {"provider_model": MODEL_ID, "response_id": result.get("id"),
         "input_tokens": input_tokens, "output_tokens": output_tokens,
         "reasoning_tokens": reasoning, "cached_input_tokens": cached, "cost_usd": cost,
@@ -131,12 +144,19 @@ def process_one(exchange):
                     "output_per_million": 0.50}}
     exchange.finish_provider_attempt(row["request_id"], row["correlation_id"],
         status="settled", usage=provenance)
-    digest = exchange.submit_response(row["request_id"], row["correlation_id"],
-        provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL,
-        claim_token=str(claim.claim_token), fence=claim.fence,
-        idempotency_key="luna:" + row["request_id"], response=response,
-        review_subject_sha256=(payload.get("review_subject") or {}).get("sha256"),
-        provider_usage=provenance)
+    try:
+        digest = exchange.submit_response(row["request_id"], row["correlation_id"],
+            provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL,
+            claim_token=str(claim.claim_token), fence=claim.fence,
+            idempotency_key="luna:" + request_id, response=response,
+            review_subject_sha256=(payload.get("review_subject") or {}).get("sha256"),
+            provider_usage=provenance)
+    except Exception as exc:
+        exchange.fail_provider_response_submission(row["request_id"], row["correlation_id"],
+            provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL,
+            claim_token=str(claim.claim_token), fence=claim.fence)
+        return {"status": "RESPONSE_SUBMISSION_FAILED", "failure_type": type(exc).__name__,
+            "usage": provenance}
     LOG.info(json.dumps({"event": "luna_api_usage", **provenance}, sort_keys=True))
     return {"status": "RESPONSE_SUBMITTED", "request_id": row["request_id"],
         "correlation_id": row["correlation_id"], "response_sha256": digest, "usage": provenance}

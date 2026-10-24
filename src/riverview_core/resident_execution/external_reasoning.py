@@ -560,11 +560,46 @@ class DurableExternalReasoningExchange:
         with self.ledger.db.cursor() as cur:
             self._set_path(cur)
             cur.execute("""SELECT request_id::text AS request_id,
-                    correlation_id::text AS correlation_id,delivery_state
+                    correlation_id::text AS correlation_id,delivery_state,last_error_code
                 FROM external_reasoning_exchanges WHERE idempotency_key=%s""",
                 (idempotency_key,))
             row = cur.fetchone()
         return dict(row) if row else None
+
+    def provider_attempt_is_settled(self, request_id):
+        with self.ledger.db.cursor() as cur:
+            self._set_path(cur)
+            cur.execute("""SELECT 1 FROM external_reasoning_exchange_events
+                WHERE request_id=%s AND event_type='provider_attempt_settled' LIMIT 1""",
+                (request_id,))
+            return cur.fetchone() is not None
+
+    def fail_provider_response_submission(self, request_id, correlation_id, *,
+            provider_id, principal_id, claim_token, fence):
+        """Terminally fence a paid attempt whose response could not be submitted."""
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self._set_path(cur)
+                row = self._lock(cur, request_id, correlation_id)
+                self._require_provider_principal(provider_id, principal_id)
+                cur.execute("""SELECT 1 FROM external_reasoning_exchange_events
+                    WHERE request_id=%s AND event_type='provider_attempt_settled' LIMIT 1""",
+                    (request_id,))
+                if (row["provider_id"] != provider_id or row["delivery_state"] != "awaiting_response"
+                        or row["response_payload"] is not None or row["claim_owner"] != principal_id
+                        or str(row["claim_token"]) != str(claim_token) or row["claim_fence"] != fence
+                        or cur.fetchone() is None):
+                    raise ExchangeConflict("settled provider response cannot be safely fenced")
+                cur.execute("""UPDATE external_reasoning_exchanges
+                    SET delivery_state='failed',last_error_code='provider_response_submission_failed',
+                        claim_owner=NULL,claim_token=NULL,claim_lease_until=NULL,
+                        updated_at=clock_timestamp() WHERE request_id=%s""", (row["request_id"],))
+                row.update(delivery_state="failed", last_error_code="provider_response_submission_failed")
+                self._event(cur, row, "provider_response_submission_failed",
+                    "provider-response-submission-failed", principal_id,
+                    {"state": "failed", "error_code": "provider_response_submission_failed",
+                     "provider_id": provider_id, "fence": fence})
+        return True
 
     def has_terminal_review_for_objective(self, objective_id: str) -> bool:
         """Suppress repeated local inference after a bounded review chain is terminal."""
