@@ -45,6 +45,7 @@ _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_set_resource_policy_lock",
     "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
     "reasoning_exchange_submit_response", "reasoning_exchange_status",
+    "comms5_get_notification_settings", "comms5_set_notification_settings",
 }
 
 
@@ -94,6 +95,8 @@ class DashboardReadBackend:
         "reasoning_exchange_claim_request": "IMPLEMENTED",
         "reasoning_exchange_submit_response": "IMPLEMENTED",
         "reasoning_exchange_status": "IMPLEMENTED",
+        "comms5_get_notification_settings": "IMPLEMENTED",
+        "comms5_set_notification_settings": "IMPLEMENTED",
     }
 
     def __init__(self, *, base_url=None, credential_file=None, timeout=3.0):

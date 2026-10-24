@@ -45,6 +45,19 @@ class _NoopProjection:
 
 
 class _FakeNotificationService:
+    settings = {"schema_version": "rv.notification_settings.v1", "status": "available",
+        "level": "all", "quiet_hours": {"enabled": False, "start": "22:00",
+        "end": "07:00", "timezone": "UTC"}, "critical_policy": {
+        "deliver_during_paused": True, "deliver_during_quiet_hours": True},
+        "updated_at": "2026-10-24T00:00:00+00:00"}
+
+    def get_settings(self):
+        return self.settings
+
+    def update_settings(self, value):
+        self.settings = {**self.settings, **value, "status": "available"}
+        return self.settings
+
     def list_notifications(self, *, limit=25):
         return {"schema_version": "rv.notifications.v1", "status": "available",
                 "observed_at": "2026-10-11T00:00:00+00:00", "dispatcher": {"status": "healthy"},
@@ -128,6 +141,29 @@ class NotificationHTTPTests(unittest.TestCase):
                                       token=self.token, body=body)
         self.assertEqual(status, 403)
         self.assertEqual(result["error"], "steward_account_session_required")
+
+    def test_notification_settings_api_requires_steward_and_persists_update(self):
+        class AccountAuth:
+            def authenticate(_self, credential, *, csrf_token, state_changing):
+                from riverview_core.account_auth import AuthDenied
+                if credential != "session" or (state_changing and csrf_token != "csrf"):
+                    raise AuthDenied("denied")
+                return {"account_id": "account-1", "roles": ["steward"]}
+        self.server._account_auth_service = AccountAuth()
+        self.assertEqual(self.request("GET", "/api/v1/notification-settings",
+                                      token=self.token)[0], 403)
+        status, body = self.request("GET", "/api/v1/notification-settings",
+            token=self.token, cookie="rv_account_session=session")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["level"], "all")
+        update = json.dumps({"level": "critical_only", "quiet_hours": {
+            "enabled": True, "start": "22:00", "end": "07:00", "timezone": "UTC"}})
+        status, body = self.request("PUT", "/api/v1/notification-settings", token=self.token,
+            cookie="rv_account_session=session", csrf="csrf", body=update)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["level"], "critical_only")
+        self.assertEqual(self.request("GET", "/api/v1/notification-settings", token=self.token,
+            cookie="rv_account_session=session")[1]["quiet_hours"]["enabled"], True)
 
     def test_csrf_steward_recovery_decision_records_exact_request(self):
         class AccountAuth:
@@ -241,6 +277,23 @@ class NotificationPostgresTests(unittest.TestCase):
         self.assertEqual(len(notice), 1)
         self.assertEqual(notice[0]["assignment_id"], assignment)
         self.assertEqual(len(self.rows("notification_events")), 1)
+
+    def test_paused_level_suppresses_routine_phone_delivery(self):
+        class Phone:
+            messages = []
+            def publish(self, event_type):
+                self.messages.append(event_type)
+                return "test-message-id"
+        self.service.update_settings({"level": "paused", "quiet_hours": {
+            "enabled": False, "start": "22:00", "end": "07:00", "timezone": "UTC"}})
+        assignment = self.create_assignment("paused")
+        self.stale_event(assignment)
+        phone = Phone()
+        dispatcher = NotificationDispatcher(DSN, schema=self.schema, phone_publisher=phone)
+        dispatcher.scan_once()
+        self.assertEqual(phone.messages, [])
+        self.assertEqual(self.rows("notification_phone_deliveries")[0]["delivery_state"], "suppressed")
+        self.assertEqual(self.rows("notification_suppressions")[0]["reason"], "paused")
 
     def test_grace_block_escalation_projects_with_source_details_and_no_decision_authority(self):
         source_id = uuid4()

@@ -1,19 +1,19 @@
 # RIVERVIEW~ CONTROLLED CONFIGURATION
 # File: deploy/systemd/riverview-notification-dispatcher.service
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.0
-# Purpose: Supervise durable in-app attention notification projection
+# Revision: 1.0.1
+# Purpose: Supervise durable notification projection and protected NTFY delivery
 # Execution Model: Continuous idempotent polling with bounded retry and restart recovery
 # Observability: Structured journal plus PostgreSQL dispatcher health and notification events
-# Dependencies: PostgreSQL 16; CME migration 0005; notification migration 0006
-# Authority: Reads CME/assignment state; writes notification-owned tables only
+# Dependencies: PostgreSQL 16; CME migration 0005; notification migrations 0006-0008; local NTFY
+# Authority: Reads CME/assignment state; writes notification-owned tables; publishes to configured phone topic
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Initial isolated dispatcher unit
 # Contracts: docs/components/NOTIFICATION_DELIVERY.md
 # Tests: tests/test_notification_service.py
 # History: New file; Git and .riverview-backups/manifest.jsonl
 [Unit]
 Description=Riverview durable visual notification dispatcher
-After=postgresql.service riverview-cme-monitor.service
+After=postgresql.service riverview-cme-monitor.service ntfy.service
 StartLimitIntervalSec=60
 StartLimitBurst=3
 
@@ -27,9 +27,12 @@ Environment="RIVERVIEW_DATABASE_DSN=host=127.0.0.1 port=5432 dbname=riverview us
 Environment=RIVERVIEW_NOTIFICATION_SCHEMA=riverview_dev
 Environment=RIVERVIEW_NOTIFICATION_POLL_SECONDS=2
 Environment=RIVERVIEW_NOTIFICATION_MAX_BACKOFF_SECONDS=30
+Environment=RIVERVIEW_NTFY_PUBLISH_URL=http://127.0.0.1:2586
 RuntimeDirectory=riverview-notification-dispatcher
 RuntimeDirectoryMode=0700
 LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=ntfy-token:/etc/riverview/notification/ntfy_token
+LoadCredential=ntfy-topic:/etc/riverview/notification/topic
 ExecStart=/usr/bin/python3 /opt/riverview-notification-dispatcher/current/scripts/run_notification_dispatcher.py
 Restart=on-failure
 RestartSec=5s

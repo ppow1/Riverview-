@@ -73,6 +73,8 @@ class GraceInternalToolTests(unittest.TestCase):
                         <= names)
         self.assertTrue({"comms5_submit_steward_seed", "comms5_store_specification",
                          "comms5_confirm_and_promote_seed"} <= names)
+        self.assertTrue({"comms5_get_notification_settings",
+                         "comms5_set_notification_settings"} <= names)
         request = '<rv-tool-call>{"name":"comms5_cme_status","arguments":{}}</rv-tool-call>'
         cpu = Provider("0.6B", ["ack"])
         vision = Provider("30B", ["interim"])

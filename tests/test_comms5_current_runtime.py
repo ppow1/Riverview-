@@ -422,9 +422,28 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 25)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 27)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(25 - len(status), 0)
+        self.assertEqual(27 - len(status), 0)
+
+    def test_notification_settings_operations_use_shared_service_and_require_steward(self):
+        class Settings:
+            value = {"level": "all", "quiet_hours": {"enabled": False,
+                "start": "22:00", "end": "07:00", "timezone": "UTC"}}
+            def get_settings(self): return self.value
+            def update_settings(self, value): self.value = value; return value
+        service = Settings()
+        operations = Comms5Operations(None, None, notification_service=service)
+        got = operations.execute("comms5_get_notification_settings", {},
+                                 principal_id="steward:grace-integration")
+        self.assertEqual(got["settings"]["level"], "all")
+        changed = {"level": "critical_only", "quiet_hours": service.value["quiet_hours"]}
+        saved = operations.execute("comms5_set_notification_settings", {"settings": changed},
+                                    principal_id="steward:grace-integration")
+        self.assertEqual(saved["settings"]["level"], "critical_only")
+        with self.assertRaises(PermissionError):
+            operations.execute("comms5_set_notification_settings", {"settings": changed},
+                               principal_id="resident:unauthorized")
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler

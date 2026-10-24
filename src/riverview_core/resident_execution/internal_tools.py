@@ -44,7 +44,8 @@ class GraceInternalTools:
                     "tool": name if isinstance(name, str) else None,
                     "error": {"code": "tool_not_available"}}
         response = self.application.handle({"jsonrpc": "2.0", "id": "grace-internal",
-            "method": "tools/call", "params": {"name": name, "arguments": arguments}})
+            "method": "tools/call", "params": {"name": name, "arguments": arguments}},
+            principal="steward")
         if "error" in response:
             code = "tool_arguments_invalid" if response["error"].get("code") == -32602 else "tool_call_failed"
             return {"schema_version": "rv.grace.tool-result.v1", "status": "error",

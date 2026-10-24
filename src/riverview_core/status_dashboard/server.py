@@ -95,6 +95,7 @@ _DOC_NAME = re.compile(r"^[A-Za-z0-9_-]+\.md$")
 _COMFYUI_ARTIFACT = re.compile(r"^/api/v1/assignments/([A-Za-z0-9:._-]{1,128})/artifacts/([1-8])$")
 _NOTICE_WRITE = re.compile(
     r"^/api/v1/notifications/([0-9a-fA-F-]{36})/(delivered|acknowledge)$")
+_NOTIFICATION_SETTINGS = "/api/v1/notification-settings"
 _GRACE_RECOVERY_DECISION = re.compile(
     r"^/api/v1/grace-recovery/([0-9a-fA-F-]{36})/decision$")
 _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
@@ -277,13 +278,15 @@ class _BoundedHTTPServer(HTTPServer):
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
             self._proposal_lifecycle = ProposalLifecycle(proposal_registry, objective_pipeline)
         self._comms5_operations = None
-        if proposal_registry is not None or steward_review_exchange is not None:
+        if (proposal_registry is not None or steward_review_exchange is not None
+                or notification_service is not None):
             from riverview_core.resident_execution.comms5_operations import Comms5Operations
             from riverview_core.resident_execution.external_reasoning_mcp import StewardReviewBridge
             self._comms5_operations = Comms5Operations(
                 proposal_registry, self._proposal_lifecycle, objective_pipeline,
                 steward_review_bridge=(StewardReviewBridge(steward_review_exchange)
-                    if steward_review_exchange is not None else None))
+                    if steward_review_exchange is not None else None),
+                notification_service=notification_service)
         self._static_dir = Path(static_dir)
         self._resource_telemetry = resource_telemetry
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
@@ -474,7 +477,7 @@ def make_handler():
             self._account_cookie_authenticated = self._account_identity is not None
             return self._account_cookie_authenticated
 
-        def _objective_account_identity(self):
+        def _objective_account_identity(self, *, state_changing=False):
             """Resolve an account session for sensitive objective projections.
 
             The dashboard bearer authenticates the general API but carries no
@@ -498,7 +501,7 @@ def make_handler():
             try:
                 return service.authenticate(values[0],
                     csrf_token=self.headers.get("X-Riverview-CSRF"),
-                    state_changing=False)
+                    state_changing=state_changing)
             except AuthDenied:
                 return None
 
@@ -599,6 +602,10 @@ def make_handler():
             parsed = urlsplit(self.path)
             notification_write = (_NOTICE_WRITE.fullmatch(parsed.path)
                                   if self.command == "POST" else None)
+            notification_settings_get = (parsed.path == _NOTIFICATION_SETTINGS and
+                                         self.command in {"GET", "HEAD"})
+            notification_settings_put = (parsed.path == _NOTIFICATION_SETTINGS and
+                                         self.command == "PUT")
             recovery_decision = (_GRACE_RECOVERY_DECISION.fullmatch(parsed.path)
                                  if self.command == "POST" else None)
             objective_submit = (parsed.path == "/api/v1/objectives" and
@@ -650,6 +657,7 @@ def make_handler():
                 self._error(400, "invalid_host", request_id)
                 return
             if (self.command not in {"GET", "HEAD"} and not notification_write
+                    and not notification_settings_put
                     and not recovery_decision
                     and not objective_submit and not objective_proposal and not objective_cancel
                     and not objective_rereview
@@ -1745,22 +1753,43 @@ def make_handler():
                             self._json(202, {"objective_id": objective_id,
                                 "status": result["status"], "assignment_id": result["assignment_id"]}, request_id)
                         else:
-                            if (set(data) not in ({"scope_ref"}, {"scope_ref", "reason"}) or
+                            if (set(data) not in (set(), {"reason"}, {"scope_ref"}, {"scope_ref", "reason"}) or
                                     ("reason" in data and
                                      (not isinstance(data["reason"], str) or
                                       not data["reason"].strip() or
                                       len(data["reason"].strip()) > 1000))):
                                 raise ValueError("invalid cancellation shape")
+                            objective = pipeline.get_objective(objective_id)
+                            if objective is None:
+                                self._error(404, "objective_not_found", request_id)
+                                return
+                            authority_ref = data.get("scope_ref", objective["scope_ref"])
+                            authority_credential = self.headers.get("X-Riverview-Authority")
+                            if not authority_credential:
+                                account_identity = self._objective_account_identity(
+                                    state_changing=True)
+                                if account_identity is not None:
+                                    self.server._account_auth_service.require_role(
+                                        account_identity, "operator", "steward")
+                                    principal_id = account_identity.get("authority_principal_id")
+                                    if not isinstance(principal_id, str) or not principal_id.strip():
+                                        from riverview_core.resident_execution import ObjectiveNotAuthorized
+                                        raise ObjectiveNotAuthorized("account principal unavailable")
+                                    from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+                                    authority_credential = InstitutionalPrincipal(principal_id)
+                                else:
+                                    authority_credential = self._conversation_authority()
                             result = pipeline.cancel_work_order(objective_id,
-                                credential=self.headers.get("X-Riverview-Authority", ""),
-                                authority_ref=data["scope_ref"], reason=data.get("reason"))
+                                credential=authority_credential,
+                                authority_ref=authority_ref, reason=data.get("reason"))
                             self._json(200, {"objective_id": objective_id,
                                 "status": result["status"]}, request_id)
                     except Exception as exc:
                         from riverview_core.resident_execution import (
                             ObjectiveNotAuthorized, ObjectiveStateError)
                         from riverview_core.institutional_authority import GrantCheckUnavailable, GrantDenied
-                        if isinstance(exc, (ObjectiveNotAuthorized, GrantDenied)):
+                        from riverview_core.account_auth import AuthDenied
+                        if isinstance(exc, (ObjectiveNotAuthorized, GrantDenied, AuthDenied)):
                             self._error(403, "objective_action_not_authorized", request_id)
                         elif isinstance(exc, GrantCheckUnavailable):
                             self._error(503, "authority_unavailable", request_id)
@@ -1777,6 +1806,43 @@ def make_handler():
                                              "dispatcher": {"status": "not_initialized"},
                                              "items": [], "limit": 25})
                     self._json(200, page, request_id)
+                elif notification_settings_get or notification_settings_put:
+                    identity = self._objective_account_identity(
+                        state_changing=notification_settings_put)
+                    if not identity or "steward" not in identity.get("roles", ()):
+                        self._error(403, "notification_settings_steward_required", request_id)
+                        return
+                    if notification_settings_put and not self._account_public_origin_ok():
+                        self._error(403, "invalid_request_origin", request_id)
+                        return
+                    service = self.server._notification_service
+                    if service is None:
+                        self._error(503, "notifications_not_initialized", request_id)
+                        return
+                    if notification_settings_get:
+                        if query:
+                            self._error(400, "invalid_query", request_id)
+                            return
+                        try:
+                            self._json(200, service.get_settings(), request_id)
+                        except Exception as exc:
+                            from riverview_core.notifications import NotificationUnavailable
+                            if isinstance(exc, NotificationUnavailable):
+                                self._error(503, "notification_settings_unavailable", request_id)
+                            else:
+                                raise
+                    else:
+                        try:
+                            data = self._json_body(4096)
+                            self._json(200, service.update_settings(data), request_id)
+                        except ValueError:
+                            self._error(400, "invalid_notification_settings", request_id)
+                        except Exception as exc:
+                            from riverview_core.notifications import NotificationUnavailable
+                            if isinstance(exc, NotificationUnavailable):
+                                self._error(503, "notification_settings_unavailable", request_id)
+                            else:
+                                raise
                 elif parsed.path == "/api/v1/resident/conversations" and self.command in {"GET", "HEAD"}:
                     service = self.server._conversation_service
                     if service is None:
