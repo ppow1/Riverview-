@@ -147,7 +147,7 @@ def main() -> int:
             checks.append({"check":"authenticated_browser","status":"SKIPPED","reason":"persona credential unavailable"})
     except Exception as exc:
         checks.append({"check":"runner","status":"FAIL","reason":str(exc)[:120]})
-    report={"schema_version":"rv.website-acceptance.v1","timestamp":timestamp,"origin":BASE,
+    report={"schema_version":"rv.website-acceptance.v1","timestamp":timestamp,
             "checks":checks,"overall":"FAIL" if any(x["status"]=="FAIL" for x in checks) else
             ("WARNING" if any(x["status"] in {"WARNING","SKIPPED"} for x in checks) else "PASS")}
     incident_file=REPORT_DIR/"incident.json"
