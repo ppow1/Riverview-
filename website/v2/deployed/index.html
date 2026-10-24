@@ -39,6 +39,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/work-monitor.css">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
+  <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/resource-monitor.js"></script>
   <script defer src="assets/work-monitor.js"></script>
@@ -48,6 +49,8 @@ History: Git and revision/backup manifest
   <script defer src="assets/grace-chat.js?rev=62e942ac"></script>
   <script defer src="assets/manual-image-generation.js"></script>
   <script defer src="assets/notification-settings.js"></script>
+  <script defer src="assets/operational-inbox-adapter.js?rev=1"></script>
+  <script defer src="assets/operational-inbox.js?rev=1"></script>
   <script defer src="assets/verification-status.js?rev=acceptance-v1"></script>
 <meta name="rv-v2-snapshot-mode" content="authenticated-dashboard"></head>
 <body>
@@ -231,6 +234,20 @@ History: Git and revision/backup manifest
               <div class="activity-table-wrap"><table><caption class="visually-hidden">Timestamped communications lifecycle events</caption><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Direction</th><th scope="col">Destination</th><th scope="col">Status</th><th scope="col">Correlation</th></tr></thead><tbody id="communications-ledger-body"></tbody></table></div>
               <p id="communications-ledger-empty" class="activity-empty">No ledger records are available because the authoritative source is not connected. This is not evidence of zero traffic.</p>
               <details class="activity-detail" id="communications-detail"><summary>Selected event details</summary><p>Select a ledger event to inspect its redacted details. Payload content is not exposed.</p></details>
+            </section>
+            <section class="operational-inbox" id="operational-inbox" aria-labelledby="operational-inbox-heading">
+              <div class="operational-inbox-heading"><div><p class="eyebrow">READ-ONLY OPERATIONAL RECORD</p><h3 id="operational-inbox-heading">Notifications and operational events</h3><p class="muted">A consolidated view of existing notification, attention, and institution event records. A missing severity or delivery receipt is shown as unavailable when the source does not provide it.</p></div><button id="operational-inbox-refresh" type="button">Refresh inbox</button></div>
+              <p id="operational-inbox-freshness" class="inbox-freshness" role="status" aria-live="polite">Inbox has not been refreshed in this session.</p>
+              <div class="inbox-source-status" id="operational-inbox-sources" aria-label="Source status"></div>
+              <div class="inbox-filters">
+                <label>Search<input id="inbox-search" type="search" maxlength="120" placeholder="Event, description, work order, or evidence ID"></label>
+                <label>Source<select id="inbox-source"><option value="all">All sources</option><option value="notification">Notifications</option><option value="attention">Attention</option><option value="event">Operational events</option></select></label>
+                <label>Severity<select id="inbox-severity"><option value="all">All severity states</option><option value="specified">Severity supplied</option><option value="unknown">Not supplied</option></select></label>
+                <label>State<select id="inbox-status"><option value="all">All states</option><option value="queued">Queued</option><option value="delivered">Delivered</option><option value="acknowledged">Acknowledged</option><option value="recorded">Recorded</option></select></label>
+                <label>Sort<select id="inbox-sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
+              </div>
+              <div class="inbox-table-wrap"><table><caption class="visually-hidden">Read-only notification and operational event records</caption><thead><tr><th scope="col">Time</th><th scope="col">Severity</th><th scope="col">State</th><th scope="col">Event and description</th><th scope="col">Related work</th><th scope="col">Evidence</th></tr></thead><tbody id="inbox-rows"></tbody></table></div>
+              <p id="inbox-empty" class="inbox-empty">No source records have been loaded.</p>
             </section>
           </section>
         </section>
