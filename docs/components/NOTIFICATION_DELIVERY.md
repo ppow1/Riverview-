@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.1
+File Revision: 1.0.2
 Purpose: Define durable visual notification and pending decision-request projection
 Authority: Records notification state only; cannot approve or resolve institutional decisions
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Normalize controlled Markdown spacing
+Changed: 2026-10-24 UTC | RV-IPHONE-NTFY-UPSTREAM-001 | Link iPhone upstream relay operations and acceptance limits
 History: Git and revision/backup manifest
 -->
 # Durable notification delivery
@@ -63,6 +64,8 @@ heartbeat older than 15 seconds is `stale`, and a fresh successful heartbeat is
 
 See `NOTIFICATION_DELIVERY_API.schema.json` for bounded response schemas and
 `NOTIFICATION_DELIVERY_COOKBOOK.md` for diagnosis/recovery steps.
+The self-hosted ntfy iPhone background relay and its phone-side acceptance
+limits are documented in `NOTIFICATION_IPHONE_UPSTREAM_RELAY.md`.
 
 ## Routes and security
 
