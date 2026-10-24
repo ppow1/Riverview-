@@ -383,15 +383,15 @@
     },
     "docs/components/CME_MONITOR.md": {
       "path": "docs/components/CME_MONITOR.md",
-      "revision": "1.0.4",
-      "sha256": "0f277b6a64ba8aa2e9194e194bf1030198499a7526b81bf08a422987809194f8",
-      "size_bytes": 7127
+      "revision": "1.0.5",
+      "sha256": "be22b66267fb0149f25a9d86946180904418484313347ca12188fb9b93ddb2bb",
+      "size_bytes": 7982
     },
     "docs/components/CME_MONITOR_COOKBOOK.md": {
       "path": "docs/components/CME_MONITOR_COOKBOOK.md",
-      "revision": "1.0.1",
-      "sha256": "44fa8dbfa74f353d7a3f713559b2d8ae3c5d5310b6d9864f528390bc1b8c18ef",
-      "size_bytes": 5770
+      "revision": "1.0.2",
+      "sha256": "b878c2d434c8f904631575288a211d88a95d2115696b4f92ee7859cccdc85200",
+      "size_bytes": 6208
     },
     "docs/components/CME_MONITOR_FLOW.md": {
       "path": "docs/components/CME_MONITOR_FLOW.md",
@@ -8333,9 +8333,9 @@
     },
     "src/riverview_core/cme/monitor.py": {
       "path": "src/riverview_core/cme/monitor.py",
-      "revision": "1.0.2",
-      "sha256": "c89e8c0d128209e5372a46d0543a2aec39b73a69378a0930b8bbe17a8f8f7f94",
-      "size_bytes": 22909
+      "revision": "1.0.3",
+      "sha256": "19fa09731709b69cca80a90c424c87ff4790439c796e8669d3037756028ec2dc",
+      "size_bytes": 26590
     },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
@@ -9125,9 +9125,9 @@
     },
     "tests/test_cme_monitor.py": {
       "path": "tests/test_cme_monitor.py",
-      "revision": "1.0.4",
-      "sha256": "621f9e6b2c272af2f03760d3576fc368721999dc7ef7dad90bad77098d06612a",
-      "size_bytes": 15232
+      "revision": "1.0.5",
+      "sha256": "d66fa7762438a5a516cb713f8b685bc861184d35e7c0f648ac72794e555345d4",
+      "size_bytes": 18869
     },
     "tests/test_cme_monitor_service.py": {
       "path": "tests/test_cme_monitor_service.py",
@@ -9548,6 +9548,12 @@
       "revision": "1.0.1",
       "sha256": "75da3b47937776addb01912e1de1f11dd1b5cf859a4df55850958172cfa3e5c3",
       "size_bytes": 15190
+    },
+    "src/riverview_core/cme/migrations/0006_grace_objective_blocked_attention.sql": {
+      "path": "src/riverview_core/cme/migrations/0006_grace_objective_blocked_attention.sql",
+      "revision": "1.0.0",
+      "sha256": "c1fd612f67662ea501c26991e6009f61911e5f3379bef4a6e2c3b259e731bb62",
+      "size_bytes": 996
     }
   },
   "manifest_revision": "1.1.318",

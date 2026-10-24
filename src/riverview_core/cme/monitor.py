@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/cme/monitor.py
 # Component: CME
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-24 UTC | RV-CME-GRACE-BLOCKED-OBJECTIVE-ESCALATION-20261024 | Detect durable Grace revision fences and append idempotent Steward escalation decisions.
 # Purpose: Observe durable assignment progress, deadlines, workers, and CME health
 # Execution Model: Continuous scheduled PostgreSQL polling with durable re-scan
 # Observability: Read-only status snapshot and durable CME attention event ledger
@@ -202,6 +203,62 @@ class CMEPostgresMonitor:
                     "worker_health": self._lease_health(item, now),
                 })
 
+            # Grace reasoning failures have no Engineering assignment yet, so
+            # they are invisible to the assignment/lease scan above. Observe
+            # only an explicit revision-scoped durable BLOCKED event and emit
+            # a CME-owned Steward escalation; never retry or mutate Grace.
+            objective_escalations = []
+            cur.execute("""SELECT o.objective_id,o.revision,
+                    blocked.payload->>'runtime_revision' AS runtime_revision,
+                    blocked.payload->>'detail_code' AS detail_code,
+                    blocked.sequence AS blocked_sequence,blocked.occurred_at AS blocked_at,
+                    failures.failure_count,failures.last_failure_at
+                FROM grace_objectives AS o
+                JOIN LATERAL (
+                    SELECT e.payload,e.sequence,e.occurred_at
+                    FROM grace_objective_events AS e
+                    WHERE e.objective_id=o.objective_id
+                      AND e.event_type='execution.reasoning_failed'
+                      AND e.payload->>'status'='BLOCKED'
+                      AND e.payload->>'objective_revision'=o.revision::text
+                    ORDER BY e.sequence DESC LIMIT 1
+                ) AS blocked ON TRUE
+                JOIN LATERAL (
+                    SELECT count(*) AS failure_count,max(e.occurred_at) AS last_failure_at
+                    FROM grace_objective_events AS e
+                    WHERE e.objective_id=o.objective_id
+                      AND e.event_type='execution.reasoning_failed'
+                      AND e.sequence > COALESCE((SELECT max(p.sequence)
+                          FROM grace_objective_events AS p
+                          WHERE p.objective_id=o.objective_id
+                            AND p.event_type='work_order.proposed'),0)
+                ) AS failures ON TRUE
+                WHERE o.status='GROUNDED'
+                ORDER BY blocked.occurred_at,o.objective_id""")
+            for blocked in cur.fetchall():
+                runtime_revision = blocked["runtime_revision"] or "unknown"
+                event_key = (f"grace-objective-blocked:{blocked['objective_id']}:"
+                    f"r{blocked['revision']}:{runtime_revision}")
+                details = {
+                    "objective_id": blocked["objective_id"],
+                    "objective_revision": blocked["revision"],
+                    "runtime_revision": runtime_revision,
+                    "failure_count": blocked["failure_count"],
+                    "last_error_code": blocked["detail_code"] or "UNAVAILABLE",
+                    "blocked_at": self._ts(blocked["blocked_at"]),
+                    "last_failure_at": self._ts(blocked["last_failure_at"]),
+                    "decision": "escalate_to_steward",
+                    "recommended_action": "review_failure_evidence_before_authorizing_retry",
+                    "automatic_recovery": False,
+                }
+                inserted = self._append_event(cur, event_key=event_key,
+                    event_type="grace_objective_blocked", details=details)
+                cur.execute("SELECT event_id FROM cme_monitor_events WHERE event_key=%s",
+                            (event_key,))
+                objective_escalations.append({"event_id": str(cur.fetchone()["event_id"]),
+                    "objective_id": blocked["objective_id"],
+                    "decision": "escalate_to_steward", "created": inserted})
+
             # Close only conditions that this complete scan can prove resolved.
             cur.execute("""SELECT event_id,assignment_id,attention_key,event_type,details
                 FROM cme_monitor_events AS e
@@ -267,7 +324,8 @@ class CMEPostgresMonitor:
                 "workers_enabled": sum(1 for worker in workers if worker["enabled"]),
                 "workers": workers, "stalled": stalled_count,
                 "overdue": overdue_count, "recovery_requests": recovery_count,
-                "assignments": observed, "scanned_at": now.isoformat()}
+                "assignments": observed, "objective_escalations": objective_escalations,
+                "scanned_at": now.isoformat()}
 
     def _worker_snapshot(self, cur, now):
         cur.execute("""SELECT w.worker_id,w.active,l.heartbeat_at,l.expires_at

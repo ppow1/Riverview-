@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_cme_monitor.py
 # Component: CME
-# Revision: 1.0.4
+# Revision: 1.0.5
+# Changed: 2026-10-24 UTC | RV-CME-GRACE-BLOCKED-OBJECTIVE-ESCALATION-20261024 | Verify revision-block detection and no automatic recovery.
 # Purpose: Verify concurrent monitoring, durable alerts, health and process restart
 # Execution Model: Isolated PostgreSQL integration tests and real monitor subprocesses
 # Observability: CME health rows, append-only alerts and independent status projection
@@ -50,7 +51,14 @@ class CMEMonitorTests(unittest.TestCase):
                          migrations_dir=self.root / "worker_adapter/migrations")
         self.assertEqual(apply_migrations(
             DSN, schema=self.schema, migrations_dir=self.root / "cme/migrations"),
-            ["0005_cme_monitoring"])
+            ["0005_cme_monitoring", "0006_grace_objective_blocked_attention"])
+        self.admin.execute("""CREATE TABLE grace_objectives (
+            objective_id TEXT PRIMARY KEY,status TEXT NOT NULL,revision BIGINT NOT NULL,
+            assignment_id TEXT)""")
+        self.admin.execute("""CREATE TABLE grace_objective_events (
+            sequence BIGSERIAL PRIMARY KEY,objective_id TEXT NOT NULL,event_type TEXT NOT NULL,
+            idempotency_key TEXT NOT NULL,actor_id TEXT NOT NULL,
+            payload JSONB NOT NULL,occurred_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp())""")
         apply_migrations(DSN, schema=self.schema,
                          migrations_dir=self.root / "institutional_authority/migrations")
         self.admin.execute("INSERT INTO institutional_principals(principal_id,principal_kind) "
@@ -134,6 +142,53 @@ class CMEMonitorTests(unittest.TestCase):
             cur.execute("SELECT event_type,event_key,attention_key,details FROM cme_monitor_events "
                         "WHERE assignment_id=%s ORDER BY recorded_at,event_id", (assignment_id,))
             return cur.fetchall()
+
+    def test_grace_revision_block_creates_steward_escalation_without_recovery(self):
+        objective_id = "objective:test-blocked-grace-reasoning"
+        unblocked_id = "objective:test-unblocked-grace-reasoning"
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO grace_objectives
+                (objective_id,status,revision) VALUES (%s,'GROUNDED',2)""", (objective_id,))
+            cur.execute("""INSERT INTO grace_objectives
+                (objective_id,status,revision) VALUES (%s,'GROUNDED',2)""", (unblocked_id,))
+            cur.execute("""INSERT INTO grace_objective_events
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'execution.reasoning_failed','blocked-test-event',
+                    'service:grace-execution',%s::jsonb)""",
+                (objective_id, '{"status":"BLOCKED","objective_revision":2,'
+                 '"runtime_revision":"test-runtime","detail_code":"PROPOSAL_CRITERIA_BINDING_REJECTED"}'))
+            cur.execute("""INSERT INTO grace_objective_events
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'execution.reasoning_failed','unblocked-test-event',
+                    'service:grace-execution','{"status":"UNAVAILABLE","objective_revision":2}')""",
+                (unblocked_id,))
+
+        result = self.monitor.scan_once()
+        decisions = [item for item in result["objective_escalations"]
+                     if item["objective_id"] == objective_id]
+        self.assertEqual(len(decisions), 1)
+        self.assertFalse(any(item["objective_id"] == unblocked_id
+                             for item in result["objective_escalations"]))
+        self.assertEqual(decisions[0]["decision"], "escalate_to_steward")
+        with self.admin.cursor() as cur:
+            cur.execute("SELECT event_id,event_type,details FROM cme_monitor_events "
+                        "WHERE event_id=%s", (decisions[0]["event_id"],))
+            event = cur.fetchone()
+            self.assertEqual(event["event_type"], "grace_objective_blocked")
+            self.assertEqual(event["details"]["recommended_action"],
+                "review_failure_evidence_before_authorizing_retry")
+            self.assertFalse(event["details"]["automatic_recovery"])
+            cur.execute("SELECT status,revision,assignment_id FROM grace_objectives "
+                        "WHERE objective_id=%s", (objective_id,))
+            objective = cur.fetchone()
+            self.assertEqual((objective["status"], objective["revision"],
+                              objective["assignment_id"]), ("GROUNDED", 2, None))
+
+        repeated = self.monitor.scan_once()
+        duplicate = [item for item in repeated["objective_escalations"]
+                     if item["objective_id"] == objective_id]
+        self.assertEqual(len(duplicate), 1)
+        self.assertFalse(duplicate[0]["created"])
 
     def test_stall_deadline_and_expired_lease_do_not_block_unrelated_assignment(self):
         from riverview_core.assignment_scheduler import PostgresAssignmentScheduler

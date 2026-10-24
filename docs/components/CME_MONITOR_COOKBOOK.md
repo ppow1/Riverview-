@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/CME_MONITOR_COOKBOOK.md
 Component: CME
-File Revision: 1.0.1
+File Revision: 1.0.2
+Changed: 2026-10-24 UTC | RV-CME-GRACE-BLOCKED-OBJECTIVE-ESCALATION-20261024 | Document blocked-objective escalation event response.
 Purpose: Provide read-only diagnosis and safe recovery guidance for CME monitor
 Authority: Diagnostics are read-only; migrations and state changes require explicit operations
 Changed: 2026-10-10 UTC | RV-M2.4-002 | Document installed monitor operations and verified recovery controls
@@ -82,6 +83,7 @@ Replace `riverview_dev` with the explicitly configured schema; quote identifiers
 | `assignment_stalled` | Durable progress event age reached configured threshold | Inspect assignment events, worker heartbeat, and lease expiry | Existing worker/recovery workflow owns action; CME does not reassign or execute |
 | `deadline_missed` | CME-owned deadline elapsed on active assignment | Verify deadline and assignment state | Assignment owner determines next work; a later deadline/terminal state produces a resolution event |
 | `recovery_requested` | A stalled running lease expired; CME recorded a request | Inspect assignment recovery records and lease generation | M2.3 coordinator reconciles before worker claim; confirm its durable result separately |
+| `grace_objective_blocked` | Grace's durable revision fence blocked planning before any work order existed | Inspect the linked Grace reasoning-failure events and objective revision | CME records a Steward escalation recommendation only; review the evidence before explicitly authorizing another retry |
 
 ## Safe restart
 

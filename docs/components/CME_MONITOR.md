@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/CME_MONITOR.md
 Component: CME
-File Revision: 1.0.4
+File Revision: 1.0.5
+Changed: 2026-10-24 UTC | RV-CME-GRACE-BLOCKED-OBJECTIVE-ESCALATION-20261024 | Document Grace objective escalation observation.
 Purpose: Specify the assignment progress and health monitoring service
 Authority: Observation and CME-owned durable event writes only
 Changed: 2026-10-10 UTC | RV-M2.4-002 | Record final full-suite commissioning verification
@@ -21,6 +22,8 @@ History: Git and revision/backup manifest
 
 `CMEPostgresMonitor` observes every nonterminal assignment, its latest durable event, optional CME-owned deadline, and current assignment lease. It records monitor health and deduplicated attention or recovery-request events in CME-owned tables. It does not claim leases, change assignment state, run recovery, dispatch work, verify outcomes, or execute engineering actions. A stalled item cannot block a later item because each scan reads the full active set and does not wait on a worker.
 
+The monitor also reads Grace's column-scoped objective status and event records. When a GROUNDED objective has a durable revision-matched `execution.reasoning_failed` event with `status=BLOCKED`, it appends one `grace_objective_blocked` CME event keyed by objective revision and fence runtime. The decision recommends Steward review before retry. It never resumes reasoning, changes the objective, creates an assignment, or calls an external model. This covers objectives that are fenced before any Engineering assignment exists.
+
 An emitted `recovery_requested` row is an observable request for the existing recovery path to reconcile. It is not proof that recovery ran. The M2.3 worker recovery coordinator remains responsible for expired-lease reconciliation before the next worker claim.
 
 ## Persistent data and migration
@@ -36,6 +39,7 @@ Migration `0005_cme_monitoring.sql` is applied explicitly to a selected schema a
 - A deadline is missed when a configured deadline is at or before the monitor's UTC scan time and the assignment is nonterminal.
 - An expired running lease that is also stalled creates one `recovery_requested` event for that lease generation.
 - `blocked` and `awaiting_steward` assignments create assignment-local attention records; unrelated rows continue to be scanned.
+- A Grace objective with an explicit durable revision-scoped reasoning block creates one `grace_objective_blocked` event with the failure count and safe error code; repeated scans are idempotent.
 - Worker health is `healthy` only while its most recent lease heartbeat is within the configured freshness limit and the lease remains unexpired. A registered worker with no heartbeat is `unknown`; an inactive or expired/stale worker is `unavailable` or `stale` respectively.
 - CME health is `not_initialized` before its first successful scan, `healthy` with a fresh successful scan, `stale` after the configured observation freshness threshold, `degraded` after a recorded scan failure, and `unavailable` when a status client cannot reach PostgreSQL.
 
