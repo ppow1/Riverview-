@@ -2096,7 +2096,8 @@ class ResidentConversationService:
             "proposal", "submitter_id", "origin", "completion", "step_id",
             "step_objective", "step_acceptance_criteria"}
         optional = {"objective_status", "persisted_decision", "artifact_review",
-                    "artifact_review_unavailable", "proposal_reference"}
+                    "artifact_review_unavailable", "proposal_reference",
+                    "rework_attempt_count"}
         if (not isinstance(context, dict) or not required <= set(context) or
                 set(context) - required - optional):
             raise ValueError("rejected Engineering result context is invalid")

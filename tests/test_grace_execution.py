@@ -1901,6 +1901,11 @@ class GraceExecutionTests(unittest.TestCase):
         context = self.pipeline.pending_rejected_work_order_reviews()[0]
         self.assertIsNone(context["origin"])
         self.assertEqual(context["proposal_reference"], proposal_reference)
+        self.pipeline.record_rework_escalation_pending(context, "review_provider_unavailable")
+        self.assertEqual(self.pipeline.pending_rejected_work_order_reviews(), [],
+            "a reviewer failure must not loop again within the same immutable release")
+        self.pipeline.runtime_release_id = lambda: "f" * 40
+        context = self.pipeline.pending_rejected_work_order_reviews()[0]
         decision = {"decision":"REWORK_PROPOSED",
             "rationale":"Add the missing exact criteria to the same assigned artifact.",
             "correction_instruction":"Include all four exact criteria in the assigned artifact.",

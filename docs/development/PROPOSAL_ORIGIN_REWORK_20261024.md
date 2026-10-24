@@ -41,3 +41,16 @@ Luna, or change the standing experiment grant or budget.
 5. Independent verification remains mandatory; rejected artifacts remain
    rejected until a new attempt is independently verified.
 
+## Live defect found during commissioning
+
+The first release exposed the proposal-origin path but the live reviewer raised
+`ValueError` before invoking its provider. The exact mismatch was that
+`pending_rejected_work_order_reviews()` included the durable
+`rework_attempt_count` field, while the review context contract did not allow
+that field. The service then wrote `review_provider_unavailable` but did not
+exclude that verification on the next polling cycle. The follow-up correction
+accepts the bounded count as context and fences a failed review to one attempt
+per immutable source release. A changed release can retry once; repeated
+failures from the same release remain held. No reasoning recovery or Luna
+request was consumed during this diagnosis.
+

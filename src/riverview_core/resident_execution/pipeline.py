@@ -68,6 +68,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 import hashlib
 import json
+from pathlib import Path
 import re
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
@@ -126,6 +127,16 @@ class GraceExecutionPipeline:
             (objective_id,event_type,idempotency_key,actor_id,payload)
             VALUES (%s,%s,%s,%s,%s::jsonb) ON CONFLICT (idempotency_key) DO NOTHING""",
             (objective_id, event_type, idem, actor_id, _json(payload)))
+
+    @staticmethod
+    def runtime_release_id():
+        """Identify the immutable release so a failed reviewer runs once per release."""
+        try:
+            commit = (Path(__file__).resolve().parents[3] / "SOURCE_COMMIT").read_text(
+                encoding="ascii").strip()
+        except (OSError, UnicodeError):
+            return "development"
+        return commit if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", commit) else "unpackaged"
 
     def authorize_objective_submission(self, principal_id, scope_ref):
         """Recheck the existing exact objective.submit grant for an idempotent retry."""
@@ -1890,6 +1901,13 @@ class GraceExecutionPipeline:
             if any(event["event_type"] in receipt_types and
                     event["payload"].get("verification_id") == verification_id for event in events):
                 continue
+            same_release_hold = any(event["event_type"] ==
+                "engineering.rework_escalation_pending" and
+                event["payload"].get("verification_id") == verification_id and
+                event["payload"].get("runtime_release_id") == self.runtime_release_id()
+                for event in events)
+            if same_release_hold:
+                continue
             matching_decisions = [event for event in events if event["event_type"] in {
                 "engineering.rework_decided", "engineering.rejection_reviewed"} and
                 event["payload"].get("assignment_id") == assignment_id and
@@ -2072,13 +2090,15 @@ class GraceExecutionPipeline:
         objective_id = context["objective_id"]
         assignment_id = context["assignment_id"]
         verification_id = context["completion"]["verification_id"]
+        runtime_release_id = self.runtime_release_id()
         payload = {"decision": "ESCALATION_PENDING", "reason_code": reason_code,
             "assignment_id": assignment_id, "verification_id": verification_id,
             "step_id": context.get("step_id"),
             "rework_attempt_count": context.get("rework_attempt_count", 0),
             "retry_limit": self.MAX_GOVERNED_REWORK_ATTEMPTS,
+            "runtime_release_id": runtime_release_id,
             "required_action": "Steward to commission or restore the authorized rejection-review provider, or direct the next scoped correction."}
-        idem = f"grace-rework-escalation-pending:{verification_id}:{reason_code}"
+        idem = f"grace-rework-escalation-pending:{verification_id}:{reason_code}:{runtime_release_id}"
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)

@@ -496,6 +496,7 @@ class GraceConversationResultTests(unittest.TestCase):
                 "content_sha256": "a" * 64, "approval_event_key": "proposal-approved:test",
                 "objective_submit_grant_id": "grant:test"},
             "step_id": "s2", "step_objective": "Write the runtime diagnostic",
+            "rework_attempt_count": 0,
             "step_acceptance_criteria": ["Include authoritative runtime evidence."],
             "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
                 "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
