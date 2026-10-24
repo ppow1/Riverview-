@@ -594,7 +594,7 @@ class GraceExecutionService:
 
     def _claim_experiment_recovery(self, objective_id, objective_revision):
         """Atomically consume one exact, non-repeating use of the standing grant."""
-        from .grace_experiment_authorization import ACTION, GraceExperimentAuthorization
+        from .grace_experiment_authorization import GraceExperimentAuthorization
         scope_ref = GraceExperimentAuthorization.scope_ref(objective_id, objective_revision)
         try:
             with self.pipeline.ledger.db.transaction(), self.pipeline.ledger.db.cursor() as cur:
@@ -607,8 +607,8 @@ class GraceExecutionService:
                 auth = cur.fetchone()
                 if auth is None:
                     return None
-                grant = self.pipeline.authorizer.require_principal(
-                    cur, "resident:grace", ACTION, scope_ref)
+                grant = self.pipeline.authorizer.require_grace_experiment_grant(
+                    cur, auth["authority_grant_id"], scope_ref)
                 if grant["grant_id"] != auth["authority_grant_id"]:
                     return None
                 cur.execute("""SELECT count(*) AS used FROM grace_experiment_authorization_events

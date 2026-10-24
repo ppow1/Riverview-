@@ -82,6 +82,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0008_resident_permission_profiles",
             "0009_worker_registration_retirement_event",
             "0010_grace_autonomy_experiment_grant",
+            "0011_exact_grace_luna_escalation_check",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:
@@ -100,9 +101,22 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         expiry = datetime.now(timezone.utc) + timedelta(hours=24)
         self.admin.execute(f"""INSERT INTO {self.schema}.institutional_principals
             (principal_id,principal_kind) VALUES ('resident:grace','resident')""")
+        self.admin.execute(f"""INSERT INTO {self.schema}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES ('luna:exact','resident:grace','resident.reasoning.escalate',
+                'provider:gpt-6-luna','steward:test','rv.policy:test.v1')""")
         self.assertEqual(self.registry.issue_grace_autonomy_experiment_grant(
             actor_id="steward:test", grant_id=grant_id, scope_ref=scope,
             valid_until=expiry), grant_id)
+        from riverview_core.institutional_authority import ExactGrantAuthorizer, GrantDenied
+        checker = ExactGrantAuthorizer(self.schema)
+        with self.registry.db.cursor() as cur:
+            self.assertEqual(checker.require_grace_experiment_grant(cur, grant_id, scope),
+                {"principal_id": "resident:grace", "grant_id": grant_id})
+            with self.assertRaises(GrantDenied):
+                checker.require_grace_experiment_grant(cur, "grant:wrong", scope)
+            with self.assertRaises(GrantDenied):
+                checker.require_grace_experiment_grant(cur, grant_id, "unrelated-objective")
         self.assertEqual(self.registry.issue_grace_autonomy_experiment_grant(
             actor_id="steward:test", grant_id=grant_id, scope_ref=scope,
             valid_until=expiry), grant_id)
@@ -118,6 +132,22 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         events=self.admin.execute(f"""SELECT count(*) FROM {self.schema}.institutional_authority_events
             WHERE grant_id=%s AND event_type='authority_granted'""",(grant_id,)).fetchone()[0]
         self.assertEqual(events,1)
+
+    def test_grace_luna_lookup_is_fixed_scope_and_fails_closed(self):
+        from riverview_core.institutional_authority import AuthorityDenied
+        with self.assertRaises(AuthorityDenied):
+            self.registry.active_grace_luna_escalation_grant()
+        self.admin.execute(f"""INSERT INTO {self.schema}.institutional_principals
+            (principal_id,principal_kind) VALUES ('resident:grace','resident')""")
+        self.admin.execute(f"""INSERT INTO {self.schema}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES ('luna:exact','resident:grace','resident.reasoning.escalate',
+                'provider:gpt-6-luna','steward:test','rv.policy:test.v1')""")
+        self.assertEqual(self.registry.active_grace_luna_escalation_grant(),
+            {"principal_id": "resident:grace", "grant_id": "luna:exact"})
+        self.admin.execute(f"UPDATE {self.schema}.authority_grants SET revoked_at=clock_timestamp() WHERE grant_id='luna:exact'")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.active_grace_luna_escalation_grant()
     def test_office_role_update_is_steward_only_cas_and_preserves_binding(self):
         from riverview_core.institutional_authority import AuthorityDenied, IdentityConflict
         self.registry.create_office(self.steward_token, "office:grace-role",

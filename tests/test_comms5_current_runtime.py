@@ -438,9 +438,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 25)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 28)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(25 - len(status), 0)
+        self.assertEqual(28 - len(status), 0)
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler

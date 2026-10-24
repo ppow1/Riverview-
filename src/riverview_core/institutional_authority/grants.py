@@ -107,6 +107,25 @@ class ExactGrantAuthorizer:
         self._require_profile_policy(cursor, authorized_principal, action, scope_ref)
         return {"principal_id": authorized_principal, "grant_id": grant_id}
 
+    def require_grace_experiment_grant(self, cursor, grant_id, scope_ref):
+        """Check only Grace's exact r2 experiment grant through its fixed DB function."""
+        if (not isinstance(grant_id, str) or not grant_id or
+                scope_ref != "grace-autonomy:objective:proposal:"
+                             "e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2"):
+            raise GrantDenied("exact Grace experiment grant is required")
+        query = sql.SQL("SELECT {}.active_grace_autonomy_experiment_grant(%s,%s)").format(
+            sql.Identifier(self.schema))
+        try:
+            cursor.execute(query, (grant_id, scope_ref))
+            row = cursor.fetchone()
+        except psycopg.Error:
+            raise GrantCheckUnavailable("Grace experiment authority query failed") from None
+        value = row[0] if row is not None and not hasattr(row, "keys") else (
+            next(iter(row.values())) if row is not None else None)
+        if value != grant_id:
+            raise GrantDenied("exact Grace experiment grant is not active")
+        return {"principal_id": "resident:grace", "grant_id": grant_id}
+
     def _require_profile_policy(self, cursor, principal_id, action, scope_ref):
         """Apply profiles when fully installed; legacy schemas retain exact grants."""
         if not self._profile_registry_installed(cursor):

@@ -50,8 +50,13 @@ class GraceExperimentAuthorization:
                 (SOURCE_EVENT_ID, objective_id, revision))
             if cur.fetchone() is None:
                 raise PermissionError("exact_block_escalation_evidence_required")
-            luna_grant = self.pipeline.authorizer.require_principal(
-                cur, "resident:grace", "resident.reasoning.escalate", "provider:gpt-6-luna")
+        try:
+            luna_grant = self.authority_registry.active_grace_luna_escalation_grant()
+        except Exception as exc:
+            from ..institutional_authority import AuthorityDenied
+            if isinstance(exc, AuthorityDenied):
+                raise PermissionError("active_grace_luna_escalation_grant_required") from None
+            raise
         now = datetime.now(timezone.utc)
         requested_expiry = now + DURATION
         authorization_id = uuid5(NAMESPACE_URL, "riverview:grace-experiment:" + idempotency_key)

@@ -302,7 +302,7 @@ class DurableExternalReasoningExchange:
     def _reserve_experiment_luna_call(self, cur, row, reserved_cost):
         """Reserve one Luna request under the exact active experiment grant."""
         from psycopg import sql
-        from .grace_experiment_authorization import ACTION, GraceExperimentAuthorization
+        from .grace_experiment_authorization import GraceExperimentAuthorization
         objective_id, revision = row.get("objective_id"), row.get("proposal_revision")
         if not isinstance(objective_id, str) or type(revision) is not int:
             return None
@@ -315,12 +315,11 @@ class DurableExternalReasoningExchange:
         if auth is None:
             return None
         authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
-        cur.execute(sql.SQL("SELECT principal_id,grant_id FROM {}.authorize_exact_principal_grant(%s,%s,%s)").format(
-            sql.Identifier(authority_schema)), ("resident:grace", ACTION, scope_ref))
+        cur.execute(sql.SQL("SELECT {}.active_grace_autonomy_experiment_grant(%s,%s) AS grant_id").format(
+            sql.Identifier(authority_schema)), (auth["authority_grant_id"], scope_ref))
         experiment_grant = cur.fetchone()
-        cur.execute(sql.SQL("SELECT principal_id,grant_id FROM {}.authorize_exact_principal_grant(%s,%s,%s)").format(
-            sql.Identifier(authority_schema)), ("resident:grace", "resident.reasoning.escalate",
-                                                  "provider:gpt-6-luna"))
+        cur.execute(sql.SQL("SELECT {}.active_grace_luna_escalation_grant() AS grant_id").format(
+            sql.Identifier(authority_schema)))
         luna_grant = cur.fetchone()
         if (experiment_grant is None or experiment_grant["grant_id"] != auth["authority_grant_id"] or
                 luna_grant is None or luna_grant["grant_id"] != auth["luna_authority_grant_id"]):

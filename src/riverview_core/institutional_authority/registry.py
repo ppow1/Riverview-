@@ -321,6 +321,29 @@ class AuthorityRegistry:
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 
+    def active_grace_luna_escalation_grant(self):
+        """Return only Grace's active Luna escalation grant through a fixed DB boundary."""
+        try:
+            with self.db.transaction(), self.db.cursor() as cur:
+                cur.execute("SELECT set_config('search_path', %s, true)", (self.schema,))
+                cur.execute(psycopg.sql.SQL(
+                    "SELECT {}.active_grace_luna_escalation_grant()"
+                ).format(psycopg.sql.Identifier(self.schema)))
+                row = cur.fetchone()
+                grant_id = row[0] if row is not None and not hasattr(row, "values") else (
+                    next(iter(row.values())) if row is not None else None)
+                if not grant_id:
+                    raise AuthorityDenied("Grace Luna escalation grant is not active")
+                return {"principal_id": "resident:grace", "grant_id": grant_id}
+        except AuthorityDenied:
+            raise
+        except psycopg.Error as exc:
+            if getattr(exc, "sqlstate", None) == "P0001":
+                raise AuthorityDenied("Grace Luna escalation grant is not active") from None
+            raise RegistryUnavailable(type(exc).__name__) from None
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
     def authorize(self, credential, action, scope_ref):
         if not action or not scope_ref:
             raise ValueError("action and scope_ref are required")
