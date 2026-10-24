@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: website/v2/deployed/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.22
+File Revision: 1.0.23
+Changed: 2026-10-24 UTC | RV-WEB-AUTHENTICATED-ACCEPTANCE | Add the redacted latest acceptance report to the V2 overview.
 Changed: 2026-10-24 UTC | RV-V2-GRACE-CANCELLATION-INTEGRATION | Add confirmation-bound cancellation from Objectives, Engineering Progress, and exact-ID Grace chat commands.
 Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
 Execution Model: Interactive browser presentation; request-driven Dashboard API calls
@@ -47,6 +48,7 @@ History: Git and revision/backup manifest
   <script defer src="assets/grace-chat.js?rev=62e942ac"></script>
   <script defer src="assets/manual-image-generation.js"></script>
   <script defer src="assets/notification-settings.js"></script>
+  <script defer src="assets/verification-status.js?rev=acceptance-v1"></script>
 <meta name="rv-v2-snapshot-mode" content="authenticated-dashboard"></head>
 <body>
   <div class="preview-banner"><span class="dot"></span> Riverview V2 <b>Grace and connected settings use authenticated Riverview services; overview cards contain sample records.</b></div>
@@ -73,6 +75,11 @@ History: Git and revision/backup manifest
         <section class="content" id="workspace-main" aria-label="Workspace" data-current-view="overview">
           <div class="welcome-row"><div><p class="eyebrow" id="v2-current-date">RIVERVIEW V2</p><h2>A clear view of the work.</h2><p class="muted">Overview cards show sample records. Grace, Hardware, Communications, Work, and notification settings use connected Riverview services when authorized.</p></div><div class="welcome-actions"><div class="fixture-chip">◈ &nbsp;Sample overview</div><button id="snapshot-action" class="snapshot-action" type="button" aria-describedby="snapshot-status" data-tooltip="Download a bounded snapshot of the current V2 view">Snapshot</button></div></div><p id="snapshot-status" class="integration-note">Downloads a bounded ZIP of the current V2 view. Grace message contents are excluded.</p>
           <div id="overview-content">
+          <section class="metric-card" id="website-verification" aria-labelledby="website-verification-heading" style="margin:14px 0;padding:16px">
+            <h3 id="website-verification-heading">Website verification</h3>
+            <p id="website-verification-state" role="status" aria-live="polite">Latest automated acceptance result is loading.</p>
+            <a href="/v2/verification/latest.json" target="_blank" rel="noopener noreferrer">View redacted check report</a>
+          </section>
           <div class="metric-grid">
             <article class="metric-card"><span>Active work</span><strong>04</strong><small>Preview fixture count</small></article>
             <article class="metric-card"><span>Residents</span><strong>03</strong><small>One named identity, two fixtures</small></article>
