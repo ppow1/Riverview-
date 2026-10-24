@@ -7,10 +7,14 @@ WEB = ROOT / "website/v2/deployed"
 
 def test_twelve_physical_bays_follow_manufacturer_left_to_right_order():
     html = (WEB / "index.html").read_text()
-    buttons = re.findall(r'data-octo-component="bay-(\d+)" style="--hotspot-x:([0-9.]+)%', html)
+    buttons = re.findall(r'data-octo-component="bay-(\d+)" style="--image-x:([0-9.]+)%;--image-y:([0-9.]+)%', html)
     assert len(buttons) == 12
-    assert [int(number) for number, _ in buttons] == list(range(12, 0, -1))
-    assert [float(x) for _, x in buttons] == sorted(float(x) for _, x in buttons)
+    assert [int(number) for number, _, _ in buttons] == list(range(12, 0, -1))
+    assert [float(x) for _, x, _ in buttons] == sorted(float(x) for _, x, _ in buttons)
+    assert all(0 < float(x) < 100 and 0 < float(y) < 100 for _, x, y in buttons)
+    css = (WEB / "assets/resource-monitor.css").read_text()
+    assert "aspect-ratio:1565/1568" in css and "object-fit:contain" in css
+    assert "left:var(--image-x);top:var(--image-y)" in css
     assert "X12ULTRA_QUICK_START_GUIDE_V.1.pdf.pdf" in html
 
 

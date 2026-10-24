@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/resource-monitor.js
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.4.5
+Revision: 1.4.6
 Purpose: Present an interactive manufacturer chassis reference with OCTO1 telemetry and a sanitized Grace request trace
 Execution Model: Same-origin authenticated GETs; five-second polling only while the Resources view is open and visible
 Observability: Source timestamps, freshness, bounded five-minute hardware and model-rate timelines, and request-correlated conversation events
@@ -17,6 +17,7 @@ Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Plot content-free, ti
 Changed: 2026-10-22 UTC | RV-V2-MOUNTED-STORAGE-001 | Render unique host-mounted capacity through the existing authenticated telemetry projection, preserving unavailable/stale states.
 Changed: 2026-10-22 UTC | RV-V2-LIVE-HARDWARE-GRAPHS-001 | Plot measured GPU utilization and active inference-slot occupancy from bounded five-second telemetry samples; clear obsolete storage placeholder.
 Changed: 2026-10-24 UTC | RV-V2-OCTOMINER-PHYSICAL-BAYS-20261024 | Show twelve manufacturer-ordered physical bays as distinct from GPU indices and PCIe addresses.
+Changed: 2026-10-24 UTC | RV-V2-OCTO-BAY-ALIGN-20261024 | Align markers to source-image bay coordinates and support narrow-screen bay selection.
 Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deployed V2 source under its explicit production bundle path.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_resource_monitor.cjs; scripts/verify_v2_octo1_browser.cjs
@@ -165,7 +166,7 @@ History: Git and .riverview-backups/manifest.jsonl
     }
     const systems=$("octo1-system-selectors");systems?.querySelectorAll("[data-octo-component]").forEach(button=>{const active=state.selected.kind==="system"&&state.selected.id===button.dataset.octoComponent;button.setAttribute("aria-pressed",active?"true":"false");});
     $("octo1-front-hotspots")?.querySelectorAll("[data-octo-component]").forEach(button=>{const active=state.selected.kind==="system"&&state.selected.id===button.dataset.octoComponent;button.setAttribute("aria-pressed",active?"true":"false");});
-    $("octo1-bay-hotspots")?.querySelectorAll("[data-octo-component]").forEach(button=>{const active=state.selected.kind==="bay"&&state.selected.id===button.dataset.octoComponent;button.setAttribute("aria-pressed",active?"true":"false");});
+    document.querySelectorAll("#octo1-bay-hotspots [data-octo-component],#octo1-bay-picker [data-octo-component]").forEach(button=>{const active=state.selected.kind==="bay"&&state.selected.id===button.dataset.octoComponent;button.setAttribute("aria-pressed",active?"true":"false");});
   };
   const phaseLabel = (phase) => ({unavailable:"UNAVAILABLE",ready:"READY · SLOT DETAIL UNAVAILABLE",processing:"PROCESSING · ACTIVE SLOT",idle:"READY · IDLE"}[phase]||"UNKNOWN");
   const renderComponentDetail = () => {
