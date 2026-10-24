@@ -2903,7 +2903,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2921,7 +2921,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -8765,9 +8765,9 @@
     },
     "src/riverview_core/resident_execution/pipeline.py": {
       "path": "src/riverview_core/resident_execution/pipeline.py",
-      "revision": "1.1.31",
-      "sha256": "66c492a3663c31af3a22159e2ac1b7983db67225a0eefa70fa1ab543a40eab1f",
-      "size_bytes": 142536
+      "revision": "1.1.32",
+      "sha256": "b499076a3e07483f438358e6403fb523a9babb9744bd4b36dfb39142f9f1e250",
+      "size_bytes": 147679
     },
     "src/riverview_core/resident_execution/proposal_lifecycle.py": {
       "path": "src/riverview_core/resident_execution/proposal_lifecycle.py",
@@ -8783,9 +8783,9 @@
     },
     "src/riverview_core/resident_execution/service.py": {
       "path": "src/riverview_core/resident_execution/service.py",
-      "revision": "1.0.43",
-      "sha256": "be712f780fab2442bdf0ae178dec05f5ce552b58864fca70e040a96d9828f234",
-      "size_bytes": 82841
+      "revision": "1.0.44",
+      "sha256": "e47869f0e6ea9c585fe9610ad36fdb1329f771bd1a0e9bf31a67f573666a8d6e",
+      "size_bytes": 84387
     },
     "src/riverview_core/resident_execution/verifier.py": {
       "path": "src/riverview_core/resident_execution/verifier.py",
@@ -8801,9 +8801,9 @@
     },
     "src/riverview_core/resident_reasoning.py": {
       "path": "src/riverview_core/resident_reasoning.py",
-      "revision": "1.0.30",
-      "sha256": "50ed65c6a11f65333dd318392fe7251231b035ae43f149debe11050a106274c6",
-      "size_bytes": 56598
+      "revision": "1.0.31",
+      "sha256": "8368d04ee6f9ce135d856a5da21ce002e3e1d4b506b03908ca06104103d956ae",
+      "size_bytes": 57036
     },
     "src/riverview_core/status_dashboard/__init__.py": {
       "path": "src/riverview_core/status_dashboard/__init__.py",
@@ -9275,9 +9275,9 @@
     },
     "tests/test_grace_execution.py": {
       "path": "tests/test_grace_execution.py",
-      "revision": "1.0.66",
-      "sha256": "025bca3b509bfe05d229d75903155cbb4148f28c730844411997c1bde4ac6c91",
-      "size_bytes": 218324
+      "revision": "1.0.67",
+      "sha256": "5a7b6065284c9379becee6747f44b589952df8f66fd0623f9117b71f195b23b2",
+      "size_bytes": 221366
     },
     "tests/test_grace_execution_health_acl.py": {
       "path": "tests/test_grace_execution_health_acl.py",
@@ -9449,9 +9449,9 @@
     },
     "tests/test_resident_reasoning.py": {
       "path": "tests/test_resident_reasoning.py",
-      "revision": "1.0.23",
-      "sha256": "33f429080dc3a064dad41b263ff8e6c5efd5f29968ae3dfbd51322174ac650aa",
-      "size_bytes": 51136
+      "revision": "1.0.24",
+      "sha256": "6a74d00bee0eeecf2dba535442f416e78b9d90bb17674e675913f8d190168a6c",
+      "size_bytes": 51707
     },
     "tests/test_resource_telemetry.py": {
       "path": "tests/test_resource_telemetry.py",

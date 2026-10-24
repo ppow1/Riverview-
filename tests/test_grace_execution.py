@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.66
+# Revision: 1.0.67
+# Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-DIAGNOSTICS-20261023 | Verify safe per-index mismatch diagnostics exclude proposal text.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-RECOVERY-20261023 | Verify single-step recovery preserves every exact Steward acceptance criterion and rejects ambiguous scopes.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify Grace persists the exact configured worker capability set.
@@ -446,6 +447,55 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
         self.assertIn("UNBOUND_APPROVED_CRITERIA", diagnostic["reason_codes"])
         self.assertNotIn("First approved check.", str(diagnostic))
         self.assertNotIn("Invented extra requirement", str(diagnostic))
+
+class ProposalPromotionEvidenceBindingTests(unittest.TestCase):
+    def test_promotion_binding_requires_exact_approved_revision_and_objective_link(self):
+        import hashlib
+        from uuid import NAMESPACE_URL, uuid5
+        from riverview_core.resident_execution.pipeline import GraceExecutionPipeline, _json
+
+        proposal_id, revision = "proposal:18ec0798-a441-494d-b45e-68cf99e72cd2", 2
+        objective_id = ("objective:proposal:" + str(uuid5(NAMESPACE_URL,
+            f"riverview:proposal-work-order:{proposal_id}:r{revision}")) + f":r{revision}")
+        content = {"title": "t", "summary": "s", "objective": "o", "scope": "s",
+                   "proposed_approach": "a", "constraints": [],
+                   "acceptance_criteria": ["criterion"], "tags": []}
+        digest = hashlib.sha256(_json(content).encode()).hexdigest()
+        grant_id, approval_key = "grant:test", "approval:test"
+        reference = {"proposal_id": proposal_id, "revision": revision,
+            "content_sha256": digest, "approval_event_key": approval_key,
+            "objective_submit_grant_id": grant_id}
+
+        class Cursor:
+            def __init__(self, rows): self.rows, self.index = rows, 0
+            def execute(self, *_args): pass
+            def fetchone(self):
+                row = self.rows[self.index]
+                self.index += 1
+                return row
+
+        def make_rows(approval_digest=digest, promoted_objective=objective_id):
+            return [dict(current_revision=revision, proposal_status="APPROVED",
+                         revision_status="APPROVED", **content),
+                {"actor_id": "steward:confirmed",
+                 "payload": {"to": "APPROVED", "content_sha256": approval_digest,
+                             "authority_reference": "comms5-ingress:steward"}},
+                {"actor_id": "steward:confirmed", "payload": {
+                    "objective_id": promoted_objective, "content_sha256": digest,
+                    "approval_event_key": approval_key,
+                    "authority_reference": f"objective.submit-grant:{grant_id}"}}]
+
+        pipeline = object.__new__(GraceExecutionPipeline)
+        pipeline.objective_proposal_reference = lambda _objective_id: reference
+        criterion = ("An eligible disposable diagnostic objective is promoted only following "
+                     "explicit Steward approval of the exact proposal revision and digest.")
+        self.assertTrue(pipeline.proposal_promotion_evidence(
+            Cursor(make_rows()), objective_id, criterion))
+        self.assertFalse(pipeline.proposal_promotion_evidence(
+            Cursor(make_rows(approval_digest="0" * 64)), objective_id, criterion))
+        self.assertFalse(pipeline.proposal_promotion_evidence(
+            Cursor(make_rows(promoted_objective="objective:wrong")), objective_id, criterion))
+
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
 class GraceExecutionTests(unittest.TestCase):

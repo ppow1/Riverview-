@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.30
+# Revision: 1.0.31
+# Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Add a bounded typed ComfyUI workflow request to the existing proposal step contract.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Map structural list labels and exact single-dispatch lifecycle criteria.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-PROPOSAL-VALIDATION-DIAGNOSTICS-20261022 | Carry per-attempt correlation ID into provider validation diagnostics.
@@ -228,6 +229,10 @@ def lifecycle_evidence_event(criterion: str) -> str | None:
         return None
     value = " ".join(criterion.lower().split())
     value = re.sub(r"^(?:[-*+]\s+|\d{1,2}[.)]\s+)", "", value)
+    if re.fullmatch(
+            r"an eligible disposable diagnostic objective is promoted only following "
+            r"explicit steward approval of the exact proposal revision and digest\.?", value):
+        return "proposal.approved_and_promoted"
     if re.fullmatch(
             r"(?:create|ensure there is) exactly one (?:approved )?(?:engineering )?"
             r"(?:work order|assignment)(?: for [^.]+)?\.?|"

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.43
+# Revision: 1.0.44
+# Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-DIAGNOSTICS-20261023 | Record criterion-index mismatch diagnostics without retaining generated proposal text.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-RECOVERY-20261023 | Rebind only unchanged Steward criteria to one existing bounded step after the exact criteria-binding rejection.
 # Changed: 2026-10-23 UTC | RV-GRACE-REASONING-FAILURE-FENCE-20261023 | Fence repeated objective reasoning failures by runtime revision and persist a safe blocked diagnostic.
@@ -306,9 +307,28 @@ class GraceExecutionService:
                         review_subject=review_subject)
                     return True
                 proposal_persist_started = time.monotonic()
+                proposal_to_persist = result.proposal
+                from ..resident_reasoning import lifecycle_evidence_event
+                objective_snapshot = self.pipeline.get_objective(objective_id)
+                omitted_verified = [criterion for criterion in
+                    (objective_snapshot or {}).get("acceptance_criteria", ())
+                    if lifecycle_evidence_event(criterion) == "proposal.approved_and_promoted"
+                    and criterion not in {item for step in proposal_to_persist.steps
+                                          for item in step.acceptance_criteria}
+                    and criterion not in proposal_to_persist.system_owned_criteria]
+                if omitted_verified:
+                    with self.pipeline.ledger.db.cursor() as cur:
+                        self.pipeline.ledger._set_search_path(cur)
+                        bound = [criterion for criterion in omitted_verified
+                            if self.pipeline.proposal_promotion_evidence(
+                                cur, objective_id, criterion)]
+                    if len(bound) == len(omitted_verified):
+                        proposal_to_persist = replace(proposal_to_persist,
+                            system_owned_criteria=tuple(
+                                (*proposal_to_persist.system_owned_criteria, *bound)))
                 try:
                     self.pipeline.record_proposal(
-                        objective_id, result.proposal,
+                        objective_id, proposal_to_persist,
                         actor_id="office:" + self.resident_reasoner.office_id)
                 except Exception as exc:
                     if self._reasoning_failure_detail_code(exc) == "PROPOSAL_CRITERIA_BINDING_REJECTED":

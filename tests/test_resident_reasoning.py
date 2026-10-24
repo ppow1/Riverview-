@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.23
+# Revision: 1.0.24
+# Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Cover explicit exactly-one dispatch lifecycle mapping and structural bullets.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Verify correlated separate grounding results and sanitized exceptions
 # Changed: 2026-10-21 UTC | W4-GRACE-OFFICE-STATE-BOUND-20261021 | Cover DB-size-aware outcome pruning and translated SQLSTATE diagnostics
@@ -793,6 +794,11 @@ class LifecycleEvidenceClassificationTests(unittest.TestCase):
         self.assertEqual(lifecycle_evidence_event(
             "- Create exactly one Engineering assignment for the file."),
             "work_order.exactly_one_dispatched")
+        self.assertEqual(lifecycle_evidence_event(
+            "An eligible disposable diagnostic objective is promoted only following explicit Steward approval of the exact proposal revision and digest."),
+            "proposal.approved_and_promoted")
+        self.assertIsNone(lifecycle_evidence_event(
+            "A diagnostic objective is promoted following Steward approval."))
         self.assertIsNone(lifecycle_evidence_event(
             "Create exactly two Engineering assignments for the file."))
         self.assertIsNone(lifecycle_evidence_event(

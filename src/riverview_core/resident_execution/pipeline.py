@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.31
+# Revision: 1.1.32
+# Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve deployed exact-grant grounded objective cancellation and durable audit evidence.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Complete from durable accepted step state and make duplicate completion calls idempotent; conversation reviews are post-completion delivery only.
@@ -68,7 +69,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import re
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from ..assignment_intake import AuthorizedAssignmentIntake, AssignmentIntakeDenied
 from ..resident_reasoning import PlanProposal, lifecycle_evidence_event
@@ -549,6 +550,13 @@ class GraceExecutionPipeline:
         elif criteria_source != "steward_supplied" or not requested_list:
             raise ObjectiveStateError("objective acceptance-criteria source is invalid")
         requested = set(requested_list)
+        for criterion in lifecycle:
+            if lifecycle_evidence_event(criterion) == "proposal.approved_and_promoted":
+                with self.ledger.db.cursor() as cur:
+                    self.ledger._set_search_path(cur)
+                    if not self.proposal_promotion_evidence(cur, objective_id, criterion):
+                        raise ObjectiveStateError(
+                            "approved-promotion lifecycle evidence is not durably bound")
         artifact_criteria = {criterion for step in proposal.steps
             for requirement in step.artifact_requirements
             for criterion in requirement.acceptance_criteria}
@@ -743,7 +751,13 @@ class GraceExecutionPipeline:
             event_type = lifecycle_evidence_event(criterion)
             if event_type is None:
                 raise ObjectiveStateError("system-owned criterion has no lifecycle evidence contract")
-            if event_type == "objective.completed":
+            if event_type == "proposal.approved_and_promoted":
+                if not self.proposal_promotion_evidence(cur, objective_id, criterion):
+                    raise ObjectiveStateError("approved-promotion lifecycle evidence is not durable")
+                reference = self.objective_proposal_reference(objective_id)
+                keys = [reference["approval_event_key"],
+                    f"proposal-work-order-request:{reference['proposal_id']}:{reference['revision']}"]
+            elif event_type == "objective.completed":
                 keys = [f"grace-objective-completed:{objective_id}:{completion_cycle}"]
             elif event_type == "conversation.result_published":
                 keys = [f"grace-conversation-result-published:{objective_id}:{completion_cycle}"]
@@ -1318,6 +1332,66 @@ class GraceExecutionPipeline:
                   AND event_type='objective.received'""", (objective_id,))
             row = cur.fetchone()
         return row["proposal_reference"] if row else None
+
+    def proposal_promotion_evidence(self, cur, objective_id, criterion):
+        """Verify one approved-promotion lifecycle criterion against immutable records."""
+        from ..resident_reasoning import lifecycle_evidence_event
+        if lifecycle_evidence_event(criterion) != "proposal.approved_and_promoted":
+            return False
+        reference = self.objective_proposal_reference(objective_id)
+        required = {"proposal_id", "revision", "content_sha256", "approval_event_key",
+                    "objective_submit_grant_id"}
+        if not isinstance(reference, dict) or not required <= set(reference):
+            return False
+        proposal_id, revision = reference["proposal_id"], reference["revision"]
+        digest, approval_key = reference["content_sha256"], reference["approval_event_key"]
+        if (not isinstance(proposal_id, str) or type(revision) is not int or revision < 1 or
+                not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest) or
+                not isinstance(approval_key, str) or not reference["objective_submit_grant_id"]):
+            return False
+        expected_objective_id = ("objective:proposal:" + str(uuid5(
+            NAMESPACE_URL, f"riverview:proposal-work-order:{proposal_id}:r{revision}")) +
+            f":r{revision}")
+        if expected_objective_id != objective_id:
+            return False
+        cur.execute("""SELECT p.current_revision,p.lifecycle_status AS proposal_status,
+                r.lifecycle_status AS revision_status,r.title,r.summary,r.objective,r.scope,
+                r.proposed_approach,r.constraints,r.acceptance_criteria,r.tags
+            FROM institutional_proposals p JOIN institutional_proposal_revisions r
+              ON r.proposal_id=p.proposal_id AND r.revision=%s
+            WHERE p.proposal_id=%s""", (revision, proposal_id))
+        proposal = cur.fetchone()
+        if not proposal or proposal["current_revision"] != revision or \
+                proposal["proposal_status"] != "APPROVED" or \
+                proposal["revision_status"] != "APPROVED":
+            return False
+        content = {key: proposal[key] for key in (
+            "title", "summary", "objective", "scope", "proposed_approach",
+            "constraints", "acceptance_criteria", "tags")}
+        if hashlib.sha256(_json(content).encode("utf-8")).hexdigest() != digest:
+            return False
+        cur.execute("""SELECT actor_id,payload FROM institutional_proposal_events
+            WHERE proposal_id=%s AND revision=%s AND event_type='proposal.steward_decision'
+              AND idempotency_key=%s""", (proposal_id, revision, approval_key))
+        approval = cur.fetchone()
+        if (not approval or not str(approval["actor_id"]).startswith("steward:") or
+                approval["payload"].get("to") != "APPROVED" or
+                approval["payload"].get("content_sha256") != digest or
+                not (approval["payload"].get("authority_reference") == "comms5-ingress:steward" or
+                     str(approval["payload"].get("authority_reference", "")).startswith(
+                         "account-auth-session:"))):
+            return False
+        cur.execute("""SELECT actor_id,payload FROM institutional_proposal_events
+            WHERE proposal_id=%s AND revision=%s AND event_type='proposal.work_order_requested'
+              AND idempotency_key=%s""", (
+            proposal_id, revision, f"proposal-work-order-request:{proposal_id}:{revision}"))
+        promotion = cur.fetchone()
+        return bool(promotion and str(promotion["actor_id"]).startswith("steward:") and
+            promotion["payload"].get("objective_id") == objective_id and
+            promotion["payload"].get("content_sha256") == digest and
+            promotion["payload"].get("approval_event_key") == approval_key and
+            promotion["payload"].get("authority_reference") ==
+                f"objective.submit-grant:{reference['objective_submit_grant_id']}")
 
     def grounded_objectives(self, *, scope_ref, limit=25, objective_id=None):
         """Return a bounded, stable queue of objectives ready for resident reasoning."""
