@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.33
+# Revision: 1.1.34
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-AUTHORITY-EVIDENCE-20261024 | Include bounded read-only Luna grant and prior-attempt facts in same-assignment rework evidence.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Pin retry-hold release identity at pipeline construction so an old process cannot adopt a newly switched symlink.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
@@ -2084,7 +2085,8 @@ class GraceExecutionPipeline:
         return pending
 
     def rework_review_authority_evidence(self, context, *, credential):
-        """Return read-only current work-order and exact assignment grant facts."""
+        """Return read-only current work-order, assignment, and supervisory grant facts."""
+        from psycopg import sql
         if (not isinstance(context, dict) or
                 not all(isinstance(context.get(key), str) and context[key]
                     for key in ("objective_id", "assignment_id"))):
@@ -2121,6 +2123,34 @@ class GraceExecutionPipeline:
                       AND payload->>'assignment_id'=%s) AS dispatched""",
                     (context["objective_id"], context["assignment_id"]))
                 dispatched = bool(cur.fetchone()["dispatched"])
+                cur.execute(sql.SQL("""SELECT a.authorization_id,a.authority_grant_id,
+                        a.authorized_by,a.scope,a.status,
+                        {}.active_grace_supervisory_luna_grant(a.authority_grant_id) AS active_grant
+                    FROM grace_supervisory_authorizations a
+                    WHERE a.status='active' AND a.activated_at<=clock_timestamp()
+                      AND (a.valid_until IS NULL OR a.valid_until>clock_timestamp())
+                      AND a.scope->>'provider_id'='gpt-6-luna'
+                      AND a.scope->'functions' ? 'performance_evaluation'
+                    ORDER BY a.activated_at DESC LIMIT 1""").format(
+                        sql.Identifier(self.authorizer.schema)))
+                authorization = cur.fetchone()
+                cur.execute("""SELECT x.request_id,x.request_payload->>'request_type' AS request_type,
+                        x.provider_id,x.delivery_state,
+                        count(e.event_id) FILTER (WHERE e.event_type='provider_attempt_started') AS attempt_count,
+                        max(e.payload->>'authorization_id') FILTER (
+                            WHERE e.event_type='provider_attempt_started') AS attempt_authorization_id
+                    FROM external_reasoning_exchanges x
+                    LEFT JOIN external_reasoning_exchange_events e
+                      ON e.request_id=x.request_id
+                    WHERE x.objective_id=%s
+                    GROUP BY x.request_id,x.request_payload,x.provider_id,x.delivery_state,x.requested_at
+                    ORDER BY x.requested_at DESC LIMIT 8""", (context["objective_id"],))
+                provider_requests = [{"request_id": str(item["request_id"]),
+                    "request_type": item["request_type"], "provider_id": item["provider_id"],
+                    "delivery_state": item["delivery_state"],
+                    "provider_attempt_count": int(item["attempt_count"] or 0),
+                    "attempt_authorization_id": item["attempt_authorization_id"]}
+                    for item in cur.fetchall()]
         diagnostic_evidence = self.diagnostic_runtime_evidence(context["objective_id"])
         return {"schema": "rv.grace-rework-authority-evidence.v1", "read_only": True,
             "objective_id": context["objective_id"],
@@ -2137,6 +2167,15 @@ class GraceExecutionPipeline:
                 "scope_ref": row["authority_ref"],
                 "principal_id": grant["principal_id"] if grant else None,
                 "grant_id": grant["grant_id"] if grant else None},
+            "supervisory_luna_authorization": ({
+                "authorization_id": str(authorization["authorization_id"]),
+                "authority_grant_id": authorization["authority_grant_id"],
+                "authorized_by": authorization["authorized_by"],
+                "scope": authorization["scope"],
+                "active": (authorization["status"] == "active" and
+                    authorization["active_grant"] == authorization["authority_grant_id"])}
+                if authorization else None),
+            "prior_provider_requests": provider_requests,
             "same_assignment_rework": {"available": bool(grant is not None and dispatched and
                     row["assignment_state"] == "rework_required"),
                 "assignment_id": row["assignment_id"],

@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.30
-# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Distinguish fixed rework-contract rejection reasons and clarify that verifier diagnostic keys are not authorized acceptance criteria.
+# Revision: 1.2.31
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-AUTHORITY-EVIDENCE-20261024 | Guide rework review to use server-verified supervisory grant and prior provider-attempt facts without retrying Luna.
 # Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Persist timestamped stream-delta character counts and expose an owner-authorized content-free activity projection.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Request constrained JSON for the fail-closed review contract and clarify supplied authority/evidence boundaries.
 # Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Add sanitized parse metadata and one-shot expiring private capture for a target review response
@@ -2242,7 +2242,11 @@ class ResidentConversationService:
                     "the artifact text was withheld; do not choose OBJECTIVE_SATISFIED. Propose bounded "
                     "rework only when verifier evidence identifies an in-scope correction, otherwise "
                     "request Steward direction. The existing assignment.create grant is rechecked by "
-                    "the execution pipeline; this response itself grants no authority."},
+                    "the execution pipeline; this response itself grants no authority. Current supervisory "
+                    "Luna authorization and prior provider-attempt facts, when present in read-only "
+                    "authority evidence, are authoritative only for their exact listed scope. A recorded "
+                    "provider attempt must not be repeated from rework; correct or report the existing "
+                    "diagnostic artifact within its criteria, or request Steward direction."},
                 {"role": "user", "content": json.dumps({
                     "objective_id": context["objective_id"],
                     "assignment_id": context["assignment_id"],

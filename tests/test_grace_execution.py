@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.67
+# Revision: 1.0.68
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-AUTHORITY-EVIDENCE-20261024 | Verify re-review evidence carries exact active Luna grant scope and bounded prior request attempt facts.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-DIAGNOSTICS-20261023 | Verify safe per-index mismatch diagnostics exclude proposal text.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-RECOVERY-20261023 | Verify single-step recovery preserves every exact Steward acceptance criterion and rejects ambiguous scopes.
@@ -1962,6 +1963,18 @@ class GraceExecutionTests(unittest.TestCase):
         self.pipeline.runtime_release_id = lambda: "f" * 40
         second_context = self.pipeline.pending_rejected_work_order_reviews()[0]
         self.assertEqual(second_context["review_generation"], 2)
+        self.admin.execute("INSERT INTO " + self.schema +
+            ".authority_grants(grant_id,principal_id,action,scope_ref,granted_by,policy_ref) "
+            "VALUES ('steward-authority-grant','steward:test','authority.grant','institution',"
+            "'steward:test','rv.policy:grace-execution-test.v1')")
+        from riverview_core.institutional_authority.registry import AuthorityRegistry
+        from riverview_core.resident_execution.grace_supervisory_authorization import \
+            GraceSupervisoryAuthorization
+        authority_registry = AuthorityRegistry(DSN, schema=self.schema)
+        supervisory = GraceSupervisoryAuthorization(self.pipeline, authority_registry)
+        grant = supervisory.authorize(actor_id="steward:test", total_budget_usd="5.00",
+            per_request_limit_usd="0.05", explicit_steward_confirmation=True,
+            idempotency_key="test-supervisory-evidence-" + uuid4().hex)
         before = self.admin.execute("SELECT count(*) FROM " + self.schema +
             ".grace_objective_events WHERE objective_id=%s", (objective_id,)).fetchone()[0]
         authority = self.pipeline.rework_review_authority_evidence(
@@ -1979,6 +1992,14 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(authority["objective_runtime_evidence"]["objective"]["objective_id"],
             objective_id)
         self.assertTrue(authority["objective_runtime_evidence"]["read_only"])
+        self.assertIn("supervisory_luna_authorization", authority)
+        self.assertIn("prior_provider_requests", authority)
+        self.assertTrue(authority["supervisory_luna_authorization"]["active"])
+        self.assertEqual(authority["supervisory_luna_authorization"]["authorization_id"],
+            grant["authorization_id"])
+        self.assertEqual(authority["supervisory_luna_authorization"]["scope"]["functions"],
+            ["cme_diagnostic_recovery", "performance_evaluation"])
+        self.assertEqual(authority["prior_provider_requests"], [])
 
         rework = {"decision":"REWORK_PROPOSED",
             "rationale":"The current work-order and exact assignment grant are active; correct the evidence report.",
