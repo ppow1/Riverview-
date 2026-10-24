@@ -92,6 +92,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
+from unittest.mock import patch
 
 from riverview_core.assignment_intake import AuthorizedAssignmentIntake
 from riverview_core.institutional_authority import ExactGrantAuthorizer
@@ -843,6 +844,18 @@ class GraceExecutionTests(unittest.TestCase):
             authority_ref=self.scope, verifier_id=self.verifier_id,
             verifier_credential=self.credentials["verifier"],
             artifact_root=str(self.root), resident_reasoner=reasoner)
+
+    def test_retry_fence_runtime_revision_is_pinned_at_service_construction(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        first = "a" * 40
+        with patch.object(GraceExecutionService, "_read_runtime_revision",
+                          return_value=first) as read_revision:
+            service = self._reasoning_service(None)
+            self.assertEqual(service._runtime_revision(), first)
+            read_revision.return_value = "b" * 40
+            self.assertEqual(service._runtime_revision(), first)
+            self.assertEqual(read_revision.call_count, 1)
 
     def test_grounded_reasoning_schedules_never_attempted_then_least_recently_attempted(self):
         from types import SimpleNamespace

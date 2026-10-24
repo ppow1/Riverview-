@@ -181,6 +181,11 @@ class GraceExecutionService:
                  external_reasoning_principal == getattr(resident_reasoner, "office_id", None))):
             raise ValueError("external reasoning requires the principal from the active office binding")
         self.instance_id = uuid4()
+        # Bind the retry-fence identity to the immutable code this process
+        # loaded. Resolving the mutable `current` symlink per attempt can make
+        # an old running process label its failures as a newly installed
+        # release during an atomic switch.
+        self._loaded_runtime_revision = self._read_runtime_revision()
 
     def _proposal_worker_capability(self, step):
         """Resolve legacy artifact plan labels to the sole configured artifact loop.
@@ -537,6 +542,10 @@ class GraceExecutionService:
                 "reason_codes": reasons}
 
     def _runtime_revision(self):
+        return self._loaded_runtime_revision
+
+    @staticmethod
+    def _read_runtime_revision():
         # Immutable releases carry their own source marker. Prefer it over a
         # systemd drop-in that can outlive a release switch and mislabel events.
         try:
