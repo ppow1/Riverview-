@@ -17,7 +17,7 @@ class V2NotificationAcceptanceFixTests(unittest.TestCase):
 
     def test_grace_script_url_is_revisioned_to_refresh_preloaded_v2_tabs(self):
         html = (ROOT / "website/v2/deployed/index.html").read_text()
-        self.assertIn('src="assets/grace-chat.js?rev=62e942ac"', html)
+        self.assertIn('src="assets/grace-chat.js?rev=blocker-20261024"', html)
 
     def test_handled_settings_query_returns_before_durable_reasoning_send(self):
         source = (ROOT / "website/v2/deployed/assets/grace-chat.js").read_text()

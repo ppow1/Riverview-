@@ -18,6 +18,10 @@ History: Git and .riverview-backups/manifest.jsonl
 (() => {
   "use strict";
 
+  const evidenceAdapter = window.RiverviewV2WorkEvidenceAdapter;
+  const evidenceView = window.RiverviewV2WorkEvidence;
+  if (!evidenceAdapter || !evidenceView) return;
+
   const state = {
     status: "not_checked",
     objectivesStatus: "not_observed",
@@ -26,6 +30,8 @@ History: Git and .riverview-backups/manifest.jsonl
     assignments: [],
     truncated: {objectives: false, assignments: false},
     fetchedAt: null,
+    objectivesObservedAt: null,
+    assignmentsObservedAt: null,
     inFlight: false,
     identity: null
   };
@@ -71,10 +77,31 @@ History: Git and .riverview-backups/manifest.jsonl
   function matchesFilter(item, query, kind) {
     if (!query) return true;
     const fields = kind === "objective"
-      ? [item.objective_id, item.status, item.assignment_id, item.assignment_state, item.verification?.decision]
+      ? [item.objective_id, item.status, item.lifecycle_status, item.lifecycle_stage, item.assignment_id,
+        state.assignments.find((assignment) => assignment.assignment_id === item.assignment_id)?.owner,
+        item.assignment_state, item.latest_event?.event_type, item.rework?.rationale, item.verification?.decision]
       : [item.assignment_id, item.state, item.owner, item.workflow_id, item.workflow_step,
         item.last_meaningful_progress?.event_type];
     return fields.some((value) => String(value || "").toLowerCase().includes(query));
+  }
+
+  function sortRows(rows, kind) {
+    const order = $("work-sort")?.value || "recent";
+    const progressTime = (item) => {
+      const timestamp = kind === "objective"
+        ? (state.assignments.find((assignment) => assignment.assignment_id === item.assignment_id)?.last_meaningful_progress?.recorded_at || item.latest_event?.occurred_at)
+        : item.last_meaningful_progress?.recorded_at;
+      const parsed = Date.parse(timestamp || "");
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    return [...rows].sort((left, right) => {
+      if (order === "status") return String(left.lifecycle_status || left.state || left.status || "").localeCompare(String(right.lifecycle_status || right.state || right.status || "")) || String(left.objective_id || left.assignment_id).localeCompare(String(right.objective_id || right.assignment_id));
+      if (order === "id") return String(left.objective_id || left.assignment_id).localeCompare(String(right.objective_id || right.assignment_id));
+      const a = progressTime(left);
+      const b = progressTime(right);
+      if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1;
+      return (order === "oldest" ? a - b : b - a) || String(left.objective_id || left.assignment_id).localeCompare(String(right.objective_id || right.assignment_id));
+    });
   }
 
   function cell(row, value, className = "") {
@@ -82,6 +109,21 @@ History: Git and .riverview-backups/manifest.jsonl
     node.textContent = value == null || value === "" ? "Unavailable" : String(value);
     if (className) node.className = className;
     row.append(node);
+  }
+
+  function linkButton(label, onClick, className = "work-record-link") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.textContent = label;
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function addEvidenceCell(row, record, assignment = null) {
+    const target = document.createElement("td");
+    target.append(evidenceView.createDetails(record, assignment, state.objectives));
+    row.append(target);
   }
 
   function canCancelObjective(item) {
@@ -98,17 +140,34 @@ History: Git and .riverview-backups/manifest.jsonl
     if (!objectiveBody || !assignmentBody) return;
     objectiveBody.replaceChildren();
     assignmentBody.replaceChildren();
-    const visibleObjectives = state.objectives.filter((item) => matchesFilter(item, query, "objective"));
-    const visibleAssignments = state.assignments.filter((item) => matchesFilter(item, query, "assignment"));
+    const visibleObjectives = sortRows(state.objectives.filter((item) => matchesFilter(item, query, "objective")), "objective");
+    const visibleAssignments = sortRows(state.assignments.filter((item) => matchesFilter(item, query, "assignment")), "assignment");
 
     for (const item of visibleObjectives) {
       const row = document.createElement("tr");
       row.dataset.objectiveId = item.objective_id;
+      const assignment = item.assignment_id
+        ? state.assignments.find((candidate) => candidate.assignment_id === item.assignment_id) || null
+        : null;
+      const model = evidenceAdapter.objectiveModel(item, assignment);
       cell(row, item.objective_id);
-      cell(row, item.status);
-      cell(row, item.assignment_id ? `${item.assignment_id} · ${item.assignment_state || "state unavailable"}` : "No linked assignment");
-      cell(row, item.verification?.decision || "Not verified");
-      cell(row, recordTime(item.updated_at));
+      cell(row, `${model.status} · ${item.status || "source status unavailable"}`);
+      cell(row, model.stage);
+      cell(row, model.blocker, "work-blocker-cell");
+      const related = document.createElement("td");
+      if (model.assignmentId) {
+        const assignmentId = model.assignmentId;
+        related.append(linkButton(assignmentId, () => {
+          const linked = document.querySelector(`[data-assignment-row="${CSS.escape(assignmentId)}"]`);
+          linked?.scrollIntoView({behavior: "smooth", block: "center"});
+          linked?.classList.add("work-related-highlight");
+          window.setTimeout(() => linked?.classList.remove("work-related-highlight"), 1400);
+        }));
+      } else related.textContent = "No linked work order recorded";
+      row.append(related);
+      cell(row, model.owner);
+      cell(row, `${model.progressEvent || "No progress event recorded"} · ${model.progressAge}`);
+      addEvidenceCell(row, item, assignment);
       const action = document.createElement("td");
       if (canCancelObjective(item)) {
         const button = document.createElement("button");
@@ -124,24 +183,40 @@ History: Git and .riverview-backups/manifest.jsonl
     }
     for (const item of visibleAssignments) {
       const row = document.createElement("tr");
+      row.dataset.assignmentRow = item.assignment_id;
       cell(row, item.assignment_id);
-      cell(row, item.state);
-      cell(row, [item.owner, item.workflow_step || item.workflow_id].filter(Boolean).join(" · "));
-      const progress = item.last_meaningful_progress || {};
-      cell(row, progress.event_type ? `${progress.event_type} · ${recordTime(progress.recorded_at)}` : "No progress event recorded");
+      const model = evidenceAdapter.assignmentModel(item, state.objectives);
+      cell(row, `${model.status} · ${model.stage}`);
+      cell(row, model.owner);
+      cell(row, model.progressEvent
+        ? `${model.progressEvent} · ${recordTime(model.progressAt)} · ${model.progressAge}`
+        : `No progress event recorded · ${model.progressAge}`);
+      const related = document.createElement("td");
+      if (model.linkedObjectiveIds.length) {
+        model.linkedObjectiveIds.forEach((objectiveId) => related.append(linkButton(objectiveId, () => {
+          const linked = document.querySelector(`[data-objective-id="${CSS.escape(objectiveId)}"]`);
+          linked?.scrollIntoView({behavior: "smooth", block: "center"});
+          linked?.classList.add("work-related-highlight");
+          window.setTimeout(() => linked?.classList.remove("work-related-highlight"), 1400);
+        })));
+      } else related.textContent = "No objective link recorded";
+      row.append(related);
+      addEvidenceCell(row, item);
       assignmentBody.append(row);
     }
 
     const objectiveEmpty = $("work-objectives-empty");
     const assignmentEmpty = $("work-assignments-empty");
-    if (objectiveEmpty) objectiveEmpty.textContent = state.objectivesStatus === "available"
-      ? (visibleObjectives.length ? "" : query ? "No objectives match this filter." : "The authoritative objective projection returned no records.")
-      : `Objective source: ${state.objectivesStatus}.`;
-    if (assignmentEmpty) assignmentEmpty.textContent = state.assignmentsStatus === "available"
-      ? (visibleAssignments.length ? "" : query ? "No assignments match this filter." : "The authoritative assignment projection returned no records.")
-      : `Assignment source: ${state.assignmentsStatus}.`;
-    if (objectiveEmpty) objectiveEmpty.hidden = state.objectivesStatus === "available" && visibleObjectives.length > 0;
-    if (assignmentEmpty) assignmentEmpty.hidden = state.assignmentsStatus === "available" && visibleAssignments.length > 0;
+    if (objectiveEmpty) objectiveEmpty.textContent = visibleObjectives.length
+      ? "" : state.objectivesStatus === "available"
+        ? (query ? "No objectives match this filter." : "The authoritative objective projection returned no records.")
+        : `Objective source: ${state.objectivesStatus}.`;
+    if (assignmentEmpty) assignmentEmpty.textContent = visibleAssignments.length
+      ? "" : state.assignmentsStatus === "available"
+        ? (query ? "No assignments match this filter." : "The authoritative assignment projection returned no records.")
+        : `Assignment source: ${state.assignmentsStatus}.`;
+    if (objectiveEmpty) objectiveEmpty.hidden = visibleObjectives.length > 0;
+    if (assignmentEmpty) assignmentEmpty.hidden = visibleAssignments.length > 0;
   }
 
   function render() {
@@ -187,26 +262,42 @@ History: Git and .riverview-backups/manifest.jsonl
     ]);
     state.fetchedAt = new Date().toISOString();
     const failures = [];
-    const apply = (result, target, statusKey, label) => {
+    const apply = (result, target, statusKey, observedKey, label) => {
       if (result.status === "rejected") {
-        state[statusKey] = result.reason?.status === 401 ? "authentication_required" : "unavailable";
-        state[target] = [];
+        if ([401, 403].includes(result.reason?.status)) {
+          state[statusKey] = "authentication_required";
+          state[target] = [];
+          state[observedKey] = null;
+        } else {
+          state[statusKey] = state[observedKey] ? "stale" : "unavailable";
+        }
         failures.push(`${label}: ${safeCode(result.reason?.message)}`);
         return;
       }
       const body = result.value;
-      state[statusKey] = body.status === "available" && Array.isArray(body.items)
+      const nextStatus = body.status === "available" && Array.isArray(body.items)
         ? "available" : body.status === "not_initialized" ? "not_initialized" : "unavailable";
-      state[target] = state[statusKey] === "available" ? body.items.slice(0, 25) : [];
+      if (nextStatus === "available") {
+        state[statusKey] = nextStatus;
+        state[target] = body.items.slice(0, 25);
+        state[observedKey] = body.observed_at || state.fetchedAt;
+      } else if (nextStatus === "not_initialized") {
+        state[statusKey] = nextStatus;
+        state[target] = [];
+        state[observedKey] = null;
+      } else {
+        state[statusKey] = state[observedKey] ? "stale" : "unavailable";
+      }
       state.truncated[target] = Boolean(body.truncated || body.next_cursor);
       if (state[statusKey] === "unavailable") failures.push(`${label}: unexpected source status`);
     };
-    apply(objectivesResult, "objectives", "objectivesStatus", "Objectives");
-    apply(assignmentsResult, "assignments", "assignmentsStatus", "Assignments");
+    apply(objectivesResult, "objectives", "objectivesStatus", "objectivesObservedAt", "Objectives");
+    apply(assignmentsResult, "assignments", "assignmentsStatus", "assignmentsObservedAt", "Assignments");
     const ready = [state.objectivesStatus, state.assignmentsStatus].filter((status) => status === "available").length;
     const notReady = [state.objectivesStatus, state.assignmentsStatus].some((status) => status !== "available");
-    const label = ready === 2 ? "CURRENT" : ready === 1 ? "PARTIAL" : "UNAVAILABLE";
-    const status = ready === 2 ? "available" : ready === 1 ? "partial" : "unavailable";
+    const hasStale = [state.objectivesStatus, state.assignmentsStatus].includes("stale");
+    const label = ready === 2 && !hasStale ? "CURRENT" : ready || hasStale ? (hasStale ? "STALE / PARTIAL" : "PARTIAL") : "UNAVAILABLE";
+    const status = hasStale ? "stale" : ready === 2 ? "available" : ready === 1 ? "partial" : "unavailable";
     const freshness = `Read at ${state.fetchedAt}; timestamps in rows are persisted source times.`;
     const detail = failures.length ? `${freshness} ${failures.join(" · ")}` : freshness;
     setStatus(status, label, detail);
@@ -217,6 +308,7 @@ History: Git and .riverview-backups/manifest.jsonl
   document.addEventListener("DOMContentLoaded", () => {
     $("work-refresh")?.addEventListener("click", refresh);
     $("work-search")?.addEventListener("input", renderRows);
+    $("work-sort")?.addEventListener("change", renderRows);
     document.addEventListener("rvv2:view", (event) => {
       if (event.detail?.view === "work") refresh();
     });

@@ -134,6 +134,10 @@ History: Git and revision/backup manifest
     const grid = card.querySelector(".engineering-progress-grid");
     grid.replaceChildren();
     fields.forEach(([label, value]) => appendProgressField(grid, label, value));
+    card.querySelector(".work-evidence-details")?.remove();
+    if (window.RiverviewV2WorkEvidence) {
+      card.append(window.RiverviewV2WorkEvidence.createDetails(item));
+    }
     const activeNote = card.querySelector(".engineering-progress-note");
     activeNote.hidden = !(item.status === "WORK_ORDER_CREATED" && ["running", "blocked"].includes(String(item.assignment_state || "").toLowerCase()));
     const cancel = card.querySelector(".engineering-cancel-button");
