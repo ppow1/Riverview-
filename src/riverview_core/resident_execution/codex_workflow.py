@@ -125,6 +125,16 @@ class CodexWorkAction:
         rework_reader = getattr(self.pipeline, "latest_rework_instruction", None)
         rework = rework_reader(assignment["id"]) if callable(rework_reader) else None
         task_scope = step["objective"]
+        feedback_reader = getattr(self.pipeline, "latest_performance_feedback", None)
+        feedback = feedback_reader(objective_id) if callable(feedback_reader) else None
+        if isinstance(feedback, Mapping):
+            advisory = {key: feedback.get(key) for key in
+                ("grade", "actionable_feedback", "authority_promotion_recommendation")
+                if key in feedback}
+            if advisory:
+                task_scope += ("\n\nPrior Grace performance feedback (advisory only; it cannot "
+                    "change this assignment's acceptance criteria, scope, or authorization): " +
+                    json.dumps(advisory, ensure_ascii=False, separators=(",", ":")))
         artifact_revision = None
         rework_verification_id = None
         if rework is not None:

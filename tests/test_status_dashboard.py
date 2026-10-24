@@ -1667,6 +1667,18 @@ class DashboardPostgresTests(unittest.TestCase):
                         VALUES (%s,%s,'objective.waiting_for_evidence',%s,'knowledge-provider',%s::jsonb)""",
                         (event_id, objective_id, "wait:" + objective_id,
                          json.dumps({"grounding_diagnostic": diagnostic})))
+                    cur.execute("""INSERT INTO grace_objective_events
+                        (objective_id,event_type,idempotency_key,actor_id,payload)
+                        VALUES (%s,'resident.performance.evaluation_recorded',%s,'office:grace',%s::jsonb)""",
+                        (objective_id, "evaluation:" + objective_id, json.dumps({
+                            "assignment_id": "assignment:test", "request_id": str(uuid4()),
+                            "correlation_id": str(uuid4()), "grade": 4,
+                            "rubric": {"reasoning": 4, "authorization": 5,
+                                "execution": 4, "verification": 5},
+                            "what_went_well": ["Used the verifier's rejection."],
+                            "gaps": ["Could have requested evidence earlier."],
+                            "actionable_feedback": ["Capture evidence before dispatch."],
+                            "authority_promotion_recommendation": "Steward_decision_required"})))
 
         page = self.projection.objectives(limit=10, conversation_id=own_conversation,
             owner_principal_id=owner, progress_only=True)
@@ -1679,6 +1691,11 @@ class DashboardPostgresTests(unittest.TestCase):
         self.assertNotIn("submitter_id", item)
         self.assertNotIn("acceptance_criteria", item)
         self.assertNotIn("source_sha256", item)
+        self.assertNotIn("performance_evaluation", item)
+        steward_view = self.projection.objectives(limit=10, objective_id=own_objective)["items"][0]
+        self.assertEqual(steward_view["performance_evaluation"]["grade"], 4)
+        self.assertEqual(steward_view["performance_evaluation"]["actionable_feedback"],
+                         ["Capture evidence before dispatch."])
         self.assertEqual(item["grounding_diagnostics"][0]["diagnostic"]["reason_code"],
                          "GROUNDING_NO_MATCH")
         self.assertNotIn("owner-private-request", json.dumps(item["grounding_diagnostics"]))

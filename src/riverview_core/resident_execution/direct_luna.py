@@ -53,9 +53,31 @@ def process_one(exchange):
             total_credit=TOTAL_CREDIT):
         return {"status": "BUDGET_OR_REPEAT_BLOCKED"}
     payload = row["request_payload"]
-    body = json.dumps({"model": MODEL_ID, "store": False, "max_output_tokens": 192,
+    request_type = payload.get("request_type", "objective_reasoning")
+    max_output_tokens = payload.get("max_tokens", 192)
+    if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 512:
+        exchange.finish_provider_attempt(row["request_id"], row["correlation_id"],
+            status="failed", failure_type="request_token_budget_invalid")
+        return {"status": "REQUEST_TOKEN_BUDGET_INVALID"}
+    instructions = (
+        "Diagnose this CME-reported Grace stall from the supplied evidence. Return one JSON object "
+        "with schema rv.grace.cme-recovery-advice.v1, assessment (short string), recovery_action "
+        "(REWORK_PROPOSED or STEWARD_AUTHORIZATION_REQUIRED), rationale (short string), "
+        "correction_instruction (string or null), and criteria_to_address (array of exact supplied criteria). "
+        "Recommend only a bounded same-assignment correction supported by the evidence. Never claim "
+        "that this response grants authority, approves work, or bypasses independent verification.")
+    if request_type == "performance_evaluation":
+        instructions = (
+            "Independently evaluate Grace's actual execution evidence. Return only one JSON object with "
+            "schema rv.grace.performance-evaluation.v1, grade (integer 1 through 5), rubric (object with "
+            "reasoning, authorization, execution, verification each scored 1 through 5), what_went_well "
+            "(array of concise strings), gaps (array of concise strings), actionable_feedback (array of "
+            "concise strings), and authority_promotion_recommendation (always 'Steward_decision_required'). "
+            "Do not infer success without evidence and do not grant or recommend automatic authority changes.")
+    body = json.dumps({"model": MODEL_ID, "store": False, "max_output_tokens": max_output_tokens,
         "reasoning": {"effort": "low"}, "instructions": (
-            "Give concise advisory reasoning to Grace. Identify missing evidence and safe next "
+            instructions if request_type in {"cme_diagnostic_recovery", "performance_evaluation"}
+            else "Give concise advisory reasoning to Grace. Identify missing evidence and safe next "
             "steps. Do not claim approval, authorize execution, or dispatch Engineering work."),
         "input": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))},
         separators=(",", ":")).encode()

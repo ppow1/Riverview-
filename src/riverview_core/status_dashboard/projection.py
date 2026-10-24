@@ -713,6 +713,8 @@ class DashboardProjection:
                     activity.event_type AS latest_event_type,activity.activity_at AS latest_event_at,
                     attempt_count.attempt_count,rejections.rejection_count,
                     rework.payload AS latest_rework,rework.occurred_at AS rework_at,
+                    performance.payload AS performance_evaluation,
+                    performance.occurred_at AS performance_evaluation_at,
                     grounding.events AS grounding_diagnostics,
                     de.failure_count,
                     de.last_failure_at,ve.failure_count AS verification_failure_count,
@@ -747,6 +749,10 @@ class DashboardProjection:
                       AND e.event_type IN ('engineering.rework_decided','engineering.rejection_reviewed','engineering.rework_escalation_pending')
                       AND e.payload->>'assignment_id'=a.id
                     ORDER BY e.sequence DESC LIMIT 1) rework ON true
+                LEFT JOIN LATERAL (SELECT e.payload,e.occurred_at FROM grace_objective_events e
+                    WHERE e.objective_id=o.objective_id
+                      AND e.event_type='resident.performance.evaluation_recorded'
+                    ORDER BY e.sequence DESC LIMIT 1) performance ON true
                 LEFT JOIN LATERAL (
                     SELECT coalesce(jsonb_agg(history.item ORDER BY history.sequence), '[]'::jsonb) AS events
                     FROM (
@@ -777,6 +783,8 @@ class DashboardProjection:
                 received_payload = row["received_payload"] if isinstance(row["received_payload"], dict) else {}
                 origin = received_payload.get("origin") if isinstance(received_payload.get("origin"), dict) else {}
                 rework = row["latest_rework"] if isinstance(row["latest_rework"], dict) else None
+                performance = (row["performance_evaluation"]
+                    if isinstance(row["performance_evaluation"], dict) else None)
                 verification_id = str(row["verification_id"]) if row["verification_id"] else None
                 rework_is_current = bool(rework and rework.get("verification_id") == verification_id)
                 action_needed = bool(rework_is_current and
@@ -845,6 +853,18 @@ class DashboardProjection:
                                              if rework_is_current else None),
                                "occurred_at": (self._iso(row["rework_at"])
                                                if rework_is_current else None)},
+                    "performance_evaluation": ({
+                        "grade": performance.get("grade"),
+                        "rubric": performance.get("rubric"),
+                        "what_went_well": performance.get("what_went_well"),
+                        "gaps": performance.get("gaps"),
+                        "actionable_feedback": performance.get("actionable_feedback"),
+                        "authority_promotion_recommendation": performance.get(
+                            "authority_promotion_recommendation"),
+                        "request_id": performance.get("request_id"),
+                        "correlation_id": performance.get("correlation_id"),
+                        "occurred_at": self._iso(row["performance_evaluation_at"])}
+                        if performance else None),
                     "steward_action_required": action_needed,
                     "dispatch_failures": int(row["failure_count"] or 0),
                     "last_dispatch_failure_at": self._iso(row["last_failure_at"]),

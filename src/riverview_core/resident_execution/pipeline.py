@@ -755,6 +755,96 @@ class GraceExecutionPipeline:
                     f"external-proposal-review:{request_id}:{suffix}",
                     actor_id, {"request_id": request_id, "correlation_id": correlation_id, **safe})
 
+    def record_supervisory_event(self, objective_id, assignment_id, *, event_type,
+            request_id, correlation_id, idempotency_key, payload):
+        """Append bounded CME/Luna or performance feedback evidence to the objective ledger."""
+        allowed = {"resident.reasoning.cme_recovery_evaluated",
+                   "resident.reasoning.cme_recovery_blocked",
+                   "resident.performance.evaluation_recorded",
+                   "resident.performance.feedback_consumed",
+                   "resident.performance.evaluation_blocked"}
+        if (event_type not in allowed or not all(isinstance(value, str) and value
+                for value in (objective_id, assignment_id, request_id, correlation_id,
+                              idempotency_key)) or not isinstance(payload, dict) or
+                len(_json(payload).encode("utf-8")) > 8192):
+            raise ObjectiveStateError("supervisory event exceeds its bounded contract")
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT status,assignment_id FROM grace_objectives "
+                    "WHERE objective_id=%s FOR UPDATE", (objective_id,))
+                objective = cur.fetchone()
+                cur.execute("SELECT objective_ref FROM assignments WHERE id=%s", (assignment_id,))
+                assignment = cur.fetchone()
+                if (not objective or objective["assignment_id"] != assignment_id or
+                        not assignment or assignment["objective_ref"] != objective_id):
+                    raise ObjectiveStateError("supervisory event correlation changed")
+                self._event(cur, objective_id, event_type, idempotency_key,
+                    "office:grace", {"assignment_id": assignment_id,
+                        "request_id": request_id, "correlation_id": correlation_id,
+                        **payload})
+        return True
+
+    def supervisory_rejected_assignment_context(self, objective_id, assignment_id,
+                                                verification_id):
+        """Re-read one exact rejected assignment for the CME advisory consumer."""
+        if not all(isinstance(value, str) and value for value in
+                   (objective_id, assignment_id, verification_id)):
+            return None
+        step = self.proposal_step_for_assignment(objective_id, assignment_id)
+        if not step:
+            return None
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT o.status,o.assignment_id,a.state,a.objective_ref,
+                    vr.attempt_id,vr.decision,wa.status AS attempt_status,
+                    vr.criteria,vr.summary,vr.evidence_references,
+                    vr.verifier_id,vr.verifier_revision
+                FROM grace_objectives o JOIN assignments a ON a.id=o.assignment_id
+                JOIN verification_records vr ON vr.assignment_id=a.id
+                JOIN worker_attempts wa ON wa.attempt_id=vr.attempt_id
+                WHERE o.objective_id=%s AND a.id=%s AND vr.verification_id=%s
+                  AND vr.verification_id=(SELECT latest.verification_id
+                    FROM verification_records latest WHERE latest.assignment_id=a.id
+                    ORDER BY latest.recorded_at DESC,latest.verification_id DESC LIMIT 1)
+                ORDER BY vr.recorded_at DESC LIMIT 1""",
+                (objective_id, assignment_id, verification_id))
+            row = cur.fetchone()
+        if (not row or row["status"] != "WORK_ORDER_CREATED" or
+                row["assignment_id"] != assignment_id or row["objective_ref"] != objective_id or
+                row["state"] != "rework_required" or row["decision"] != "REJECTED" or
+                row["attempt_status"] != "succeeded"):
+            return None
+        return {"objective_id": objective_id, "assignment_id": assignment_id,
+            "step_id": step["step_id"],
+            "step_acceptance_criteria": list(step["acceptance_criteria"]),
+            "review_generation": 6,
+            "completion": {"verification_id": verification_id,
+                "attempt_id": str(row["attempt_id"]), "decision": "REJECTED",
+                "summary": row["summary"], "criteria": row["criteria"],
+                "evidence_references": list(row["evidence_references"] or []),
+                "verifier_id": row["verifier_id"],
+                "verifier_revision": row["verifier_revision"]}}
+
+    def latest_performance_feedback(self, objective_id):
+        """Return only the latest durable bounded grade/feedback for this objective."""
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT payload FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='resident.performance.feedback_consumed'
+                ORDER BY sequence DESC LIMIT 1""", (objective_id,))
+            row = cur.fetchone()
+        return dict(row["payload"]) if row else None
+
+    def exchange_response_metadata(self, request_id, correlation_id):
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT response_sha256,request_payload,delivery_state,
+                    consumption_owner FROM external_reasoning_exchanges
+                WHERE request_id=%s AND correlation_id=%s""", (request_id, correlation_id))
+            row = cur.fetchone()
+        return dict(row) if row else None
+
     def dispatchable_step(self, objective_id):
         """Return the first pending step whose persisted dependencies are verified."""
         with self.ledger.db.cursor() as cur:
@@ -1917,7 +2007,10 @@ class GraceExecutionPipeline:
                 # Release changes may reopen this authorization stop only for
                 # a small fixed number of reviews. This prevents deployment
                 # churn from becoming an unbounded reasoning loop.
-                if type(prior_generation) is not int or prior_generation not in {1, 2, 3, 4, 5}:
+                # Five local review generations are terminal for one verifier
+                # result. A release change must not mint generation six and
+                # collide with or preempt a separate authorized CME recovery.
+                if type(prior_generation) is not int or prior_generation not in {1, 2, 3, 4}:
                     continue
                 review_generation = prior_generation + 1
                 reopened_after_release_change = True
@@ -2056,6 +2149,7 @@ class GraceExecutionPipeline:
         objective_id, assignment_id = context.get("objective_id"), context.get("assignment_id")
         criteria = context.get("step_acceptance_criteria")
         review_generation = context.get("review_generation", 1)
+        external_reasoning = context.get("external_reasoning")
         if (not isinstance(verification_id, str) or not isinstance(objective_id, str) or
                 not isinstance(assignment_id, str) or not isinstance(criteria, list) or
                 not criteria or type(review_generation) is not int or
@@ -2084,6 +2178,15 @@ class GraceExecutionPipeline:
             "criteria_to_address": list(decision["criteria_to_address"]),
             "acceptance_criteria_sha256": hashlib.sha256(
                 _json(criteria).encode("utf-8")).hexdigest()}
+        if external_reasoning is not None:
+            if (not isinstance(external_reasoning, dict) or
+                    set(external_reasoning) != {"request_id", "correlation_id", "response_sha256",
+                        "cme_event_id"} or
+                    any(not isinstance(external_reasoning.get(key), str) or not external_reasoning[key]
+                        for key in external_reasoning) or
+                    not re.fullmatch(r"[0-9a-f]{64}", external_reasoning["response_sha256"])):
+                raise ObjectiveStateError("CME advisory correlation is invalid")
+            payload["external_reasoning"] = dict(external_reasoning)
         satisfied = decision["decision"] == "OBJECTIVE_SATISFIED"
         base_idem = (f"grace-rejection-review:{verification_id}" if satisfied else
                      f"grace-rework-decision:{verification_id}")
@@ -2115,12 +2218,32 @@ class GraceExecutionPipeline:
                 if (objective["status"] != "WORK_ORDER_CREATED" or
                         assignment["state"] not in {"rework_required", "ready"}):
                     raise ObjectiveStateError("same objective assignment is not eligible for rework")
+                if external_reasoning is not None:
+                    cur.execute("""SELECT delivery_state,consumption_owner,provider_id,
+                            request_payload,response_sha256 FROM external_reasoning_exchanges
+                        WHERE request_id=%s AND correlation_id=%s AND objective_id=%s FOR UPDATE""",
+                        (external_reasoning["request_id"], external_reasoning["correlation_id"],
+                         objective_id))
+                    exchange = cur.fetchone()
+                    original = ((exchange["request_payload"] or {}).get("original_request", {})
+                        if exchange else {})
+                    if (not exchange or exchange["delivery_state"] != "response_received" or
+                            exchange["provider_id"] != "gpt-6-luna" or
+                            exchange["consumption_owner"] != "resident:grace" or
+                            exchange["request_payload"].get("request_type") !=
+                                "cme_diagnostic_recovery" or
+                            original.get("assignment_id") != objective_id or
+                            exchange["response_sha256"] != external_reasoning["response_sha256"]):
+                        raise ObjectiveStateError("correlated CME Luna advisory must be under Grace consumption")
                 if decision["decision"] == "REWORK_PROPOSED":
                     cur.execute("""SELECT count(*) AS attempt_count FROM grace_objective_events
                         WHERE objective_id=%s AND event_type='engineering.rework_decided'
                           AND payload->>'assignment_id'=%s AND payload->>'decision'='REWORK_PROPOSED'""",
                         (objective_id, assignment_id))
-                    if cur.fetchone()["attempt_count"] >= self.MAX_GOVERNED_REWORK_ATTEMPTS:
+                    attempt_count = cur.fetchone()["attempt_count"]
+                    retry_limit = (1 if external_reasoning is not None else
+                        self.MAX_GOVERNED_REWORK_ATTEMPTS)
+                    if attempt_count >= retry_limit:
                         raise ObjectiveStateError("governed rework retry limit is exhausted")
                 cur.execute("""SELECT vr.decision,vr.attempt_id,wa.status
                     FROM verification_records vr JOIN worker_attempts wa

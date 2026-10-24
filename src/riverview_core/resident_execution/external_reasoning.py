@@ -411,18 +411,30 @@ class DurableExternalReasoningExchange:
     @staticmethod
     def _validate_origin(original, *, originating_resident_id, objective_id,
                          conversation_id, message_sequence, proposal_id,
-                         proposal_revision, classification):
+                         proposal_revision, classification, source_kind,
+                         request_type):
         if (not isinstance(original, ReasoningRequest) or not isinstance(objective_id, str)
                 or original.assignment_id != objective_id
                 or not isinstance(originating_resident_id, str)
                 or not originating_resident_id or len(originating_resident_id) > 256
-                or type(message_sequence) is not int or message_sequence < 1
                 or classification not in _ALLOWED_CLASSIFICATIONS):
             raise ValueError("exchange origin, objective correlation, or classification is invalid")
-        try:
-            UUID(str(conversation_id))
-        except (ValueError, TypeError, AttributeError):
-            raise ValueError("conversation_id must be a UUID") from None
+        allowed = {"objective_reasoning": "conversation", "proposal_review": "conversation",
+                   "cme_diagnostic_recovery": "cme_diagnostic_recovery",
+                   "performance_evaluation": "performance_evaluation"}
+        if (request_type not in allowed or source_kind != allowed[request_type] or
+                (request_type in {"cme_diagnostic_recovery", "performance_evaluation"} and
+                 original.trigger != request_type)):
+            raise ValueError("exchange request type and source kind do not match")
+        if source_kind == "conversation":
+            try:
+                UUID(str(conversation_id))
+            except (ValueError, TypeError, AttributeError):
+                raise ValueError("conversation_id must be a UUID") from None
+            if type(message_sequence) is not int or message_sequence < 1:
+                raise ValueError("conversation message sequence must be positive")
+        elif conversation_id is not None or message_sequence is not None:
+            raise ValueError("event-origin exchange cannot claim a conversation")
         if (proposal_id is None) != (proposal_revision is None):
             raise ValueError("proposal ID and exact revision must be supplied together")
         if proposal_id is not None and (not isinstance(proposal_id, str) or
@@ -431,18 +443,22 @@ class DurableExternalReasoningExchange:
 
     def submit(self, envelope: EscalationRequest, original: ReasoningRequest, *,
                principal_id: str, authorize, originating_resident_id: str,
-               objective_id: str, conversation_id: str, message_sequence: int,
+               objective_id: str, conversation_id: str | None = None,
+               message_sequence: int | None = None,
                idempotency_key: str, classification: str,
                deadline_at: datetime, proposal_id: str | None = None,
                proposal_revision: int | None = None,
                source_references: tuple[str, ...] = (),
                review_subject: Mapping[str, Any] | None = None,
-               review_parent: Mapping[str, Any] | None = None) -> ExchangeReceipt:
+               review_parent: Mapping[str, Any] | None = None,
+               source_kind: str = "conversation",
+               request_type: str = "objective_reasoning") -> ExchangeReceipt:
         """Authorize and durably enqueue before any delivery operation is possible."""
         self._validate_origin(original, originating_resident_id=originating_resident_id,
             objective_id=objective_id, conversation_id=conversation_id,
             message_sequence=message_sequence, proposal_id=proposal_id,
-            proposal_revision=proposal_revision, classification=classification)
+            proposal_revision=proposal_revision, classification=classification,
+            source_kind=source_kind, request_type=request_type)
         if (not isinstance(idempotency_key, str) or not 1 <= len(idempotency_key) <= 240
                 or len(source_references) > 32 or any(not isinstance(x, str) or not x or len(x) > 512
                                                        for x in source_references)):
@@ -472,13 +488,15 @@ class DurableExternalReasoningExchange:
             **({"review_subject": review_subject} if review_subject is not None else {}),
             **({"review_parent": dict(review_parent)} if review_parent is not None else {}),
         }
+        if source_kind != "conversation":
+            request_payload.update({"request_type": request_type, "source_kind": source_kind})
         encoded = _json(request_payload).encode("utf-8")
         if len(encoded) > _MAX_CONTEXT_BYTES:
             raise ValueError("external reasoning request exceeds 32 KiB")
         immutable = {
             "originating_resident_id": originating_resident_id,
             "objective_id": objective_id,
-            "conversation_id": str(conversation_id),
+            "conversation_id": str(conversation_id) if conversation_id is not None else None,
             "message_sequence": message_sequence,
             "proposal_id": proposal_id,
             "proposal_revision": proposal_revision,
@@ -488,6 +506,8 @@ class DurableExternalReasoningExchange:
             "provider_id": envelope.target_provider_id,
             "request_payload": request_payload,
         }
+        if source_kind != "conversation":
+            immutable["source_kind"] = source_kind
         request_hash = _digest(immutable)
         request_id = UUID(envelope.escalation_id)
         correlation_id = uuid4()
@@ -497,15 +517,15 @@ class DurableExternalReasoningExchange:
                 self._set_path(cur)
                 cur.execute("""INSERT INTO external_reasoning_exchanges
                     (request_id,correlation_id,original_request_id,originating_resident_id,
-                     objective_id,conversation_id,message_sequence,proposal_id,proposal_revision,
+                     objective_id,source_kind,conversation_id,message_sequence,proposal_id,proposal_revision,
                      request_schema,response_schema,reason,context_sha256,classification,
                      provider_id,idempotency_key,request_sha256,request_payload,delivery_state,
                      next_delivery_at,deadline_at)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,
                             'awaiting_delivery',%s,%s)
                     ON CONFLICT (idempotency_key) DO NOTHING""",
                     (request_id, correlation_id, original.request_id, originating_resident_id,
-                     objective_id, conversation_id, message_sequence, proposal_id,
+                     objective_id, source_kind, conversation_id, message_sequence, proposal_id,
                      proposal_revision, self.REQUEST_SCHEMA, self.RESPONSE_SCHEMA,
                      envelope.reason, envelope.context_sha256, classification,
                      envelope.target_provider_id, idempotency_key, request_hash,
@@ -535,6 +555,16 @@ class DurableExternalReasoningExchange:
                   ('awaiting_delivery','awaiting_external_claim','awaiting_response','response_received')
                 LIMIT 1""", (objective_id,))
             return cur.fetchone() is not None
+
+    def request_for_idempotency(self, idempotency_key: str):
+        with self.ledger.db.cursor() as cur:
+            self._set_path(cur)
+            cur.execute("""SELECT request_id::text AS request_id,
+                    correlation_id::text AS correlation_id,delivery_state
+                FROM external_reasoning_exchanges WHERE idempotency_key=%s""",
+                (idempotency_key,))
+            row = cur.fetchone()
+        return dict(row) if row else None
 
     def has_terminal_review_for_objective(self, objective_id: str) -> bool:
         """Suppress repeated local inference after a bounded review chain is terminal."""

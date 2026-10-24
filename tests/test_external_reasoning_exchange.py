@@ -144,6 +144,32 @@ class _GraceReasoningProvider:
 
 
 class ReviewSubjectUnitTests(unittest.TestCase):
+    def test_event_origin_exchange_is_typed_and_conversation_hash_shape_is_unchanged(self):
+        from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
+        request = ReasoningRequest(request_id=str(uuid4()), office_id=OFFICE,
+            assignment_id="objective:" + uuid4().hex, assignment_revision="6",
+            binding_revision=1, implementation_revision="a" * 64,
+            trigger="cme_diagnostic_recovery", token_budget=32,
+            assignment={"cme_event_id": str(uuid4())}, verified_knowledge=(), prior_plan=None)
+        validate = DurableExternalReasoningExchange._validate_origin
+        validate(request, originating_resident_id=RESIDENT,
+            objective_id=request.assignment_id, conversation_id=None, message_sequence=None,
+            proposal_id="proposal:test", proposal_revision=2,
+            classification="institutional", source_kind="cme_diagnostic_recovery",
+            request_type="cme_diagnostic_recovery")
+        with self.assertRaisesRegex(ValueError, "request type and source kind"):
+            validate(request, originating_resident_id=RESIDENT,
+                objective_id=request.assignment_id, conversation_id=None, message_sequence=None,
+                proposal_id="proposal:test", proposal_revision=2,
+                classification="institutional", source_kind="performance_evaluation",
+                request_type="cme_diagnostic_recovery")
+        with self.assertRaisesRegex(ValueError, "conversation_id must be a UUID"):
+            validate(request, originating_resident_id=RESIDENT,
+                objective_id=request.assignment_id, conversation_id="not-a-uuid", message_sequence=1,
+                proposal_id="proposal:test", proposal_revision=2,
+                classification="institutional", source_kind="conversation",
+                request_type="objective_reasoning")
+
     def test_subject_uses_agreed_canonical_hash_and_rejects_tampering(self):
         from riverview_core.resident_execution.external_reasoning import (
             build_review_subject, validate_review_subject)
