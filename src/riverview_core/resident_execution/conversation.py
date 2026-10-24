@@ -2139,6 +2139,8 @@ class ResidentConversationService:
                      current_authority_evidence.get("read_only") is not True or
                      current_authority_evidence.get("objective_id") != context["objective_id"] or
                      current_authority_evidence.get("assignment_id") != context["assignment_id"] or
+                     current_authority_evidence.get("objective_status") != "WORK_ORDER_CREATED" or
+                     current_authority_evidence.get("proposal_reference") != proposal_reference or
                      not isinstance(current_authority_evidence.get("same_assignment_rework"), dict) or
                      current_authority_evidence["same_assignment_rework"].get("assignment_id") !=
                         context["assignment_id"]))):
@@ -2211,7 +2213,9 @@ class ResidentConversationService:
                     "evidence is read-only server-derived state for this exact objective and assignment; "
                     "use it to avoid mistaking stale artifact text for current authorization. It is not "
                     "approval and does not widen scope or replace the execution/verifier gates. Never claim acceptance, "
-                    "verification, or execution. Judge only the current assignment's acceptance criteria; "
+                    "verification, or execution. The durable objective status and linked approved proposal reference "
+                    "are included in the authority evidence; do not request approval or misstate their status when "
+                    "those exact records are present. Judge only the current assignment's acceptance criteria; "
                     "criteria assigned to later plan steps are not prerequisites for this step and their absence "
                     "from the current artifact is not an authorization failure. The server-derived same-assignment "
                     "rework facts describe whether a bounded retry is available; any proposal is still rechecked "
@@ -2229,6 +2233,7 @@ class ResidentConversationService:
                     "assignment_step_id": context["step_id"],
                     "assignment_step_objective": context["step_objective"],
                     "assignment_acceptance_criteria": context["step_acceptance_criteria"],
+                    "proposal_reference": proposal_reference,
                     "review_generation": review_generation,
                     "current_authority_evidence": current_authority_evidence,
                     "independent_rejection": {key: completion.get(key) for key in (

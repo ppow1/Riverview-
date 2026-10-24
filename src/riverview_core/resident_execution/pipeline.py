@@ -1917,7 +1917,7 @@ class GraceExecutionPipeline:
                 # Release changes may reopen this authorization stop only for
                 # a small fixed number of reviews. This prevents deployment
                 # churn from becoming an unbounded reasoning loop.
-                if type(prior_generation) is not int or prior_generation not in {1, 2}:
+                if type(prior_generation) is not int or prior_generation not in {1, 2, 3}:
                     continue
                 review_generation = prior_generation + 1
                 reopened_after_release_change = True
@@ -2030,6 +2030,7 @@ class GraceExecutionPipeline:
             "assignment_state": row["assignment_state"],
             "assignment_scope": row["authority_ref"],
             "work_order_dispatched": dispatched,
+            "proposal_reference": context.get("proposal_reference"),
             "assignment_create_grant": {"active": grant is not None,
                 "action": self.assignment_intake.ACTION,
                 "scope_ref": row["authority_ref"],
