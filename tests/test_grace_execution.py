@@ -894,8 +894,7 @@ class GraceExecutionTests(unittest.TestCase):
         first_service = self._reasoning_service(CountingReasoner())
         first_service._record_reasoning_failure(objective_id,
             failure_type="ObjectiveStateError",
-            detail_code="PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
-            blocked_revision=objective["revision"])
+            detail_code="PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED")
         before = [event for event in self.pipeline.objective_events(objective_id)
                   if event["event_type"] == "execution.reasoning_attempted"]
 
@@ -909,7 +908,9 @@ class GraceExecutionTests(unittest.TestCase):
         failures = [event for event in self.pipeline.objective_events(objective_id)
                     if event["event_type"] == "execution.reasoning_failed"]
         self.assertEqual(len(failures), 1)
-        self.assertEqual(failures[0]["payload"]["status"], "BLOCKED")
+        # Match the legacy production event: no BLOCKED marker or revision field.
+        self.assertEqual(failures[0]["payload"]["status"], "UNAVAILABLE")
+        self.assertNotIn("objective_revision", failures[0]["payload"])
         self.assertEqual(failures[0]["payload"]["detail_code"],
                          "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED")
 
