@@ -1,18 +1,20 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify durable supervisory grading and bounded Luna retry selection
 # Execution Model: Offline unit tests
 # Observability: unittest assertions and exit status
 # Dependencies: Grace execution service
 # Authority: Tests only; no live supervisory requests
+# Changed: 2026-10-24 UTC | RV-GRACE-CME-ESCALATION-ID-FALLBACK-20261024 | Assert every bounded CME attempt uses a distinct escalation identity.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Assert bounded fallback and retry idempotency
 # History: Git and .riverview-backups/manifest.jsonl
 """Offline contract tests for grading completed work and diagnostic escalations."""
 import json
 import unittest
 from types import SimpleNamespace
+from uuid import NAMESPACE_URL, uuid5
 
 from riverview_core.resident_execution.service import GraceExecutionService
 
@@ -32,6 +34,16 @@ class _Pipeline:
 
 
 class SupervisoryEvaluationUnitTests(unittest.TestCase):
+    def test_cme_diagnostic_attempts_have_distinct_escalation_identities(self):
+        event_id = "c7558b01-8004-4a44-8344-4bf0fe0ae27e"
+        identify = GraceExecutionService._cme_diagnostic_escalation_id
+        values = [identify(event_id, attempt) for attempt in range(1, 5)]
+        self.assertEqual(len(set(values)), 4)
+        self.assertEqual(values[3], str(uuid5(NAMESPACE_URL,
+            "rv-cme-recovery-escalation:" + event_id + ":bounded-output-fallback-1")))
+        with self.assertRaisesRegex(ValueError, "unsupported_cme_diagnostic_attempt"):
+            identify(event_id, 5)
+
     def test_cme_uses_only_one_explicitly_amended_request_after_failed_transport_retries(self):
         event_id = "c7558b01-8004-4a44-8344-4bf0fe0ae27e"
         failed = {"delivery_state": "failed",

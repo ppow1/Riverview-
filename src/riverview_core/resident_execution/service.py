@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.46
+# Revision: 1.0.47
+# Changed: 2026-10-24 UTC | RV-GRACE-CME-ESCALATION-ID-FALLBACK-20261024 | Give the bounded fourth diagnostic attempt its own deterministic escalation identity.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Bound Luna supervisory output to the verified 512-token envelope and permit one durable low-output fallback after the bounded retry fails at transport.
 # Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Permit one re-request only after durable JSON truncation at the former 512-token output cap.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
@@ -1482,12 +1483,7 @@ class GraceExecutionService:
             verified_knowledge=(), prior_plan=None,
             external_reasoning_targets=reasoner.external_reasoning_targets,
             correlation_id=original_id)
-        escalation_source = "rv-cme-recovery-escalation:" + event_id
-        if diagnostic_attempt == 2:
-            escalation_source += ":transport-retry-1"
-        elif diagnostic_attempt == 3:
-            escalation_source += ":authorized-amendment-diagnostic-1"
-        escalation_id = str(uuid5(NAMESPACE_URL, escalation_source))
+        escalation_id = self._cme_diagnostic_escalation_id(event_id, diagnostic_attempt)
         envelope = EscalationRequest.create(request, reason="capability_gap",
             target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
             escalation_id=escalation_id)
@@ -1515,6 +1511,19 @@ class GraceExecutionService:
                 sql.Identifier(authority_schema)), (auth["authority_grant_id"],))
             linked = cur.fetchone()
         return bool(linked and linked["grant_id"] == auth["authority_grant_id"])
+
+    @staticmethod
+    def _cme_diagnostic_escalation_id(event_id, diagnostic_attempt):
+        suffixes = {
+            1: "",
+            2: ":transport-retry-1",
+            3: ":authorized-amendment-diagnostic-1",
+            4: ":bounded-output-fallback-1",
+        }
+        if diagnostic_attempt not in suffixes:
+            raise ValueError("unsupported_cme_diagnostic_attempt")
+        return str(uuid5(NAMESPACE_URL,
+            "rv-cme-recovery-escalation:" + event_id + suffixes[diagnostic_attempt]))
 
     @staticmethod
     def _select_cme_diagnostic_request(event_id, prior_request, prior_transport_retry,
