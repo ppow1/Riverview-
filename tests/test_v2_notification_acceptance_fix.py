@@ -15,6 +15,20 @@ class V2NotificationAcceptanceFixTests(unittest.TestCase):
         self.assertIn("time zone: ${settings.quiet_hours.timezone}", source)
         self.assertIn("Notification settings request failed", source)
 
+    def test_grace_script_url_is_revisioned_to_refresh_preloaded_v2_tabs(self):
+        html = (ROOT / "website/v2/deployed/index.html").read_text()
+        self.assertIn('src="assets/grace-chat.js?rev=62e942ac"', html)
+
+    def test_handled_settings_query_returns_before_durable_reasoning_send(self):
+        source = (ROOT / "website/v2/deployed/assets/grace-chat.js").read_text()
+        handler = source[source.index('$("grace-chat-form").addEventListener("submit"'):]
+        handled = handler.index("if (await handleConversationalNotificationSettings(message))")
+        reasoning = handler.index('api("/api/v1/resident/conversations/stream"')
+        self.assertLess(handled, reasoning)
+        self.assertIn('setStatus("Settings request handled through the authenticated notification API"',
+                      handler[handled:reasoning])
+        self.assertIn("return;", handler[handled:reasoning])
+
     def test_notification_api_retries_only_transient_gateway_failures(self):
         source = (ROOT / "website/v2/deployed/assets/notification-settings.js").read_text()
         self.assertIn("const delays = [0, 300, 800, 1500]", source)
