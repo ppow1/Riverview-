@@ -1,4 +1,5 @@
 """Single-call GPT-6 Luna transport over Grace's existing durable exchange."""
+# Changed: 2026-10-24 UTC | RV-LUNA-SAFE-HTTP-DIAGNOSTICS | Persist allowlisted provider error identifiers without retaining raw error bodies.
 from __future__ import annotations
 
 import json
@@ -40,6 +41,26 @@ def _safe_failure_detail(exc):
     detail = re.sub(r"[\r\n\t]+", " ", detail)
     detail = re.sub(r"[^A-Za-z0-9 .,:()'/_=+\-\[\]]", "?", detail)
     return f"{type(exc).__name__}: {detail[:200]}"
+
+
+def _safe_http_error_fields(exc):
+    """Extract only provider error identifiers; never persist the raw error body."""
+    try:
+        body = exc.read(8192)
+        decoded = json.loads(body.decode("utf-8", errors="strict"))
+    except Exception:
+        return {}
+    error = decoded.get("error") if isinstance(decoded, dict) else None
+    if not isinstance(error, dict):
+        return {}
+    fields = {}
+    for name, pattern in (("provider_error_type", r"[A-Za-z0-9_.-]{1,80}"),
+                          ("provider_error_code", r"[A-Za-z0-9_.-]{1,80}"),
+                          ("provider_error_param", r"[A-Za-z0-9_.\[\]-]{1,120}")):
+        value = error.get(name.removeprefix("provider_error_"))
+        if isinstance(value, str) and re.fullmatch(pattern, value):
+            fields[name] = value
+    return fields
 
 
 def _api_key():
@@ -140,6 +161,7 @@ def process_one(exchange):
                     provider_request_id = candidate
             failure_usage = {"http_status": status_code,
                 **({"provider_request_id": provider_request_id} if provider_request_id else {})}
+            failure_usage.update(_safe_http_error_fields(exc))
             safe_error.update(failure_usage)
         exchange.finish_provider_attempt(row["request_id"], row["correlation_id"],
             status="failed", failure_type=type(exc).__name__, usage=failure_usage)

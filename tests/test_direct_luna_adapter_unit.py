@@ -134,6 +134,21 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
         self.assertEqual(exchange.failures, [])
         self.assertNotIn("private provider error body", json.dumps(outcome))
 
+    def test_http_failure_extracts_only_allowlisted_provider_error_fields(self):
+        exchange = _Exchange(request_type="performance_evaluation", max_tokens=2048)
+        error_body = json.dumps({"error": {"type": "invalid_request_error",
+            "code": "unsupported_value", "param": "max_output_tokens",
+            "message": "sensitive echoed prompt text"}}).encode()
+        error = direct_luna.urllib.error.HTTPError("https://api.openai.com/v1/responses",
+            400, "bad request", {"x-request-id": "req_fixture_400"}, io.BytesIO(error_body))
+        with patch.object(direct_luna, "_api_key", return_value="synthetic-key"), \
+             patch.object(direct_luna.urllib.request, "urlopen", side_effect=error):
+            outcome = direct_luna.process_one(exchange)
+        self.assertEqual(outcome["provider_error_type"], "invalid_request_error")
+        self.assertEqual(outcome["provider_error_code"], "unsupported_value")
+        self.assertEqual(outcome["provider_error_param"], "max_output_tokens")
+        self.assertNotIn("sensitive echoed prompt text", json.dumps(outcome))
+
     def test_output_allowances_are_per_request_type_and_sent_to_responses(self):
         for request_type, limit in (("cme_diagnostic_recovery", 4096),
                                     ("performance_evaluation", 2048)):
