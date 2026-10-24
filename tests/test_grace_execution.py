@@ -1976,6 +1976,9 @@ class GraceExecutionTests(unittest.TestCase):
             self.pipeline.MAX_GOVERNED_REWORK_ATTEMPTS)
         self.assertTrue(authority["same_assignment_rework"]["independent_verification_required"])
         self.assertEqual(authority["assignment_id"], assignment_id)
+        self.assertEqual(authority["objective_runtime_evidence"]["objective"]["objective_id"],
+            objective_id)
+        self.assertTrue(authority["objective_runtime_evidence"]["read_only"])
 
         rework = {"decision":"REWORK_PROPOSED",
             "rationale":"The current work-order and exact assignment grant are active; correct the evidence report.",

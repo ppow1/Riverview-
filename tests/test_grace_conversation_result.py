@@ -504,6 +504,12 @@ class GraceConversationResultTests(unittest.TestCase):
                 "proposal_reference":{"proposal_id":proposal_id, "revision":2,
                     "content_sha256":"a"*64, "approval_event_key":"proposal-approved:test",
                     "objective_submit_grant_id":"grant:test"},
+                "objective_runtime_evidence":{"schema":"rv.grace-diagnostic-runtime-evidence.v1",
+                    "read_only":True, "objective":{"objective_id":objective_id,
+                        "status":"WORK_ORDER_CREATED", "revision":6,
+                        "event_counts":{"execution.reasoning_attempted":4,
+                            "work_order.proposed":1}, "external_exchange_count":0,
+                        "recent_events":[]}, "referenced_historical_objectives":[]},
                 "assignment_state":"rework_required", "assignment_scope":"work-order:engineering",
                 "work_order_dispatched":True, "assignment_create_grant":{"active":True,
                     "action":"assignment.create", "scope_ref":"work-order:engineering",
@@ -535,6 +541,13 @@ class GraceConversationResultTests(unittest.TestCase):
             context["completion"]["verification_id"] + ":review:2"))
         self.assertEqual(result["request_id"], expected_request)
         self.assertEqual(recorded[0][1], expected_request)
+        review_payload = json.loads(self.router.calls[0][0][1]["content"])
+        self.assertEqual(review_payload["objective"], context["step_objective"])
+        self.assertEqual(review_payload["objective_acceptance_criteria"],
+            context["step_acceptance_criteria"])
+        self.assertEqual(review_payload["current_authority_evidence"]
+            ["objective_runtime_evidence"]["objective"]["status"], "WORK_ORDER_CREATED")
+        self.assertEqual(review_payload["proposal_reference"], context["proposal_reference"])
         self.assertEqual(len(self.store.responses), 0)
         self.assertEqual(self.rework_decisions[0][1]["decision"], "REWORK_PROPOSED")
 

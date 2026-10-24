@@ -2141,6 +2141,14 @@ class ResidentConversationService:
                      current_authority_evidence.get("assignment_id") != context["assignment_id"] or
                      current_authority_evidence.get("objective_status") != "WORK_ORDER_CREATED" or
                      current_authority_evidence.get("proposal_reference") != proposal_reference or
+                     not isinstance(current_authority_evidence.get("objective_runtime_evidence"), dict) or
+                     current_authority_evidence["objective_runtime_evidence"].get("schema") !=
+                        "rv.grace-diagnostic-runtime-evidence.v1" or
+                     current_authority_evidence["objective_runtime_evidence"].get("read_only") is not True or
+                     current_authority_evidence["objective_runtime_evidence"].get("objective", {}).get(
+                        "objective_id") != context["objective_id"] or
+                     current_authority_evidence["objective_runtime_evidence"].get("objective", {}).get(
+                        "status") != "WORK_ORDER_CREATED" or
                      not isinstance(current_authority_evidence.get("same_assignment_rework"), dict) or
                      current_authority_evidence["same_assignment_rework"].get("assignment_id") !=
                         context["assignment_id"]))):
@@ -2228,8 +2236,10 @@ class ResidentConversationService:
                 {"role": "user", "content": json.dumps({
                     "objective_id": context["objective_id"],
                     "assignment_id": context["assignment_id"],
-                    "objective": context["request"],
-                    "objective_acceptance_criteria": context["acceptance_criteria"],
+                    "objective": (context["step_objective"] if proposal_origin else
+                        context["request"]),
+                    "objective_acceptance_criteria": (context["step_acceptance_criteria"]
+                        if proposal_origin else context["acceptance_criteria"]),
                     "assignment_step_id": context["step_id"],
                     "assignment_step_objective": context["step_objective"],
                     "assignment_acceptance_criteria": context["step_acceptance_criteria"],

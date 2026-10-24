@@ -1917,7 +1917,7 @@ class GraceExecutionPipeline:
                 # Release changes may reopen this authorization stop only for
                 # a small fixed number of reviews. This prevents deployment
                 # churn from becoming an unbounded reasoning loop.
-                if type(prior_generation) is not int or prior_generation not in {1, 2, 3}:
+                if type(prior_generation) is not int or prior_generation not in {1, 2, 3, 4}:
                     continue
                 review_generation = prior_generation + 1
                 reopened_after_release_change = True
@@ -2022,6 +2022,7 @@ class GraceExecutionPipeline:
                       AND payload->>'assignment_id'=%s) AS dispatched""",
                     (context["objective_id"], context["assignment_id"]))
                 dispatched = bool(cur.fetchone()["dispatched"])
+        diagnostic_evidence = self.diagnostic_runtime_evidence(context["objective_id"])
         return {"schema": "rv.grace-rework-authority-evidence.v1", "read_only": True,
             "objective_id": context["objective_id"],
             "objective_status": row["objective_status"],
@@ -2031,6 +2032,7 @@ class GraceExecutionPipeline:
             "assignment_scope": row["authority_ref"],
             "work_order_dispatched": dispatched,
             "proposal_reference": context.get("proposal_reference"),
+            "objective_runtime_evidence": diagnostic_evidence,
             "assignment_create_grant": {"active": grant is not None,
                 "action": self.assignment_intake.ACTION,
                 "scope_ref": row["authority_ref"],
