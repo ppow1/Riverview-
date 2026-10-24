@@ -1399,7 +1399,7 @@ class GraceExecutionService:
                 not isinstance(reference.get("proposal_id"), str)):
             return None
         with self.pipeline.ledger.db.cursor() as cur:
-            self.pipeline._set_search_path(cur)
+            self.pipeline.ledger._set_search_path(cur)
             cur.execute("""SELECT event_id::text AS event_id,details FROM cme_monitor_events
                 WHERE assignment_id=%s AND event_type='assignment_stalled'
                   AND details->>'state'='rework_required'
@@ -1496,7 +1496,7 @@ class GraceExecutionService:
                 not isinstance(reference, dict) or reference.get("revision") != 2):
             return None
         with self.pipeline.ledger.db.cursor() as cur:
-            self.pipeline._set_search_path(cur)
+            self.pipeline.ledger._set_search_path(cur)
             cur.execute("""SELECT auth.max_luna_requests,
                     (SELECT count(*) FROM grace_experiment_authorization_events e
                       WHERE e.authorization_id=auth.authorization_id
