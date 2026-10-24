@@ -2,8 +2,9 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/resource-monitor.css
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.1.11
+Revision: 1.1.12
 Purpose: Style the OCTO1 manufacturer chassis view, telemetry console, and content-free Grace request trace
+Changed: 2026-10-24 UTC | RV-V2-OCTO-GPU-BAY-ASSIGNMENT | Color-code reported physical GPU assignments and explain the assignment legend.
 Execution Model: Static browser presentation
 Observability: Status colors are paired with visible text labels
 Dependencies: Existing V2 workspace theme variables
@@ -78,9 +79,18 @@ History: Git and revision/backup manifest
 .octo-bay-hotspots{display:none;position:absolute;inset:0;pointer-events:none}
 .octo-chassis-stage[data-artwork-view="open"] .octo-bay-hotspots{display:block}
 .octo-bay-hotspot{position:absolute;left:var(--image-x);top:var(--image-y);display:grid;place-items:center;width:clamp(9px,1.8vw,26px);aspect-ratio:1;border:2px solid #fff;border-radius:50%;transform:translate(-50%,-50%);background:rgba(22,94,82,.85);color:#fff;font:700 clamp(5px,.7vw,8px) system-ui;cursor:pointer;pointer-events:auto;box-shadow:0 1px 6px #0008}
+.octo-bay-hotspot[data-assignment-type="p100"],.octo-bay-picker button[data-assignment-type="p100"]{background:#216b62;color:#fff}
+.octo-bay-hotspot[data-assignment-type="rtx3060ti"],.octo-bay-picker button[data-assignment-type="rtx3060ti"]{background:#31598c;color:#fff}
+.octo-bay-hotspot[data-assignment-type="rtx4090"],.octo-bay-picker button[data-assignment-type="rtx4090"]{background:#99601e;color:#fff}
+.octo-bay-hotspot[data-assignment-type="unconfirmed"]{background:#59666a;color:#fff}
 .octo-bay-hotspot[aria-pressed="true"],.octo-bay-hotspot:hover{background:#d27c24;transform:translate(-50%,-50%) scale(1.12)}
 .octo-bay-picker{display:none;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
 .octo-bay-picker button{min-height:34px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font-size:9px;font-weight:700;cursor:pointer}
+.octo-bay-picker button[data-assignment-type="p100"],.octo-bay-picker button[data-assignment-type="rtx3060ti"],.octo-bay-picker button[data-assignment-type="rtx4090"]{border-color:transparent}
+.octo-bay-picker button[data-assignment-type="p100"]{background:#216b62;color:#fff}.octo-bay-picker button[data-assignment-type="rtx3060ti"]{background:#31598c;color:#fff}.octo-bay-picker button[data-assignment-type="rtx4090"]{background:#99601e;color:#fff}
+.octo-assignment-legend{display:flex;flex-wrap:wrap;gap:5px 12px;color:var(--muted);font-size:9px;line-height:1.5}
+.octo-assignment-legend span{display:inline-flex;align-items:center;gap:4px}.octo-assignment-legend i{width:9px;height:9px;border-radius:50%;background:#59666a}
+.octo-assignment-legend i.p100{background:#216b62}.octo-assignment-legend i.rtx3060ti{background:#31598c}.octo-assignment-legend i.rtx4090{background:#99601e}
 .octo-bay-picker button[aria-pressed="true"]{border-color:#d27c24;background:rgba(210,124,36,.12)}
 .octo-hotspot{position:absolute;left:var(--hotspot-x);top:var(--hotspot-y);display:grid;place-items:center;width:clamp(38px,8.8vw,72px);aspect-ratio:1;border:2px solid rgba(74,183,155,.9);border-radius:50%;transform:translate(-50%,-50%);background:rgba(18,47,49,.52);color:#fff;font:700 10px/1 system-ui,sans-serif;letter-spacing:.06em;cursor:pointer;box-shadow:0 0 0 3px rgba(245,255,251,.46),0 2px 10px rgba(0,0,0,.28);transition:transform .14s ease,background .14s ease,box-shadow .14s ease}
 .octo-hotspot:hover,.octo-hotspot[aria-pressed="true"]{transform:translate(-50%,-50%) scale(1.1);background:rgba(26,120,97,.86);box-shadow:0 0 0 4px rgba(245,255,251,.7),0 2px 14px rgba(0,0,0,.3)}

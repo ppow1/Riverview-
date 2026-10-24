@@ -36,4 +36,20 @@ def test_visualization_reuses_existing_manufacturer_chassis_asset_and_read_only_
     assert 'id="octo1-bay-hotspots"' in html
     assert "Physical GPU bay" in (WEB / "assets/resource-monitor.js").read_text()
     assert "OCTO1 · HARDWARE · INFERENCE" in html
+
+
+def test_steward_reported_bay_inventory_is_separate_from_coordinates_and_unverified():
+    html = (WEB / "index.html").read_text()
+    js = (WEB / "assets/resource-monitor.js").read_text()
+    inventory = (WEB / "assets/octominer-bay-assignments.js").read_text()
+    assert 'assets/octominer-bay-assignments.js?rev=' in html
+    assert '"1": Object.freeze({ type: "p100", gpu: "Tesla P100", memory: "16 GB" })' in inventory
+    assert '"4": Object.freeze({ type: "p100", gpu: "Tesla P100", memory: "16 GB" })' in inventory
+    assert '"10": Object.freeze({ type: "rtx3060ti", gpu: "RTX 3060 Ti", memory: "8 GB" })' in inventory
+    assert '"12": Object.freeze({ type: "rtx4090", gpu: "RTX 4090", memory: "24 GB" })' in inventory
+    assert 'pendingInstallation: Object.freeze({ gpu: "Tesla P100", memory: "16 GB", bay: null' in inventory
+    assert 'Steward-reported assignment; physical installation and bay mapping are not independently verified.' in inventory
+    assert 'Reported GPU assignment' in js and 'Assignment provenance' in js
+    assert 'NVIDIA GPU index","Unavailable' in js and 'PCIe bus address","Unavailable' in js
+    assert "renderBayAssignments();renderSelectionButtons()" in js
 """Focused checks for the read-only X12 Ultra physical bay view."""

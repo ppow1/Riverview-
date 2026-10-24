@@ -2,10 +2,12 @@
 Riverview~ Controlled Document
 File: website/v2/deployed/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.26
+File Revision: 1.0.27
+Changed: 2026-10-24 UTC | RV-V2-OCTO-GPU-BAY-ASSIGNMENT | Display the separately maintained Steward-reported GPU bay inventory without associating live device identifiers.
 Changed: 2026-10-24 UTC | RV-V2-OCTOMINER-PHYSICAL-BAYS-20261024 | Number twelve physical bays per manufacturer cable sequence and keep host GPU IDs separate.
 Changed: 2026-10-24 UTC | RV-V2-OCTO-BAY-ALIGN-20261024 | Position bay markers in normalized coordinates on the matched source image aspect ratio.
 Changed: 2026-10-24 UTC | RV-V2-OCTO-BAY-ALIGN-20261024 | Add a touch-friendly narrow-screen physical bay selector and reduce marker overlap.
+Changed: 2026-10-24 UTC | RV-V2-OCTO-GPU-BAY-ASSIGNMENT | Show Steward-reported GPU bay inventory separately from layout and telemetry.
 Changed: 2026-10-24 UTC | RV-WEB-AUTHENTICATED-ACCEPTANCE | Add the redacted latest acceptance report to the V2 overview.
 Changed: 2026-10-24 UTC | RV-V2-GRACE-CANCELLATION-INTEGRATION | Add confirmation-bound cancellation from Objectives, Engineering Progress, and exact-ID Grace chat commands.
 Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
@@ -38,7 +40,7 @@ History: Git and revision/backup manifest
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/workspace.css">
   <link rel="stylesheet" href="assets/communications.css">
-  <link rel="stylesheet" href="assets/resource-monitor.css?rev=octo-bay-responsive-20261024">
+  <link rel="stylesheet" href="assets/resource-monitor.css?rev=octo-bay-assignment-20261024">
   <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=living-roadmap-20261024">
@@ -46,7 +48,8 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/notification-settings.css">
   <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
   <script defer src="assets/fixtures.js"></script>
-  <script defer src="assets/resource-monitor.js?rev=octo-bay-touch-20261024"></script>
+  <script defer src="assets/octominer-bay-assignments.js?rev=steward-reported-20261024"></script>
+  <script defer src="assets/resource-monitor.js?rev=octo-bay-assignment-20261024"></script>
   <script defer src="assets/work-evidence-adapter.js?rev=blocker-20261024"></script>
   <script defer src="assets/work-evidence.js?rev=blocker-20261024"></script>
   <script defer src="assets/living-roadmap-data.js?rev=living-roadmap-20261024"></script>
@@ -183,6 +186,13 @@ History: Git and revision/backup manifest
                     <div id="octo1-bay-picker" class="octo-bay-picker" role="group" aria-label="Select physical GPU bay, ordered left to right">
                       <button type="button" data-octo-component="bay-12">Bay 12</button><button type="button" data-octo-component="bay-11">Bay 11</button><button type="button" data-octo-component="bay-10">Bay 10</button><button type="button" data-octo-component="bay-9">Bay 9</button><button type="button" data-octo-component="bay-8">Bay 8</button><button type="button" data-octo-component="bay-7">Bay 7</button><button type="button" data-octo-component="bay-6">Bay 6</button><button type="button" data-octo-component="bay-5">Bay 5</button><button type="button" data-octo-component="bay-4">Bay 4</button><button type="button" data-octo-component="bay-3">Bay 3</button><button type="button" data-octo-component="bay-2">Bay 2</button><button type="button" data-octo-component="bay-1">Bay 1</button>
                     </div>
+                    <div class="octo-assignment-legend" aria-label="Steward-reported physical GPU assignments">
+                      <span><i class="p100" aria-hidden="true"></i>Tesla P100 16 GB · Bays 1–4</span>
+                      <span><i class="rtx3060ti" aria-hidden="true"></i>RTX 3060 Ti 8 GB · Bay 10</span>
+                      <span><i class="rtx4090" aria-hidden="true"></i>RTX 4090 24 GB · Bay 12</span>
+                      <span><i class="unconfirmed" aria-hidden="true"></i>Other bays · unconfirmed</span>
+                    </div>
+                    <p class="octo-chassis-caption">Assignment source: Steward-reported inventory; bay placement has not been independently verified. One Tesla P100 16 GB is awaiting installation and has no assigned bay.</p>
                     <p id="octo1-chassis-caption" class="octo-chassis-caption">Fan positions and the right-side front panel follow the manufacturer front image. Per-fan controller channels and internal GPU bay positions are not identified by OCTO1 telemetry.</p>
                     <p class="octo-chassis-caption">Bay order evidence: <a href="https://octominer.eu/wp-content/uploads/2021/11/X12ULTRA_QUICK_START_GUIDE_V.1.pdf.pdf" target="_blank" rel="noopener noreferrer">manufacturer Quick Start Guide</a> says cable 1 starts at the right and continues right-to-left. Physical bay IDs remain separate from NVIDIA indices and PCIe addresses.</p>
                   </section>
