@@ -1103,11 +1103,11 @@ class GraceExecutionTests(unittest.TestCase):
         grounded = self.pipeline.ground_objective(valid_id)
         self.assertEqual(grounded["revision"], 2)
 
-        def proposal(path):
+        def proposal(requirements):
             return PlanProposal("Record bounded diagnostic evidence", (
                 PlanStep("evidence", "Record the approved diagnostic evidence", (criterion,),
-                    artifact_requirements=(ArtifactRequirement("evidence", path,
-                        "application/json", (criterion,)),)),), 0)
+                    artifact_requirements=tuple(ArtifactRequirement(name, path,
+                        "application/json", (criterion,)) for name, path in requirements)),), 0)
 
         invalid_id = objective_id()
         self.pipeline.submit_objective(invalid_id,
@@ -1115,14 +1115,21 @@ class GraceExecutionTests(unittest.TestCase):
             [criterion], credential=self.credentials["steward"], scope_ref=self.scope)
         self.pipeline.ground_objective(invalid_id)
         with self.assertRaisesRegex(ObjectiveStateError, "artifact path is absent"):
-            self.pipeline.record_proposal(invalid_id, proposal(
-                f"diagnostics/evidence_{valid_uuid}_r2.json"))
+            self.pipeline.record_proposal(invalid_id, proposal((
+                ("evidence_log", f"diagnostics/evidence_{valid_uuid}_r2.json"),)))
 
-        stored = self.pipeline.record_proposal(valid_id, proposal(
-            f"diagnostics/evidence_{valid_uuid}_r2.json"))
+        outputs = (("work_order_record", "work_order"),
+                   ("reasoning_state_log", "reasoning_state"),
+                   ("luna_request_record", "luna_request"),
+                   ("luna_response_record", "luna_response"),
+                   ("final_outcome_log", "final_outcome"))
+        requirements = tuple((name,
+            f"diagnostics/{stem}_{valid_uuid}_r2.json") for name, stem in outputs)
+        stored = self.pipeline.record_proposal(valid_id, proposal(requirements))
         self.assertEqual(stored["status"], "PROPOSED")
-        self.assertEqual(stored["proposal"]["steps"][0]["artifact_requirements"][0]["path"],
-                         f"diagnostics/evidence_{valid_uuid}_r2.json")
+        actual_paths = [item["path"] for item in
+            stored["proposal"]["steps"][0]["artifact_requirements"]]
+        self.assertEqual(actual_paths, [path for _, path in requirements])
 
     def test_lifecycle_criteria_remain_durable_without_receipt_work_steps(self):
         from riverview_core.resident_reasoning import lifecycle_evidence_event

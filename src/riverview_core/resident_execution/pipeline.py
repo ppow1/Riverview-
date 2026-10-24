@@ -615,12 +615,23 @@ class GraceExecutionPipeline:
                     raise ObjectiveStateError(
                         "source-change path is absent from the Steward-approved objective scope")
             elif step.execution_capability == "engineering.codex-cli-artifact.v1":
-                if any(not any(re.search(r"(?<![A-Za-z0-9._/-])" + re.escape(item.path) +
+                def artifact_path_is_named(item):
+                    return any(re.search(r"(?<![A-Za-z0-9._/-])" + re.escape(item.path) +
                                          r"(?![A-Za-z0-9_/-]|\.(?=[A-Za-z0-9._/-]))", text)
-                               for text in approved_source_scope) and not (
-                                   diagnostic_evidence_approved and
-                                   diagnostic_artifact_suffix is not None and
-                                   item.path == f"diagnostics/{item.name}{diagnostic_artifact_suffix}")
+                               for text in approved_source_scope)
+
+                def artifact_path_is_diagnostic_scoped(item):
+                    if (not diagnostic_evidence_approved or
+                            diagnostic_artifact_suffix is None):
+                        return False
+                    # The typed artifact name carries the output role; the
+                    # filename uses its concise stem (for example
+                    # work_order_record -> work_order).
+                    stem = re.sub(r"_(?:record|log)$", "", item.name)
+                    return item.path == f"diagnostics/{stem}{diagnostic_artifact_suffix}"
+
+                if any(not artifact_path_is_named(item) and
+                       not artifact_path_is_diagnostic_scoped(item)
                        for item in step.artifact_requirements):
                     raise ObjectiveStateError(
                         "artifact path is absent from the Steward-approved objective scope")
