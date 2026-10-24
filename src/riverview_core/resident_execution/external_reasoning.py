@@ -38,6 +38,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 import hashlib
 import json
 import os
@@ -262,7 +263,7 @@ class DurableExternalReasoningExchange:
     def begin_provider_attempt(self, request_id, correlation_id, *, principal_id,
                                reserved_cost, additional_limit, baseline_total, total_credit):
         """Reserve one bounded API attempt durably; a started request is never replayed."""
-        if (principal_id != "service:provider-gpt-6-luna" or reserved_cost != 0.01 or
+        if (principal_id != "service:provider-gpt-6-luna" or reserved_cost not in {0.01, 0.05} or
                 baseline_total != 0.04104010 or total_credit != 5.0 or
                 additional_limit != round(total_credit - baseline_total, 8)):
             raise ExchangeUnauthorized("provider_attempt_policy_invalid")
@@ -276,14 +277,90 @@ class DurableExternalReasoningExchange:
                     WHERE request_id=%s AND event_type='provider_attempt_started'""", (request_id,))
                 if cur.fetchone():
                     return False
-                authorization_id = self._reserve_experiment_luna_call(cur, row, reserved_cost)
-                if authorization_id is None:
+                authorization = self._reserve_supervisory_luna_call(cur, row, reserved_cost)
+                if authorization is None and not self._is_supervisory_request(row):
+                    legacy_id = self._reserve_experiment_luna_call(cur, row, reserved_cost)
+                    authorization = ("experiment", legacy_id) if legacy_id else None
+                elif authorization is not None:
+                    authorization = ("supervisory", authorization)
+                if authorization is None:
                     return False
                 self._event(cur, row, "provider_attempt_started", "luna-api-attempt-started",
                     principal_id, {"provider_id": "gpt-6-luna", "provider_model": "gpt-6-luna",
                         "reserved_cost_usd": reserved_cost, "attempt": 1,
-                        "experiment_authorization_id": authorization_id})
+                        "authorization_kind": authorization[0],
+                        "authorization_id": authorization[1]})
                 return True
+
+    @staticmethod
+    def _is_supervisory_request(row):
+        payload = row.get("request_payload")
+        return isinstance(payload, dict) and payload.get("request_type") in {
+            "cme_diagnostic_recovery", "performance_evaluation"}
+
+    def _reserve_supervisory_luna_call(self, cur, row, reserved_cost):
+        """Debit the shared no-count-cap budget for only the two supervisory request types."""
+        if not self._is_supervisory_request(row) or reserved_cost != 0.05:
+            return None
+        from psycopg import sql
+        request_type = row["request_payload"]["request_type"]
+        auth = None
+        cur.execute("""SELECT * FROM grace_supervisory_authorizations
+            WHERE status='active' AND activated_at<=clock_timestamp()
+              AND (valid_until IS NULL OR valid_until>clock_timestamp())
+            ORDER BY activated_at DESC LIMIT 1 FOR UPDATE""")
+        auth = cur.fetchone()
+        if auth is None:
+            return None
+        authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
+        cur.execute(sql.SQL("SELECT {}.active_grace_supervisory_luna_grant(%s) AS grant_id").format(
+            sql.Identifier(authority_schema)), (auth["authority_grant_id"],))
+        grant = cur.fetchone()
+        if grant is None or grant["grant_id"] != auth["authority_grant_id"]:
+            return None
+        if reserved_cost > float(auth["per_request_limit_usd"]):
+            return None
+        payload = row.get("request_payload", {})
+        assignment = payload.get("assignment") if isinstance(payload, dict) else None
+        assignment = assignment if isinstance(assignment, dict) else {}
+        assignment_id = assignment.get("assignment_id")
+        progress_seq = assignment.get("cme_progress_seq")
+        if request_type == "cme_diagnostic_recovery" and assignment_id is not None:
+            cur.execute("""SELECT 1 FROM grace_supervisory_authorization_events
+                WHERE authorization_id=%s AND event_type='luna_reserved'
+                  AND objective_id=%s AND payload->>'request_type'=%s
+                  AND payload->>'assignment_id'=%s
+                  AND payload->>'cme_progress_seq' IS NOT DISTINCT FROM %s LIMIT 1""",
+                (auth["authorization_id"], row.get("objective_id"), request_type,
+                 str(assignment_id), str(progress_seq) if progress_seq is not None else None))
+            if cur.fetchone():
+                return None
+        cur.execute("""SELECT
+            COALESCE(sum((payload->>'cost_usd')::numeric)
+                FILTER (WHERE event_type='luna_settled'),0) AS spent,
+            COALESCE(sum((payload->>'reserved_cost_usd')::numeric)
+                FILTER (WHERE event_type='luna_reserved' AND NOT EXISTS (
+                    SELECT 1 FROM grace_supervisory_authorization_events settled
+                    WHERE settled.authorization_id=grace_supervisory_authorization_events.authorization_id
+                      AND settled.event_type='luna_settled'
+                      AND settled.request_id=grace_supervisory_authorization_events.request_id)),0) AS outstanding
+            FROM grace_supervisory_authorization_events WHERE authorization_id=%s""",
+            (auth["authorization_id"],))
+        usage = cur.fetchone()
+        if usage["spent"] + usage["outstanding"] + Decimal(str(reserved_cost)) > auth["total_budget_usd"]:
+            return None
+        authorization_id = str(auth["authorization_id"])
+        request_id = str(row["request_id"])
+        cur.execute("""INSERT INTO grace_supervisory_authorization_events
+            (authorization_id,event_type,idempotency_key,objective_id,request_id,payload)
+            VALUES (%s,'luna_reserved',%s,%s,%s,%s::jsonb)
+            ON CONFLICT (idempotency_key) DO NOTHING""",
+            (auth["authorization_id"], f"grace-supervision:{authorization_id}:luna:{request_id}",
+             row.get("objective_id"), row["request_id"], _json({
+                "request_type": request_type, "reserved_cost_usd": reserved_cost,
+                "provider_id": "gpt-6-luna", "assignment_id": assignment_id,
+                "cme_progress_seq": progress_seq})))
+        return authorization_id
 
     def finish_provider_attempt(self, request_id, correlation_id, *, status,
                                 failure_type=None, usage=None):
@@ -375,6 +452,35 @@ class DurableExternalReasoningExchange:
     def _settle_experiment_luna_call(self, cur, row, usage, status):
         objective_id, revision = row.get("objective_id"), row.get("proposal_revision")
         if not isinstance(objective_id, str) or type(revision) is not int:
+            return
+        cur.execute("""SELECT authorization_id,total_budget_usd,per_request_limit_usd
+            FROM grace_supervisory_authorizations auth
+            WHERE EXISTS (SELECT 1 FROM grace_supervisory_authorization_events e
+                WHERE e.authorization_id=auth.authorization_id AND e.event_type='luna_reserved'
+                  AND e.request_id=%s) LIMIT 1""", (row["request_id"],))
+        supervisory = cur.fetchone()
+        if supervisory is not None:
+            cost = (usage or {}).get("cost_usd") if isinstance(usage, dict) else None
+            exact_cost = Decimal(str(cost)) if isinstance(cost, (int, float)) else supervisory["per_request_limit_usd"]
+            payload = {"status": status, "cost_usd": str(exact_cost),
+                "cost_is_reserved_estimate": not isinstance(cost, (int, float)),
+                "per_request_limit_usd": str(supervisory["per_request_limit_usd"]),
+                "usage": usage if isinstance(usage, dict) else {}}
+            auth_id = str(supervisory["authorization_id"])
+            cur.execute("""INSERT INTO grace_supervisory_authorization_events
+                (authorization_id,event_type,idempotency_key,objective_id,request_id,payload)
+                VALUES (%s,'luna_settled',%s,%s,%s,%s::jsonb)
+                ON CONFLICT (idempotency_key) DO NOTHING""",
+                (supervisory["authorization_id"],
+                 f"grace-supervision:{auth_id}:luna-settled:{row['request_id']}",
+                 objective_id, row["request_id"], _json(payload)))
+            cur.execute("""SELECT COALESCE(sum((payload->>'cost_usd')::numeric),0) AS spent
+                FROM grace_supervisory_authorization_events
+                WHERE authorization_id=%s AND event_type='luna_settled'""",
+                (supervisory["authorization_id"],))
+            if cur.fetchone()["spent"] >= supervisory["total_budget_usd"]:
+                cur.execute("UPDATE grace_supervisory_authorizations SET status='exhausted' WHERE authorization_id=%s AND status='active'",
+                            (supervisory["authorization_id"],))
             return
         cur.execute("""SELECT authorization_id FROM grace_experiment_authorizations
             WHERE objective_id=%s AND objective_revision=%s AND experiment_key='grace-autonomy-luna-r2'

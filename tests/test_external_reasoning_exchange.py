@@ -383,6 +383,106 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
             authorizer.amend_luna_request_limit(**{**request,
                 "expected_cumulative_spend_usd": 0.04183461})
 
+    def test_supervisory_budget_is_shared_durable_and_stall_requests_require_progress(self):
+        auth_id = uuid4()
+        grant_id = "grant:grace-supervision:" + str(auth_id)
+        scope = {"functions": ["cme_diagnostic_recovery", "performance_evaluation"],
+                 "provider_id": "gpt-6-luna"}
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES ('resident:grace','resident'),
+                ('steward:test','steward') ON CONFLICT (principal_id) DO NOTHING"""
+            ).format(self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,'resident:grace','resident.reasoning.escalate','provider:gpt-6-luna',
+                'steward:test','rv.policy.grace-supervisory-luna.v1')""").format(
+                    self.sql.Identifier(self.schema)), (grant_id,))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorizations
+            (authorization_id,authority_grant_id,authorized_by,idempotency_key,total_budget_usd,
+             per_request_limit_usd,scope,status,activated_at)
+            VALUES (%s,%s,'steward:test',%s,5.0,0.05,%s::jsonb,'active',clock_timestamp())""").format(
+                self.sql.Identifier(self.schema)), (auth_id, grant_id, "test-supervision:" + str(auth_id),
+                    json.dumps(scope, sort_keys=True)))
+        with patch.dict(os.environ, {"RIVERVIEW_AUTHORITY_SCHEMA": self.schema}):
+            cme = {"objective_id": self.objective, "proposal_revision": 2,
+                "request_id": uuid4(), "request_payload": {"request_type": "cme_diagnostic_recovery",
+                    "assignment": {"assignment_id": "work-order:test", "cme_progress_seq": 17}}}
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.assertEqual(self.exchange._reserve_supervisory_luna_call(cur,cme,0.05),str(auth_id))
+            duplicate = {**cme,"request_id":uuid4()}
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.assertIsNone(self.exchange._reserve_supervisory_luna_call(cur,duplicate,0.05),
+                    "same assignment and no-progress sequence cannot create another paid call")
+            advanced = {**cme,"request_id":uuid4(),"request_payload":{"request_type":"cme_diagnostic_recovery",
+                "assignment":{"assignment_id":"work-order:test","cme_progress_seq":18}}}
+            evaluation = {**cme,"request_id":uuid4(),"request_payload":{"request_type":"performance_evaluation"}}
+            for row in (advanced,evaluation):
+                with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                    self.ledger._set_search_path(cur)
+                    self.assertEqual(self.exchange._reserve_supervisory_luna_call(cur,row,0.05),str(auth_id))
+            unrelated = {**cme,"request_id":uuid4(),"request_payload":{"request_type":"objective_reasoning"}}
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.assertIsNone(self.exchange._reserve_supervisory_luna_call(cur,unrelated,0.05))
+                self.exchange._settle_experiment_luna_call(cur,cme,{"cost_usd":0.002},"settled")
+            self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorization_events
+                (authorization_id,event_type,idempotency_key,payload) VALUES
+                (%s,'luna_settled',%s,%s::jsonb)""").format(
+                    self.sql.Identifier(self.schema)), (auth_id,"synthetic-budget-exhaustion:"+str(auth_id),
+                        json.dumps({"cost_usd":"4.90"})))
+            blocked = {**advanced,"request_id":uuid4(),"request_payload":{"request_type":"cme_diagnostic_recovery",
+                "assignment":{"assignment_id":"work-order:test","cme_progress_seq":19}}}
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.assertIsNone(self.exchange._reserve_supervisory_luna_call(cur,blocked,0.05),
+                    "settled usage plus outstanding reservations cannot exceed $5")
+            self.admin.execute(self.sql.SQL("UPDATE {}.authority_grants SET revoked_at=clock_timestamp() WHERE grant_id=%s").format(
+                self.sql.Identifier(self.schema)), (grant_id,))
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.assertIsNone(self.exchange._reserve_supervisory_luna_call(cur,blocked,0.05),
+                    "revoked authority cannot reserve another request")
+
+    def test_supervisory_authorization_uses_steward_registry_and_can_be_revoked(self):
+        from types import SimpleNamespace
+        from riverview_core.institutional_authority import AuthorityRegistry
+        from riverview_core.resident_execution.grace_supervisory_authorization import (
+            GraceSupervisoryAuthorization,
+        )
+        steward = "steward:" + uuid4().hex
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES (%s,'steward'),('resident:grace','resident')""").format(
+                self.sql.Identifier(self.schema)), (steward,))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,%s,'authority.grant','institution',%s,'test-steward-grant')""").format(
+                self.sql.Identifier(self.schema)), ("test-authority:"+uuid4().hex,steward,steward))
+        registry = AuthorityRegistry(DSN, schema=self.schema)
+        self.real_authority_fixture = (registry, None)
+        controller = GraceSupervisoryAuthorization(SimpleNamespace(ledger=self.ledger), registry)
+        args = {"actor_id":steward,"total_budget_usd":5.0,"per_request_limit_usd":0.05,
+            "explicit_steward_confirmation":True,"idempotency_key":"grace-supervision-test-001"}
+        with self.assertRaisesRegex(ValueError,"grace_supervisory_authorization_scope_invalid"):
+            controller.authorize(**{**args,"actor_id":"service:forged"})
+        with self.assertRaisesRegex(ValueError,"grace_supervisory_authorization_scope_invalid"):
+            controller.authorize(**{**args,"explicit_steward_confirmation":False})
+        active = controller.authorize(**args)
+        self.assertEqual(active["status"],"active")
+        self.assertEqual(active["total_budget_usd"],"5.00000000")
+        self.assertIsNone(active["expires_at"])
+        replay = controller.authorize(**args)
+        self.assertTrue(replay["idempotent_replay"])
+        status = controller.status()
+        self.assertEqual(status["authorization_id"],active["authorization_id"])
+        self.assertEqual(status["available_usd"],"5.00000000")
+        revoked = controller.revoke(actor_id=steward,authorization_id=active["authorization_id"],
+            explicit_steward_confirmation=True,idempotency_key="grace-supervision-revoke-001")
+        self.assertEqual(revoked["status"],"revoked")
+        status = controller.status()
+        self.assertEqual(status["status"],"revoked")
+
     def _grace_service(self, exchange, *, initiate_external=False, targets=()):
         from riverview_core.institutional_authority import ExactGrantAuthorizer
         from riverview_core.resident_execution.pipeline import GraceExecutionPipeline, ObjectiveContextReader

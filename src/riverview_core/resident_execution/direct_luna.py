@@ -79,8 +79,11 @@ def process_one(exchange):
                 claim_token=claim.claim_token, fence=claim.fence)
             return {"status": "PAID_RESPONSE_SUBMISSION_FENCED"}
         return None
+    request_type = row["request_payload"].get("request_type", "objective_reasoning")
+    reserved_cost = (0.05 if request_type in {
+        "cme_diagnostic_recovery", "performance_evaluation"} else RESERVED_CALL_COST)
     if not exchange.begin_provider_attempt(row["request_id"], row["correlation_id"],
-            principal_id=PROVIDER_PRINCIPAL, reserved_cost=RESERVED_CALL_COST,
+            principal_id=PROVIDER_PRINCIPAL, reserved_cost=reserved_cost,
             additional_limit=ADDITIONAL_LIMIT, baseline_total=BASELINE_TOTAL,
             total_credit=TOTAL_CREDIT):
         return {"status": "BUDGET_OR_REPEAT_BLOCKED"}

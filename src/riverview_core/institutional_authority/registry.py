@@ -341,6 +341,28 @@ class AuthorityRegistry:
             if getattr(exc, "sqlstate", None) == "P0001":
                 raise AuthorityDenied("Grace Luna escalation grant is not active") from None
             raise RegistryUnavailable(type(exc).__name__) from None
+
+    def issue_grace_supervisory_luna_grant(self, *, actor_id, grant_id, valid_until=None):
+        """Issue the fixed supervisory Luna grant for ingress-attested Steward approval."""
+        self._validate_expiry(valid_until)
+        try:
+            with self.db.transaction(), self.db.cursor() as cur:
+                cur.execute("SELECT set_config('search_path', %s, true)", (self.schema,))
+                cur.execute(psycopg.sql.SQL(
+                    "SELECT {}.issue_grace_supervisory_luna_grant(%s,%s,%s)"
+                ).format(psycopg.sql.Identifier(self.schema)), (actor_id, grant_id, valid_until))
+                row = cur.fetchone()
+                if row is None:
+                    raise AuthorityDenied("supervisory authority was not issued")
+                return row[0] if not hasattr(row, "values") else next(iter(row.values()))
+        except (AuthorityDenied, ValueError):
+            raise
+        except psycopg.Error as exc:
+            if getattr(exc, "sqlstate", None) == "P0001":
+                raise AuthorityDenied("authenticated Steward grant rejected") from None
+            raise RegistryUnavailable(type(exc).__name__) from None
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 

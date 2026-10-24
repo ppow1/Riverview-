@@ -1380,74 +1380,52 @@ class GraceExecutionService:
         return processed
 
     def queue_cme_diagnostic_escalation(self):
-        """Admit one idempotent Luna diagnostic request for a durable CME stall."""
-        objective_id = "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2"
-        assignment_id = "assignment:grace:de19cd78b86f1889d32cdf02c6d3fe51d4658834:step:ad328846aa18b32a"
+        """Admit one idempotent Luna diagnostic for a current rejected-work stall."""
         exchange = self.external_reasoning_exchange
         reasoner = self.resident_reasoner
         if (exchange is None or reasoner is None or "gpt-6-luna" not in
-                reasoner.external_reasoning_targets or exchange.has_active_for_objective(objective_id)):
-            return None
-        objective = self.pipeline.get_objective(objective_id)
-        context = self.pipeline.supervisory_rejected_assignment_context(
-            objective_id, assignment_id, "5e6e295b-d45a-46e3-a186-96d14877b33c")
-        if (not objective or objective.get("status") != "WORK_ORDER_CREATED" or
-                not context or context["step_id"] != "s2"):
-            return None
-        reference = self.pipeline.objective_proposal_reference(objective_id)
-        if (not isinstance(reference, dict) or reference.get("revision") != 2 or
-                not isinstance(reference.get("proposal_id"), str)):
+                reasoner.external_reasoning_targets or not self._grace_supervisory_authorization_active()):
             return None
         with self.pipeline.ledger.db.cursor() as cur:
             self.pipeline.ledger._set_search_path(cur)
-            cur.execute("""SELECT event_id::text AS event_id,details FROM cme_monitor_events
-                WHERE assignment_id=%s AND event_type='assignment_stalled'
-                  AND details->>'state'='rework_required'
-                ORDER BY recorded_at DESC,event_id DESC LIMIT 1""", (assignment_id,))
+            cur.execute("""SELECT e.event_id::text AS event_id,e.assignment_id,e.details,
+                    a.objective_ref AS objective_id
+                FROM cme_monitor_events e JOIN assignments a ON a.id=e.assignment_id
+                WHERE e.event_type='assignment_stalled' AND a.state='rework_required'
+                  AND e.details->>'state'='rework_required'
+                ORDER BY e.recorded_at DESC,e.event_id DESC LIMIT 1""")
             stall = cur.fetchone()
-            cur.execute("""SELECT auth.authorization_id,auth.status,auth.expires_at,
-                    auth.max_recovery_attempts,auth.max_luna_requests,
-                    (SELECT count(*) FROM grace_experiment_authorization_events e
-                      WHERE e.authorization_id=auth.authorization_id
-                        AND e.event_type='recovery_claimed') AS recoveries,
-                    (SELECT count(*) FROM grace_experiment_authorization_events e
-                      WHERE e.authorization_id=auth.authorization_id
-                        AND e.event_type='luna_reserved') AS luna_requests
-                FROM grace_experiment_authorizations auth
-                WHERE auth.objective_id=%s AND auth.objective_revision=2
-                  AND auth.status='active' AND auth.activated_at<=clock_timestamp()
-                  AND auth.expires_at>clock_timestamp()
-                ORDER BY auth.activated_at DESC LIMIT 1""", (objective_id,))
-            grant = cur.fetchone()
-        if (not stall or not grant or int(grant["recoveries"]) >= int(grant["max_recovery_attempts"])
-                or int(grant["luna_requests"]) >= int(grant["max_luna_requests"])):
+            verification = None
+            if stall:
+                cur.execute("""SELECT verification_id::text AS verification_id
+                    FROM verification_records WHERE assignment_id=%s AND decision='REJECTED'
+                    ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""",
+                    (stall["assignment_id"],))
+                verification = cur.fetchone()
+        if not stall or not verification:
+            return None
+        objective_id, assignment_id = stall["objective_id"], stall["assignment_id"]
+        event_id = stall["event_id"]
+        if exchange.has_active_for_objective(objective_id):
+            return None
+        objective = self.pipeline.get_objective(objective_id)
+        context = self.pipeline.supervisory_rejected_assignment_context(
+            objective_id, assignment_id, verification["verification_id"])
+        if not objective or objective.get("status") != "WORK_ORDER_CREATED" or not context:
+            return None
+        reference = self.pipeline.objective_proposal_reference(objective_id)
+        if (not isinstance(reference, dict) or type(reference.get("revision")) is not int or
+                not isinstance(reference.get("proposal_id"), str)):
             return None
         details = stall["details"] if isinstance(stall["details"], dict) else {}
         if details.get("state") != "rework_required":
             return None
-        event_id = stall["event_id"]
         base_key = "cme-recovery:" + event_id
         prior_request = exchange.request_for_idempotency(base_key)
         retry_key = base_key + ":transport-retry-1"
         prior_transport_retry = exchange.request_for_idempotency(retry_key) if prior_request else None
-        amendment = None
-        amended_cme_used = 0
-        if prior_transport_retry is not None:
-            with self.pipeline.ledger.db.cursor() as cur:
-                self.pipeline.ledger._set_search_path(cur)
-                cur.execute("""SELECT occurred_at,payload FROM grace_experiment_authorization_events
-                    WHERE authorization_id=%s AND event_type='amended'
-                    ORDER BY occurred_at,event_id LIMIT 1""", (grant["authorization_id"],))
-                amendment = cur.fetchone()
-                if amendment:
-                    cur.execute("""SELECT count(*) AS used
-                        FROM grace_experiment_authorization_events
-                        WHERE authorization_id=%s AND event_type='luna_reserved'
-                          AND occurred_at>%s AND payload->>'request_type'='cme_diagnostic_recovery'""",
-                        (grant["authorization_id"], amendment["occurred_at"]))
-                    amended_cme_used = int(cur.fetchone()["used"])
         diagnostic_attempt, idempotency_key = self._select_cme_diagnostic_request(
-            event_id, prior_request, prior_transport_retry, amendment, amended_cme_used)
+            event_id, prior_request, prior_transport_retry, None, 0)
         if idempotency_key is None or exchange.request_for_idempotency(idempotency_key):
             return None
         authority_evidence = self.pipeline.rework_review_authority_evidence(
@@ -1476,7 +1454,7 @@ class GraceExecutionService:
             original_id = str(uuid5(NAMESPACE_URL,
                 original_id + ":authorized-amendment-diagnostic-1"))
         source = {"objective_id": objective_id, "objective_revision": objective["revision"],
-            "proposal_id": reference["proposal_id"], "proposal_revision": 2,
+            "proposal_id": reference["proposal_id"], "proposal_revision": reference["revision"],
             "assignment_id": assignment_id, "step_id": context["step_id"],
             "verification_id": context["completion"]["verification_id"],
             "cme_event_id": event_id, "cme_state": details["state"],
@@ -1511,9 +1489,27 @@ class GraceExecutionService:
         return self.request_external_reasoning(envelope, request,
             idempotency_key=idempotency_key,
             deadline_at=datetime.now(timezone.utc) + timedelta(minutes=20),
-            proposal_id=reference["proposal_id"], proposal_revision=2,
+            proposal_id=reference["proposal_id"], proposal_revision=reference["revision"],
             source_references=(event_id, assignment_id, context["completion"]["verification_id"]),
             source_kind="cme_diagnostic_recovery", request_type="cme_diagnostic_recovery")
+
+    def _grace_supervisory_authorization_active(self):
+        """Require the linked financial authorization and existing authority grant."""
+        from psycopg import sql
+        authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT authority_grant_id FROM grace_supervisory_authorizations
+                WHERE status='active' AND activated_at<=clock_timestamp()
+                  AND (valid_until IS NULL OR valid_until>clock_timestamp())
+                ORDER BY activated_at DESC LIMIT 1""")
+            auth = cur.fetchone()
+            if auth is None:
+                return False
+            cur.execute(sql.SQL("SELECT {}.active_grace_supervisory_luna_grant(%s) AS grant_id").format(
+                sql.Identifier(authority_schema)), (auth["authority_grant_id"],))
+            linked = cur.fetchone()
+        return bool(linked and linked["grant_id"] == auth["authority_grant_id"])
 
     @staticmethod
     def _select_cme_diagnostic_request(event_id, prior_request, prior_transport_retry,
@@ -1543,103 +1539,100 @@ class GraceExecutionService:
         return 3, base_key + ":authorized-amendment-diagnostic-1"
 
     def queue_performance_evaluation(self):
-        """Request one evaluation only after durable execution or verification evidence."""
-        objective_id = "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2"
+        """Queue one idempotent evaluation for the newest unevaluated durable result."""
         exchange = self.external_reasoning_exchange
         reasoner = self.resident_reasoner
         if (exchange is None or reasoner is None or "gpt-6-luna" not in
-                reasoner.external_reasoning_targets or exchange.has_active_for_objective(objective_id)):
-            return None
-        objective = self.pipeline.get_objective(objective_id)
-        reference = self.pipeline.objective_proposal_reference(objective_id)
-        if (not objective or objective.get("status") not in {"WORK_ORDER_CREATED", "COMPLETED"} or
-                not isinstance(reference, dict) or reference.get("revision") != 2):
+                reasoner.external_reasoning_targets or not self._grace_supervisory_authorization_active()):
             return None
         with self.pipeline.ledger.db.cursor() as cur:
             self.pipeline.ledger._set_search_path(cur)
-            cur.execute("""SELECT auth.max_luna_requests,
-                    (SELECT count(*) FROM grace_experiment_authorization_events e
-                      WHERE e.authorization_id=auth.authorization_id
-                        AND e.event_type='luna_reserved') AS used
-                FROM grace_experiment_authorizations auth
-                WHERE auth.objective_id=%s AND auth.objective_revision=2
-                  AND auth.status='active' AND auth.activated_at<=clock_timestamp()
-                  AND auth.expires_at>clock_timestamp()
-                ORDER BY auth.activated_at DESC LIMIT 1""", (objective_id,))
-            budget_grant = cur.fetchone()
-        if not budget_grant or int(budget_grant["used"]) >= int(budget_grant["max_luna_requests"]):
-            return None
-        events = self.pipeline.objective_events(objective_id)
-        existing = any(event["event_type"] == "resident.performance.evaluation_recorded"
-                       for event in events)
-        evidence = self._performance_evaluation_evidence(events)
-        if existing or not evidence:
-            return None
-        latest = evidence[-1]
-        evaluation_key = "performance-evaluation:" + str(latest["event_id"])
-        if exchange.request_for_idempotency(evaluation_key):
-            return None
-        office = reasoner.registry.authorize_office_state(reasoner._credential, reasoner.office_id)
-        from ..resident_reasoning import ReasoningRequest
-        from ..reasoning_escalation import EscalationRequest
-        assignment = {"objective_id": objective_id, "objective_revision": objective["revision"],
-            "assignment_id": objective.get("assignment_id"),
-            "proposal_id": reference["proposal_id"], "proposal_revision": 2,
-            "proposal": {"summary": str((objective.get("proposal") or {}).get("summary", ""))[:800],
-                "steps": [{key: step.get(key) for key in
-                    ("step_id", "objective", "acceptance_criteria", "depends_on")
-                    if key in step} for step in
-                    (objective.get("proposal") or {}).get("steps", [])[:8]
-                    if isinstance(step, dict)]},
-            "evaluation_trigger_event_id": str(latest["event_id"]),
-            "evidence": [{"event_id": str(event["event_id"]),
-                "event_type": event["event_type"],
-                "payload": {key: event["payload"].get(key) for key in
-                    ("step_id", "decision", "verification_id", "assignment_id",
-                     "recovery_action", "assessment", "rationale", "cme_event_id")
-                    if key in event["payload"]}} for event in evidence[-8:]],
-            "reasoning_history": [{"event_id": str(event["event_id"]),
-                "event_type": event["event_type"],
-                "failure_type": event["payload"].get("failure_type"),
-                "detail_code": event["payload"].get("detail_code"),
-                "runtime_revision": event["payload"].get("runtime_revision")}
-                for event in events if event["event_type"] in {
-                    "execution.reasoning_attempted", "execution.reasoning_failed"}][-8:],
-            "reasoning_attempt_count": sum(event["event_type"] ==
-                "execution.reasoning_attempted" for event in events),
-            "reasoning_failure_count": sum(event["event_type"] ==
-                "execution.reasoning_failed" for event in events),
-            "exchange_history": [{"event_type": event["event_type"],
-                "request_id": event["payload"].get("request_id"),
-                "correlation_id": event["payload"].get("correlation_id")}
-                for event in events
-                if event["event_type"].startswith("external_reasoning.")][-8:]}
-        request_id = str(uuid5(NAMESPACE_URL, "rv-performance-evaluation:" + str(latest["event_id"])))
-        request = ReasoningRequest(request_id=request_id, office_id=reasoner.office_id,
-            assignment_id=objective_id, assignment_revision=str(objective["revision"]),
-            binding_revision=office["binding_revision"],
-            implementation_revision=office["implementation_revision"],
-            trigger="performance_evaluation", token_budget=2048, assignment=assignment,
-            verified_knowledge=(), prior_plan=None,
-            external_reasoning_targets=reasoner.external_reasoning_targets,
-            correlation_id=request_id)
-        escalation = EscalationRequest.create(request, reason="low_confidence",
-            target_provider_id="gpt-6-luna", max_tokens=2048, timeout_seconds=45,
-            escalation_id=request_id)
-        return self.request_external_reasoning(escalation, request,
-            idempotency_key=evaluation_key,
-            deadline_at=datetime.now(timezone.utc) + timedelta(minutes=20),
-            proposal_id=reference["proposal_id"], proposal_revision=2,
-            source_references=(str(latest["event_id"]),),
-            source_kind="performance_evaluation", request_type="performance_evaluation")
+            cur.execute("""SELECT objective_id FROM grace_objectives
+                WHERE status IN ('WORK_ORDER_CREATED','COMPLETED')
+                ORDER BY updated_at DESC,objective_id LIMIT 100""")
+            candidate_ids = [row["objective_id"] for row in cur.fetchall()]
+        for objective_id in candidate_ids:
+            if exchange.has_active_for_objective(objective_id):
+                continue
+            objective = self.pipeline.get_objective(objective_id)
+            reference = self.pipeline.objective_proposal_reference(objective_id)
+            if (not objective or not isinstance(reference, dict) or
+                    type(reference.get("revision")) is not int or
+                    not isinstance(reference.get("proposal_id"), str)):
+                continue
+            events = self.pipeline.objective_events(objective_id)
+            evidence = self._performance_evaluation_evidence(events)
+            if not evidence:
+                continue
+            latest = evidence[-1]
+            trigger_id = str(latest["event_id"])
+            if any(event["event_type"] == "resident.performance.evaluation_recorded" and
+                    (event.get("payload") or {}).get("evaluation_trigger_event_id") == trigger_id
+                    for event in events):
+                continue
+            evaluation_key = "performance-evaluation:" + trigger_id
+            if exchange.request_for_idempotency(evaluation_key):
+                continue
+            office = reasoner.registry.authorize_office_state(reasoner._credential, reasoner.office_id)
+            from ..resident_reasoning import ReasoningRequest
+            from ..reasoning_escalation import EscalationRequest
+            assignment = {"objective_id": objective_id, "objective_revision": objective["revision"],
+                "assignment_id": objective.get("assignment_id"),
+                "proposal_id": reference["proposal_id"], "proposal_revision": reference["revision"],
+                "proposal": {"summary": str((objective.get("proposal") or {}).get("summary", ""))[:800],
+                    "steps": [{key: step.get(key) for key in
+                        ("step_id", "objective", "acceptance_criteria", "depends_on")
+                        if key in step} for step in
+                        (objective.get("proposal") or {}).get("steps", [])[:8]
+                        if isinstance(step, dict)]},
+                "evaluation_trigger_event_id": trigger_id,
+                "evidence": [{"event_id": str(event["event_id"]),
+                    "event_type": event["event_type"],
+                    "payload": {key: event["payload"].get(key) for key in
+                        ("step_id", "decision", "verification_id", "assignment_id",
+                         "recovery_action", "assessment", "rationale", "cme_event_id")
+                        if key in event["payload"]}} for event in evidence[-8:]],
+                "reasoning_history": [{"event_id": str(event["event_id"]),
+                    "event_type": event["event_type"],
+                    "failure_type": event["payload"].get("failure_type"),
+                    "detail_code": event["payload"].get("detail_code"),
+                    "runtime_revision": event["payload"].get("runtime_revision")}
+                    for event in events if event["event_type"] in {
+                        "execution.reasoning_attempted", "execution.reasoning_failed"}][-8:],
+                "reasoning_attempt_count": sum(event["event_type"] ==
+                    "execution.reasoning_attempted" for event in events),
+                "reasoning_failure_count": sum(event["event_type"] ==
+                    "execution.reasoning_failed" for event in events),
+                "exchange_history": [{"event_type": event["event_type"],
+                    "request_id": event["payload"].get("request_id"),
+                    "correlation_id": event["payload"].get("correlation_id")}
+                    for event in events if event["event_type"].startswith("external_reasoning.")][-8:]}
+            request_id = str(uuid5(NAMESPACE_URL, "rv-performance-evaluation:" + trigger_id))
+            request = ReasoningRequest(request_id=request_id, office_id=reasoner.office_id,
+                assignment_id=objective_id, assignment_revision=str(objective["revision"]),
+                binding_revision=office["binding_revision"],
+                implementation_revision=office["implementation_revision"],
+                trigger="performance_evaluation", token_budget=2048, assignment=assignment,
+                verified_knowledge=(), prior_plan=None,
+                external_reasoning_targets=reasoner.external_reasoning_targets,
+                correlation_id=request_id)
+            escalation = EscalationRequest.create(request, reason="low_confidence",
+                target_provider_id="gpt-6-luna", max_tokens=2048, timeout_seconds=45,
+                escalation_id=request_id)
+            return self.request_external_reasoning(escalation, request,
+                idempotency_key=evaluation_key,
+                deadline_at=datetime.now(timezone.utc) + timedelta(minutes=20),
+                proposal_id=reference["proposal_id"], proposal_revision=reference["revision"],
+                source_references=(trigger_id,), source_kind="performance_evaluation",
+                request_type="performance_evaluation")
+        return None
 
     @staticmethod
     def _performance_evaluation_evidence(events):
         """Select durable success or completed-escalation evidence for grading."""
         return [event for event in events if
             event["event_type"] == "objective.completed" or
-            (event["event_type"] == "execution.step_verified" and
-             (event["payload"] or {}).get("step_id") == "s2") or
+            event["event_type"] == "execution.step_verified" or
             event["event_type"] == "resident.reasoning.cme_recovery_evaluated"]
 
     @staticmethod
@@ -1746,6 +1739,8 @@ class GraceExecutionService:
                 exchange_meta["request_payload"].get("request_type") != "performance_evaluation"):
             raise ValueError("performance_exchange_response_correlation_invalid")
         payload = {"grade": value["grade"], "grade_explanation": value["grade_explanation"],
+            "evaluation_trigger_event_id": consumed.original_request.assignment.get(
+                "evaluation_trigger_event_id"),
             "rubric": rubric,
             "what_went_well": value["what_went_well"], "gaps": value["gaps"],
             "actionable_feedback": value["actionable_feedback"],

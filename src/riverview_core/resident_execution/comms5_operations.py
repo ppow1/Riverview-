@@ -54,6 +54,9 @@ class Comms5Operations:
         "comms5_set_resource_policy_lock",
         "comms5_authorize_grace_experiment",
         "comms5_amend_grace_experiment",
+        "comms5_authorize_grace_supervision",
+        "comms5_grace_supervision_status",
+        "comms5_revoke_grace_supervision",
         "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
         "reasoning_exchange_submit_response", "reasoning_exchange_status",
     })
@@ -141,6 +144,40 @@ class Comms5Operations:
             return GraceExperimentAuthorization(self.pipeline, self.authority_registry).amend_luna_request_limit(
                 actor_id=actor, explicit_steward_confirmation=True,
                 idempotency_key=self._idempotency(arguments["idempotency_key"]), **values)
+        if tool == "comms5_authorize_grace_supervision":
+            required = {"total_budget_usd", "per_request_limit_usd",
+                        "explicit_steward_confirmation", "idempotency_key"}
+            if not required.issubset(arguments) or set(arguments) - required - {"expires_at"}:
+                raise ValueError("grace_supervisory_authorization_fields_invalid")
+            if arguments["explicit_steward_confirmation"] is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            if self.pipeline is None or self.authority_registry is None:
+                raise RuntimeError("grace_supervisory_authorization_unavailable")
+            from .grace_supervisory_authorization import GraceSupervisoryAuthorization
+            return GraceSupervisoryAuthorization(self.pipeline, self.authority_registry).authorize(
+                actor_id=actor, total_budget_usd=arguments["total_budget_usd"],
+                per_request_limit_usd=arguments["per_request_limit_usd"],
+                explicit_steward_confirmation=arguments["explicit_steward_confirmation"],
+                idempotency_key=self._idempotency(arguments["idempotency_key"]),
+                expires_at=arguments.get("expires_at"))
+        if tool == "comms5_grace_supervision_status":
+            if arguments:
+                raise ValueError("grace_supervisory_status_arguments_invalid")
+            if self.pipeline is None or self.authority_registry is None:
+                raise RuntimeError("grace_supervisory_authorization_unavailable")
+            from .grace_supervisory_authorization import GraceSupervisoryAuthorization
+            return GraceSupervisoryAuthorization(self.pipeline, self.authority_registry).status()
+        if tool == "comms5_revoke_grace_supervision":
+            required = {"authorization_id", "explicit_steward_confirmation", "idempotency_key"}
+            if set(arguments) != required:
+                raise ValueError("grace_supervisory_revocation_fields_invalid")
+            if self.pipeline is None or self.authority_registry is None:
+                raise RuntimeError("grace_supervisory_authorization_unavailable")
+            from .grace_supervisory_authorization import GraceSupervisoryAuthorization
+            return GraceSupervisoryAuthorization(self.pipeline, self.authority_registry).revoke(
+                actor_id=actor, authorization_id=arguments["authorization_id"],
+                explicit_steward_confirmation=arguments["explicit_steward_confirmation"],
+                idempotency_key=self._idempotency(arguments["idempotency_key"]))
         if tool.startswith("reasoning_exchange_"):
             if self.steward_review_bridge is None:
                 raise RuntimeError("external_reasoning_exchange_unavailable")

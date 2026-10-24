@@ -1624,7 +1624,10 @@
       },
       "annotations": {"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
       "securitySchemes": [{"type": "oauth2", "scopes": ["comms5"]}]
-    }
+    },
+    {"name":"comms5_authorize_grace_supervision","title":"Authorize continuous Grace Luna supervision","description":"Authenticated Steward approval for exactly CME stall diagnostics/recovery guidance and Grace performance evaluation/feedback using the existing Luna exchange. New $5 operational budget, no fixed lifetime request count, $0.05 maximum reserved cost per request. Does not alter or transfer the r2 experiment grant. Omit expires_at for no time expiry, or provide an ISO-8601 expiry.","inputSchema":{"type":"object","title":"comms5_authorize_grace_supervisionArguments","properties":{"total_budget_usd":{"type":"number","const":5.0,"description":"Fixed new operational ceiling; prior experiment spending is not transferred."},"per_request_limit_usd":{"type":"number","const":0.05,"description":"Maximum reserved cost per Luna request."},"expires_at":{"type":"string","description":"Optional explicit ISO-8601 expiry. Omit for no time expiry."},"explicit_steward_confirmation":{"type":"boolean","const":true,"description":"Confirm this exact standing authorization."},"idempotency_key":{"type":"string","description":"Stable key for this approval; changed scope conflicts."}},"required":["total_budget_usd","per_request_limit_usd","explicit_steward_confirmation","idempotency_key"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]},
+    {"name":"comms5_grace_supervision_status","title":"Inspect Grace supervisory Luna authorization","description":"Return status, exact scope, actual spending, outstanding reservations, remaining budget, and request activity. Steward-authenticated read.","inputSchema":{"type":"object","title":"comms5_grace_supervision_statusArguments","properties":{},"required":[],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]},
+    {"name":"comms5_revoke_grace_supervision","title":"Revoke Grace supervisory Luna authorization","description":"Revoke the exact standing authorization and linked resident:grace Luna grant through the existing AuthorityRegistry. Requires authenticated Steward confirmation. Spending history is retained.","inputSchema":{"type":"object","title":"comms5_revoke_grace_supervisionArguments","properties":{"authorization_id":{"type":"string","description":"Exact standing authorization ID returned by the approval operation."},"explicit_steward_confirmation":{"type":"boolean","const":true,"description":"Confirm revocation of this exact authorization."},"idempotency_key":{"type":"string","description":"Stable key for this revocation."}},"required":["authorization_id","explicit_steward_confirmation","idempotency_key"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":true,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]}
   ],
   "read_only_payloads": {
     "comms5_contract_info": {
@@ -1828,7 +1831,10 @@
               "authenticated Steward transport"
             ],
             "description": "Lock or unlock durable resource policy against lower-authority changes."
-          }
+          },
+          {"name":"authorize_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["total_budget_usd","per_request_limit_usd","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Create the fixed $5 operational Luna budget and linked exact provider grant for CME diagnostics/recovery and Grace performance evaluation. No fixed request-count limit; existing r2 experiment is separate.","camrui_implementation_status":"IMPLEMENTED"},
+          {"name":"grace_supervision_status","authorization":"STEWARD-AUTHENTICATED_READ","required":["authenticated Steward transport"],"description":"Inspect authorization state, spending, outstanding reservations, and remaining budget.","camrui_implementation_status":"IMPLEMENTED"},
+          {"name":"revoke_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["authorization_id","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Revoke the exact linked standing grant and retain its audit history.","camrui_implementation_status":"IMPLEMENTED"}
         ],
         "classifications": [
           "internal",
@@ -2511,7 +2517,10 @@
             ],
             "description": "Amend only the existing r2 authorization from two to four total requests: one additional CME diagnostic recovery and one performance evaluation. Preserve consumed counts, recovery limit, cumulative $5 ceiling, objective scope, and expiry.",
             "camrui_implementation_status": "IMPLEMENTED"
-        }
+        },
+        {"name":"authorize_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["total_budget_usd","per_request_limit_usd","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Create the fixed $5 operational Luna budget and linked exact provider grant for CME diagnostics/recovery and Grace performance evaluation. No fixed request-count limit; existing r2 experiment is separate.","camrui_implementation_status":"IMPLEMENTED"},
+        {"name":"grace_supervision_status","authorization":"STEWARD-AUTHENTICATED_READ","required":["authenticated Steward transport"],"description":"Inspect authorization state, spending, outstanding reservations, and remaining budget.","camrui_implementation_status":"IMPLEMENTED"},
+        {"name":"revoke_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["authorization_id","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Revoke the exact linked standing grant and retain its audit history.","camrui_implementation_status":"IMPLEMENTED"}
       ],
       "classifications": [
         "internal",
@@ -3028,6 +3037,9 @@
       "description": "Advance the exact current DRAFT revision to READY_FOR_STEWARD_DECISION through the existing audited state machine. Does not approve, promote, or queue work.",
       "response": "bounded proposal metadata including revision and digest; protected payloads are omitted",
       "idempotency": "Stable idempotency_key is required; same key is safe to replay."
-    }
+    },
+    "describe:authorize_grace_supervision": {"contract":"riverview-comms-contract:5.0","operation":"authorize_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["total_budget_usd","per_request_limit_usd","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Create the fixed $5 operational Luna budget and linked exact provider grant for CME diagnostics/recovery and Grace performance evaluation. No fixed request-count limit; existing r2 experiment is separate.","response":"bounded authorization ID, linked authority grant ID, exact scope, financial ceiling, and optional expiry; no secrets or request content","idempotency":"replay with the same key returns the existing grant; changed scope conflicts"},
+    "describe:grace_supervision_status": {"contract":"riverview-comms-contract:5.0","operation":"grace_supervision_status","authorization":"STEWARD-AUTHENTICATED_READ","required":["authenticated Steward transport"],"description":"Inspect authorization state, spending, outstanding reservations, and remaining budget.","response":"authorization status, exact-spend accounting, outstanding reservations, and remaining budget"},
+    "describe:revoke_grace_supervision": {"contract":"riverview-comms-contract:5.0","operation":"revoke_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["authorization_id","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Revoke the exact linked standing grant and retain its audit history.","response":"revocation status and authorization ID; audit history retained","idempotency":"one stable key for this revoke transition"}
   }
 }

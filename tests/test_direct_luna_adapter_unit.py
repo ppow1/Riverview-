@@ -23,6 +23,7 @@ class _Exchange:
         self.submitted = []
         self.failures = []
         self.finished = []
+        self.begin_args = None
 
     def eligible_requests(self, *_args, **_kwargs):
         return [self.row]
@@ -30,7 +31,8 @@ class _Exchange:
     def claim(self, *_args, **_kwargs):
         return SimpleNamespace(duplicate=False, claim_token="claim-token", fence=1)
 
-    def begin_provider_attempt(self, *_args, **_kwargs):
+    def begin_provider_attempt(self, *_args, **kwargs):
+        self.begin_args = kwargs
         return True
 
     def finish_provider_attempt(self, *_args, **kwargs):
@@ -127,6 +129,7 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
                 body = json.loads(captured["request"].data)
                 self.assertEqual(body["max_output_tokens"], limit)
                 self.assertEqual(body["text"]["format"]["type"], "json_object")
+                self.assertEqual(exchange.begin_args["reserved_cost"], 0.05)
 
     def test_over_limit_or_incomplete_response_is_never_submitted(self):
         oversized = _Exchange(request_type="performance_evaluation", max_tokens=2049)
