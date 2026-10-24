@@ -551,15 +551,15 @@
     },
     "docs/components/NOTIFICATION_DELIVERY.md": {
       "path": "docs/components/NOTIFICATION_DELIVERY.md",
-      "revision": "1.0.1",
-      "sha256": "2676c3830bd75472ada604c3405566a69c3e1880e7f9c95a2da6b2726ac81a21",
-      "size_bytes": 6505
+      "revision": "1.0.2",
+      "sha256": "0c63738eefbc4bf0dc630036d1cf92c57a94542f8f371a1cdaf9ee83f8c89ba0",
+      "size_bytes": 6969
     },
     "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
       "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
-      "revision": "1.0.0",
-      "sha256": "2e4d7446b1d64b13a76b3d0ce037465df182ca1c209b692c69cce881c5b28b7a",
-      "size_bytes": 2957
+      "revision": "1.0.1",
+      "sha256": "29ae3efa4f6bb599cfd30b1f8087c64b8d0c58eecc494037f96eb02c034561df",
+      "size_bytes": 3806
     },
     "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md": {
       "path": "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md",
@@ -8549,9 +8549,9 @@
     },
     "src/riverview_core/notifications/dispatcher.py": {
       "path": "src/riverview_core/notifications/dispatcher.py",
-      "revision": "1.0.1",
-      "sha256": "b8c46f2be0cf8472f7d63534050a476a50f14c1120357e8e6abb8da26cf65a71",
-      "size_bytes": 11118
+      "revision": "1.0.2",
+      "sha256": "a644a7027b5dd6ade35e9561bfc668b1b019d85135c887423f32e93895160309",
+      "size_bytes": 11332
     },
     "src/riverview_core/notifications/migrations/0006_durable_notifications.sql": {
       "path": "src/riverview_core/notifications/migrations/0006_durable_notifications.sql",
@@ -8561,9 +8561,9 @@
     },
     "src/riverview_core/notifications/service.py": {
       "path": "src/riverview_core/notifications/service.py",
-      "revision": "1.0.2",
-      "sha256": "3bee69aadb61ec6b1ada1bfdc5658c922ee287458500d1e7ebb34f5247ccd499",
-      "size_bytes": 10734
+      "revision": "1.0.3",
+      "sha256": "737aa4a2b9c2e9fafaf637d83e9b2e93924ca4b9b5a96f8b8c5106d12edb8e3f",
+      "size_bytes": 11887
     },
     "src/riverview_core/postgres_ledger.py": {
       "path": "src/riverview_core/postgres_ledger.py",
@@ -8855,9 +8855,9 @@
     },
     "src/riverview_core/status_dashboard/static/app.js": {
       "path": "src/riverview_core/status_dashboard/static/app.js",
-      "revision": "1.4.25",
-      "sha256": "ea3f1468799212e052221e6c224c4cdcc6a353e683b301a45e1023368cd2e15e",
-      "size_bytes": 94891
+      "revision": "1.4.27",
+      "sha256": "3e1e9341287bf52bb5fa498fae8d612600412bd6cc47406b0ffff197f945d72d",
+      "size_bytes": 95014
     },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
@@ -9383,9 +9383,9 @@
     },
     "tests/test_notifications.py": {
       "path": "tests/test_notifications.py",
-      "revision": "1.0.3",
-      "sha256": "a5b4f5fd3e2ac984b258c7ac8e1cfe2e892fc64daeeed86e1bf29d4e9d39b5b7",
-      "size_bytes": 13301
+      "revision": "1.0.4",
+      "sha256": "71013087951491cbde872e4e0906ad3c3c6ba305d3fc7ed0123a40199281399d",
+      "size_bytes": 15196
     },
     "tests/test_permission_profiles.py": {
       "path": "tests/test_permission_profiles.py",
@@ -9491,9 +9491,9 @@
     },
     "tests/test_status_dashboard.py": {
       "path": "tests/test_status_dashboard.py",
-      "revision": "1.0.68",
-      "sha256": "ab4b84c99cd98ed976d8838469ee8a7daf9c402fbdc625c80297d187c44a4827",
-      "size_bytes": 114454
+      "revision": "1.0.74",
+      "sha256": "077fd14242bc4d9e4831e878204c7d06057e79a91f8fd3e25fbe0c870f8dfa73",
+      "size_bytes": 118378
     },
     "tests/test_storage_inventory.py": {
       "path": "tests/test_storage_inventory.py",
@@ -9554,6 +9554,12 @@
       "revision": "1.0.0",
       "sha256": "c1fd612f67662ea501c26991e6009f61911e5f3379bef4a6e2c3b259e731bb62",
       "size_bytes": 996
+    },
+    "src/riverview_core/notifications/migrations/0007_grace_objective_blocked_notification.sql": {
+      "path": "src/riverview_core/notifications/migrations/0007_grace_objective_blocked_notification.sql",
+      "revision": "1.0.0",
+      "sha256": "554a5371894045a2bdbb7ea27f97eb605d171edcea697627b063616e56bc5c77",
+      "size_bytes": 1044
     }
   },
   "manifest_revision": "1.1.318",

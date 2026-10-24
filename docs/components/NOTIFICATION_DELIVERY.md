@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.1
+File Revision: 1.0.2
+Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Document Grace block escalation visual delivery and receipt boundaries.
 Purpose: Define durable visual notification and pending decision-request projection
 Authority: Records notification state only; cannot approve or resolve institutional decisions
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Normalize controlled Markdown spacing
@@ -29,9 +30,13 @@ rows are protected against update and delete by a database trigger.
 
 Only these CME event types are projected: `assignment_stalled`,
 `deadline_missed`, `assignment_attention`, `recovery_requested`,
-`monitor_failed`, and `attention_resolved`. Private assignments are excluded by
+`monitor_failed`, `attention_resolved`, and `grace_objective_blocked`. The Grace
+block notice keeps the source CME event ID and projects an allowlisted objective
+ID/revision, failure count, safe reason code, and recommended next action from
+the durable source details. It creates no `steward_decision_request`, because
+those requests are assignment-scoped. Private assignments are excluded by
 the institution privacy-domain filter. Notice summaries are fixed server-side
-strings; CME `details` and ledger payloads are never rendered.
+strings; only the explicit Grace block detail allowlist is rendered.
 
 An `assignment_attention` event creates a pending decision request only if the
 authoritative current assignment state is `awaiting_steward`. The dashboard

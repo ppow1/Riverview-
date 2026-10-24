@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/notifications/service.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Return allowlisted objective escalation details with correlated dashboard notifications.
 # Purpose: Read notices and persist visual delivery/receipt transitions
 # Execution Model: Request-driven bounded PostgreSQL transactions
 # Observability: Notification rows and append-only delivery/acknowledgment events
@@ -32,6 +33,7 @@ _SUMMARY = {
     "recovery_requested": "An expired execution lease requires recovery reconciliation.",
     "monitor_failed": "The CME monitor recorded a scan failure.",
     "attention_resolved": "A previously recorded attention condition was resolved.",
+    "grace_objective_blocked": "Grace is blocked on a grounded objective and needs Steward review.",
 }
 
 
@@ -80,10 +82,12 @@ class NotificationService:
                                          n.event_type,n.channel,n.source_recorded_at,n.created_at,
                                          n.delivered_at,n.acknowledged_at,d.request_id,
                                          d.status AS decision_status,d.assignment_version,
+                                         e.details AS source_details,
                                          CASE WHEN n.acknowledged_at IS NOT NULL THEN 'acknowledged'
                                               WHEN n.delivered_at IS NOT NULL THEN 'delivered'
                                               ELSE 'queued' END AS delivery_status
                                   FROM attention_notifications n
+                                  JOIN cme_monitor_events e ON e.event_id=n.source_event_id
                                   LEFT JOIN steward_decision_requests d
                                     ON d.request_id=n.decision_request_id
                                   WHERE n.assignment_id IS NULL OR NOT EXISTS (
@@ -113,12 +117,23 @@ class NotificationService:
                             "dispatcher": health or {"status": "not_initialized"},
                             "items": [{**row, "notification_id": str(row["notification_id"]),
                                        "source_event_id": str(row["source_event_id"]),
+                                       "source_details": (self._blocked_objective_details(
+                                           row["source_details"]) if row["event_type"] ==
+                                           "grace_objective_blocked" else None),
                                        "decision_request_id": (str(row["request_id"])
                                            if row["request_id"] else None),
                                        "summary": _SUMMARY[row["event_type"]]}
                                       for row in rows]}
         except psycopg.Error as exc:
             raise NotificationUnavailable(type(exc).__name__) from None
+
+    @staticmethod
+    def _blocked_objective_details(value):
+        """Project only the known safe CME fields for a Grace block escalation."""
+        keys = ("objective_id", "objective_revision", "runtime_revision", "failure_count",
+                "last_error_code", "blocked_at", "last_failure_at", "decision",
+                "recommended_action", "automatic_recovery")
+        return {key: value.get(key) for key in keys} if isinstance(value, dict) else {}
 
     def _transition(self, notification_id: str, *, transition: str) -> dict:
         try:

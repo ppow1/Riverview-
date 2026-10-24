@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_notifications.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify idempotent Grace block projection and non-authoritative receipt.
 # Purpose: Verify durable visual notice projection, recovery, privacy, and receipt authority
 # Execution Model: Isolated PostgreSQL integration tests against unique rvtest_* schemas
 # Observability: CME source events, notification rows, receipt ledger, decision request status
@@ -191,6 +192,35 @@ class NotificationPostgresTests(unittest.TestCase):
         self.assertEqual(len(notice), 1)
         self.assertEqual(notice[0]["assignment_id"], assignment)
         self.assertEqual(len(self.rows("notification_events")), 1)
+
+    def test_grace_block_escalation_projects_with_source_details_and_no_decision_authority(self):
+        source_id = uuid4()
+        objective_id = "objective:proposal:test:r2"
+        details = {"objective_id": objective_id, "objective_revision": 2,
+            "runtime_revision": "test-runtime", "failure_count": 33,
+            "last_error_code": "PROPOSAL_CRITERIA_BINDING_REJECTED",
+            "blocked_at": "2026-10-23T21:01:32-04:00",
+            "last_failure_at": "2026-10-23T21:12:29-04:00",
+            "decision": "escalate_to_steward",
+            "recommended_action": "review_failure_evidence_before_authorizing_retry",
+            "automatic_recovery": False}
+        self.admin.execute("""INSERT INTO cme_monitor_events
+            (event_id,event_key,service_id,event_type,details)
+            VALUES (%s,%s,'cme.monitor.v1','grace_objective_blocked',%s::jsonb)""",
+            (source_id, f"blocked:{objective_id}", json.dumps(details)))
+
+        first = self.dispatcher.scan_once()
+        self.assertEqual(first["notifications_created"], 1)
+        self.assertEqual(first["decision_requests_created"], 0)
+        notice = self.service.list_notifications(limit=10)["items"][0]
+        self.assertEqual(notice["source_event_id"], str(source_id))
+        self.assertEqual(notice["event_type"], "grace_objective_blocked")
+        self.assertEqual(notice["source_details"], details)
+        self.assertEqual(notice["delivery_status"], "queued")
+        self.assertIsNone(notice["decision_request_id"])
+        self.assertEqual(self.dispatcher.scan_once()["notifications_created"], 0)
+        self.assertEqual(len(self.rows("attention_notifications")), 1)
+        self.assertEqual(len(self.rows("steward_decision_requests")), 0)
 
     def test_receipt_states_are_ordered_idempotent_and_never_resolve_request(self):
         assignment = self.create_assignment("awaiting", awaiting=True)

@@ -1,6 +1,7 @@
 // Riverview~ controlled asset; component STEWARD-DASHBOARD.
 // Changed: 2026-10-16 UTC | RV-WEBSITE-SNAPSHOT-041 | Record bounded same-origin request and SSE response metadata without bodies or auth headers.
-// Revision: 1.4.26
+// Revision: 1.4.27
+// Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Render correlated Grace blocked-objective details in the existing notification feed.
 // Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Show only independently accepted ComfyUI outputs with authenticated download links and SHA-256.
 // Changed: 2026-10-20 UTC | RV-WEBSITE-SNAPSHOT-ARCHIVE-DOWNLOAD-20261020 | Preserve archive-plus-download snapshot control behavior.
 // Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Show persistent authenticated objective and assignment progress linked to the active Grace conversation.
@@ -226,10 +227,11 @@
       const rendered = ["delivered", "acknowledged"].includes(n.delivery_status);
       const acknowledged = n.delivery_status === "acknowledged";
       const request = n.decision_request_id ? `<div class="row-meta">Decision request: ${esc(n.decision_request_id)} · status ${esc(n.decision_status || "unavailable")}. A receipt cannot resolve this request.</div>` : `<div class="row-meta">Decision request: none linked in this projection.</div>`;
+      const escalation = n.event_type === "grace_objective_blocked" && n.source_details ? `<div class="row-meta"><strong>Objective:</strong> ${esc(n.source_details.objective_id)} · revision ${esc(n.source_details.objective_revision)} · ${esc(n.source_details.failure_count)} failures<br><strong>Reason:</strong> ${esc(n.source_details.last_error_code)}<br><strong>Recommended next action:</strong> ${esc(n.source_details.recommended_action)}. No retry was authorized.</div>` : "";
       const lifecycle = `<div class="row-meta">Dashboard rendering: ${rendered ? "confirmed" : n.delivery_status === "queued" ? "not confirmed" : "unavailable"} · Person seen: not reported by this source · Receipt acknowledgment: ${acknowledged ? "recorded" : n.delivery_status === "delivered" ? "not recorded" : "not available yet"}</div>`;
       const receipt = n.delivery_status === "delivered" ? `<button class="secondary" data-acknowledge="${esc(n.notification_id)}">Acknowledge receipt</button>` :
         `<span class="status-text status-accepted">${esc(human(n.delivery_status))}</span>`;
-      return `<article class="notification-row"><div><strong>${esc(human(n.event_type))}</strong><p>${esc(n.summary)}</p><div class="row-meta">${esc(n.assignment_id || "Service event")} · source ${esc(when(n.source_recorded_at))} · queued ${esc(when(n.created_at))}</div>${lifecycle}${request}</div><div class="notification-actions"><span class="status-text ${stateClass(n.delivery_status)}">${esc(human(n.delivery_status))}</span>${receipt}</div></article>`;
+      return `<article class="notification-row"><div><strong>${esc(human(n.event_type))}</strong><p>${esc(n.summary)}</p><div class="row-meta">${esc(n.assignment_id || "Service event")} · source event ${esc(n.source_event_id)} · source ${esc(when(n.source_recorded_at))} · queued ${esc(when(n.created_at))}</div>${escalation}${lifecycle}${request}</div><div class="notification-actions"><span class="status-text ${stateClass(n.delivery_status)}">${esc(human(n.delivery_status))}</span>${receipt}</div></article>`;
     });
     const messages = {not_initialized:"Notification migration is not initialized.", unavailable:"Notification source is unavailable; no delivery is claimed.", available:"No durable notices in this bounded page."};
     $("notification-list").innerHTML = rows.length ? rows.join("") : noData(messages[state.notificationStatus] || "No notification state observed.");

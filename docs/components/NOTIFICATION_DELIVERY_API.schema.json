@@ -22,12 +22,12 @@
     },
     "item": {
       "type":"object",
-      "required":["notification_id","source_event_id","assignment_id","event_type","channel","source_recorded_at","created_at","delivered_at","acknowledged_at","request_id","decision_status","assignment_version","delivery_status","decision_request_id","summary"],
+      "required":["notification_id","source_event_id","assignment_id","event_type","channel","source_recorded_at","created_at","delivered_at","acknowledged_at","request_id","decision_status","assignment_version","delivery_status","decision_request_id","summary","source_details"],
       "properties":{
         "notification_id":{"type":"string","format":"uuid"},
         "source_event_id":{"type":"string","format":"uuid"},
         "assignment_id":{"type":["string","null"]},
-        "event_type":{"enum":["assignment_stalled","deadline_missed","assignment_attention","recovery_requested","monitor_failed","attention_resolved"]},
+        "event_type":{"enum":["assignment_stalled","deadline_missed","assignment_attention","recovery_requested","monitor_failed","attention_resolved","grace_objective_blocked"]},
         "channel":{"const":"dashboard.visual.v1"},
         "source_recorded_at":{"type":"string","format":"date-time"},
         "created_at":{"type":"string","format":"date-time"},
@@ -38,7 +38,8 @@
         "decision_status":{"type":["string","null"],"enum":["pending",null]},
         "assignment_version":{"type":["integer","null"],"minimum":1},
         "delivery_status":{"enum":["queued","delivered","acknowledged"]},
-        "summary":{"type":"string","maxLength":160}
+        "summary":{"type":"string","maxLength":160},
+        "source_details":{"oneOf":[{"type":"null"},{"type":"object","required":["objective_id","objective_revision","runtime_revision","failure_count","last_error_code","blocked_at","last_failure_at","decision","recommended_action","automatic_recovery"],"properties":{"objective_id":{"type":"string","maxLength":160},"objective_revision":{"type":"integer","minimum":1},"runtime_revision":{"type":"string","maxLength":64},"failure_count":{"type":"integer","minimum":0},"last_error_code":{"type":"string","maxLength":80},"blocked_at":{"type":"string","format":"date-time"},"last_failure_at":{"type":["string","null"],"format":"date-time"},"decision":{"const":"escalate_to_steward"},"recommended_action":{"type":"string","maxLength":120},"automatic_recovery":{"const":false}},"additionalProperties":false}]}
       },
       "additionalProperties":false
     },

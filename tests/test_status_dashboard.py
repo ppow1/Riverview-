@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.73
+# Revision: 1.0.74
+# Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify dashboard presents correlated blocked-objective recovery guidance without authorizing retry.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify idle worker health requires matching active engineering registration.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-C4-MERGE-20261023 | Preserve ComfyUI artifact, telemetry, cancellation and Snapshot archive acceptance.
 # Purpose: Verify authenticated dashboard projections, Engineering artifacts, and archive routes.
@@ -258,6 +259,14 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("Dashboard rendering:", app)
         self.assertIn("A receipt cannot resolve this request.", app)
         self.assertIn("Decision request: none linked in this projection.", app)
+
+    def test_grace_block_notification_shows_correlated_action_without_authorizing_retry(self):
+        app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")
+        self.assertIn("n.source_event_id", app)
+        self.assertIn("n.source_details.objective_id", app)
+        self.assertIn("n.source_details.last_error_code", app)
+        self.assertIn("n.source_details.recommended_action", app)
+        self.assertIn("No retry was authorized.", app)
 
     def test_documentation_catalog_uses_canonical_graph_refs_and_qualifies_evidence(self):
         app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")

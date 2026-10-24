@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/notifications/dispatcher.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.1
+# Revision: 1.0.2
+# Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Project durable Grace blocked-objective events into the existing dashboard notification outbox.
 # Purpose: Project durable CME attention into a replay-safe notification outbox
 # Execution Model: Continuous scheduled reconciliation of PostgreSQL source rows
 # Observability: Durable notification rows and dispatcher health; sanitized logs
@@ -32,7 +33,8 @@ from psycopg.rows import dict_row
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 _SERVICE_ID = "notification.dispatcher.v1"
 _EVENT_TYPES = ("assignment_stalled", "deadline_missed", "assignment_attention",
-                "recovery_requested", "monitor_failed", "attention_resolved")
+                "recovery_requested", "monitor_failed", "attention_resolved",
+                "grace_objective_blocked")
 
 
 class NotificationDispatcher:
