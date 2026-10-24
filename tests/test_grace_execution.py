@@ -441,10 +441,14 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
         self.assertFalse(second.reason_one_grounded_objective())
         self.assertEqual(first.resident_reasoner.calls, 0)
         self.assertEqual(second.resident_reasoner.calls, 0)
-        self.assertEqual(set(pipeline.ledger.db.value.params[2]), {
+        query = pipeline.ledger.db.value.query
+        self.assertIn("payload->>'objective_revision' IS NULL", query)
+        self.assertIn("event_type='objective.grounded'", query)
+        self.assertEqual(set(pipeline.ledger.db.value.params[1]), {
             "PROPOSAL_CRITERIA_BINDING_REJECTED",
             "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
         })
+        self.assertEqual(pipeline.ledger.db.value.params[2:], ("2", "objective:artifact-path-fence:r2"))
 
     def test_revision_failure_fence_survives_immutable_release_change(self):
         from types import SimpleNamespace
@@ -471,10 +475,10 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
         self.assertTrue(service._proposal_rejection_blocked("objective:test:r2", 2))
         query = service.pipeline.ledger.db.cursor_value.query
         self.assertNotIn("runtime_revision", query)
-        self.assertEqual(service.pipeline.ledger.db.cursor_value.params[:2],
-                         ("objective:test:r2", "2"))
+        self.assertEqual(service.pipeline.ledger.db.cursor_value.params[0],
+                         "objective:test:r2")
         self.assertIn("PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
-                      service.pipeline.ledger.db.cursor_value.params[2])
+                      service.pipeline.ledger.db.cursor_value.params[1])
 
     def test_recorded_objective_criteria_have_one_lifecycle_binding_in_offline_fixture(self):
         from riverview_core.resident_execution.service import GraceExecutionService

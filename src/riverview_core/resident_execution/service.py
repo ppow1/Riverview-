@@ -556,12 +556,17 @@ class GraceExecutionService:
             self.pipeline.ledger._set_search_path(cur)
             cur.execute("""SELECT 1 FROM grace_objective_events
                 WHERE objective_id=%s AND event_type='execution.reasoning_failed'
-                  AND payload->>'status'='BLOCKED'
-                  AND payload->>'objective_revision'=%s
                   AND payload->>'detail_code'=ANY(%s)
+                  AND ((payload->>'status'='BLOCKED'
+                        AND payload->>'objective_revision'=%s)
+                    OR (payload->>'detail_code'='PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED'
+                        AND payload->>'objective_revision' IS NULL
+                        AND sequence > COALESCE((SELECT max(sequence)
+                            FROM grace_objective_events
+                            WHERE objective_id=%s AND event_type='objective.grounded'),0)))
                 ORDER BY sequence DESC LIMIT 1""",
-                (objective_id, str(objective_revision),
-                 list(self.PERSISTED_PROPOSAL_BLOCK_CODES)))
+                (objective_id, list(self.PERSISTED_PROPOSAL_BLOCK_CODES),
+                 str(objective_revision), objective_id))
             return cur.fetchone() is not None
 
     def _reasoning_failure_count(self, objective_id):
