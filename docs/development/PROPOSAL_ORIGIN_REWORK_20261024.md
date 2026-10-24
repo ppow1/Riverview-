@@ -54,3 +54,34 @@ per immutable source release. A changed release can retry once; repeated
 failures from the same release remain held. No reasoning recovery or Luna
 request was consumed during this diagnosis.
 
+## Production outcome
+
+- Code commit: `0a6ff951113990b0fe84342ca05f8aba7cf06e71`.
+- Immutable release archive SHA-256:
+  `ebebab6fa7f97f37bbd78ec1ebc41d19f301046f4ebda22ccfec6c7ad41f2e66`.
+- Deployed at `/opt/riverview-grace-execution/releases/0a6ff951113990b0fe84342ca05f8aba7cf06e71`;
+  the prior release `b3247adb327d513c12a9c9fcfcca70621dcba500` remains available.
+- Grace and CME are active. The original verifier rejection and one worker
+  attempt remain unchanged.
+- Grace processed the proposal-origin rejection and durably recorded
+  `STEWARD_AUTHORIZATION_REQUIRED` for verification
+  `5e6e295b-d45a-46e3-a186-96d14877b33c` (decision event
+  `e562a343-993f-46c0-894a-a87a5995a8f3`; receipt event
+  `6b1a7800-4003-4f7a-ba70-cc23f95c3765`). It did not requeue the assignment.
+- The durable objective remains revision 6 / `WORK_ORDER_CREATED`; s1 is
+  verified, s2 remains rejected/rework-required, and s3 remains pending.
+- The standing experiment authorization is unchanged: four of five recovery
+  claims used, zero Luna exchanges, `$0.04104010` recorded spend, and
+  `$4.95895990` remaining from the $5 allocation.
+- The historical cancelled objective remains `CANCELLED` with 599
+  `execution.reasoning_attempted` and 599 `execution.reasoning_failed` events.
+
+Comms5 does not expose an operation to approve or reopen this exact
+`STEWARD_AUTHORIZATION_REQUIRED` rework decision. The current objective
+assignment grant is active for `assignment.create` at `work-order:engineering`,
+but that grant cannot substitute for the explicit review decision. The next
+action requires Steward approval for one new bounded review of the same s2
+assignment and verifier record; no objective, criteria, assignment scope, or
+execution authority should change. The dashboard and Comms5 catalogs currently
+have no dedicated operation to record that approval.
+
