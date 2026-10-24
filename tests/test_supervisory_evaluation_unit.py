@@ -1,12 +1,13 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.3
+# Revision: 1.0.4
 # Purpose: Verify durable supervisory grading and bounded Luna retry selection
 # Execution Model: Offline unit tests
 # Observability: unittest assertions and exit status
 # Dependencies: Grace execution service
 # Authority: Tests only; no live supervisory requests
+# Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-MINIMAL-RETRY-20261024 | Verify exactly one minimal-evidence retry after repeated HTTP 400 input rejection.
 # Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-INPUT-RETRY-20261024 | Assert input-field retry gating and compact evidence preservation.
 # Changed: 2026-10-24 UTC | RV-GRACE-CME-ESCALATION-ID-FALLBACK-20261024 | Assert every bounded CME attempt uses a distinct escalation identity.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Assert bounded fallback and retry idempotency
@@ -115,6 +116,10 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             "last_error_code": "provider_response_submission_failed",
             "provider_http_status": 400, "provider_error_param": "input",
             "request_payload": {"max_tokens": 512}}
+        retry3 = {"request_id": "retry3", "delivery_state": "failed",
+            "last_error_code": "provider_response_submission_failed",
+            "provider_http_status": 400, "provider_error_param": "input",
+            "request_payload": {"max_tokens": 512}}
         key = "performance-evaluation:step-event:bounded-input-retry-1"
         self.assertEqual(choose(trigger, prior, retry1, {"old"}, retry2), key)
         self.assertIsNone(choose(trigger, prior, retry1, {"old"},
@@ -123,6 +128,10 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             {**retry2, "provider_http_status": 429}))
         self.assertIsNone(choose(trigger, prior, retry1, {"old"}, retry2,
             {"request_id": "retry3"}))
+        self.assertEqual(choose(trigger, prior, retry1, {"old"}, retry2, retry3),
+            "performance-evaluation:step-event:bounded-input-retry-2")
+        self.assertIsNone(choose(trigger, prior, retry1, {"old"}, retry2, retry3,
+            {"request_id": "retry4"}))
         source = {"proposal": {"summary": "s" * 1000,
             "steps": [{"step_id": str(index), "objective": "o" * 300,
                 "acceptance_criteria": ["c" * 200] * 5} for index in range(8)]},
@@ -138,6 +147,15 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
         self.assertEqual(len(compact["proposal"]["summary"]), 400)
         self.assertEqual(len(compact["proposal"]["steps"]), 5)
         self.assertEqual(len(compact["proposal"]["steps"][0]["objective"]), 180)
+        minimal = GraceExecutionService._minimal_performance_evaluation_assignment(source | {
+            "objective_id": "objective:test", "objective_revision": 8,
+            "assignment_id": "assignment:test", "proposal_id": "proposal:test",
+            "proposal_revision": 2, "evaluation_trigger_event_id": "event:test",
+            "reasoning_attempt_count": 10})
+        self.assertEqual(set(minimal), {"objective_id", "objective_revision", "assignment_id",
+            "proposal_id", "proposal_revision", "evaluation_trigger_event_id",
+            "reasoning_attempt_count", "reasoning_failure_count", "proposal", "evidence"})
+        self.assertEqual(set(minimal["evidence"][0]["payload"]), set())
 
     def test_real_evaluation_feedback_is_durably_correlated_for_grace_and_steward(self):
         service = GraceExecutionService.__new__(GraceExecutionService)

@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.48
-# Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-INPUT-RETRY-20261024 | Permit one compact same-evidence evaluation retry only after HTTP 400 identifies input as the rejected field.
+# Revision: 1.0.49
+# Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-MINIMAL-RETRY-20261024 | Permit one minimal-evidence evaluation attempt after a compact retry receives the same exact HTTP 400 input rejection.
 # Changed: 2026-10-24 UTC | RV-GRACE-CME-ESCALATION-ID-FALLBACK-20261024 | Give the bounded fourth diagnostic attempt its own deterministic escalation identity.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Bound Luna supervisory output to the verified 512-token envelope and permit one durable low-output fallback after the bounded retry fails at transport.
 # Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Permit one re-request only after durable JSON truncation at the former 512-token output cap.
@@ -1593,13 +1593,15 @@ class GraceExecutionService:
             prior_retry2 = exchange.request_for_idempotency(retry2_key) if prior_retry else None
             retry3_key = evaluation_key + ":bounded-input-retry-1"
             prior_retry3 = exchange.request_for_idempotency(retry3_key) if prior_retry2 else None
+            retry4_key = evaluation_key + ":bounded-input-retry-2"
+            prior_retry4 = exchange.request_for_idempotency(retry4_key) if prior_retry3 else None
             blocked_prior_ids = {str((event.get("payload") or {}).get("request_id"))
                 for event in events if event["event_type"] ==
                     "resident.performance.evaluation_blocked" and
                     (event.get("payload") or {}).get("reason_code") == "JSONDecodeError"}
             selected_key = self._select_performance_evaluation_request(
                 trigger_id, prior_evaluation, prior_retry, blocked_prior_ids, prior_retry2,
-                prior_retry3)
+                prior_retry3, prior_retry4)
             if selected_key is None:
                 continue
             office = reasoner.registry.authorize_office_state(reasoner._credential, reasoner.office_id)
@@ -1636,7 +1638,9 @@ class GraceExecutionService:
                     "request_id": event["payload"].get("request_id"),
                     "correlation_id": event["payload"].get("correlation_id")}
                     for event in events if event["event_type"].startswith("external_reasoning.")][-8:]}
-            if selected_key.endswith(":bounded-input-retry-1"):
+            if selected_key.endswith(":bounded-input-retry-2"):
+                assignment = self._minimal_performance_evaluation_assignment(assignment)
+            elif selected_key.endswith(":bounded-input-retry-1"):
                 assignment = self._compact_performance_evaluation_assignment(assignment)
             request_id = str(uuid5(NAMESPACE_URL, "rv-performance-evaluation:" + selected_key))
             request = ReasoningRequest(request_id=request_id, office_id=reasoner.office_id,
@@ -1660,7 +1664,8 @@ class GraceExecutionService:
 
     @staticmethod
     def _select_performance_evaluation_request(trigger_id, prior_request,
-            prior_retry, blocked_prior_ids, prior_retry2=None, prior_retry3=None):
+            prior_retry, blocked_prior_ids, prior_retry2=None, prior_retry3=None,
+            prior_retry4=None):
         """Allow bounded output and exact-field input retries after documented provider failures."""
         base_key = "performance-evaluation:" + str(trigger_id)
         if prior_request is None:
@@ -1689,6 +1694,16 @@ class GraceExecutionService:
                 prior_retry2.get("provider_http_status") == 400 and
                 prior_retry2.get("provider_error_param") == "input" and retry2_tokens == 512):
             return base_key + ":bounded-input-retry-1"
+        retry3_payload = (prior_retry3.get("request_payload")
+            if isinstance(prior_retry3, dict) else None)
+        retry3_tokens = (retry3_payload.get("max_tokens")
+            if isinstance(retry3_payload, dict) else None)
+        if (prior_retry4 is None and prior_retry3 is not None and
+                prior_retry3.get("delivery_state") == "failed" and
+                prior_retry3.get("last_error_code") == "provider_response_submission_failed" and
+                prior_retry3.get("provider_http_status") == 400 and
+                prior_retry3.get("provider_error_param") == "input" and retry3_tokens == 512):
+            return base_key + ":bounded-input-retry-2"
         return None
 
     @staticmethod
@@ -1716,6 +1731,33 @@ class GraceExecutionService:
         compact["reasoning_history"] = assignment.get("reasoning_history", [])[-4:]
         compact["exchange_history"] = assignment.get("exchange_history", [])[-4:]
         return compact
+
+    @staticmethod
+    def _minimal_performance_evaluation_assignment(assignment):
+        """Retain only objective, proposal criteria, verifier results and recovery evidence."""
+        proposal = assignment.get("proposal") if isinstance(assignment.get("proposal"), dict) else {}
+        steps = []
+        for step in proposal.get("steps", [])[:5]:
+            if not isinstance(step, dict):
+                continue
+            steps.append({key: step[key] for key in
+                ("step_id", "objective", "acceptance_criteria", "depends_on") if key in step})
+        evidence = []
+        for event in assignment.get("evidence", [])[-6:]:
+            if not isinstance(event, dict):
+                continue
+            payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+            evidence.append({"event_id": event.get("event_id"),
+                "event_type": event.get("event_type"),
+                "payload": {key: payload[key] for key in
+                    ("step_id", "decision", "verification_id", "recovery_action")
+                    if key in payload}})
+        return {key: assignment[key] for key in
+            ("objective_id", "objective_revision", "assignment_id", "proposal_id",
+             "proposal_revision", "evaluation_trigger_event_id", "reasoning_attempt_count",
+             "reasoning_failure_count") if key in assignment} | {
+                "proposal": {"summary": str(proposal.get("summary", ""))[:240],
+                    "steps": steps}, "evidence": evidence}
 
     @staticmethod
     def _performance_evaluation_evidence(events):
