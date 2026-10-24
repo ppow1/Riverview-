@@ -2,14 +2,15 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.10
+Revision: 1.0.11
+Changed: 2026-10-24 UTC | RV-V2-GRACE-CANCELLATION-INTEGRATION | Resolve exact objective/work-order chat commands through the Steward session and shared lifecycle confirmation.
 Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Show live conversation-linked objectives with safe cancellation and preserve a single panel across responsive sidebar transitions.
 Purpose: Connect V2 Grace chat and expose a content-free trace of its durable request lifecycle
 Execution Model: Interactive browser; request-driven reads/sends with durable response polling
 Observability: Visible auth/status plus request IDs, provider attempts, timestamps, and persistence state
 Dependencies: Same-origin rv.resident.conversation.v1 endpoints; secure account and CSRF cookies
 Inputs/Outputs: Steward text and durable conversation events; message content is not browser-persisted
-Authority: Exact resident.conversation.read/send grants are enforced by Dashboard on each request
+Authority: Existing resident conversation grants and the exact assignment.cancel grant are enforced by Dashboard on each request
 Changed: 2026-10-21 UTC | RV-V2-OCTO1-GRACE-TRACE-001 | Expose only sanitized trace metadata from authenticated durable history
 Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Attach the owner-scoped content-free activity projection to same-conversation request traces.
 Changed: 2026-10-22 UTC | RV-V2-GRACE-MESSAGE-ACTIONS-001 | Keyed append-only history reconciliation preserves open action menus, scroll, and composer state; wire authorized work-order intake and transcript copy.
@@ -88,7 +89,7 @@ History: Git and revision/backup manifest
     title.append(identity, badge);
     const grid = document.createElement("dl"); grid.className = "engineering-progress-grid";
     const activeNote = document.createElement("p"); activeNote.className = "engineering-progress-note";
-    activeNote.textContent = "An active worker is running. This safe-stop operation is not available while execution is active.";
+    activeNote.textContent = "This assignment is running or blocked. The existing cancellation operation cannot stop active or stalled worker execution.";
     const cancel = document.createElement("button"); cancel.type = "button";
     cancel.className = "engineering-cancel-button"; cancel.textContent = "Cancel…";
     card.append(title, grid, activeNote, cancel);
@@ -120,7 +121,7 @@ History: Git and revision/backup manifest
     grid.replaceChildren();
     fields.forEach(([label, value]) => appendProgressField(grid, label, value));
     const activeNote = card.querySelector(".engineering-progress-note");
-    activeNote.hidden = !(item.status === "WORK_ORDER_CREATED" && item.assignment_state === "running");
+    activeNote.hidden = !(item.status === "WORK_ORDER_CREATED" && ["running", "blocked"].includes(String(item.assignment_state || "").toLowerCase()));
     const cancel = card.querySelector(".engineering-cancel-button");
     cancel.hidden = !canCancelObjective(item);
     cancel.dataset.cancelObjective = String(item.objective_id || "");
@@ -263,8 +264,7 @@ History: Git and revision/backup manifest
     }, 5000);
   }
 
-  function openCancellationDialog(objectiveId) {
-    const item = (state.engineeringProgressItems || []).find((row) => row.objective_id === objectiveId);
+  function openCancellationDialog(item) {
     if (!canCancelObjective(item)) {
       $("grace-chat-action-status").textContent = "This objective is no longer in a safely cancellable state. Refreshing authoritative progress.";
       loadEngineeringProgress();
@@ -274,9 +274,55 @@ History: Git and revision/backup manifest
       assignment_id: item.assignment_id || null, assignment_state: item.assignment_state || null};
     $("engineering-cancel-target").textContent = `Target ${item.objective_id} · state ${item.status} · assignment ${item.assignment_id || "none"} (${item.assignment_state || "not created"}).`;
     $("engineering-cancel-reason").value = "";
-    $("engineering-cancel-status").textContent = "The authoritative service rechecks current state and authorization on submission.";
+    $("engineering-cancel-reason").required = item.status === "GROUNDED";
+    $("engineering-cancel-reason").previousElementSibling.textContent = item.status === "GROUNDED" ? "Reason (required)" : "Reason (optional)";
+    $("engineering-cancel-status").textContent = "Confirm explicitly. The authoritative service rechecks current state and Steward authorization on submission.";
     $("engineering-cancel-dialog").showModal();
-    $("engineering-cancel-reason").focus();
+    if (item.status === "GROUNDED") $("engineering-cancel-reason").focus();
+  }
+
+  async function handleConversationalCancellation(message) {
+    const text = String(message || "").trim();
+    const stalled = /^(?:grace\s*[, :]\s*)?cancel\s+(?:the\s+)?stalled\s+engineering\s+objective[.!?]*$/i.test(text);
+    const match = /^(?:grace\s*[, :]\s*)?cancel\s+(objective|work\s+order)\s+(.+?)[.!?]*$/i.exec(text);
+    if (!stalled && !match) return false;
+    const status = $("grace-chat-action-status");
+    try {
+      const page = await api("/api/v1/objectives?limit=100");
+      if (page.status !== "available" || !Array.isArray(page.items)) throw new Error("objective_list_unavailable");
+      if (stalled) {
+        const running = page.items.filter((item) => item.status === "WORK_ORDER_CREATED" &&
+          ["running", "blocked"].includes(String(item.assignment_state || "").toLowerCase()));
+        const ids = running.slice(0, 5).map((item) => `${item.objective_id} (${item.assignment_state})`).join(" · ");
+        const candidateNote = ids ? `Current running or blocked candidates: ${ids}.` : "No running or blocked candidates were returned.";
+        const truncationNote = page.truncated ? " The objective list is truncated, so candidates may be incomplete." : "";
+        status.textContent = `I can’t safely infer which work is stalled: the authoritative objective list has no stalled flag. ${candidateNote}${truncationNote} Running and blocked assignments cannot be cancelled by the existing safe cancellation operation. Please provide an exact eligible objective ID or queued/ready work-order ID.`;
+        return true;
+      }
+      const kind = match[1].toLowerCase().startsWith("work") ? "work-order" : "objective";
+      const rawTarget = match[2].trim().replace(/^['"“”]|['"“”]$/g, "").replace(/[.!?]+$/, "").trim();
+      const normalized = rawTarget.toLowerCase();
+      const candidates = page.items.filter((item) => {
+        const target = kind === "objective" ? item.objective_id : item.assignment_id;
+        return typeof target === "string" && (target.toLowerCase() === normalized ||
+          (kind === "objective" && target.split(":").at(-1).toLowerCase() === normalized));
+      });
+      if (candidates.length !== 1) {
+        const reason = candidates.length > 1 ? "matches more than one record" : "did not match an exact objective or assignment ID";
+        status.textContent = `I could not resolve that cancellation request: ${reason}. Please provide the exact ${kind} ID. No cancellation was sent.`;
+        return true;
+      }
+      const item = candidates[0];
+      if (!canCancelObjective(item)) {
+        status.textContent = `Objective ${item.objective_id} is ${item.status}${item.assignment_state ? ` (${item.assignment_state})` : ""} and is not safely cancellable through the existing lifecycle. Running or stalled worker work has no stop operation in this control.`;
+        return true;
+      }
+      status.textContent = `Resolved ${kind} to objective ${item.objective_id}. Review the exact target and confirm cancellation.`;
+      openCancellationDialog(item);
+    } catch (error) {
+      status.textContent = `I could not resolve the cancellation request (${safeError(error.payload?.error || error.message)}). No cancellation was sent.`;
+    }
+    return true;
   }
 
   function setStatus(text, code) {
@@ -410,25 +456,32 @@ History: Git and revision/backup manifest
 
   engineeringProgressList.addEventListener("click", event => {
     const button = event.target.closest("button[data-cancel-objective]");
-    if (button) openCancellationDialog(button.dataset.cancelObjective);
+    if (button) {
+      const item = (state.engineeringProgressItems || []).find((row) => row.objective_id === button.dataset.cancelObjective);
+      openCancellationDialog(item);
+    }
+  });
+  window.addEventListener("rvv2:cancel-objective", (event) => {
+    openCancellationDialog(event.detail?.objective);
   });
   $("engineering-progress-refresh").addEventListener("click", loadEngineeringProgress);
   $("engineering-cancel-dismiss").addEventListener("click", () => $("engineering-cancel-dialog").close());
   $("engineering-cancel-dialog").addEventListener("close", () => { state.cancelObjective = null; state.cancelInFlight = false; });
   $("engineering-cancel-form").addEventListener("submit", async event => {
     event.preventDefault();
-    if (!state.connected || !state.cancelObjective || state.cancelInFlight) return;
+    if (!state.identity?.roles?.includes("steward") || !state.cancelObjective || state.cancelInFlight) return;
     const reason = $("engineering-cancel-reason").value.trim();
-    if (!reason) { $("engineering-cancel-reason").focus(); return; }
     const target = state.cancelObjective;
+    if (target.status === "GROUNDED" && !reason) { $("engineering-cancel-reason").focus(); return; }
     const submit = $("engineering-cancel-submit");
     state.cancelInFlight = true; submit.disabled = true;
     $("engineering-cancel-status").textContent = "Submitting the confirmed request; authorization and current lifecycle state are rechecked by Riverview…";
     try {
       const result = await api(`/api/v1/objectives/${encodeURIComponent(target.objective_id)}/cancel`,
-        {method: "POST", body: {reason}});
+        {method: "POST", body: reason ? {reason} : {}});
       $("engineering-cancel-dialog").close();
       $("grace-chat-action-status").textContent = `Cancellation recorded for ${result.objective_id || target.objective_id}: ${result.status || "authoritative status returned"}.`;
+      window.dispatchEvent(new CustomEvent("rvv2:objective-cancelled", {detail: {objective_id: target.objective_id}}));
       await loadEngineeringProgress();
     } catch (error) {
       $("engineering-cancel-status").textContent = `Cancellation was not confirmed (${safeError(error.payload?.error || error.message)}). The objective remains unchanged in this view until the authoritative refresh completes.`;
@@ -680,6 +733,12 @@ History: Git and revision/backup manifest
     const send = $("grace-send");
     send.disabled = true;
     clearError();
+    if (await handleConversationalCancellation(message)) {
+      $("grace-message").value = "";
+      setStatus("Cancellation request handled through the authorized objective lifecycle", "connected");
+      send.disabled = false;
+      return;
+    }
     setStatus("Submitting message to Grace…", "pending");
     try {
       const result = await api("/api/v1/resident/conversations/stream", {method: "POST", body: {

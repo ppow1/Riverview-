@@ -2,13 +2,13 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/work-monitor.css
 Component: RIVERVIEW-V2-WORK-EXECUTION-MONITOR
-Revision: 1.0.1
-Purpose: Style the read-only objective and assignment summary inside the existing V2 Work view
+Revision: 1.0.2
+Purpose: Style objective and assignment summaries and exact eligible cancellation actions inside the existing V2 Work view
 Execution Model: Static browser presentation
 Observability: Source state, refresh status, bounded tables and empty/unavailable states
 Dependencies: website/v2/assets/workspace.css design tokens
 Inputs/Outputs: Work monitor HTML; no data or authority changes
-Authority: Presentation only
+Authority: Presentation only; cancellation requests delegate to the existing Steward-authorized API
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Initial operational work projection styles
 Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deployed V2 source under its explicit production bundle path.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
@@ -37,6 +37,7 @@ History: Git and .riverview-backups/manifest.jsonl
 .work-table-wrap table{width:100%;border-collapse:collapse;text-align:left;font-size:9px}
 .work-table-wrap th{padding:9px;background:#f5f7f7;color:#71808a;font-weight:650;white-space:nowrap}
 .work-table-wrap td{max-width:280px;padding:9px;border-top:1px solid var(--line);color:var(--ink);overflow-wrap:anywhere}
+.work-objective-cancel{white-space:nowrap}
 .work-empty{margin:0;padding:10px;color:var(--muted);font-size:9px;line-height:1.5}
 @media(max-width:680px){.work-monitor{padding:12px}.work-monitor-heading,.work-monitor-toolbar{align-items:flex-start;flex-direction:column}.work-monitor-heading h2{font-size:21px}.work-table-wrap table{min-width:600px}}
 :root[data-theme="dark"] .work-monitor-toolbar,:root[data-theme="dark"] .work-table-wrap th{background:#293238}

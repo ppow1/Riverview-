@@ -1867,7 +1867,7 @@ def make_handler():
                             self._json(202, {"objective_id": objective_id,
                                 "status": result["status"], "assignment_id": result["assignment_id"]}, request_id)
                         else:
-                            if (set(data) not in ({"reason"}, {"scope_ref"}, {"scope_ref", "reason"}) or
+                            if (set(data) not in (set(), {"reason"}, {"scope_ref"}, {"scope_ref", "reason"}) or
                                     ("reason" in data and
                                      (not isinstance(data["reason"], str) or
                                       not data["reason"].strip() or

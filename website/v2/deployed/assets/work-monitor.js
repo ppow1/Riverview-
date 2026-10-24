@@ -2,13 +2,13 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/work-monitor.js
 Component: RIVERVIEW-V2-WORK-EXECUTION-MONITOR
-Revision: 1.0.1
-Purpose: Present bounded objective and assignment state from existing Dashboard projections
+Revision: 1.0.2
+Purpose: Present bounded objective and assignment state with existing authorized cancellation actions
 Execution Model: Request-driven same-origin browser reads; no background polling
 Observability: Visible authorization, source status, fetched-at time, and persisted record timestamps
 Dependencies: Authenticated rv.dashboard.status.v1 service; rv.dashboard.objectives.v1; assignment projection
-Inputs/Outputs: Read-only GET summaries; does not display request bodies, criteria, artifacts, or event payloads
-Authority: Dashboard account authentication and server projection filters; no mutation or execution controls
+Inputs/Outputs: GET summaries and same-origin cancellation request events; does not display request bodies, criteria, artifacts, or event payloads
+Authority: Dashboard account authentication and server projection filters; cancellation delegates to the existing authorized lifecycle API
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Initial read-only work status integration
 Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deployed V2 source under its explicit production bundle path.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md; docs/components/STATUS_DASHBOARD.md
@@ -26,7 +26,8 @@ History: Git and .riverview-backups/manifest.jsonl
     assignments: [],
     truncated: {objectives: false, assignments: false},
     fetchedAt: null,
-    inFlight: false
+    inFlight: false,
+    identity: null
   };
   const $ = (id) => document.getElementById(id);
   const safeCode = (value) => String(value || "request_failed").replace(/[^a-z0-9_.-]/gi, "_").slice(0, 64);
@@ -83,6 +84,13 @@ History: Git and .riverview-backups/manifest.jsonl
     row.append(node);
   }
 
+  function canCancelObjective(item) {
+    if (!item || !state.identity?.roles?.includes("steward")) return false;
+    if (item.status === "GROUNDED") return !item.assignment_id;
+    return item.status === "WORK_ORDER_CREATED" && Boolean(item.assignment_id) &&
+      ["queued", "ready"].includes(String(item.assignment_state || "").toLowerCase());
+  }
+
   function renderRows() {
     const query = String($("work-search")?.value || "").trim().toLowerCase();
     const objectiveBody = $("work-objectives-body");
@@ -95,11 +103,23 @@ History: Git and .riverview-backups/manifest.jsonl
 
     for (const item of visibleObjectives) {
       const row = document.createElement("tr");
+      row.dataset.objectiveId = item.objective_id;
       cell(row, item.objective_id);
       cell(row, item.status);
       cell(row, item.assignment_id ? `${item.assignment_id} · ${item.assignment_state || "state unavailable"}` : "No linked assignment");
       cell(row, item.verification?.decision || "Not verified");
       cell(row, recordTime(item.updated_at));
+      const action = document.createElement("td");
+      if (canCancelObjective(item)) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "engineering-cancel-button work-objective-cancel";
+        button.textContent = "Cancel…";
+        button.dataset.openObjectiveCancellation = item.objective_id;
+        button.setAttribute("aria-label", `Cancel objective ${item.objective_id}`);
+        action.append(button);
+      }
+      row.append(action);
       objectiveBody.append(row);
     }
     for (const item of visibleAssignments) {
@@ -143,10 +163,12 @@ History: Git and .riverview-backups/manifest.jsonl
     state.inFlight = true;
     setStatus("loading", "CHECKING", "Checking the existing Dashboard session before requesting any operational records…");
     try {
-      await getJson("/api/v1/auth/session");
+      const session = await getJson("/api/v1/auth/session");
+      state.identity = session.identity || null;
     } catch (error) {
       state.objectives = [];
       state.assignments = [];
+      state.identity = null;
       state.objectivesStatus = error.status === 401 ? "authentication_required" : safeCode(error.message);
       state.assignmentsStatus = state.objectivesStatus;
       state.fetchedAt = new Date().toISOString();
@@ -198,6 +220,18 @@ History: Git and .riverview-backups/manifest.jsonl
     document.addEventListener("rvv2:view", (event) => {
       if (event.detail?.view === "work") refresh();
     });
+    $("work-objectives-body")?.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-open-objective-cancellation]");
+      if (!button) return;
+      const item = state.objectives.find((row) => row.objective_id === button.dataset.openObjectiveCancellation);
+      if (!canCancelObjective(item)) {
+        setStatus("available", "REFRESH REQUIRED", "The objective is no longer eligible for cancellation. Refreshing authoritative state.");
+        refresh();
+        return;
+      }
+      window.dispatchEvent(new CustomEvent("rvv2:cancel-objective", {detail: {objective: item, source: "work-objectives"}}));
+    });
+    window.addEventListener("rvv2:objective-cancelled", () => refresh());
     renderRows();
   });
 
