@@ -57,6 +57,26 @@ test('keyword, tag, and priority filters compose without changing the source rec
   assert.equal(items[0].title,'Work evidence');
 });
 
+test('live objective view exposes only authoritative lifecycle, blocker, event and verification evidence', () => {
+  const model = adapter.objective({objective_id:'objective:live', request:'Repair account sync',
+    status:'FAILED', lifecycle_status:'blocked', lifecycle_stage:'Steward action required',
+    assignment_state:'blocked', assignment_id:'assignment:42', steward_action_required:true,
+    rework:{rationale:'Await approval', decision:'STEWARD_AUTHORIZATION_REQUIRED'},
+    latest_event:{event_type:'engineering.rework_decided', occurred_at:'2026-10-24T17:00:00Z'},
+    verification:{decision:'REJECTED', summary:'Acceptance evidence incomplete'}});
+  assert.equal(model.status,'blocked');
+  assert.equal(model.stage,'Steward action required');
+  assert.equal(model.assignmentState,'blocked');
+  assert.equal(model.blocker,'Await approval');
+  assert.deepEqual(model.latestEvent,{type:'engineering.rework_decided',occurredAt:'2026-10-24T17:00:00Z'});
+  assert.equal(model.verification.decision,'REJECTED');
+  assert.equal(model.dependencies,null);
+  const unknown = adapter.objective({status:'FAILED', lifecycle_status:'blocked'});
+  assert.equal(unknown.blocker,'The record is blocked; a reason is unavailable in this projection.');
+  assert.equal(adapter.objective({status:'RECEIVED',lifecycle_status:'waiting',lifecycle_stage:'Awaiting authorized work order'}).blocker,
+    'Awaiting authorized work order');
+});
+
 test('V2 navigation loads the interactive view and only reads the existing protected objective API', () => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   const shell = fs.readFileSync(path.join(ROOT, 'assets/workspace.js'), 'utf8');
@@ -69,5 +89,10 @@ test('V2 navigation loads the interactive view and only reads the existing prote
   assert.match(shell, /RiverviewV2LivingRoadmap\?\.render/);
   assert.match(view, /identity\.roles\.includes\("steward"\)/);
   assert.match(view, /\/api\/v1\/objectives\?limit=25/);
+  assert.match(view, /Verified live operational record/);
+  assert.match(view, /Not exposed by the authenticated objective API; none inferred/);
+  assert.match(view, /Recorded blocker \/ waiting reason/);
+  assert.match(html, /canonical master-roadmap PostgreSQL tables and API are not present/);
+  assert.match(html, /RB-0001, remain Unknown/);
   assert.doesNotMatch(view, /method\s*:\s*"(POST|PUT|PATCH|DELETE)"/);
 });

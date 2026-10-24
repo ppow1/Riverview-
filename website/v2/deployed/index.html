@@ -38,7 +38,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/resource-monitor.css">
   <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
-  <link rel="stylesheet" href="assets/living-roadmap.css?rev=living-roadmap-20261024">
+  <link rel="stylesheet" href="assets/living-roadmap.css?rev=roadmap-status-20261024">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
   <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
@@ -47,8 +47,8 @@ History: Git and revision/backup manifest
   <script defer src="assets/work-evidence-adapter.js?rev=blocker-20261024"></script>
   <script defer src="assets/work-evidence.js?rev=blocker-20261024"></script>
   <script defer src="assets/living-roadmap-data.js?rev=living-roadmap-20261024"></script>
-  <script defer src="assets/living-roadmap-adapter.js?rev=living-roadmap-20261024"></script>
-  <script defer src="assets/living-roadmap.js?rev=living-roadmap-20261024"></script>
+  <script defer src="assets/living-roadmap-adapter.js?rev=roadmap-status-20261024"></script>
+  <script defer src="assets/living-roadmap.js?rev=roadmap-status-20261024"></script>
   <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
   <script defer src="assets/workspace.js?rev=living-roadmap-20261024"></script>
   <script defer src="assets/communications.js"></script>
@@ -113,8 +113,8 @@ History: Git and revision/backup manifest
             <section class="roadmap-legend" aria-labelledby="roadmap-legend-title"><h3 id="roadmap-legend-title">Status legend</h3><div id="roadmap-status-legend"></div></section>
             <section aria-labelledby="roadmap-workstreams-title"><h3 id="roadmap-workstreams-title">Primary workstreams</h3><div id="roadmap-workstreams" class="roadmap-workstreams"></div></section>
             <section aria-labelledby="roadmap-lifecycle-title"><h3 id="roadmap-lifecycle-title">Planning and execution lifecycle</h3><p class="roadmap-lifecycle-note">Parking Lot preserves an idea. Steward-approved elaboration authorizes discussion and specification only. Design/Specification is not Ready Bench. Ready Bench records committed, sufficiently specified future intent; it does not start execution. Active Work comes from authorized operational records.</p><div id="roadmap-lifecycle" class="roadmap-lifecycle"></div></section>
-            <section aria-labelledby="roadmap-live-title"><div class="roadmap-section-heading"><div><h3 id="roadmap-live-title">Current Riverview objectives</h3><p>Read-only authenticated projection. Workstream assignment and priority are not inferred.</p></div><button id="roadmap-refresh" type="button">Refresh</button></div><p id="roadmap-live-status" role="status" aria-live="polite">Sign in as Steward to read current objective state.</p><div id="roadmap-live-items" class="roadmap-live-items"></div></section>
-            <p class="roadmap-provenance">Planning records link to their source documents. Live status uses the existing protected objective API. Unknown, unavailable, and unintegrated sources are shown explicitly.</p>
+            <section aria-labelledby="roadmap-live-title"><div class="roadmap-section-heading"><div><h3 id="roadmap-live-title">Current Riverview objectives</h3><p>Read-only authenticated operational records. Workstream assignment and priority are not inferred.</p></div><button id="roadmap-refresh" type="button">Refresh</button></div><p id="roadmap-live-status" role="status" aria-live="polite">Sign in as Steward to read current objective state.</p><div id="roadmap-live-items" class="roadmap-live-items"></div></section>
+            <p class="roadmap-provenance">Documented roadmap intent is distinguished from verified live objective projections. The canonical master-roadmap PostgreSQL tables and API are not present in this Dashboard's configured schema, so its Git snapshot is not treated as live status. Dependencies are not exposed by the objective API; they are shown as unavailable, never inferred. Planning-source conflicts, including RB-0001, remain Unknown.</p>
           </section>
           <section class="manual-image" id="manual-image-workspace" aria-labelledby="manual-image-heading" hidden>
             <div class="manual-image-heading"><div><p class="eyebrow">OPERATOR MANUAL MODE</p><h2 id="manual-image-heading">Image generation</h2><p class="muted">Uses the registered ComfyUI worker. Requests are recorded to your authenticated account and are separate from Grace and Engineering work.</p></div><button id="manual-image-refresh" type="button">Refresh history</button></div>
