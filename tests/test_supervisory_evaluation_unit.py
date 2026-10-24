@@ -21,6 +21,25 @@ class _Pipeline:
 
 
 class SupervisoryEvaluationUnitTests(unittest.TestCase):
+    def test_cme_uses_only_one_explicitly_amended_request_after_failed_transport_retries(self):
+        event_id = "c7558b01-8004-4a44-8344-4bf0fe0ae27e"
+        failed = {"delivery_state": "failed",
+                  "last_error_code": "provider_response_submission_failed"}
+        pending = {"delivery_state": "awaiting_response", "last_error_code": None}
+        amendment = {"payload": {"additional_request_allocations": {
+            "cme_diagnostic_recovery": 1, "performance_evaluation": 1}}}
+        select = GraceExecutionService._select_cme_diagnostic_request
+        self.assertEqual(select(event_id, None, None, None, 0),
+            (1, "cme-recovery:" + event_id))
+        self.assertEqual(select(event_id, failed, None, None, 0),
+            (2, "cme-recovery:" + event_id + ":transport-retry-1"))
+        self.assertEqual(select(event_id, failed, failed, amendment, 0),
+            (3, "cme-recovery:" + event_id + ":authorized-amendment-diagnostic-1"))
+        self.assertEqual(select(event_id, failed, failed, None, 0), (None, None))
+        self.assertEqual(select(event_id, failed, failed, amendment, 1), (None, None))
+        self.assertEqual(select(event_id, pending, failed, amendment, 0), (None, None))
+        self.assertEqual(select(event_id, failed, pending, amendment, 0), (None, None))
+
     def test_completed_work_and_recovery_cycle_are_independent_grade_triggers(self):
         completed = {"event_id": "complete-1", "event_type": "objective.completed",
                      "payload": {}}

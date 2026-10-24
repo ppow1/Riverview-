@@ -1426,19 +1426,30 @@ class GraceExecutionService:
         if details.get("state") != "rework_required":
             return None
         event_id = stall["event_id"]
-        idempotency_key = "cme-recovery:" + event_id
-        prior_request = exchange.request_for_idempotency(idempotency_key)
-        diagnostic_attempt = 1
-        if prior_request:
-            # A single second request is allowed only after a paid API response
-            # was lost at the adapter boundary and durably marked terminal.
-            if (prior_request["delivery_state"] != "failed" or
-                    prior_request["last_error_code"] != "provider_response_submission_failed"):
-                return None
-            diagnostic_attempt = 2
-            idempotency_key += ":transport-retry-1"
-            if exchange.request_for_idempotency(idempotency_key):
-                return None
+        base_key = "cme-recovery:" + event_id
+        prior_request = exchange.request_for_idempotency(base_key)
+        retry_key = base_key + ":transport-retry-1"
+        prior_transport_retry = exchange.request_for_idempotency(retry_key) if prior_request else None
+        amendment = None
+        amended_cme_used = 0
+        if prior_transport_retry is not None:
+            with self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""SELECT occurred_at,payload FROM grace_experiment_authorization_events
+                    WHERE authorization_id=%s AND event_type='amended'
+                    ORDER BY occurred_at,event_id LIMIT 1""", (grant["authorization_id"],))
+                amendment = cur.fetchone()
+                if amendment:
+                    cur.execute("""SELECT count(*) AS used
+                        FROM grace_experiment_authorization_events
+                        WHERE authorization_id=%s AND event_type='luna_reserved'
+                          AND occurred_at>%s AND payload->>'request_type'='cme_diagnostic_recovery'""",
+                        (grant["authorization_id"], amendment["occurred_at"]))
+                    amended_cme_used = int(cur.fetchone()["used"])
+        diagnostic_attempt, idempotency_key = self._select_cme_diagnostic_request(
+            event_id, prior_request, prior_transport_retry, amendment, amended_cme_used)
+        if idempotency_key is None or exchange.request_for_idempotency(idempotency_key):
+            return None
         authority_evidence = self.pipeline.rework_review_authority_evidence(
             context, credential=self.dispatch_credential)
         objective_events = self.pipeline.objective_events(objective_id)
@@ -1461,6 +1472,9 @@ class GraceExecutionService:
         original_id = str(uuid5(NAMESPACE_URL, "rv-cme-recovery-original:" + event_id))
         if diagnostic_attempt == 2:
             original_id = str(uuid5(NAMESPACE_URL, original_id + ":transport-retry-1"))
+        elif diagnostic_attempt == 3:
+            original_id = str(uuid5(NAMESPACE_URL,
+                original_id + ":authorized-amendment-diagnostic-1"))
         source = {"objective_id": objective_id, "objective_revision": objective["revision"],
             "proposal_id": reference["proposal_id"], "proposal_revision": 2,
             "assignment_id": assignment_id, "step_id": context["step_id"],
@@ -1488,6 +1502,8 @@ class GraceExecutionService:
         escalation_source = "rv-cme-recovery-escalation:" + event_id
         if diagnostic_attempt == 2:
             escalation_source += ":transport-retry-1"
+        elif diagnostic_attempt == 3:
+            escalation_source += ":authorized-amendment-diagnostic-1"
         escalation_id = str(uuid5(NAMESPACE_URL, escalation_source))
         envelope = EscalationRequest.create(request, reason="capability_gap",
             target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
@@ -1498,6 +1514,33 @@ class GraceExecutionService:
             proposal_id=reference["proposal_id"], proposal_revision=2,
             source_references=(event_id, assignment_id, context["completion"]["verification_id"]),
             source_kind="cme_diagnostic_recovery", request_type="cme_diagnostic_recovery")
+
+    @staticmethod
+    def _select_cme_diagnostic_request(event_id, prior_request, prior_transport_retry,
+                                      amendment, amended_cme_used):
+        """Admit at most one amendment-authorized CME request after terminal retries."""
+        base_key = "cme-recovery:" + event_id
+
+        def terminal_submission_failure(row):
+            return (row is not None and row.get("delivery_state") == "failed" and
+                    row.get("last_error_code") == "provider_response_submission_failed")
+
+        if prior_request is None:
+            return 1, base_key
+        if not terminal_submission_failure(prior_request):
+            return None, None
+        retry_key = base_key + ":transport-retry-1"
+        if prior_transport_retry is None:
+            return 2, retry_key
+        if not terminal_submission_failure(prior_transport_retry):
+            return None, None
+        payload = amendment.get("payload") if isinstance(amendment, Mapping) else None
+        allocations = payload.get("additional_request_allocations", {}) \
+            if isinstance(payload, dict) else {}
+        if (not isinstance(allocations, dict) or
+                allocations.get("cme_diagnostic_recovery") != 1 or amended_cme_used >= 1):
+            return None, None
+        return 3, base_key + ":authorized-amendment-diagnostic-1"
 
     def queue_performance_evaluation(self):
         """Request one evaluation only after durable execution or verification evidence."""
