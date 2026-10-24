@@ -1,4 +1,5 @@
 /* Reusable, read-only Living Roadmap view over canonical planning references and protected work state. */
+// File Revision: 1.0.0
 (() => {
   "use strict";
   const data = window.RiverviewV2LivingRoadmapData;

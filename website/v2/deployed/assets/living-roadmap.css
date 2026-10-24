@@ -1,3 +1,6 @@
+/*
+File Revision: 1.0.0
+*/
 .living-roadmap{max-width:1200px;padding:4px 0 30px;color:var(--ink)}
 .living-roadmap[hidden]{display:none!important}
 .roadmap-header,.roadmap-section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}

@@ -1,5 +1,7 @@
 # Riverview V2 Living Roadmap
 
+Document Revision: 1.0.0
+
 The first V2 roadmap view is a read-only presentation over the committed V2 development roadmap, Issue #268 evidence, and the canonical Parking Lot / Ready Bench documents in `ppow1/Riverview`. The planning summaries and source links are a curated UI index, not an execution registry. Parking Lot, Steward-approved elaboration, Design/Specification, Ready Bench, Active Work, and Complete are distinct lanes; where a board is not integrated, the view links to its authoritative source and reports that limitation.
 
 Grace Autonomy and Website Visualization are the primary workstreams. Grace's supervisory loop is not polled or represented as live. Current objective state is fetched on demand from the existing authenticated `/api/v1/auth/session` and `/api/v1/objectives?limit=25` endpoints, only for identities whose existing account role includes Steward. Live objective cards expose the API's lifecycle status/stage, assignment state, exact assignment link, latest event and timestamp, verification decision, current rework rationale, and update time. Blocked/waiting records with no source reason explicitly say the reason is unavailable. The projection does not expose dependency edges, a canonical workstream, or priority; the view does not infer any of them.
