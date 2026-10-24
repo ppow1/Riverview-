@@ -36,17 +36,20 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/workspace.css">
   <link rel="stylesheet" href="assets/communications.css">
   <link rel="stylesheet" href="assets/resource-monitor.css">
-  <link rel="stylesheet" href="assets/work-monitor.css">
+  <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
+  <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
   <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/resource-monitor.js"></script>
-  <script defer src="assets/work-monitor.js"></script>
+  <script defer src="assets/work-evidence-adapter.js?rev=blocker-20261024"></script>
+  <script defer src="assets/work-evidence.js?rev=blocker-20261024"></script>
+  <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
   <script defer src="assets/workspace.js"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
-  <script defer src="assets/grace-chat.js?rev=62e942ac"></script>
+  <script defer src="assets/grace-chat.js?rev=blocker-20261024"></script>
   <script defer src="assets/manual-image-generation.js"></script>
   <script defer src="assets/notification-settings.js"></script>
   <script defer src="assets/operational-inbox-adapter.js?rev=1"></script>
@@ -93,8 +96,9 @@ History: Git and revision/backup manifest
             <div class="work-monitor-heading"><div><p class="eyebrow">DURABLE INSTITUTIONAL STATE</p><h2 id="work-monitor-heading">Objectives &amp; assignments</h2><p class="muted">Summaries from the authenticated Riverview Dashboard. Eligible objectives can be cancelled through the existing Steward-authorized lifecycle; request text, acceptance criteria, artifacts and private event payloads are not displayed.</p></div><span class="work-monitor-state" id="work-source-state" data-state="not-checked">NOT CHECKED</span></div>
             <div class="work-monitor-toolbar"><p id="work-refresh-status" role="status" aria-live="polite">Open Work on LAN HTTPS to check the existing Dashboard account session and read current objective and assignment summaries.</p><button id="work-refresh" type="button" aria-describedby="work-refresh-status">Refresh</button></div>
             <label class="work-search">Filter visible records<input id="work-search" type="search" maxlength="100" placeholder="Objective, assignment, state, owner, or progress event"></label>
-            <section class="work-records" aria-labelledby="work-objectives-heading"><h3 id="work-objectives-heading">Objectives</h3><p class="work-source-note">Source: <code>GET /api/v1/objectives?limit=25</code> · database record timestamps are shown as stored.</p><div class="work-table-wrap"><table><caption class="visually-hidden">Persisted objective status, linked assignment, independent verification, update time, and eligible Steward action</caption><thead><tr><th scope="col">Objective</th><th scope="col">State</th><th scope="col">Assignment</th><th scope="col">Verification</th><th scope="col">Updated</th><th scope="col">Action</th></tr></thead><tbody id="work-objectives-body"></tbody></table></div><p id="work-objectives-empty" class="work-empty">Objective status has not been checked.</p></section>
-            <section class="work-records" aria-labelledby="work-assignments-heading"><h3 id="work-assignments-heading">Assignment progress</h3><p class="work-source-note">Source: <code>GET /api/v1/assignments?limit=25</code> · progress is the last persisted institutional event, not an estimated percentage.</p><div class="work-table-wrap"><table><caption class="visually-hidden">Persisted assignment state, owner, workflow step and last progress event</caption><thead><tr><th scope="col">Assignment</th><th scope="col">State</th><th scope="col">Owner / step</th><th scope="col">Last progress</th></tr></thead><tbody id="work-assignments-body"></tbody></table></div><p id="work-assignments-empty" class="work-empty">Assignment progress has not been checked.</p></section>
+            <label class="work-sort">Sort records<select id="work-sort"><option value="recent">Most recent progress</option><option value="oldest">Oldest progress</option><option value="status">Status</option><option value="id">Record ID</option></select></label>
+            <section class="work-records" aria-labelledby="work-objectives-heading"><h3 id="work-objectives-heading">Objectives</h3><p class="work-source-note">Source: <code>GET /api/v1/objectives?limit=25</code> · details and event evidence load on demand through existing authenticated APIs. Missing dependency relationships are labelled unavailable.</p><div class="work-table-wrap"><table class="work-objectives-table"><caption class="visually-hidden">Persisted objective lifecycle, stage, blocker, linked work order, owner, progress age, evidence, and eligible Steward action</caption><thead><tr><th scope="col">Objective</th><th scope="col">Status</th><th scope="col">Current stage</th><th scope="col">Blocker / waiting reason</th><th scope="col">Related work</th><th scope="col">Owner</th><th scope="col">Last progress</th><th scope="col">Context &amp; evidence</th><th scope="col">Action</th></tr></thead><tbody id="work-objectives-body"></tbody></table></div><p id="work-objectives-empty" class="work-empty">Objective status has not been checked.</p></section>
+            <section class="work-records" aria-labelledby="work-assignments-heading"><h3 id="work-assignments-heading">Assignment progress</h3><p class="work-source-note">Source: <code>GET /api/v1/assignments?limit=25</code> · progress time uses persisted event timestamps; opening context loads the exact assignment's event and worker-attempt history.</p><div class="work-table-wrap"><table class="work-assignments-table"><caption class="visually-hidden">Persisted assignment state, stage, blocker availability, owner, progress age, linked objective and evidence</caption><thead><tr><th scope="col">Work order</th><th scope="col">Status · stage</th><th scope="col">Owner</th><th scope="col">Last progress</th><th scope="col">Related objectives</th><th scope="col">Context &amp; evidence</th></tr></thead><tbody id="work-assignments-body"></tbody></table></div><p id="work-assignments-empty" class="work-empty">Assignment progress has not been checked.</p></section>
           </section>
           <div id="view-content"></div>
           </div>
