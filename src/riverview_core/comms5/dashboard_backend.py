@@ -33,6 +33,7 @@ _READ_TOOLS = {
 }
 _PROPOSAL_TOOLS = {
     "comms5_submit_steward_seed", "comms5_store_specification",
+    "comms5_revise_specification", "comms5_prepare_proposal_for_decision",
     "comms5_seed_status", "comms5_seed_lineage", "comms5_cancel_draft",
     "comms5_supersede_seed", "comms5_confirm_and_promote_seed",
 }
@@ -83,6 +84,8 @@ class DashboardReadBackend:
         "comms5_form_and_queue_work": "IMPLEMENTED",
         "comms5_submit_steward_seed": "IMPLEMENTED",
         "comms5_store_specification": "IMPLEMENTED",
+        "comms5_revise_specification": "IMPLEMENTED",
+        "comms5_prepare_proposal_for_decision": "IMPLEMENTED",
         "comms5_seed_status": "IMPLEMENTED",
         "comms5_seed_lineage": "IMPLEMENTED",
         "comms5_cancel_draft": "IMPLEMENTED",

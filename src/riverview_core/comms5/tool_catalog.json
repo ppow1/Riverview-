@@ -1155,6 +1155,232 @@
       ]
     },
     {
+      "name": "comms5_revise_specification",
+      "title": "Revise exact draft specification",
+      "description": "Create one audited successor revision for the exact current DRAFT specification. Requires authenticated Steward Comms5 transport, expected revision, replacement content, and idempotency key. Does not approve, promote, create an objective, or authorize work.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "content": {
+            "additionalProperties": false,
+            "description": "Complete replacement content for the exact current draft revision.",
+            "properties": {
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "summary": {
+                "title": "Summary",
+                "type": "string"
+              },
+              "objective": {
+                "title": "Objective",
+                "type": "string"
+              },
+              "scope": {
+                "title": "Scope",
+                "type": "string"
+              },
+              "proposed_approach": {
+                "title": "Proposed Approach",
+                "type": "string"
+              },
+              "constraints": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Constraints",
+                "type": "array"
+              },
+              "acceptance_criteria": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Acceptance Criteria",
+                "type": "array"
+              },
+              "tags": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Tags",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "summary",
+              "objective",
+              "scope",
+              "proposed_approach",
+              "constraints",
+              "acceptance_criteria",
+              "tags"
+            ],
+            "title": "ProposalContent",
+            "type": "object"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "expected_revision",
+          "content",
+          "idempotency_key",
+          "client_id",
+          "client_type",
+          "client_name"
+        ],
+        "title": "comms5_revise_specificationArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_prepare_proposal_for_decision",
+      "title": "Present exact proposal revision for Steward decision",
+      "description": "Move the exact current proposal revision through READY_FOR_REVIEW to READY_FOR_STEWARD_DECISION. Requires authenticated Steward Comms5 transport, explicit confirmation, expected revision, and exact digest. This records no approval and creates no objective or work.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "expected_content_sha256": {
+            "title": "Expected Content Sha256",
+            "type": "string"
+          },
+          "explicit_steward_confirmation": {
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "expected_revision",
+          "expected_content_sha256",
+          "explicit_steward_confirmation",
+          "idempotency_key",
+          "client_id",
+          "client_type",
+          "client_name"
+        ],
+        "title": "comms5_prepare_proposal_for_decisionArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
       "name": "reasoning_exchange_list_requests",
       "description": "List bounded durable advisory requests routed to a provider for authenticated Steward review. Returns the exact request/correlation and immutable review subject when present.",
       "inputSchema": {
@@ -2073,6 +2299,31 @@
           "description": "Store a bounded authoritative specification reference; an optional typed formation_contract enables later Steward-approved Grace formation. read_only is inspection-only; bounded_write permits only the contract's explicitly bounded engineering write."
         },
         {
+          "name": "revise_specification",
+          "authorization": "DRAFT_WRITE",
+          "required": [
+            "proposal_id",
+            "expected_revision",
+            "content",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Create one audited successor revision of the exact current DRAFT specification. Does not approve or promote it."
+        },
+        {
+          "name": "prepare_proposal_for_decision",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "proposal_id",
+            "expected_revision",
+            "expected_content_sha256",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Present one exact, digest-bound current proposal revision for explicit Steward decision. Records no approval or work authorization."
+        },
+        {
           "name": "seed_status",
           "authorization": "READ_ONLY",
           "required": [
@@ -2379,6 +2630,40 @@
         "objective_revision": 2,
         "explicit_steward_confirmation": true,
         "idempotency_key": "grace-autonomy-luna-r2-20261023"
+      },
+      "revise_specification": {
+        "proposal_id": "proposal:00000000-0000-4000-8000-000000000001",
+        "expected_revision": 1,
+        "content": {
+          "title": "Revised bounded specification",
+          "summary": "Updated summary",
+          "objective": "One bounded objective",
+          "scope": "Exact scope",
+          "proposed_approach": "Use existing governed lifecycle",
+          "constraints": [
+            "No execution authority"
+          ],
+          "acceptance_criteria": [
+            "Exact pass condition"
+          ],
+          "tags": [
+            "comms5"
+          ]
+        },
+        "idempotency_key": "example-revision-1",
+        "client_id": "example-agent",
+        "client_type": "cli",
+        "client_name": "Example CLI"
+      },
+      "prepare_proposal_for_decision": {
+        "proposal_id": "proposal:00000000-0000-4000-8000-000000000001",
+        "expected_revision": 1,
+        "expected_content_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "explicit_steward_confirmation": true,
+        "idempotency_key": "example-ready-1",
+        "client_id": "example-agent",
+        "client_type": "cli",
+        "client_name": "Example CLI"
       }
     },
     "describe:contract_info": {
@@ -2628,6 +2913,37 @@
         "authenticated Steward transport"
       ],
       "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution."
+    },
+    "describe:revise_specification": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "revise_specification",
+      "authorization": "DRAFT_WRITE",
+      "required": [
+        "proposal_id",
+        "expected_revision",
+        "content",
+        "idempotency_key",
+        "client context"
+      ],
+      "description": "Create one audited successor revision of the exact current DRAFT specification. Does not approve, promote, create an objective, or authorize work.",
+      "response": "bounded proposal metadata including revision and digest; protected payloads are omitted",
+      "idempotency": "Stable idempotency_key is required; same key and content safely reuses its result."
+    },
+    "describe:prepare_proposal_for_decision": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "prepare_proposal_for_decision",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "proposal_id",
+        "expected_revision",
+        "expected_content_sha256",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "client context"
+      ],
+      "description": "Advance the exact current DRAFT revision to READY_FOR_STEWARD_DECISION through the existing audited state machine. Does not approve, promote, or queue work.",
+      "response": "bounded proposal metadata including revision and digest; protected payloads are omitted",
+      "idempotency": "Stable idempotency_key is required; same key is safe to replay."
     }
   }
 }
