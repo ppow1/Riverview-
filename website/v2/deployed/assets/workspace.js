@@ -19,7 +19,7 @@ History: Git and revision/backup manifest
 (() => {
   "use strict";
   const fixtures = window.RIVERVIEW_V2_FIXTURES;
-  const labels = { overview: "Workspace overview", residents: "Residents", work: "Work", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
+  const labels = { overview: "Workspace overview", residents: "Residents", work: "Work", roadmap: "Living Roadmap", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
   const nav = document.getElementById("primary-nav");
   const area = document.getElementById("view-content");
   const title = document.getElementById("page-title");
@@ -97,17 +97,21 @@ History: Git and revision/backup manifest
     const isCommunications = view === "communications";
     const isResources = view === "resources";
     const isWork = view === "work";
+    const isRoadmap = view === "roadmap";
     const isImageGeneration = view === "image-generation";
     const isNotificationSettings = view === "notification-settings";
-    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings;
+    document.querySelector(".welcome-row").hidden = isRoadmap;
+    document.getElementById("snapshot-status").hidden = isRoadmap;
+    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isRoadmap;
     document.getElementById("manual-image-workspace").hidden = !isImageGeneration;
     document.getElementById("grace-workspace").hidden = !isGrace;
     document.getElementById("communications-workspace").hidden = !isCommunications;
     document.getElementById("resource-monitor-workspace").hidden = !isResources;
     document.getElementById("work-monitor-workspace").hidden = !isWork;
     document.getElementById("notification-settings-workspace").hidden = !isNotificationSettings;
+    document.getElementById("living-roadmap-workspace").hidden = !isRoadmap;
     heading.textContent = view === "overview" ? "Resident directory" : isWork ? "Workspace examples" : labels[view] || labels.residents;
-    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings) {
+    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isRoadmap) {
       area.replaceChildren();
       if (view === "overview" || view === "residents") {
         const list = el("div", "list-stack");
@@ -138,6 +142,7 @@ History: Git and revision/backup manifest
     }
     if (isResources) window.RiverviewV2ResourceMonitor?.render();
     if (isWork) window.RiverviewV2WorkMonitor?.render();
+    if (isRoadmap) window.RiverviewV2LivingRoadmap?.render();
     if (isCommunications) window.RiverviewV2Communications?.render();
     if (isNotificationSettings) window.RiverviewV2NotificationSettings?.render();
     document.querySelectorAll(".nav-item").forEach((button) => {

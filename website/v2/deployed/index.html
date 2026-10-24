@@ -38,6 +38,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/resource-monitor.css">
   <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
+  <link rel="stylesheet" href="assets/living-roadmap.css?rev=living-roadmap-20261024">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
   <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
@@ -45,8 +46,11 @@ History: Git and revision/backup manifest
   <script defer src="assets/resource-monitor.js"></script>
   <script defer src="assets/work-evidence-adapter.js?rev=blocker-20261024"></script>
   <script defer src="assets/work-evidence.js?rev=blocker-20261024"></script>
+  <script defer src="assets/living-roadmap-data.js?rev=living-roadmap-20261024"></script>
+  <script defer src="assets/living-roadmap-adapter.js?rev=living-roadmap-20261024"></script>
+  <script defer src="assets/living-roadmap.js?rev=living-roadmap-20261024"></script>
   <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
-  <script defer src="assets/workspace.js"></script>
+  <script defer src="assets/workspace.js?rev=living-roadmap-20261024"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
   <script defer src="assets/grace-chat.js?rev=blocker-20261024"></script>
@@ -65,6 +69,7 @@ History: Git and revision/backup manifest
         <button class="nav-item active" data-view="overview" aria-label="Overview" data-tooltip="Show workspace overview"><span aria-hidden="true">⌂</span><span class="nav-label">Overview</span></button>
         <button class="nav-item" data-view="residents" aria-label="Residents" data-tooltip="Browse resident directory"><span aria-hidden="true">◉</span><span class="nav-label">Residents</span></button>
         <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show institutional work status and workspace examples"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
+        <button class="nav-item" data-view="roadmap" aria-label="Living Roadmap" data-tooltip="Explore workstreams, planning stages, milestones, and current work"><span aria-hidden="true">⌖</span><span class="nav-label">Living Roadmap</span></button>
         <button class="nav-item" data-view="image-generation" aria-label="Manual image generation" data-tooltip="Generate and review images through the registered ComfyUI worker"><span aria-hidden="true">▧</span><span class="nav-label">Image generation</span></button>
         <button class="nav-item" data-view="resources" aria-label="Hardware and AI resources" data-tooltip="Inspect hardware and AI resource telemetry"><span aria-hidden="true">◇</span><span class="nav-label">Hardware &amp; AI</span></button>
         <button class="nav-item" data-view="knowledge" aria-label="Knowledge" data-tooltip="Browse preview knowledge"><span aria-hidden="true">⌕</span><span class="nav-label">Knowledge</span></button>
@@ -102,6 +107,15 @@ History: Git and revision/backup manifest
           </section>
           <div id="view-content"></div>
           </div>
+          <section class="living-roadmap" id="living-roadmap-workspace" aria-labelledby="living-roadmap-title" hidden>
+            <header class="roadmap-header"><div><p class="eyebrow">STEWARD WORKSPACE · PLANNING AND OPERATIONAL EVIDENCE</p><h2 id="living-roadmap-title">Living Roadmap</h2><p>Explore the Grace Autonomy and Website Visualization workstreams, then drill from planning stage into source evidence or authorized current work.</p></div><span id="roadmap-source-state" class="roadmap-source-state" role="status">Current work not checked</span></header>
+            <div class="roadmap-tools"><label>Search roadmap<input id="roadmap-search" type="search" maxlength="120" placeholder="Search workstreams, milestones, tags, or evidence"></label><label>Tag<select id="roadmap-tag"><option value="">All tags</option></select></label><label>Priority<select id="roadmap-priority"><option value="">All priorities</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option><option value="unassigned">Unassigned</option></select></label></div><p class="roadmap-priority-note">P0–P3 are roadmap display priorities derived from current mission/Now/Next/Later order. They are not operational objective fields or execution authority; where the source board uses another scale, its original priority is shown.</p>
+            <section class="roadmap-legend" aria-labelledby="roadmap-legend-title"><h3 id="roadmap-legend-title">Status legend</h3><div id="roadmap-status-legend"></div></section>
+            <section aria-labelledby="roadmap-workstreams-title"><h3 id="roadmap-workstreams-title">Primary workstreams</h3><div id="roadmap-workstreams" class="roadmap-workstreams"></div></section>
+            <section aria-labelledby="roadmap-lifecycle-title"><h3 id="roadmap-lifecycle-title">Planning and execution lifecycle</h3><p class="roadmap-lifecycle-note">Parking Lot preserves an idea. Steward-approved elaboration authorizes discussion and specification only. Design/Specification is not Ready Bench. Ready Bench records committed, sufficiently specified future intent; it does not start execution. Active Work comes from authorized operational records.</p><div id="roadmap-lifecycle" class="roadmap-lifecycle"></div></section>
+            <section aria-labelledby="roadmap-live-title"><div class="roadmap-section-heading"><div><h3 id="roadmap-live-title">Current Riverview objectives</h3><p>Read-only authenticated projection. Workstream assignment and priority are not inferred.</p></div><button id="roadmap-refresh" type="button">Refresh</button></div><p id="roadmap-live-status" role="status" aria-live="polite">Sign in as Steward to read current objective state.</p><div id="roadmap-live-items" class="roadmap-live-items"></div></section>
+            <p class="roadmap-provenance">Planning records link to their source documents. Live status uses the existing protected objective API. Unknown, unavailable, and unintegrated sources are shown explicitly.</p>
+          </section>
           <section class="manual-image" id="manual-image-workspace" aria-labelledby="manual-image-heading" hidden>
             <div class="manual-image-heading"><div><p class="eyebrow">OPERATOR MANUAL MODE</p><h2 id="manual-image-heading">Image generation</h2><p class="muted">Uses the registered ComfyUI worker. Requests are recorded to your authenticated account and are separate from Grace and Engineering work.</p></div><button id="manual-image-refresh" type="button">Refresh history</button></div>
             <p id="manual-image-auth-note" class="manual-image-note" role="status" aria-live="polite">Checking your authenticated Dashboard session…</p>
