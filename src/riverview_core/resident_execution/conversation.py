@@ -2131,7 +2131,7 @@ class ResidentConversationService:
                 not isinstance(context["step_acceptance_criteria"], list) or
                 not context["step_acceptance_criteria"]):
             raise ValueError("durable verifier rejection and exact objective origin are required")
-        if (type(review_generation) is not int or not 1 <= review_generation <= 5 or
+        if (type(review_generation) is not int or not 1 <= review_generation <= 6 or
                 (proposal_origin and review_generation > 1 and
                     (not isinstance(current_authority_evidence, dict) or
                      current_authority_evidence.get("schema") !=
@@ -2228,6 +2228,12 @@ class ResidentConversationService:
                     "from the current artifact is not an authorization failure. The server-derived same-assignment "
                     "rework facts describe whether a bounded retry is available; any proposal is still rechecked "
                     "against the active grant and retry cap before dispatch, then independently verified. "
+                    "For this proposal-origin diagnostic assignment, if the verifier shows only a semantic "
+                    "evidence failure, the read-only runtime evidence supplies the facts needed to correct the "
+                    "same artifact. When same_assignment_rework.available is true, propose that bounded artifact "
+                    "correction instead of requesting new approval; the worker must cite the supplied objective "
+                    "and historical event evidence and must not claim that this artifact-writing attempt itself "
+                    "invoked Grace's model or wrote runtime state. "
                     "If the artifact review status is integrity_check_failed, "
                     "the artifact text was withheld; do not choose OBJECTIVE_SATISFIED. Propose bounded "
                     "rework only when verifier evidence identifies an in-scope correction, otherwise "
@@ -2246,6 +2252,8 @@ class ResidentConversationService:
                     "proposal_reference": proposal_reference,
                     "review_generation": review_generation,
                     "current_authority_evidence": current_authority_evidence,
+                    "verifier_criteria": completion.get("criteria"),
+                    "artifact_contract": artifact.get("artifact_contract", []),
                     "independent_rejection": {key: completion.get(key) for key in (
                         "decision", "verification_id", "attempt_id", "verifier_id",
                         "verifier_revision", "criteria", "evidence_references", "summary",

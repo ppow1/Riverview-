@@ -548,6 +548,7 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(review_payload["current_authority_evidence"]
             ["objective_runtime_evidence"]["objective"]["status"], "WORK_ORDER_CREATED")
         self.assertEqual(review_payload["proposal_reference"], context["proposal_reference"])
+        self.assertEqual(review_payload["verifier_criteria"], context["completion"]["criteria"])
         self.assertEqual(len(self.store.responses), 0)
         self.assertEqual(self.rework_decisions[0][1]["decision"], "REWORK_PROPOSED")
 

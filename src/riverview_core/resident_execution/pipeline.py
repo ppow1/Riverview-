@@ -1917,7 +1917,7 @@ class GraceExecutionPipeline:
                 # Release changes may reopen this authorization stop only for
                 # a small fixed number of reviews. This prevents deployment
                 # churn from becoming an unbounded reasoning loop.
-                if type(prior_generation) is not int or prior_generation not in {1, 2, 3, 4}:
+                if type(prior_generation) is not int or prior_generation not in {1, 2, 3, 4, 5}:
                     continue
                 review_generation = prior_generation + 1
                 reopened_after_release_change = True
@@ -2059,7 +2059,7 @@ class GraceExecutionPipeline:
         if (not isinstance(verification_id, str) or not isinstance(objective_id, str) or
                 not isinstance(assignment_id, str) or not isinstance(criteria, list) or
                 not criteria or type(review_generation) is not int or
-                not 1 <= review_generation <= 5 or decision["decision"] not in {
+                not 1 <= review_generation <= 6 or decision["decision"] not in {
                     "OBJECTIVE_SATISFIED", "REWORK_PROPOSED",
                     "STEWARD_AUTHORIZATION_REQUIRED"} or
                 not isinstance(decision["rationale"], str) or
@@ -2261,7 +2261,7 @@ class GraceExecutionPipeline:
         verification_id = context["completion"].get("verification_id")
         review_generation = context.get("review_generation", 1)
         if (not isinstance(verification_id, str) or not verification_id or
-                type(review_generation) is not int or not 1 <= review_generation <= 5):
+                type(review_generation) is not int or not 1 <= review_generation <= 6):
             raise ValueError("proposal-origin verifier identity is required")
         request_subject = ("riverview:grace-rework-review:" + objective_id + ":" +
             assignment_id + ":" + verification_id)
