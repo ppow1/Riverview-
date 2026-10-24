@@ -1,3 +1,4 @@
+<!-- Document Revision: 1.0.0 -->
 # Riverview V2 Operational Inbox
 
 The Communications view includes a reusable, read-only inbox adapter over the existing authenticated Dashboard projections:

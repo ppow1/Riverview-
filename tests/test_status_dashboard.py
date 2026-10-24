@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.74
+# Revision: 1.0.76
+# Changed: 2026-10-24 UTC | RV-WEB-CI-TEST-SCHEMA-FIX | Install resident-objective migrations in isolated Dashboard PostgreSQL schemas.
 # Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify dashboard presents correlated blocked-objective recovery guidance without authorizing retry.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify idle worker health requires matching active engineering registration.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-C4-MERGE-20261023 | Preserve ComfyUI artifact, telemetry, cancellation and Snapshot archive acceptance.
@@ -1557,6 +1558,8 @@ class DashboardPostgresTests(unittest.TestCase):
         apply_migrations(DSN, schema=self.schema, migrations_dir=self.core / "assignment_scheduler/migrations")
         apply_migrations(DSN, schema=self.schema, migrations_dir=self.core / "worker_adapter/migrations")
         apply_migrations(DSN, schema=self.schema, migrations_dir=self.core / "cme/migrations")
+        apply_migrations(DSN, schema=self.schema,
+                         migrations_dir=self.core / "resident_execution/migrations")
         self.admin.execute("SELECT set_config('search_path', %s, false)", (self.schema,))
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         self.monitor = CMEPostgresMonitor(DSN, schema=self.schema, stall_after_seconds=2,
@@ -1612,13 +1615,8 @@ class DashboardPostgresTests(unittest.TestCase):
     def test_objective_progress_projection_filters_submitter_and_omits_request_content(self):
         from uuid import uuid4
 
-        # Install only the authoritative objective/conversation table definitions
-        # in this disposable schema; the surrounding dashboard fixture owns all
-        # assignment and verifier tables used by the projection joins.
-        self.admin.execute((self.core / "resident_execution/migrations/0001_grace_objectives.sql")
-                           .read_text(encoding="utf-8"))
-        self.admin.execute((self.core / "resident_execution/migrations/0003_resident_conversation.sql")
-                           .read_text(encoding="utf-8"))
+        # The class fixture installs the authoritative resident schema chain in
+        # this disposable schema, alongside the Dashboard tables used by joins.
         owner = "principal:viewer-one"
         other = "principal:viewer-two"
         own_conversation = str(uuid4())
@@ -1747,11 +1745,6 @@ class DashboardPostgresTests(unittest.TestCase):
         capability = "engineering.comfyui-image.v1"
         now = datetime.now(timezone.utc)
         with self.admin.cursor() as cur:
-            cur.execute("""CREATE TABLE grace_execution_health (
-                service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
-                worker_capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
-                last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
-                last_error_type TEXT, cycles_completed BIGINT NOT NULL)""")
             cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
                 "VALUES (%s,%s,%s::jsonb,'work-order:engineering')",
                 (worker_id, b"g" * 32, json.dumps([capability])))
@@ -1789,11 +1782,6 @@ class DashboardPostgresTests(unittest.TestCase):
         )
         runtime_capabilities = []
         with self.admin.cursor() as cur:
-            cur.execute("""CREATE TABLE grace_execution_health (
-                service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
-                worker_capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
-                last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
-                last_error_type TEXT, cycles_completed BIGINT NOT NULL)""")
             for worker_id, registered, scope in cases:
                 cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
                     "VALUES (%s,%s,%s::jsonb,%s)",

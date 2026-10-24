@@ -1,0 +1,26 @@
+# Riverview controlled user unit
+# Component: CHATGPT-DOORBELL
+# Purpose: Keep the designated ChatGPT browser on the persistent admin1 profile
+# Authority: Browser-only runtime; does not claim mailbox work or send wakes
+[Unit]
+Description=Riverview ChatGPT Doorbell browser
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=DISPLAY
+
+[Service]
+Type=simple
+Environment=HOME=/home/admin1
+Environment=XDG_RUNTIME_DIR=%t
+Environment=RIVERVIEW_DOORBELL_CONFIG=/home/admin1/.config/riverview/doorbell.json
+Environment=RIVERVIEW_BROWSER_PROFILE=/home/admin1/.local/share/riverview/browser/profile
+Environment=RIVERVIEW_RUNTIME_ROOT=/home/admin1/.local/state/riverview
+ExecStart=/usr/bin/node /opt/riverview-grace-execution/current/tools/riverview_browser_runtime.cjs --serve
+Restart=on-failure
+RestartSec=3s
+KillMode=control-group
+TimeoutStopSec=20s
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target
