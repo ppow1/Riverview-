@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Revision: 1.0.0
 set -euo pipefail
 
 repo=${1:-$(pwd)}

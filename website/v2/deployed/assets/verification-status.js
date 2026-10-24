@@ -1,4 +1,5 @@
-/* Riverview V2 verification summary; reads the LAN-only redacted acceptance projection. */
+// Revision: 1.0.0
+/* V2 summary reads the LAN-only redacted acceptance projection. */
 (() => {
   "use strict";
   const node = document.getElementById("website-verification-state");

@@ -1,3 +1,7 @@
+"""Focused acceptance-system tests.
+
+Revision: 1.0.0
+"""
 import importlib.util
 from pathlib import Path
 import tempfile

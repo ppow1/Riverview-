@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Run authenticated acceptance against the currently served Riverview V2 release."""
+"""Run authenticated acceptance against the currently served Riverview V2 release.
+
+Revision: 1.0.0
+"""
 from __future__ import annotations
 
 import hashlib, json, os, socket, subprocess, sys, tempfile, time, urllib.error, urllib.request

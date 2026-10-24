@@ -1,5 +1,7 @@
 # Riverview authenticated website acceptance
 
+Document Revision: 1.0.0
+
 ## Personas and authority
 
 `scripts/seed_website_test_personas.py --apply` creates reserved `@riverview.invalid` accounts using Riverview's normal password hash and `viewer`, `operator`, or `steward` roles. `engineering` is a distinct test identity with the existing `operator` website role; it receives no InstitutionalAuthority grant. The test Steward is not linked to `steward:camrui`. The script runs as root, writes generated passwords once to `/etc/riverview/website-acceptance/personas.json` mode 0600, and refuses to reset or adopt an existing unmarked account. Account creation is audited. Do not print or copy the credential file.

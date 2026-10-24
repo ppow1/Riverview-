@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Check a candidate static bundle is complete before the Nginx alias is switched."""
+"""Check a candidate static bundle is complete before the Nginx alias is switched.
+
+Revision: 1.0.0
+"""
 from html.parser import HTMLParser
 from pathlib import Path
 import sys

@@ -4,6 +4,7 @@
 Root-only and idempotent. Credentials are generated once into a protected file;
 existing accounts are never reset. Test Steward is deliberately not linked to an
 institutional principal and therefore cannot operate Grace or engineering authority.
+Revision: 1.0.0
 """
 from __future__ import annotations
 
