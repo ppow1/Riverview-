@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:resident-reasoning:runtime",
-  "graph_revision": "1.2.12",
+  "graph_revision": "1.2.14",
   "component_id": "RESIDENT-REASONING",
   "workflow_id": "resident.reasoning.v1",
   "diagram_order": 13,
@@ -596,18 +596,77 @@
     },
     {
       "id": "rv:resident-reasoning:runtime:task-escalation-recovery",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "recovery",
-      "label": "Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness",
+      "label": "Keep the original assignment durable; retry only within the active exact grant and budget, using the provider-observed 512-token output ceiling and one idempotent bounded fallback",
       "source_references": [
-        "src/riverview_core/reasoning_escalation.py"
+        "src/riverview_core/reasoning_escalation.py",
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/direct_luna.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_REASONING.md",
-        "docs/components/RESIDENT_REASONING_COOKBOOK.md"
+        "docs/components/RESIDENT_REASONING_COOKBOOK.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
       ],
       "verification_evidence": [
-        "tests/test_reasoning_escalation.py"
+        "tests/test_reasoning_escalation.py",
+        "tests/test_supervisory_evaluation_unit.py",
+        "tests/test_direct_luna_adapter_unit.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:supervisory-luna-exchange",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Submit only authorized CME recovery or performance evaluation to the existing durable Luna exchange with the 512-token output cap",
+      "source_references": [
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/direct_luna.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md"
+      ],
+      "verification_evidence": [
+        "tests/test_supervisory_evaluation_unit.py",
+        "tests/test_direct_luna_adapter_unit.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:supervisory-luna-response-invalid",
+      "node_revision": "1.0.0",
+      "type": "failure",
+      "label": "Persist a sanitized provider or structured-response failure without treating it as a grade, recovery decision, or authorization",
+      "source_references": [
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/direct_luna.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_supervisory_evaluation_unit.py",
+        "tests/test_direct_luna_adapter_unit.py"
+      ]
+    },
+    {
+      "id": "rv:resident-reasoning:runtime:supervisory-luna-bounded-retry",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Apply only the durable output-limit retry allowed for the recorded failure; stop after the compact 512-token fallback or when existing grant and budget checks reject it",
+      "source_references": [
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/direct_luna.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_supervisory_evaluation_unit.py",
+        "tests/test_direct_luna_adapter_unit.py"
       ]
     },
     {
@@ -1554,6 +1613,30 @@
       "to": "rv:resident-reasoning:runtime:exchange-expired",
       "type": "diagnostic_branch",
       "label": "deadline elapsed before response commit; MCP returns expired/non-success without digest"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:supervisory-luna-exchange",
+      "to": "rv:resident-reasoning:runtime:exchange-outbox",
+      "type": "runtime_transition",
+      "label": "Authorized supervisory request enters the existing durable exchange"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:supervisory-luna-exchange",
+      "to": "rv:resident-reasoning:runtime:supervisory-luna-response-invalid",
+      "type": "diagnostic_branch",
+      "label": "Provider submission fails or bounded structured response is invalid"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:supervisory-luna-response-invalid",
+      "to": "rv:resident-reasoning:runtime:supervisory-luna-bounded-retry",
+      "type": "recovery_route",
+      "label": "One idempotent 512-token fallback may run inside existing authority and budget"
+    },
+    {
+      "from": "rv:resident-reasoning:runtime:supervisory-luna-bounded-retry",
+      "to": "rv:resident-reasoning:runtime:exchange-outbox",
+      "type": "runtime_transition",
+      "label": "Persist the bounded retry in the same exchange"
     }
   ]
 }

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.45
+# Revision: 1.0.46
+# Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Bound Luna supervisory output to the verified 512-token envelope and permit one durable low-output fallback after the bounded retry fails at transport.
 # Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Permit one re-request only after durable JSON truncation at the former 512-token output cap.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-DIAGNOSTICS-20261023 | Record criterion-index mismatch diagnostics without retaining generated proposal text.
@@ -1454,6 +1455,9 @@ class GraceExecutionService:
         elif diagnostic_attempt == 3:
             original_id = str(uuid5(NAMESPACE_URL,
                 original_id + ":authorized-amendment-diagnostic-1"))
+        elif diagnostic_attempt == 4:
+            original_id = str(uuid5(NAMESPACE_URL,
+                original_id + ":bounded-output-fallback-1"))
         source = {"objective_id": objective_id, "objective_revision": objective["revision"],
             "proposal_id": reference["proposal_id"], "proposal_revision": reference["revision"],
             "assignment_id": assignment_id, "step_id": context["step_id"],
@@ -1474,7 +1478,7 @@ class GraceExecutionService:
         request = ReasoningRequest(request_id=original_id, office_id=reasoner.office_id,
             assignment_id=objective_id, assignment_revision=str(objective["revision"]),
             binding_revision=binding_revision, implementation_revision=implementation_revision,
-            trigger="cme_diagnostic_recovery", token_budget=4096, assignment=source,
+            trigger="cme_diagnostic_recovery", token_budget=512, assignment=source,
             verified_knowledge=(), prior_plan=None,
             external_reasoning_targets=reasoner.external_reasoning_targets,
             correlation_id=original_id)
@@ -1485,7 +1489,7 @@ class GraceExecutionService:
             escalation_source += ":authorized-amendment-diagnostic-1"
         escalation_id = str(uuid5(NAMESPACE_URL, escalation_source))
         envelope = EscalationRequest.create(request, reason="capability_gap",
-            target_provider_id="gpt-6-luna", max_tokens=4096, timeout_seconds=45,
+            target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
             escalation_id=escalation_id)
         return self.request_external_reasoning(envelope, request,
             idempotency_key=idempotency_key,
@@ -1534,10 +1538,10 @@ class GraceExecutionService:
         payload = amendment.get("payload") if isinstance(amendment, Mapping) else None
         allocations = payload.get("additional_request_allocations", {}) \
             if isinstance(payload, dict) else {}
-        if (not isinstance(allocations, dict) or
-                allocations.get("cme_diagnostic_recovery") != 1 or amended_cme_used >= 1):
-            return None, None
-        return 3, base_key + ":authorized-amendment-diagnostic-1"
+        if (isinstance(allocations, dict) and
+                allocations.get("cme_diagnostic_recovery") == 1 and amended_cme_used < 1):
+            return 3, base_key + ":authorized-amendment-diagnostic-1"
+        return 4, base_key + ":bounded-output-fallback-1"
 
     def queue_performance_evaluation(self):
         """Queue one idempotent evaluation for the newest unevaluated durable result."""
@@ -1575,12 +1579,14 @@ class GraceExecutionService:
             prior_evaluation = exchange.request_for_idempotency(evaluation_key)
             retry_key = evaluation_key + ":bounded-output-retry-1"
             prior_retry = exchange.request_for_idempotency(retry_key) if prior_evaluation else None
+            retry2_key = evaluation_key + ":bounded-output-retry-2"
+            prior_retry2 = exchange.request_for_idempotency(retry2_key) if prior_retry else None
             blocked_prior_ids = {str((event.get("payload") or {}).get("request_id"))
                 for event in events if event["event_type"] ==
                     "resident.performance.evaluation_blocked" and
                     (event.get("payload") or {}).get("reason_code") == "JSONDecodeError"}
             selected_key = self._select_performance_evaluation_request(
-                trigger_id, prior_evaluation, prior_retry, blocked_prior_ids)
+                trigger_id, prior_evaluation, prior_retry, blocked_prior_ids, prior_retry2)
             if selected_key is None:
                 continue
             office = reasoner.registry.authorize_office_state(reasoner._credential, reasoner.office_id)
@@ -1622,12 +1628,12 @@ class GraceExecutionService:
                 assignment_id=objective_id, assignment_revision=str(objective["revision"]),
                 binding_revision=office["binding_revision"],
                 implementation_revision=office["implementation_revision"],
-                trigger="performance_evaluation", token_budget=2048, assignment=assignment,
+                trigger="performance_evaluation", token_budget=512, assignment=assignment,
                 verified_knowledge=(), prior_plan=None,
                 external_reasoning_targets=reasoner.external_reasoning_targets,
                 correlation_id=request_id)
             escalation = EscalationRequest.create(request, reason="low_confidence",
-                target_provider_id="gpt-6-luna", max_tokens=2048, timeout_seconds=45,
+                target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
                 escalation_id=request_id)
             return self.request_external_reasoning(escalation, request,
                 idempotency_key=selected_key,
@@ -1639,8 +1645,8 @@ class GraceExecutionService:
 
     @staticmethod
     def _select_performance_evaluation_request(trigger_id, prior_request,
-            prior_retry, blocked_prior_ids):
-        """Allow one exact retry when the old evaluation was truncated by its 512-token cap."""
+            prior_retry, blocked_prior_ids, prior_retry2=None):
+        """Allow one corrected low-output retry after truncation and one transport failure."""
         base_key = "performance-evaluation:" + str(trigger_id)
         if prior_request is None:
             return base_key
@@ -1648,9 +1654,17 @@ class GraceExecutionService:
         max_tokens = payload.get("max_tokens") if isinstance(payload, dict) else None
         if (prior_request.get("delivery_state") != "grace_consumed" or
                 prior_request.get("request_id") not in blocked_prior_ids or
-                type(max_tokens) is not int or max_tokens > 512 or prior_retry is not None):
+                type(max_tokens) is not int or max_tokens > 512):
             return None
-        return base_key + ":bounded-output-retry-1"
+        if prior_retry is None:
+            return base_key + ":bounded-output-retry-1"
+        retry_payload = prior_retry.get("request_payload")
+        retry_tokens = retry_payload.get("max_tokens") if isinstance(retry_payload, dict) else None
+        if (prior_retry2 is None and prior_retry.get("delivery_state") == "failed" and
+                prior_retry.get("last_error_code") == "provider_response_submission_failed" and
+                type(retry_tokens) is int and retry_tokens > 512):
+            return base_key + ":bounded-output-retry-2"
+        return None
 
     @staticmethod
     def _performance_evaluation_evidence(events):

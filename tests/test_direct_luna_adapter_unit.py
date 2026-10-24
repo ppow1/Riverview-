@@ -1,3 +1,14 @@
+# RIVERVIEW~ CONTROLLED TEST SOURCE
+# File: tests/test_direct_luna_adapter_unit.py
+# Component: RESIDENT-ORCHESTRATION
+# Revision: 1.0.0
+# Purpose: Verify bounded Luna adapter requests and sanitized exchange outcomes
+# Execution Model: Offline unit tests; provider calls are mocked
+# Observability: unittest assertions and exit status
+# Dependencies: direct_luna adapter and durable exchange contract
+# Authority: Tests only; no credentials or live external requests
+# Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Assert qualified 512-token limits
+# History: Git and .riverview-backups/manifest.jsonl
 """Offline API-response parsing and exchange-submission tests; no provider calls."""
 import hashlib
 import io
@@ -14,7 +25,7 @@ from riverview_core.resident_execution.external_reasoning import DurableExternal
 class _Exchange:
     RESPONSE_SCHEMA = DurableExternalReasoningExchange.RESPONSE_SCHEMA
 
-    def __init__(self, *, request_type="cme_diagnostic_recovery", max_tokens=4096,
+    def __init__(self, *, request_type="cme_diagnostic_recovery", max_tokens=512,
                  submit_error=None):
         self.request_id, self.correlation_id = uuid4(), uuid4()
         self.row = {"request_id": self.request_id, "correlation_id": self.correlation_id,
@@ -98,7 +109,7 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
         self.assertEqual(args["idempotency_key"], "luna:" + str(exchange.request_id))
         self.assertEqual(args["response"]["advisory"], advisory)
         request_body = json.loads(captured["request"].data)
-        self.assertEqual(request_body["max_output_tokens"], 4096)
+        self.assertEqual(request_body["max_output_tokens"], 512)
         self.assertEqual(request_body["text"]["format"]["type"], "json_object")
         self.assertEqual(len(exchange.failures), 0)
 
@@ -135,7 +146,7 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
         self.assertNotIn("private provider error body", json.dumps(outcome))
 
     def test_http_failure_extracts_only_allowlisted_provider_error_fields(self):
-        exchange = _Exchange(request_type="performance_evaluation", max_tokens=2048)
+        exchange = _Exchange(request_type="performance_evaluation", max_tokens=512)
         error_body = json.dumps({"error": {"type": "invalid_request_error",
             "code": "unsupported_value", "param": "max_output_tokens",
             "message": "sensitive echoed prompt text"}}).encode()
@@ -150,8 +161,8 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
         self.assertNotIn("sensitive echoed prompt text", json.dumps(outcome))
 
     def test_output_allowances_are_per_request_type_and_sent_to_responses(self):
-        for request_type, limit in (("cme_diagnostic_recovery", 4096),
-                                    ("performance_evaluation", 2048)):
+        for request_type, limit in (("cme_diagnostic_recovery", 512),
+                                    ("performance_evaluation", 512)):
             with self.subTest(request_type=request_type):
                 exchange = _Exchange(request_type=request_type, max_tokens=limit)
                 outcome, captured = self._call(exchange, {"id": "resp_fixture_limit",
@@ -165,25 +176,25 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
                 self.assertEqual(exchange.begin_args["reserved_cost"], 0.05)
 
     def test_over_limit_or_incomplete_response_is_never_submitted(self):
-        oversized = _Exchange(request_type="performance_evaluation", max_tokens=2049)
+        oversized = _Exchange(request_type="performance_evaluation", max_tokens=513)
         outcome, _captured = self._call(oversized, {"id": "unused", "model": "gpt-6-luna",
             "status": "completed", "output_text": "{}", "usage": {}})
         self.assertEqual(outcome["status"], "REQUEST_TOKEN_BUDGET_INVALID")
         self.assertEqual(oversized.submitted, [])
 
-        incomplete = _Exchange(request_type="performance_evaluation", max_tokens=2048)
+        incomplete = _Exchange(request_type="performance_evaluation", max_tokens=512)
         outcome, _captured = self._call(incomplete, {"id": "resp_fixture_incomplete",
             "model": "gpt-6-luna", "status": "incomplete",
             "incomplete_details": {"reason": "max_output_tokens"},
             "output_text": '{"schema":"rv.grace.performance-evaluation.v1"',
-            "usage": {"input_tokens": 100, "output_tokens": 2048,
-                "output_tokens_details": {"reasoning_tokens": 700}}})
+            "usage": {"input_tokens": 100, "output_tokens": 512,
+                "output_tokens_details": {"reasoning_tokens": 300}}})
         self.assertEqual(outcome["status"], "INCOMPLETE_RESPONSE")
         self.assertEqual(outcome["incomplete_reason"], "max_output_tokens")
         self.assertEqual(incomplete.submitted, [])
         self.assertEqual(len(incomplete.failures), 1)
         self.assertEqual(incomplete.finished[0]["status"], "failed")
-        self.assertEqual(incomplete.finished[0]["usage"]["output_tokens"], 2048)
+        self.assertEqual(incomplete.finished[0]["usage"]["output_tokens"], 512)
 
 
 if __name__ == "__main__":

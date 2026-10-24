@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.19
+File Revision: 1.0.21
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -49,7 +49,10 @@ flowchart LR
     g_rv_resident_reasoning_runtime_task_escalation_authority_gate_efa7f87a{"Require exact resident.reasoning.escalate grant for the selected provider before exchange persistence"}
     g_rv_resident_reasoning_runtime_task_escalation_result_cd1b038d["Persist only a versioned advisory whose correlation, context fingerprint, provider identity, claim fence and response schema match"]
     g_rv_resident_reasoning_runtime_task_escalation_failure_96662c07[["Record denied, unavailable, expired, lease, retry, malformed-response and stale-context diagnostics without approving or dispatching work"]]
-    g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090["Keep the original assignment durable; retry only after explicit regrounding and current authority/provider readiness"]
+    g_rv_resident_reasoning_runtime_task_escalation_recovery_d0da7090["Keep the original assignment durable; retry only within the active exact grant and budget, using the provider-observed 512-token output ceiling and one idempotent bounded fallback"]
+    g_rv_resident_reasoning_runtime_supervisory_luna_exchange_36f44d81["Submit only authorized CME recovery or performance evaluation to the existing durable Luna exchange with the 512-token output cap"]
+    g_rv_resident_reasoning_runtime_supervisory_luna_response_invalid_94551e48[["Persist a sanitized provider or structured-response failure without treating it as a grade, recovery decision, or authorization"]]
+    g_rv_resident_reasoning_runtime_supervisory_luna_bounded_retry_0bb6dc16["Apply only the durable output-limit retry allowed for the recorded failure; stop after the compact 512-token fallback or when existing grant and budget checks reject it"]
     g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762["Commit authorized request, context digest, origin and finite deadline before delivery; preserve stable idempotency and correlation IDs"]
     g_rv_resident_reasoning_runtime_exchange_transport_readiness_c71cc220{"OAuth resource-server and Streamable HTTP adapter pass isolated verification; official Tunnel is suitable, but Camrui service, Platform tunnel, OAuth issuer and ChatGPT exchange are not commissioned"}
     g_rv_resident_reasoning_runtime_exchange_transport_blocked_482fc90e[["Preserve awaiting_delivery while production migration, issuer, public route or external-client verification remains incomplete; never fall through to historical Comms5."]]
@@ -158,5 +161,9 @@ flowchart LR
   g_rv_resident_reasoning_runtime_doorbell_durable_receipt_3c9db306 -->|recovery_route: receipt persistence fails; request can recover only through lease expiry| g_rv_resident_reasoning_runtime_doorbell_lease_recovery_e2646f65
   g_rv_resident_reasoning_runtime_doorbell_lease_recovery_e2646f65 -->|recovery_route: subsequent cycle observes only work eligible under durable exchange policy| g_rv_resident_reasoning_runtime_doorbell_owner_loop_poll_2296c492
   g_rv_resident_reasoning_runtime_exchange_response_gate_87bf6800 -->|diagnostic_branch: deadline elapsed before response commit; MCP returns expired/non-success without digest| g_rv_resident_reasoning_runtime_exchange_expired_124bcfc4
+  g_rv_resident_reasoning_runtime_supervisory_luna_exchange_36f44d81 -->|Authorized supervisory request enters the existing durable exchange| g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762
+  g_rv_resident_reasoning_runtime_supervisory_luna_exchange_36f44d81 -->|diagnostic_branch: Provider submission fails or bounded structured response is invalid| g_rv_resident_reasoning_runtime_supervisory_luna_response_invalid_94551e48
+  g_rv_resident_reasoning_runtime_supervisory_luna_response_invalid_94551e48 -->|recovery_route: One idempotent 512-token fallback may run inside existing authority and budget| g_rv_resident_reasoning_runtime_supervisory_luna_bounded_retry_0bb6dc16
+  g_rv_resident_reasoning_runtime_supervisory_luna_bounded_retry_0bb6dc16 -->|Persist the bounded retry in the same exchange| g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

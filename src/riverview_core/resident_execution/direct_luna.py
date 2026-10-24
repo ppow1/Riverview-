@@ -1,4 +1,17 @@
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: src/riverview_core/resident_execution/direct_luna.py
+# Component: RESIDENT-ORCHESTRATION
+# Revision: 1.0.0
+# Purpose: Submit authorized bounded Luna requests through Grace's durable exchange
+# Execution Model: Request-driven adapter
+# Observability: Sanitized durable exchange outcomes; no raw provider error body
+# Dependencies: Python urllib; Grace external reasoning exchange
+# Authority: Fixed provider and request types; caller enforces exact grant and budget
+# Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Bound supervisory output and compact evaluation schema
+# Tests: tests/test_direct_luna_adapter_unit.py
+# History: Git and .riverview-backups/manifest.jsonl
 """Single-call GPT-6 Luna transport over Grace's existing durable exchange."""
+# Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Match the provider-verified 512-token supervisory ceiling and constrain evaluation output to the durable schema.
 # Changed: 2026-10-24 UTC | RV-LUNA-SAFE-HTTP-DIAGNOSTICS | Persist allowlisted provider error identifiers without retaining raw error bodies.
 from __future__ import annotations
 
@@ -18,8 +31,8 @@ ADDITIONAL_LIMIT = round(TOTAL_CREDIT - BASELINE_TOTAL, 8)
 RESERVED_CALL_COST = 0.01
 MAX_OUTPUT_TOKENS = 4096
 REQUEST_TYPE_OUTPUT_LIMITS = {
-    "cme_diagnostic_recovery": 4096,
-    "performance_evaluation": 2048,
+    "cme_diagnostic_recovery": 512,
+    "performance_evaluation": 512,
     "objective_reasoning": 512,
     "proposal_review": 512,
 }
@@ -126,13 +139,12 @@ def process_one(exchange):
         "that this response grants authority, approves work, or bypasses independent verification.")
     if request_type == "performance_evaluation":
         instructions = (
-            "Evaluate only the supplied Grace execution evidence. Return one JSON object with schema "
-            "rv.grace.performance-evaluation.v1; grade (integer 1-5); grade_explanation (brief evidence-based "
-            "string); rubric (reasoning, authorization, execution, verification, each integer 1-5); "
-            "what_went_well, gaps, actionable_feedback (each an array of concise strings); and "
-            "authority_promotion_recommendation='Steward_decision_required'. Include specific guidance Grace "
-            "can apply to later work. Keep every field complete and concise. "
-            "Do not infer success without evidence and do not grant or recommend automatic authority changes.")
+            "Evaluate only supplied Grace evidence. Return exactly one complete JSON object using schema "
+            "rv.grace.performance-evaluation.v1 with grade 1-5, grade_explanation, rubric scores for "
+            "reasoning/authorization/execution/verification (each 1-5), arrays what_went_well, gaps, "
+            "actionable_feedback, and authority_promotion_recommendation='Steward_decision_required'. "
+            "Use at most one short item in each array and keep all text concise so JSON fits the output limit. "
+            "No markdown, no extra fields, and no authority change. Grade only evidenced behavior.")
     body_data = {"model": MODEL_ID, "store": False, "max_output_tokens": max_output_tokens,
         "reasoning": {"effort": "low"}, "instructions": (
             instructions if request_type in {"cme_diagnostic_recovery", "performance_evaluation"}

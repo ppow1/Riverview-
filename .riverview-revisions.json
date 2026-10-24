@@ -25,7 +25,7 @@
       "size_bytes": 1296735
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.318"
+      "revision": "1.1.320"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -2903,7 +2903,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2921,7 +2921,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -7847,9 +7847,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.30",
-      "sha256": "f8f3fe7cd6aae0996b8d0a475a1be679655479630d8a2486bb8eaa2db816d27d",
-      "size_bytes": 766537
+      "revision": "1.1.32",
+      "sha256": "34322bcffe0cb0f15054d27e3500d2b9cdc95f88cefd9a568a4e12b7daf1be16",
+      "size_bytes": 770838
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7913,9 +7913,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.27",
-      "sha256": "16882fcbc5b27bbe2be626677372054da1d2e29be468b71f1639c20674334e8a",
-      "size_bytes": 62906
+      "revision": "1.0.29",
+      "sha256": "cef4170e41efd12dc40ed2c3a99553cd468afd0a368e12c3c83dbb834ee6465e",
+      "size_bytes": 66673
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
@@ -9562,6 +9562,6 @@
       "size_bytes": 1044
     }
   },
-  "manifest_revision": "1.1.318",
+  "manifest_revision": "1.1.320",
   "updated_at": "2026-10-23T02:19:41Z"
 }

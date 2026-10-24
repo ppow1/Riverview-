@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.29
+File Revision: 1.1.31
+Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Document observed Luna output limits, same-scope retry bounds, and spend verification
 Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001-DOC-CORRECTION | Make persisted accepted verification, not conversational output, the objective completion authority.
 Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Document durable terminal completion recovery and distinguish post-completion conversation feedback.
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Diagnose scheduler ordering, split lifecycle criteria, and distinguish verifier rejection from Grace acceptance
@@ -61,6 +62,38 @@ psql "$RIVERVIEW_READONLY_DSN" -X -v ON_ERROR_STOP=1 -c "SELECT service_id,statu
 ```
 
 Expected: `ActiveState=active`, `SubState=running`, a recent `last_heartbeat_at`, and `status=healthy`. The observed heartbeat is stale after the configured dashboard threshold; no row means `not_initialized`, not healthy. Logs contain failure classes and durable IDs only, never bearer credentials, objective request bodies, or artifact contents.
+
+## Luna supervisory evaluation and recovery
+
+Use authenticated Comms5 supervisory status to read the active grant, exact
+function/provider scope, request count, settled spend, unresolved cost, and
+available balance before retrying. CME recovery and performance evaluation
+share only their explicitly authorized Luna scope. A provider response remains
+advisory and cannot change objective scope, authorize work, or replace
+independent verification.
+
+The direct adapter's currently qualified output limit is 512 tokens for these
+two structured request types. Larger 2048/4096-token requests returned provider
+HTTP 400, while a 512-token request was accepted; the successful 512-token
+performance response was truncated, so its retry uses compact schema
+instructions. Retry selection is durable and idempotent: performance evaluation
+gets one retry after a consumed JSON truncation, then one 512-token fallback if
+that prior retry used more than 512 output tokens and failed at the provider.
+A failed retry already at 512 tokens is terminal for that evaluation. CME
+recovery may get one 512-token fallback after its bounded provider retries fail. Requests remain on the same
+objective/correlation and active exact grant, with existing per-request and
+total-budget checks. No retry is allowed after a valid result, if an equivalent
+retry exists, after scope changes, or when authority/budget checks reject it.
+
+Verify successful evaluation through durable
+`resident.performance.evaluation_recorded` and
+`resident.performance.feedback_consumed` events, then confirm the authorized
+Steward projection exposes the grade and feedback. An HTTP success, delivered
+response, or Grace conversational claim is not a grade. For recovery, require
+the persisted advisory-consumption event and retain the ordinary independent
+verifier gate on the same assignment. Treat unknown provider errors and
+unresolved API cost conservatively; do not infer zero spend from a failed
+response without usage data.
 
 ## Request one verified-result rereview generation
 

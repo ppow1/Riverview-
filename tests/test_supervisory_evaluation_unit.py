@@ -1,3 +1,14 @@
+# RIVERVIEW~ CONTROLLED TEST SOURCE
+# File: tests/test_supervisory_evaluation_unit.py
+# Component: RESIDENT-ORCHESTRATION
+# Revision: 1.0.1
+# Purpose: Verify durable supervisory grading and bounded Luna retry selection
+# Execution Model: Offline unit tests
+# Observability: unittest assertions and exit status
+# Dependencies: Grace execution service
+# Authority: Tests only; no live supervisory requests
+# Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Assert bounded fallback and retry idempotency
+# History: Git and .riverview-backups/manifest.jsonl
 """Offline contract tests for grading completed work and diagnostic escalations."""
 import json
 import unittest
@@ -35,8 +46,10 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             (2, "cme-recovery:" + event_id + ":transport-retry-1"))
         self.assertEqual(select(event_id, failed, failed, amendment, 0),
             (3, "cme-recovery:" + event_id + ":authorized-amendment-diagnostic-1"))
-        self.assertEqual(select(event_id, failed, failed, None, 0), (None, None))
-        self.assertEqual(select(event_id, failed, failed, amendment, 1), (None, None))
+        self.assertEqual(select(event_id, failed, failed, None, 0),
+            (4, "cme-recovery:" + event_id + ":bounded-output-fallback-1"))
+        self.assertEqual(select(event_id, failed, failed, amendment, 1),
+            (4, "cme-recovery:" + event_id + ":bounded-output-fallback-1"))
         self.assertEqual(select(event_id, pending, failed, amendment, 0), (None, None))
         self.assertEqual(select(event_id, failed, pending, amendment, 0), (None, None))
 
@@ -56,11 +69,22 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
         prior = {"request_id": "old-request", "delivery_state": "grace_consumed",
             "request_payload": {"max_tokens": 512}}
         retry_key = "performance-evaluation:step-event:bounded-output-retry-1"
+        retry2_key = "performance-evaluation:step-event:bounded-output-retry-2"
         self.assertEqual(choose(trigger, None, None, set()),
             "performance-evaluation:step-event")
         self.assertEqual(choose(trigger, prior, None, {"old-request"}), retry_key)
         self.assertIsNone(choose(trigger, prior, None, set()))
         self.assertIsNone(choose(trigger, prior, {"request_id": "retry"}, {"old-request"}))
+        failed_retry = {"request_id": "retry", "delivery_state": "failed",
+            "last_error_code": "provider_response_submission_failed",
+            "request_payload": {"max_tokens": 2048}}
+        self.assertEqual(choose(trigger, prior, failed_retry, {"old-request"}), retry2_key)
+        self.assertIsNone(choose(trigger, prior, failed_retry, {"old-request"},
+            {"request_id": "retry-2"}))
+        self.assertIsNone(choose(trigger, prior, {**failed_retry,
+            "request_payload": {"max_tokens": 512}}, {"old-request"}))
+        self.assertIsNone(choose(trigger, prior, {**failed_retry,
+            "delivery_state": "grace_consumed"}, {"old-request"}))
         self.assertIsNone(choose(trigger, {**prior,
             "request_payload": {"max_tokens": 2048}}, None, {"old-request"}))
         self.assertIsNone(choose(trigger, {**prior,
