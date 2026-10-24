@@ -1,12 +1,13 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_direct_luna_adapter_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify bounded Luna adapter requests and sanitized exchange outcomes
 # Execution Model: Offline unit tests; provider calls are mocked
 # Observability: unittest assertions and exit status
 # Dependencies: direct_luna adapter and durable exchange contract
 # Authority: Tests only; no credentials or live external requests
+# Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Verify provider admission denials terminate without API calls or charges.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Assert qualified 512-token limits
 # History: Git and .riverview-backups/manifest.jsonl
 """Offline API-response parsing and exchange-submission tests; no provider calls."""
@@ -36,6 +37,8 @@ class _Exchange:
         self.failures = []
         self.finished = []
         self.begin_args = None
+        self.admission_blocked = []
+        self.allow_attempt = True
 
     def eligible_requests(self, *_args, **_kwargs):
         return [self.row]
@@ -45,7 +48,10 @@ class _Exchange:
 
     def begin_provider_attempt(self, *_args, **kwargs):
         self.begin_args = kwargs
-        return True
+        return self.allow_attempt
+
+    def fail_provider_attempt_admission(self, request_id, correlation_id, **kwargs):
+        self.admission_blocked.append((request_id, correlation_id, kwargs))
 
     def finish_provider_attempt(self, *_args, **kwargs):
         self.finished.append(kwargs)
@@ -89,6 +95,19 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
              patch.object(direct_luna.urllib.request, "urlopen", side_effect=fake_urlopen):
             outcome = direct_luna.process_one(exchange)
         return outcome, captured
+
+    def test_admission_denial_is_terminal_and_never_calls_provider(self):
+        exchange = _Exchange()
+        exchange.allow_attempt = False
+        with patch.object(direct_luna, "_api_key", side_effect=AssertionError("must not read credentials")), \
+             patch.object(direct_luna.urllib.request, "urlopen",
+                          side_effect=AssertionError("must not call API")):
+            outcome = direct_luna.process_one(exchange)
+        self.assertEqual(outcome["status"], "BUDGET_OR_REPEAT_BLOCKED")
+        self.assertEqual(len(exchange.admission_blocked), 1)
+        self.assertEqual(exchange.submitted, [])
+        self.assertEqual(exchange.finished, [])
+        self.assertEqual(exchange.failures, [])
 
     def test_synthetic_luna_response_is_validated_and_submitted_once(self):
         exchange = _Exchange()

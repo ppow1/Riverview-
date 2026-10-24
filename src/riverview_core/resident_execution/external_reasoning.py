@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.4
+# Revision: 1.1.5
+# Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Terminalize a fenced provider request when authorization blocks it before any paid attempt.
 # Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Expose durable request payload metadata to the bounded evaluation retry gate.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Bind system-owned lifecycle criteria into exact external review subjects
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept sanitized C2 bridge exception codes as terminal ambiguous receipts.
@@ -746,6 +747,39 @@ class DurableExternalReasoningExchange:
                      "provider_id": provider_id, "fence": fence,
                      **({"failure_type": failure_type} if failure_type else {}),
                      **({"failure_detail": failure_detail} if failure_detail else {})})
+        return True
+
+    def fail_provider_attempt_admission(self, request_id, correlation_id, *,
+            provider_id, principal_id, claim_token, fence):
+        """Terminalize a denied, uncharged provider claim without misreporting a paid failure."""
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self._set_path(cur)
+                row = self._lock(cur, request_id, correlation_id)
+                self._require_provider_principal(provider_id, principal_id)
+                cur.execute("""SELECT 1 FROM external_reasoning_exchange_events
+                    WHERE request_id=%s AND event_type='provider_attempt_started' LIMIT 1""",
+                    (request_id,))
+                attempt_started = cur.fetchone() is not None
+                cur.execute("""SELECT 1 FROM grace_supervisory_authorization_events
+                    WHERE request_id=%s AND event_type='luna_reserved' LIMIT 1""",
+                    (request_id,))
+                cost_reserved = cur.fetchone() is not None
+                if (row["provider_id"] != provider_id or row["delivery_state"] != "awaiting_response"
+                        or row["response_payload"] is not None or row["claim_owner"] != principal_id
+                        or str(row["claim_token"]) != str(claim_token) or row["claim_fence"] != fence
+                        or attempt_started or cost_reserved):
+                    raise ExchangeConflict("provider admission denial is not safely terminal")
+                cur.execute("""UPDATE external_reasoning_exchanges
+                    SET delivery_state='failed',last_error_code='provider_attempt_admission_blocked',
+                        claim_owner=NULL,claim_token=NULL,claim_lease_until=NULL,
+                        updated_at=clock_timestamp() WHERE request_id=%s""", (row["request_id"],))
+                row.update(delivery_state="failed", last_error_code="provider_attempt_admission_blocked")
+                self._event(cur, row, "provider_attempt_admission_blocked",
+                    "provider-attempt-admission-blocked", principal_id,
+                    {"state": "failed", "error_code": "provider_attempt_admission_blocked",
+                     "reason_code": "budget_or_repeat_blocked", "provider_id": provider_id,
+                     "fence": fence, "charged": False})
         return True
 
     def has_terminal_review_for_objective(self, objective_id: str) -> bool:

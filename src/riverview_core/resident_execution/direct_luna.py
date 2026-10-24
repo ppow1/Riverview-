@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/direct_luna.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.0
+# Revision: 1.0.1
+# Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Close provider-denied requests with a fenced zero-charge exchange event.
 # Purpose: Submit authorized bounded Luna requests through Grace's durable exchange
 # Execution Model: Request-driven adapter
 # Observability: Sanitized durable exchange outcomes; no raw provider error body
@@ -120,6 +121,9 @@ def process_one(exchange):
             principal_id=PROVIDER_PRINCIPAL, reserved_cost=reserved_cost,
             additional_limit=ADDITIONAL_LIMIT, baseline_total=BASELINE_TOTAL,
             total_credit=TOTAL_CREDIT):
+        exchange.fail_provider_attempt_admission(row["request_id"], row["correlation_id"],
+            provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL,
+            claim_token=str(claim.claim_token), fence=claim.fence)
         return {"status": "BUDGET_OR_REPEAT_BLOCKED"}
     payload = row["request_payload"]
     request_type = payload.get("request_type", "objective_reasoning")
