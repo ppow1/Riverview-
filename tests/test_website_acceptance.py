@@ -1,6 +1,6 @@
 """Focused acceptance-system tests.
 
-Revision: 1.0.0
+Revision: 1.0.1
 """
 import importlib.util
 from pathlib import Path
@@ -10,6 +10,8 @@ import unittest
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location("seed_personas",ROOT/"scripts/seed_website_test_personas.py")
 seed=importlib.util.module_from_spec(spec); spec.loader.exec_module(seed)
+driver_spec=importlib.util.spec_from_file_location("install_chromedriver",ROOT/"scripts/install_acceptance_chromedriver.py")
+driver_module=importlib.util.module_from_spec(driver_spec); driver_spec.loader.exec_module(driver_module)
 
 
 class WebsiteAcceptanceTests(unittest.TestCase):
@@ -42,6 +44,13 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn("/v2/verification/latest.json",page)
         self.assertIn("/v2/verification/latest.json",script)
         self.assertIn("credentials:\"same-origin\"",script)
+
+    def test_chromedriver_download_url_is_exact_official_build(self):
+        metadata={"versions":[{"version":"155.0.8059.84","downloads":{"chromedriver":[
+            {"platform":"linux64","url":"https://storage.googleapis.com/chrome-for-testing-public/155.0.8059.84/linux64/chromedriver-linux64.zip"}]}}]}
+        self.assertEqual(driver_module.cft_url("155.0.8059.84",metadata),metadata["versions"][0]["downloads"]["chromedriver"][0]["url"])
+        metadata["versions"][0]["downloads"]["chromedriver"][0]["url"]="https://example.invalid/driver.zip"
+        with self.assertRaises(ValueError): driver_module.cft_url("155.0.8059.84",metadata)
 
 
 if __name__=="__main__": unittest.main()

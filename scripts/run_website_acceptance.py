@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Run authenticated acceptance against the currently served Riverview V2 release.
 
-Revision: 1.0.0
+Revision: 1.0.1
 """
 from __future__ import annotations
 
-import hashlib, json, os, socket, subprocess, sys, tempfile, time, urllib.error, urllib.request
+import hashlib, json, os, re, shutil, socket, subprocess, sys, tempfile, time, urllib.error, urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,10 +16,24 @@ PERSONAS = {"steward":"steward", "operator":"operator", "engineering":"operator"
 
 def browser_acceptance(credentials: dict) -> list[dict]:
     port = socket.socket(); port.bind(("127.0.0.1", 0)); driver_port = port.getsockname()[1]; port.close()
-    driver = subprocess.Popen(["geckodriver", "--host", "127.0.0.1", "--port", str(driver_port)],
+    chrome_driver=shutil.which("chromedriver")
+    chrome_binary=shutil.which("google-chrome") or shutil.which("google-chrome-stable")
+    use_chrome=bool(chrome_driver and chrome_binary)
+    browser_info={"check":"browser_runtime","browser":"chrome" if use_chrome else "firefox","status":"PASS"}
+    if use_chrome:
+        browser_version=subprocess.check_output([chrome_binary,"--version"],text=True,timeout=10).strip()
+        driver_version=subprocess.check_output([chrome_driver,"--version"],text=True,timeout=10).strip()
+        browser_major=re.search(r"(\d+)(?:\.\d+)+",browser_version)
+        driver_major=re.search(r"(\d+)(?:\.\d+)+",driver_version)
+        if not browser_major or not driver_major or browser_major.group(1)!=driver_major.group(1):
+            raise RuntimeError("browser_driver_major_version_mismatch")
+        browser_info.update({"browser_major":browser_major.group(1),"driver_major":driver_major.group(1)})
+    command=([chrome_driver,f"--port={driver_port}","--allowed-ips=127.0.0.1"] if use_chrome else
+             ["geckodriver", "--host", "127.0.0.1", "--port", str(driver_port)])
+    driver = subprocess.Popen(command,
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     sid = None
-    results = []
+    results = [browser_info]
     stage = "webdriver_start"
     def wd(method, path, payload=None):
         data = None if payload is None else json.dumps(payload).encode()
@@ -46,8 +60,10 @@ def browser_acceptance(credentials: dict) -> list[dict]:
             try:
                 wd("GET", "/status"); break
             except Exception: time.sleep(.1)
-        caps={"capabilities":{"alwaysMatch":{"browserName":"firefox","acceptInsecureCerts":True,
-             "moz:firefoxOptions":{"args":["-headless"]}}}}
+        browser_options=({"goog:chromeOptions":{"binary":chrome_binary,"args":["--headless=new","--disable-dev-shm-usage"]}}
+                        if use_chrome else {"moz:firefoxOptions":{"args":["-headless"]}})
+        caps={"capabilities":{"alwaysMatch":{"browserName":"chrome" if use_chrome else "firefox",
+             "acceptInsecureCerts":True,**browser_options}}}
         stage = "webdriver_session"
         sid=wd("POST","/session",caps)["value"]["sessionId"]
         stage = "navigate_live_v2"
