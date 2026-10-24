@@ -1,4 +1,5 @@
 /* Presentation index derived from the canonical V2 roadmap and verified Issue #268 deliveries. */
+// File Revision: 1.0.0
 (() => {
   "use strict";
   const repo = "https://github.com/ppow1/Riverview-";
@@ -26,6 +27,7 @@
       id: "operational-inbox", title: "V2 Operational Inbox", workstream: "Website Visualization",
       summary: "Unified notifications, attention, and operational event visibility.",
       detail: "Delivered by PR #273. Uses existing authenticated feeds and keeps each source's status visible.",
+      dependencies: "Existing authenticated notification, attention, and event feeds.",
       priority: "P1", status: "completed", stage: "Complete",
       tags: ["website", "notifications", "events"],
       links: [{label:"Open Communications", href:"#communications"},{label:"PR #273", href:`${repo}/pull/273`}]
@@ -34,6 +36,7 @@
       id: "work-evidence", title: "Work Blockers and Evidence", workstream: "Website Visualization",
       summary: "Lifecycle, recorded blockers, assignment ownership, progress time, and evidence links.",
       detail: "Delivered by PR #274. Exact objective/assignment relationships are used. Dependency edges are not available from the current projection and are labeled unavailable.",
+      dependencies: "Existing authenticated objective and assignment projections; additional dependency edges are unavailable.",
       priority: "P1", status: "completed", stage: "Complete",
       tags: ["website", "work", "evidence"],
       links: [{label:"Open Work", href:"#work"},{label:"PR #274", href:`${repo}/pull/274`}]
@@ -42,6 +45,7 @@
       id: "institutional-proposals", title: "Institutional Proposals in V2", workstream: "Website Visualization",
       summary: "Bring the existing proposal registry and decision evidence into V2.",
       detail: "Listed as a high-priority V2 migration in the committed development roadmap and parity matrix. No Planning Lot, elaboration, Design/Specification, Ready Bench, or Active Work lifecycle record is linked here; this is not execution authorization.",
+      dependencies: "Existing proposal registry, review, and decision records described in the linked parity and development roadmaps.",
       priority: "P1", status: "unknown", stage: "Roadmap candidate · lifecycle stage not recorded",
       tags: ["website", "proposals", "governance"],
       links: [{label:"V1/V2 parity matrix", href:`${repo}/blob/b240cb7dab3a94197a4c8f8eda11aee3a5a981d7/docs/runbooks/riverview_v1_v2_parity.md`},
@@ -60,6 +64,7 @@
       id: "ready-bench-rb0001", title: "Operator Model Override (RB-0001)", workstream: "Grace Autonomy",
       summary: "Steward-committed design waiting behind the current Jessica execution path.",
       detail: "The board file lists READY and a Steward commitment, but the master roadmap README says the Ready Bench is intentionally empty and PostgreSQL is the live status authority. V2 cannot reconcile these sources. Treat the current stage/status as Unknown until that authority is connected; do not infer execution readiness. Priority is not assigned in the source board.",
+      blockers: "Conflicting source records (board says READY; master-roadmap README says Ready Bench is empty) and authoritative PostgreSQL status is not connected.",
       priority: "unassigned", status: "unknown", stage: "Ready Bench · source reconciliation required",
       tags: ["grace", "ready-bench", "model-operations"],
       links: [{label:"Ready Bench source", href:`${origin}/blob/4590f2fb5e6813d409b3faf8e37a151778aea1f6/docs/operations/boards/ready_bench.md`},

@@ -1,4 +1,5 @@
 /* Normalizes authorized objective projections without asserting workstream relationships. */
+// File Revision: 1.0.0
 (() => {
   "use strict";
   const statusMap = (item = {}) => {
@@ -15,12 +16,17 @@
     if (lifecycle === "parked") return "parked";
     return "unknown";
   };
+  const requestTextFor = (item = {}) =>
+    typeof item.request === "string" ? item.request.replace(/\s+/g, " ").trim() : "";
   const titleFor = (item = {}) => {
-    const raw = typeof item.request === "string" ? item.request.replace(/\s+/g, " ").trim() : "";
-    return raw ? raw.slice(0, 160) + (raw.length > 160 ? "…" : "") : "Riverview objective";
+    const raw = requestTextFor(item);
+    if (!raw) return "Riverview objective";
+    const sentence = raw.split(/(?<=[.!?])\s+/)[0].trim();
+    const concise = sentence.length <= 76 ? sentence : sentence.slice(0, 73).trimEnd() + "…";
+    return concise;
   };
   const objective = (item = {}) => Object.freeze({
-    status: statusMap(item), title: titleFor(item),
+    status: statusMap(item), title: titleFor(item), fullRequest: requestTextFor(item),
     stage: item.lifecycle_stage || "Stage unavailable in objective projection",
     updatedAt: item.updated_at || null,
     objectiveId: item.objective_id || null,
@@ -30,7 +36,7 @@
   const filterItems = (items = [], {query = "", tag = "", priority = ""} = {}) => {
     const needle = String(query).trim().toLowerCase();
     return items.filter((item) => {
-      const searchable = [item.title, item.summary, item.detail, item.workstream, item.stage, item.status,
+      const searchable = [item.title, item.fullRequest, item.summary, item.detail, item.workstream, item.stage, item.status,
         ...(Array.isArray(item.tags) ? item.tags : []),
         ...(Array.isArray(item.links) ? item.links.map((link) => link.label) : [])].join(" ").toLowerCase();
       return (!needle || searchable.includes(needle)) &&
@@ -38,7 +44,7 @@
         (!priority || item.priority === priority);
     });
   };
-  const api = Object.freeze({statusMap, objective, filterItems});
+  const api = Object.freeze({statusMap, titleFor, objective, filterItems});
   window.RiverviewV2LivingRoadmapAdapter = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

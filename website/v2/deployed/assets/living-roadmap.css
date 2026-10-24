@@ -1,3 +1,6 @@
+/*
+File Revision: 1.0.0
+*/
 .living-roadmap{max-width:1200px;padding:4px 0 30px;color:var(--ink)}
 .living-roadmap[hidden]{display:none!important}
 .roadmap-header,.roadmap-section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
@@ -30,3 +33,16 @@
 :root[data-theme="dark"] .roadmap-status-in_progress{background:#20363b;color:#a6d8e2}:root[data-theme="dark"] .roadmap-status-active{background:#244632;color:#c0e6ca}:root[data-theme="dark"] .roadmap-status-parked{background:#302d3c;color:#d1c9ed}
 @media(max-width:900px){.roadmap-lifecycle{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.roadmap-header,.roadmap-section-heading{flex-direction:column}.roadmap-workstreams,.roadmap-lifecycle,.roadmap-live-items{grid-template-columns:1fr}.roadmap-source-state{max-width:none}.roadmap-tools{display:grid;grid-template-columns:1fr 1fr}.roadmap-tools label:first-child{grid-column:1/-1}}
+.roadmap-workstream-card{display:flex;flex-direction:column;align-items:stretch;gap:7px}
+.roadmap-workstream-card>p{margin:2px 0}
+.roadmap-milestone-heading{margin:5px 0 0;font-size:11px;color:var(--teal)}
+.roadmap-workstream-card>.roadmap-item{margin:0;background:var(--surface-soft)}
+.roadmap-record-kind{display:inline-block;width:max-content;padding:3px 7px;border-radius:10px;background:var(--surface-soft);font-size:9px;font-weight:750;color:var(--muted)}
+.roadmap-item-facts{display:grid;grid-template-columns:minmax(94px,.55fr) minmax(0,1.45fr);gap:4px 10px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-soft);font-size:10px;line-height:1.45}
+.roadmap-item-facts dt{font-weight:700;color:var(--muted)}.roadmap-item-facts dd{margin:0;overflow-wrap:anywhere}
+.roadmap-full-request{padding:8px;border-left:3px solid var(--teal);background:var(--surface-soft)}
+.roadmap-execution-history{margin:18px 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.roadmap-execution-history>summary{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;font-weight:750;color:var(--teal);list-style-position:inside}
+.roadmap-execution-history>summary small{font-size:10px;font-weight:500;color:var(--muted)}
+.roadmap-execution-history[open]{background:var(--surface-soft)}
+@media(max-width:850px){.roadmap-workstreams{grid-template-columns:1fr}}
