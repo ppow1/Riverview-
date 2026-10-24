@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.65
+# Revision: 1.0.66
+# Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-DIAGNOSTICS-20261023 | Verify safe per-index mismatch diagnostics exclude proposal text.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-RECOVERY-20261023 | Verify single-step recovery preserves every exact Steward acceptance criterion and rejects ambiguous scopes.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify Grace persists the exact configured worker capability set.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
@@ -430,6 +431,21 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
         self.assertIsNone(GraceExecutionService._restore_exact_single_step_criteria(
             multiple, {"acceptance_criteria_source": "steward_supplied",
                       "acceptance_criteria": criteria}))
+
+    def test_criteria_binding_diagnostic_identifies_missing_approved_indices_only(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.resident_reasoning import PlanProposal, PlanStep
+        criteria = ["First approved check.", "Second approved check.",
+                    "Third approved check."]
+        plan = PlanProposal("Check two items", (PlanStep("check", "Check approved items",
+            (criteria[0], "Invented extra requirement")),), 8)
+        diagnostic = GraceExecutionService._criteria_binding_diagnostics(plan, criteria)
+        self.assertEqual(diagnostic["missing_approved_criterion_indices"], [2, 3])
+        self.assertEqual(diagnostic["supplemental_step_criterion_count"], 1)
+        self.assertEqual(diagnostic["unapproved_supplemental_criterion_count"], 1)
+        self.assertIn("UNBOUND_APPROVED_CRITERIA", diagnostic["reason_codes"])
+        self.assertNotIn("First approved check.", str(diagnostic))
+        self.assertNotIn("Invented extra requirement", str(diagnostic))
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
 class GraceExecutionTests(unittest.TestCase):

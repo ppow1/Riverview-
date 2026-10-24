@@ -8783,9 +8783,9 @@
     },
     "src/riverview_core/resident_execution/service.py": {
       "path": "src/riverview_core/resident_execution/service.py",
-      "revision": "1.0.42",
-      "sha256": "140617c919b1061b4d8f090d6e755f11b1e086281704dc861b2498bc9c5631fa",
-      "size_bytes": 78011
+      "revision": "1.0.43",
+      "sha256": "be712f780fab2442bdf0ae178dec05f5ce552b58864fca70e040a96d9828f234",
+      "size_bytes": 82841
     },
     "src/riverview_core/resident_execution/verifier.py": {
       "path": "src/riverview_core/resident_execution/verifier.py",
@@ -9275,9 +9275,9 @@
     },
     "tests/test_grace_execution.py": {
       "path": "tests/test_grace_execution.py",
-      "revision": "1.0.65",
-      "sha256": "a6ee4d257a839ee6155503efe67a8f0d8088357a16e027647078d34d184dace3",
-      "size_bytes": 217111
+      "revision": "1.0.66",
+      "sha256": "025bca3b509bfe05d229d75903155cbb4148f28c730844411997c1bde4ac6c91",
+      "size_bytes": 218324
     },
     "tests/test_grace_execution_health_acl.py": {
       "path": "tests/test_grace_execution_health_acl.py",

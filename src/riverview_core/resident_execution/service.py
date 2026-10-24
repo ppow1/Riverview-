@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.42
+# Revision: 1.0.43
+# Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-DIAGNOSTICS-20261023 | Record criterion-index mismatch diagnostics without retaining generated proposal text.
 # Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-RECOVERY-20261023 | Rebind only unchanged Steward criteria to one existing bounded step after the exact criteria-binding rejection.
 # Changed: 2026-10-23 UTC | RV-GRACE-REASONING-FAILURE-FENCE-20261023 | Fence repeated objective reasoning failures by runtime revision and persist a safe blocked diagnostic.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Route only explicitly configured typed ComfyUI proposal steps to the existing capability worker.
@@ -313,6 +314,25 @@ class GraceExecutionService:
                     if self._reasoning_failure_detail_code(exc) == "PROPOSAL_CRITERIA_BINDING_REJECTED":
                         request = result.reasoning_request
                         assignment = getattr(request, "assignment", None)
+                        objective_snapshot = self.pipeline.get_objective(objective_id)
+                        approved_criteria = (objective_snapshot or {}).get("acceptance_criteria", ())
+                        if not approved_criteria and isinstance(assignment, Mapping):
+                            approved_criteria = assignment.get("acceptance_criteria", ())
+                        received = next((event for event in self.pipeline.objective_events(objective_id)
+                            if event.get("event_type") == "objective.received"), None)
+                        origin = (received or {}).get("payload", {}).get("origin")
+                        has_conversation_origin = (isinstance(origin, Mapping) and
+                            isinstance(origin.get("conversation_id"), str) and
+                            bool(origin.get("conversation_id")))
+                        criteria_diagnostic = self._criteria_binding_diagnostics(
+                            result.proposal, approved_criteria, has_conversation_origin)
+                        LOG.warning(json.dumps({
+                            "event": "resident_proposal_criteria_binding_diagnostic",
+                            "objective_id": objective_id,
+                            "request_id": result.request_id,
+                            "objective_revision": candidate_revision,
+                            **criteria_diagnostic,
+                        }, sort_keys=True))
                         repaired = self._restore_exact_single_step_criteria(
                             result.proposal, assignment)
                         if repaired is not None:
@@ -394,6 +414,56 @@ class GraceExecutionService:
         step_criteria = tuple(item for item in criteria if item not in accepted_lifecycle)
         step = replace(proposal.steps[0], acceptance_criteria=step_criteria)
         return replace(proposal, steps=(step,), system_owned_criteria=accepted_lifecycle)
+
+    @staticmethod
+    def _criteria_binding_diagnostics(proposal, requested_criteria, has_conversation_origin=False):
+        """Report safe criterion alignment counts and indices, never generated text."""
+        from ..resident_reasoning import PlanProposal, lifecycle_evidence_event
+        requested = list(requested_criteria) if isinstance(requested_criteria, (list, tuple)) else []
+        if not isinstance(proposal, PlanProposal) or any(not isinstance(c, str) for c in requested):
+            return {"diagnostic_code": "UNAVAILABLE", "requested_count": len(requested)}
+        step_criteria = [c for step in proposal.steps for c in step.acceptance_criteria]
+        step_set = set(step_criteria)
+        lifecycle = list(proposal.system_owned_criteria)
+        lifecycle_set = set(lifecycle)
+        artifact_criteria = {c for step in proposal.steps for requirement in step.artifact_requirements
+                             for c in requirement.acceptance_criteria}
+        requested_set = set(requested)
+        missing = [i + 1 for i, criterion in enumerate(requested)
+                   if criterion not in step_set and criterion not in lifecycle_set]
+        supplemental = step_set - requested_set
+        invalid_lifecycle = [i + 1 for i, criterion in enumerate(lifecycle)
+                             if criterion not in requested_set or lifecycle_evidence_event(criterion) is None]
+        reasons = []
+        if len(step_criteria) != len(step_set):
+            reasons.append("DUPLICATE_STEP_CRITERIA")
+        if step_set & lifecycle_set:
+            reasons.append("STEP_SYSTEM_OWNED_OVERLAP")
+        if missing:
+            reasons.append("UNBOUND_APPROVED_CRITERIA")
+        if supplemental - artifact_criteria:
+            reasons.append("UNAPPROVED_SUPPLEMENTAL_STEP_CRITERIA")
+        if invalid_lifecycle:
+            reasons.append("UNSUPPORTED_OR_UNAPPROVED_SYSTEM_OWNED_CRITERIA")
+        if (any(lifecycle_evidence_event(c) == "work_order.exactly_one_dispatched" for c in lifecycle)
+                and len(proposal.steps) != 1):
+            reasons.append("DISPATCH_CRITERION_REQUIRES_SINGLE_STEP")
+        if (not has_conversation_origin and any(
+                lifecycle_evidence_event(c) == "conversation.result_published" for c in lifecycle)):
+            reasons.append("CONVERSATION_CRITERION_WITHOUT_ORIGIN")
+        if step_set | lifecycle_set != requested_set and "UNBOUND_APPROVED_CRITERIA" not in reasons:
+            reasons.append("CRITERION_SET_MISMATCH")
+        return {"diagnostic_code": "CRITERIA_BINDING_REJECTED",
+                "requested_count": len(requested),
+                "step_count": len(proposal.steps),
+                "step_criterion_count": len(step_criteria),
+                "unique_step_criterion_count": len(step_set),
+                "system_owned_criterion_count": len(lifecycle),
+                "missing_approved_criterion_indices": missing,
+                "invalid_system_owned_criterion_indices": invalid_lifecycle,
+                "supplemental_step_criterion_count": len(supplemental),
+                "unapproved_supplemental_criterion_count": len(supplemental - artifact_criteria),
+                "reason_codes": reasons}
 
     def _runtime_revision(self):
         value = os.environ.get("RIVERVIEW_SOURCE_COMMIT", "")
