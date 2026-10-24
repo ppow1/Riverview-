@@ -138,6 +138,56 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertEqual(result.artifacts[0]["media_type"], "text/plain")
         self.assertEqual(list(self.workspace.iterdir()), [])
 
+    def test_proposal_diagnostic_work_receives_bounded_read_only_authoritative_evidence(self):
+        evidence = {"schema":"rv.grace-diagnostic-runtime-evidence.v1", "read_only":True,
+            "referenced_historical_objectives":[{"objective_id":
+                "objective:grace-conversation:74b28df1-ea8e-5944-8bde-0ff56b117794",
+                "status":"CANCELLED", "event_counts":{
+                    "execution.reasoning_attempted":599,
+                    "execution.reasoning_failed":599}}]}
+        criteria = ["Report reasoning attempts and failures from the referenced objective.",
+            "State transitions are durably persisted in the authoritative event history."]
+        requirements = [{"name":"diagnostic", "path":"reports/diagnostic.txt",
+            "media_type":"text/plain", "acceptance_criteria":criteria, "max_bytes":32768}]
+
+        class Pipeline:
+            def get_objective(_self, objective_id):
+                return {"objective_id":objective_id, "status":"WORK_ORDER_CREATED",
+                    "request":"Inspect objective:grace-conversation:74b28df1-ea8e-5944-8bde-0ff56b117794",
+                    "source_revision":self.revision, "source_sha256":"a" * 64,
+                    "evidence":{"status":"VERIFIED", "source_revision":self.revision,
+                        "source_sha256":"a" * 64}, "proposal":{"steps":[{}]}}
+            def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
+                return {"objective":"Write a bounded diagnostic report",
+                    "acceptance_criteria":criteria, "artifact_requirements":requirements}
+            def diagnostic_runtime_evidence(_self, objective_id):
+                self.assertEqual(objective_id, "objective:diagnostic:test")
+                return evidence
+
+        adapter = self.adapter()
+        captured = {}
+        def execute(assignment):
+            captured["assignment"] = assignment
+            return SimpleNamespace(status="DELIVERABLE_PRODUCED", artifact_name="diagnostic.json",
+                artifact_sha256="b" * 64, artifact_bytes=10, repository_revision=self.revision,
+                source_artifact_name="reports/diagnostic.txt", changed_files=("reports/diagnostic.txt",),
+                artifacts=(), rework_verification_id=None, detail_code=None)
+        adapter.execute = execute
+        (self.artifacts / "diagnostic.json").write_text("fixture", encoding="utf-8")
+        grounded = KnowledgeResult(KnowledgeStatus.VERIFIED,
+            source_references=("repo://docs/example.md",), source_revision=self.revision,
+            source_sha256="b" * 64, retrieval_complete=True)
+
+        CodexWorkAction(Pipeline(), adapter, "repo://example/test", 5)(
+            {"id":"assignment:diagnostic:test", "objective_ref":"objective:diagnostic:test"}, grounded)
+
+        request = captured["assignment"]
+        self.assertEqual(dict(request.runtime_evidence), evidence)
+        prompt = CodexCLIExecutionAdapter._prompt(request)
+        self.assertIn("Read-only server-derived runtime evidence", prompt)
+        self.assertIn("do not claim this worker performed the recorded transitions", prompt)
+        self.assertIn("execution.reasoning_attempted", prompt)
+
     def test_prompt_preserves_steward_instructions_separately_from_formal_criteria(self):
         request = self.assignment(steward_instructions=(
             "Do not create a new objective. Preserve the authorized workflow."))

@@ -1479,6 +1479,72 @@ class GraceExecutionPipeline:
                 (objective_id,))
             return cur.fetchall()
 
+    def diagnostic_runtime_evidence(self, objective_id):
+        """Return bounded read-only lifecycle facts for an assigned diagnostic artifact."""
+        if not isinstance(objective_id, str) or not re.fullmatch(
+                r"objective:[A-Za-z0-9._:-]{1,150}", objective_id):
+            raise ValueError("diagnostic objective identity is invalid")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("SELECT request,status,revision FROM grace_objectives WHERE objective_id=%s",
+                        (objective_id,))
+            current = cur.fetchone()
+            if not current:
+                raise ObjectiveStateError("diagnostic objective is unavailable")
+            cur.execute("""SELECT event_type,count(*) AS count
+                FROM grace_objective_events WHERE objective_id=%s
+                GROUP BY event_type ORDER BY event_type""", (objective_id,))
+            counts = {row["event_type"]: int(row["count"]) for row in cur.fetchall()}
+            cur.execute("""SELECT event_id,event_type,occurred_at FROM grace_objective_events
+                WHERE objective_id=%s AND event_type=ANY(%s)
+                ORDER BY sequence DESC LIMIT 16""", (objective_id, [
+                    "execution.reasoning_attempted", "execution.reasoning_failed",
+                    "work_order.proposed", "work_order.dispatched",
+                    "execution.step_verified", "objective.completed", "objective.cancelled"]))
+            recent = [{"event_id": str(row["event_id"]), "event_type": row["event_type"],
+                "occurred_at": row["occurred_at"].isoformat()} for row in cur.fetchall()]
+            cur.execute("SELECT count(*) AS count FROM external_reasoning_exchanges WHERE objective_id=%s",
+                        (objective_id,))
+            exchange_count = int(cur.fetchone()["count"])
+            history_ids = list(dict.fromkeys(re.findall(
+                r"objective:grace-conversation:[0-9a-f-]{36}", current["request"] or "")))
+            if len(history_ids) > 2:
+                raise ObjectiveStateError("diagnostic history reference limit exceeded")
+            history = []
+            for history_id in history_ids:
+                cur.execute("SELECT status,revision FROM grace_objectives WHERE objective_id=%s",
+                            (history_id,))
+                historical = cur.fetchone()
+                if not historical:
+                    continue
+                cur.execute("""SELECT event_type,count(*) AS count FROM grace_objective_events
+                    WHERE objective_id=%s GROUP BY event_type ORDER BY event_type""",
+                    (history_id,))
+                history_counts = {row["event_type"]: int(row["count"])
+                                  for row in cur.fetchall()}
+                cur.execute("""SELECT event_id,occurred_at FROM grace_objective_events
+                    WHERE objective_id=%s AND event_type='objective.cancelled'
+                    ORDER BY sequence DESC LIMIT 1""", (history_id,))
+                cancelled = cur.fetchone()
+                cur.execute("SELECT count(*) AS count FROM external_reasoning_exchanges WHERE objective_id=%s",
+                            (history_id,))
+                history.append({"objective_id": history_id,
+                    "status": historical["status"], "revision": int(historical["revision"]),
+                    "event_counts": history_counts,
+                    "external_exchange_count": int(cur.fetchone()["count"]),
+                    "cancellation_event": ({"event_id": str(cancelled["event_id"]),
+                        "occurred_at": cancelled["occurred_at"].isoformat()}
+                        if cancelled else None)})
+        result = {"schema": "rv.grace-diagnostic-runtime-evidence.v1",
+            "read_only": True,
+            "objective": {"objective_id": objective_id, "status": current["status"],
+                "revision": int(current["revision"]), "event_counts": counts,
+                "external_exchange_count": exchange_count, "recent_events": recent},
+            "referenced_historical_objectives": history}
+        if len(_json(result).encode("utf-8")) > 8192:
+            raise ObjectiveStateError("diagnostic runtime evidence exceeds its bound")
+        return result
+
     def pending_conversation_results(self, *, limit=10):
         """Return verified results with an initial review or requested review generation due."""
         if type(limit) is not int or not 1 <= limit <= 100:
@@ -1758,7 +1824,7 @@ class GraceExecutionPipeline:
         return True
 
     def pending_rejected_work_order_reviews(self, *, limit=10):
-        """Return durable conversation-origin verifier rejections for Grace review.
+        """Return durable conversation- or approved-proposal-origin rejections for Grace review.
 
         A saved Grace decision is returned without another model call until its
         source-conversation receipt is acknowledged. Otherwise only the current
@@ -1775,7 +1841,7 @@ class GraceExecutionPipeline:
                 FROM grace_objectives o
                 JOIN LATERAL (SELECT payload,actor_id FROM grace_objective_events e
                     WHERE e.objective_id=o.objective_id AND e.event_type='objective.received'
-                      AND e.payload ? 'origin' ORDER BY e.sequence LIMIT 1) received ON true
+                    ORDER BY e.sequence LIMIT 1) received ON true
                 WHERE o.status='WORK_ORDER_CREATED' AND o.assignment_id IS NOT NULL
                 ORDER BY o.updated_at,o.objective_id LIMIT %s""", (limit,))
             objectives = cur.fetchall()
@@ -1783,10 +1849,22 @@ class GraceExecutionPipeline:
         for row in objectives:
             origin_payload = row["received_payload"] or {}
             origin = origin_payload.get("origin") if isinstance(origin_payload, dict) else None
-            if (not isinstance(origin, dict) or set(origin) != {"conversation_id", "source_sequence"}
-                    or type(origin.get("source_sequence")) is not int):
-                continue
             objective_id, assignment_id = row["objective_id"], row["assignment_id"]
+            conversation_origin = (isinstance(origin, dict) and
+                set(origin) == {"conversation_id", "source_sequence"} and
+                type(origin.get("source_sequence")) is int and
+                isinstance(origin.get("conversation_id"), str))
+            proposal_reference = (origin_payload.get("proposal_reference")
+                if isinstance(origin_payload, dict) else None)
+            if not conversation_origin:
+                lifecycle = ((row["proposal"] or {}).get("system_owned_criteria", [])
+                    if isinstance(row["proposal"], dict) else [])
+                with self.ledger.db.cursor() as cur:
+                    self.ledger._set_search_path(cur)
+                    promoted = any(self.proposal_promotion_evidence(cur, objective_id, criterion)
+                                   for criterion in lifecycle if isinstance(criterion, str))
+                if not promoted or not isinstance(proposal_reference, dict):
+                    continue
             events = self.objective_events(objective_id)
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
@@ -1807,7 +1885,9 @@ class GraceExecutionPipeline:
                     verification["result"] is None):
                 continue
             verification_id = str(verification["verification_id"])
-            if any(event["event_type"] == "conversation.rework_review_published" and
+            receipt_types = {"conversation.rework_review_published",
+                             "engineering.rework_review_recorded"}
+            if any(event["event_type"] in receipt_types and
                     event["payload"].get("verification_id") == verification_id for event in events):
                 continue
             matching_decisions = [event for event in events if event["event_type"] in {
@@ -1850,6 +1930,8 @@ class GraceExecutionPipeline:
                 "step_acceptance_criteria": list(step["acceptance_criteria"]),
                 "submitter_id": row["submitter_id"], "origin": origin,
                 "completion": completion}
+            if not conversation_origin:
+                item["proposal_reference"] = proposal_reference
             if decision_event:
                 item["persisted_decision"] = decision_event["payload"]
             item["rework_attempt_count"] = sum(1 for event in events
@@ -2056,6 +2138,64 @@ class GraceExecutionPipeline:
                 self._event(cur, objective_id, "conversation.rework_review_published",
                     f"grace-rework-review-published:{verification_id}", "office:grace",
                     {"verification_id": verification_id, "request_id": request_id})
+        return True
+
+    def record_rework_review_recorded(self, context, request_id):
+        """Acknowledge a proposal-origin review without inventing a conversation receipt."""
+        if (not isinstance(context, dict) or context.get("origin") is not None or
+                not all(isinstance(context.get(key), str) and context[key]
+                    for key in ("objective_id", "assignment_id")) or
+                not isinstance(request_id, str) or not request_id or
+                not isinstance(context.get("completion"), dict)):
+            raise ValueError("proposal-origin review receipt is invalid")
+        objective_id, assignment_id = context["objective_id"], context["assignment_id"]
+        verification_id = context["completion"].get("verification_id")
+        if not isinstance(verification_id, str) or not verification_id:
+            raise ValueError("proposal-origin verifier identity is required")
+        expected_request_id = str(uuid5(NAMESPACE_URL,
+            "riverview:grace-rework-review:" + objective_id + ":" + assignment_id + ":" +
+            verification_id))
+        if request_id != expected_request_id:
+            raise ValueError("proposal-origin rework request correlation is invalid")
+        key = f"grace-rework-review-recorded:{verification_id}"
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT status,assignment_id FROM grace_objectives
+                    WHERE objective_id=%s FOR UPDATE""", (objective_id,))
+                objective = cur.fetchone()
+                cur.execute("""SELECT state,objective_ref FROM assignments
+                    WHERE id=%s FOR UPDATE""", (assignment_id,))
+                assignment = cur.fetchone()
+                cur.execute("""SELECT verification_id,decision FROM verification_records
+                    WHERE assignment_id=%s ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""",
+                    (assignment_id,))
+                latest = cur.fetchone()
+                cur.execute("""SELECT payload FROM grace_objective_events
+                    WHERE objective_id=%s AND idempotency_key=ANY(%s)""", (objective_id,
+                    [f"grace-rework-decision:{verification_id}",
+                     f"grace-rejection-review:{verification_id}"]))
+                decision = cur.fetchone()
+                if (not objective or objective["status"] != "WORK_ORDER_CREATED" or
+                        objective["assignment_id"] != assignment_id or not assignment or
+                        assignment["objective_ref"] != objective_id or
+                        assignment["state"] not in {"rework_required", "ready"} or
+                        not latest or latest["decision"] != "REJECTED" or
+                        str(latest["verification_id"]) != verification_id or not decision or
+                        decision["payload"].get("verification_id") != verification_id):
+                    raise ObjectiveStateError("current proposal-origin rejection decision is required")
+                payload = {"assignment_id": assignment_id,
+                    "verification_id": verification_id,
+                    "request_id": request_id,
+                    "decision": decision["payload"].get("decision")}
+                self._event(cur, objective_id, "engineering.rework_review_recorded", key,
+                    "office:grace", payload)
+                cur.execute("SELECT event_type,payload FROM grace_objective_events "
+                    "WHERE objective_id=%s AND idempotency_key=%s", (objective_id, key))
+                recorded = cur.fetchone()
+                if (not recorded or recorded["event_type"] != "engineering.rework_review_recorded" or
+                        recorded["payload"] != payload):
+                    raise ObjectiveStateError("proposal-origin rework receipt idempotency conflict")
         return True
 
     def propose_continuation(self, objective_id, parent_assignment_id, step, *, actor_id="office:grace"):

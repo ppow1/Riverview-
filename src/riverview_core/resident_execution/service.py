@@ -1129,12 +1129,15 @@ class GraceExecutionService:
                 review_context = self._with_grace_artifact_review(context)
                 receipt = self.rejected_work_order_publisher(review_context)
                 if (not isinstance(receipt, dict) or
-                        receipt.get("status") not in {"published", "already_published"} or
+                        receipt.get("status") not in {"published", "already_published", "recorded"} or
                         receipt.get("verification_id") !=
                             context["completion"]["verification_id"]):
                     continue
-                self.pipeline.record_rework_review_published(context["objective_id"],
-                    context["completion"]["verification_id"], receipt["request_id"])
+                if context.get("origin") is None:
+                    self.pipeline.record_rework_review_recorded(context, receipt["request_id"])
+                else:
+                    self.pipeline.record_rework_review_published(context["objective_id"],
+                        context["completion"]["verification_id"], receipt["request_id"])
                 published += 1
             except Exception as exc:
                 self.pipeline.record_rework_escalation_pending(

@@ -147,6 +147,24 @@ class CodexWorkAction:
             task_scope += "\n\nGrace's bounded corrective instruction from the persisted verifier rejection: " + rework["correction_instruction"]
             task_scope += "\nAddress only these unchanged acceptance criteria: " + json.dumps(
                 rework["criteria_to_address"], ensure_ascii=False, separators=(",", ":"))
+        runtime_evidence = None
+        artifact_criteria = [criterion.lower() for item in step["artifact_requirements"]
+                             for criterion in item["acceptance_criteria"]]
+        if (any("reasoning attempts" in criterion for criterion in artifact_criteria) and
+                any("state transitions are durably persisted" in criterion
+                    for criterion in artifact_criteria)):
+            evidence_reader = getattr(self.pipeline, "diagnostic_runtime_evidence", None)
+            if not callable(evidence_reader):
+                raise CodexActionFailure("diagnostic_runtime_evidence_unavailable")
+            runtime_evidence = evidence_reader(objective_id)
+            historical = runtime_evidence.get("referenced_historical_objectives", [])
+            if (runtime_evidence.get("schema") != "rv.grace-diagnostic-runtime-evidence.v1" or
+                    not runtime_evidence.get("read_only") or
+                    not any(item.get("status") == "CANCELLED" and
+                        item.get("event_counts", {}).get("execution.reasoning_attempted", 0) >= 599 and
+                        item.get("event_counts", {}).get("execution.reasoning_failed", 0) >= 599
+                        for item in historical)):
+                raise CodexActionFailure("diagnostic_history_evidence_incomplete")
         try:
             repository_revision = self.adapter.repository_revision()
         except Exception as exc:
@@ -166,7 +184,8 @@ class CodexWorkAction:
                 tuple(item["acceptance_criteria"]), item.get("max_bytes", 32768))
                 for item in step["artifact_requirements"]),
             timeout_seconds=self.timeout_seconds, artifact_revision=artifact_revision,
-            rework_verification_id=rework_verification_id)
+            rework_verification_id=rework_verification_id,
+            runtime_evidence=runtime_evidence)
         result = self.adapter.execute(request)
         if result.status != "DELIVERABLE_PRODUCED" or not result.artifact_name:
             raise CodexActionFailure(result.detail_code,

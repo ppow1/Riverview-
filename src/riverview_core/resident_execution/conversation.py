@@ -1212,7 +1212,7 @@ class ResidentConversationService:
     def __init__(self, *, store, registry, authorizer, office_id,
                  resident_credential, providers, max_response_tokens=512,
                  operational_context=None, continuation_handler=None,
-                 rework_handler=None):
+                 rework_handler=None, proposal_rework_receipt_handler=None):
         if not office_id or not resident_credential:
             raise ValueError("office identity and current resident credential are required")
         if type(max_response_tokens) is not int or not 16 <= max_response_tokens <= 512:
@@ -1231,6 +1231,10 @@ class ResidentConversationService:
         if rework_handler is not None and not callable(rework_handler):
             raise ValueError("rework handler must be callable")
         self.rework_handler = rework_handler
+        if (proposal_rework_receipt_handler is not None and
+                not callable(proposal_rework_receipt_handler)):
+            raise ValueError("proposal-origin rework receipt handler must be callable")
+        self.proposal_rework_receipt_handler = proposal_rework_receipt_handler
         self._conversation_locks = {}
         self._locks_guard = threading.Lock()
         self._registry_lock = threading.RLock()
@@ -2092,19 +2096,37 @@ class ResidentConversationService:
             "proposal", "submitter_id", "origin", "completion", "step_id",
             "step_objective", "step_acceptance_criteria"}
         optional = {"objective_status", "persisted_decision", "artifact_review",
-                    "artifact_review_unavailable"}
+                    "artifact_review_unavailable", "proposal_reference"}
         if (not isinstance(context, dict) or not required <= set(context) or
                 set(context) - required - optional):
             raise ValueError("rejected Engineering result context is invalid")
         completion, origin = context["completion"], context["origin"]
+        proposal_origin = origin is None
+        proposal_reference = context.get("proposal_reference")
+        valid_proposal_origin = (isinstance(proposal_reference, dict) and
+            isinstance(proposal_reference.get("proposal_id"), str) and
+            re.fullmatch(r"proposal:[0-9a-f-]{36}", proposal_reference["proposal_id"]) and
+            type(proposal_reference.get("revision")) is int and
+            proposal_reference["revision"] >= 1 and
+            isinstance(proposal_reference.get("content_sha256"), str) and
+            re.fullmatch(r"[0-9a-f]{64}", proposal_reference["content_sha256"]) and
+            isinstance(proposal_reference.get("approval_event_key"), str) and
+            isinstance(proposal_reference.get("objective_submit_grant_id"), str))
+        expected_objective_id = ("objective:proposal:" + str(uuid5(NAMESPACE_URL,
+            f"riverview:proposal-work-order:{proposal_reference['proposal_id']}:r{proposal_reference['revision']}")) +
+            f":r{proposal_reference['revision']}" if valid_proposal_origin else None)
         if (not isinstance(completion, dict) or completion.get("decision") != "REJECTED" or
                 completion.get("assignment_id") != context["assignment_id"] or
                 not isinstance(completion.get("verification_id"), str) or
-                not isinstance(origin, dict) or set(origin) != {"conversation_id", "source_sequence"} or
-                type(origin["source_sequence"]) is not int or
+                (proposal_origin and (not valid_proposal_origin or
+                    expected_objective_id != context["objective_id"])) or
+                (not proposal_origin and (not isinstance(origin, dict) or
+                    set(origin) != {"conversation_id", "source_sequence"} or
+                    not isinstance(origin.get("conversation_id"), str) or
+                    type(origin["source_sequence"]) is not int)) or
                 not isinstance(context["step_acceptance_criteria"], list) or
                 not context["step_acceptance_criteria"]):
-            raise ValueError("durable verifier rejection and source conversation are required")
+            raise ValueError("durable verifier rejection and exact objective origin are required")
         artifact = completion.get("artifact") if isinstance(completion.get("artifact"), dict) else {}
         review_unavailable = context.get("artifact_review_unavailable")
         if review_unavailable not in {None, "integrity_check_failed"}:
@@ -2138,7 +2160,7 @@ class ResidentConversationService:
         request_id = uuid5(NAMESPACE_URL,
             "riverview:grace-rework-review:" + context["objective_id"] + ":" +
             context["assignment_id"] + ":" + verification_id)
-        if self.store.has_assistant_response(request_id):
+        if not proposal_origin and self.store.has_assistant_response(request_id):
             receipt = self.store.assistant_response_receipt(request_id)
             if not receipt or not all(receipt.get(key) for key in (
                     "provider_id", "served_model", "implementation_id",
@@ -2241,6 +2263,14 @@ class ResidentConversationService:
         persisted = self.rework_handler(context, decision)
         if not isinstance(persisted, dict) or persisted.get("verification_id") != verification_id:
             raise ConversationUnavailable("governed rework decision was not durably recorded")
+        if proposal_origin:
+            if self.proposal_rework_receipt_handler is None:
+                raise ConversationUnavailable("durable proposal-origin rework receipt handler unavailable")
+            recorded = self.proposal_rework_receipt_handler(context, str(request_id))
+            if recorded is not True:
+                raise ConversationUnavailable("proposal-origin rework receipt was not durably recorded")
+            return {"status": "recorded", "request_id": str(request_id),
+                    "verification_id": verification_id}
         if decision["decision"] == "REWORK_PROPOSED":
             body = "The independent verifier rejected this attempt. Grace recorded bounded corrective work against the same assignment: " + decision["rationale"].strip()
         elif decision["decision"] == "OBJECTIVE_SATISFIED":

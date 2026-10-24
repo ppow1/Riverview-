@@ -1812,15 +1812,26 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual([row["status"] for row in rows], ["verified", "verified"])
         self.assertNotEqual(rows[0]["assignment_id"], rows[1]["assignment_id"])
 
-    def _create_rework_fixture(self, suffix, *, conversation_id=None):
-        objective_id = "objective:governed-rework:" + suffix
+    def _create_rework_fixture(self, suffix, *, conversation_id=None,
+                               proposal_reference=None):
+        if proposal_reference is None:
+            objective_id = "objective:governed-rework:" + suffix
+        else:
+            from uuid import NAMESPACE_URL, uuid5
+            proposal_id, revision = (proposal_reference["proposal_id"],
+                                     proposal_reference["revision"])
+            objective_id = ("objective:proposal:" + str(uuid5(NAMESPACE_URL,
+                f"riverview:proposal-work-order:{proposal_id}:r{revision}")) +
+                f":r{revision}")
         assignment_id = "assignment:grace:governed-rework:" + suffix
         criteria = ["criterion " + str(index) + " must be preserved exactly"
                     for index in range(1, 5)]
-        origin = {"conversation_id": conversation_id or str(uuid4()), "source_sequence": 6}
+        origin = (None if proposal_reference is not None else
+            {"conversation_id": conversation_id or str(uuid4()), "source_sequence": 6})
         self.pipeline.submit_objective(objective_id,
             "Create a bounded acceptance artifact at reports/acceptance.txt", criteria,
-            credential=self.credentials["steward"], scope_ref=self.scope, origin=origin)
+            credential=self.credentials["steward"], scope_ref=self.scope, origin=origin,
+            proposal_reference=proposal_reference)
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id,
             PlanProposal("Create acceptance artifact", (PlanStep("s1",
@@ -1865,6 +1876,95 @@ class GraceExecutionTests(unittest.TestCase):
             knowledge=self.knowledge, action=action, action_effect_class="retry_safe",
             action_capability="engineering.bounded-artifact.v1")
         return objective_id, assignment_id, criteria, action, worker, RejectUntilCorrectedVerifier()
+
+    def test_proposal_origin_rework_requires_promotion_evidence_and_records_once(self):
+        proposal_reference = {"proposal_id":"proposal:18ec0798-a441-494d-b45e-68cf99e72cd2",
+            "revision":2, "content_sha256":"a" * 64,
+            "approval_event_key":"proposal-approved:test", "source_references":[],
+            "privacy_classification":"institutional", "retention_policy":"minimum_required",
+            "approved_purpose":"Bounded proposal-origin rework regression test",
+            "objective_submit_grant_id":"grant:test"}
+        objective_id, assignment_id, _criteria, _action, worker, verifier = \
+            self._create_rework_fixture("proposal-origin", proposal_reference=proposal_reference)
+        with self.admin.cursor() as cur:
+            cur.execute("UPDATE " + self.schema + ".grace_objectives "
+                "SET proposal=jsonb_set(proposal,'{system_owned_criteria}',%s::jsonb) "
+                "WHERE objective_id=%s", (json.dumps(["Approved proposal promotion" ]), objective_id))
+        self.pipeline.proposal_promotion_evidence = lambda _cur, _objective, _criterion: False
+        first = worker.run_once(assignment_id=assignment_id)
+        self.adapter.verify_attempt(assignment_id, first["attempt_id"], self.verifier_id,
+            self.credentials["verifier"], verifier,
+            idempotency_key="proposal-origin-reject:" + assignment_id)
+        self.assertEqual(self.pipeline.pending_rejected_work_order_reviews(), [])
+
+        self.pipeline.proposal_promotion_evidence = lambda _cur, _objective, _criterion: True
+        context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        self.assertIsNone(context["origin"])
+        self.assertEqual(context["proposal_reference"], proposal_reference)
+        decision = {"decision":"REWORK_PROPOSED",
+            "rationale":"Add the missing exact criteria to the same assigned artifact.",
+            "correction_instruction":"Include all four exact criteria in the assigned artifact.",
+            "criteria_to_address":context["step_acceptance_criteria"]}
+        persisted = self.pipeline.record_rework_decision(context, decision,
+            credential=self.credentials["steward"])
+        from uuid import NAMESPACE_URL, uuid5
+        request_id = str(uuid5(NAMESPACE_URL,
+            "riverview:grace-rework-review:" + objective_id + ":" + assignment_id + ":" +
+            context["completion"]["verification_id"]))
+        self.assertTrue(self.pipeline.record_rework_review_recorded(context, request_id))
+        self.assertTrue(self.pipeline.record_rework_review_recorded(context, request_id))
+        with self.assertRaisesRegex(ValueError, "correlation is invalid"):
+            self.pipeline.record_rework_review_recorded(context, "wrong-request")
+        self.assertEqual(self.pipeline.pending_rejected_work_order_reviews(), [])
+        events = [event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"] == "engineering.rework_review_recorded"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["payload"]["verification_id"], persisted["verification_id"])
+        self.assertEqual(events[0]["payload"]["request_id"], request_id)
+
+    def test_diagnostic_runtime_evidence_is_read_only_and_limited_to_exact_references(self):
+        historical_id = "objective:grace-conversation:74b28df1-ea8e-5944-8bde-0ff56b117794"
+        self.pipeline.submit_objective(historical_id, "Historical cancelled objective",
+            ["Preserve history"], credential=self.credentials["steward"], scope_ref=self.scope)
+        self.pipeline.submit_objective("objective:diagnostic-evidence:test",
+            "Inspect " + historical_id + " using read-only authoritative history",
+            ["Report exact runtime evidence"], credential=self.credentials["steward"],
+            scope_ref=self.scope)
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                for index in range(599):
+                    self.pipeline._event(cur, historical_id,
+                        "execution.reasoning_attempted", f"test-attempt-{index}",
+                        "office:grace", {})
+                    self.pipeline._event(cur, historical_id,
+                        "execution.reasoning_failed", f"test-failed-{index}",
+                        "office:grace", {"reason_code":"fixture_failure"})
+                cur.execute("UPDATE grace_objectives SET status='CANCELLED' WHERE objective_id=%s",
+                            (historical_id,))
+                self.pipeline._event(cur, historical_id, "objective.cancelled",
+                    "test-cancelled", "steward:test", {"reason":"fixture"})
+        before = self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".grace_objective_events WHERE objective_id=%s", (historical_id,)).fetchone()[0]
+
+        evidence = self.pipeline.diagnostic_runtime_evidence("objective:diagnostic-evidence:test")
+
+        after = self.admin.execute("SELECT count(*) FROM " + self.schema +
+            ".grace_objective_events WHERE objective_id=%s", (historical_id,)).fetchone()[0]
+        self.assertTrue(evidence["read_only"])
+        self.assertEqual(evidence["referenced_historical_objectives"][0]["objective_id"],
+                         historical_id)
+        counts = evidence["referenced_historical_objectives"][0]["event_counts"]
+        self.assertEqual(counts["execution.reasoning_attempted"], 599)
+        self.assertEqual(counts["execution.reasoning_failed"], 599)
+        self.assertEqual(before, after)
+
+        self.pipeline.submit_objective("objective:diagnostic-evidence:unreferenced",
+            "No historic objective is cited", ["No disclosure"],
+            credential=self.credentials["steward"], scope_ref=self.scope)
+        unreferenced = self.pipeline.diagnostic_runtime_evidence(
+            "objective:diagnostic-evidence:unreferenced")
+        self.assertEqual(unreferenced["referenced_historical_objectives"], [])
 
     def test_rejected_assignment_rework_preserves_rejection_and_reaches_independent_acceptance(self):
         from riverview_core.resident_execution.service import GraceExecutionService

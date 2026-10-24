@@ -483,6 +483,54 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(len(self.router.calls), 1)
         self.assertEqual(len(self.rework_decisions), 1)
 
+    def test_proposal_origin_rework_records_durable_receipt_without_fabricating_conversation(self):
+        from uuid import NAMESPACE_URL, uuid5
+        proposal_id = "proposal:18ec0798-a441-494d-b45e-68cf99e72cd2"
+        revision = 2
+        objective_id = ("objective:proposal:" + str(uuid5(NAMESPACE_URL,
+            f"riverview:proposal-work-order:{proposal_id}:r{revision}")) + f":r{revision}")
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"objective_id": objective_id, "origin": None,
+            "proposal_reference": {"proposal_id": proposal_id, "revision": revision,
+                "content_sha256": "a" * 64, "approval_event_key": "proposal-approved:test",
+                "objective_submit_grant_id": "grant:test"},
+            "step_id": "s2", "step_objective": "Write the runtime diagnostic",
+            "step_acceptance_criteria": ["Include authoritative runtime evidence."],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"runtime_evidence_present": False},
+                "summary": "Runtime evidence was absent."}})
+        recorded = []
+        self.service.proposal_rework_receipt_handler = lambda ctx, request_id: (
+            recorded.append((ctx["objective_id"], request_id)) or True)
+        self.router.content = json.dumps({"decision": "REWORK_PROPOSED",
+            "rationale": "The independent verifier correctly rejected missing runtime evidence.",
+            "correction_instruction": "Use the provided read-only authoritative event evidence.",
+            "criteria_to_address": ["Include authoritative runtime evidence."]})
+
+        result = self.service.review_rejected_work_order(context)
+
+        self.assertEqual(result["status"], "recorded")
+        self.assertEqual(result["verification_id"], context["completion"]["verification_id"])
+        self.assertEqual(recorded[0][0], objective_id)
+        self.assertEqual(len(self.store.responses), 0)
+        self.assertEqual(self.rework_decisions[0][1]["decision"], "REWORK_PROPOSED")
+
+    def test_proposal_origin_rework_rejects_mismatched_objective_before_reasoning(self):
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"origin": None, "proposal_reference": {
+            "proposal_id": "proposal:18ec0798-a441-494d-b45e-68cf99e72cd2",
+            "revision": 2, "content_sha256": "a" * 64,
+            "approval_event_key": "proposal-approved:test",
+            "objective_submit_grant_id": "grant:test"},
+            "step_id": "s2", "step_objective": "Inspect runtime history",
+            "step_acceptance_criteria": ["criterion"]})
+        with self.assertRaisesRegex(ValueError, "exact objective origin"):
+            self.service.review_rejected_work_order(context)
+        self.assertEqual(self.router.calls, [])
+
     def test_rejected_result_cannot_direct_out_of_scope_criteria(self):
         context = {key: value for key, value in valid_context().items() if key != "completion_cycle"}
         context.update({"step_id": "s1", "step_objective": "Create deliverable",

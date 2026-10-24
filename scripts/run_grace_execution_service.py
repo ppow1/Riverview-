@@ -375,6 +375,9 @@ def main() -> int:
             actor_id="office:" + office_id)
         conversation_service.rework_handler = lambda context, decision: pipeline.record_rework_decision(
             context, decision, credential=dispatch_token)
+        conversation_service.proposal_rework_receipt_handler = (
+            lambda context, request_id: pipeline.record_rework_review_recorded(
+                context, request_id))
         adapter_mode = os.environ.get("RIVERVIEW_ENGINEERING_ADAPTER", "bounded-artifact")
         execution_capability = "engineering.bounded-artifact.v1"
         execution_action = BoundedLocalCodingWorker(pipeline, artifact_root)
