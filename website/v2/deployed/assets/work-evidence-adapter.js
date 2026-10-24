@@ -1,3 +1,4 @@
+// Revision: 1.0.0
 /* Pure view models over Riverview's authoritative objective and assignment projections. */
 (() => {
   "use strict";

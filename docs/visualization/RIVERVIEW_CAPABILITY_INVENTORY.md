@@ -1,3 +1,4 @@
+<!-- Document Revision: 1.0.0 -->
 # Riverview capability inventory
 
 Inventory date: 2026-10-24. This describes source and evidence across The Estate, canonical Riverview, the deployed `Riverview-` website/backend, the historical archive, and infrastructure runbooks. Historical and experimental implementations are not presumed to be running.

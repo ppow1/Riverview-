@@ -1,3 +1,4 @@
+<!-- Document Revision: 1.0.0 -->
 # Riverview deployed V1/V2 parity inventory
 
 Observed 2026-10-24 against the live LAN website. V1 is the root operations portal (`/`); V2 is `/v2/`, whose deployed manifest identifies `RV-WEB-V2-ACCEPTANCE-ebd53a84` at commit `ebd53a84ae6e016353083ffe40f15048512ac6c6`. This is a UI and route inventory, not a claim that every protected operation was exercised. Unauthenticated probes of protected `/api/v1/...` paths returned 401, confirming the authentication boundary. Each endpoint continues to enforce its own authorization.
