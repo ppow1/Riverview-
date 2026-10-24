@@ -68,6 +68,20 @@ History: Git and revision/backup manifest
     return result;
   }
 
+  async function apiWithTransientRetry(path, options = {}) {
+    const delays = [0, 300, 800, 1500];
+    let lastError;
+    for (const delay of delays) {
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      try { return await api(path, options); }
+      catch (error) {
+        lastError = error;
+        if (![502, 503, 504].includes(error.status)) throw error;
+      }
+    }
+    throw lastError || new Error("notification_settings_unavailable");
+  }
+
   function appendProgressField(grid, label, value) {
     const term = document.createElement("dt"); term.textContent = label;
     const detail = document.createElement("dd"); detail.textContent = value || "Unavailable";
@@ -327,7 +341,8 @@ History: Git and revision/backup manifest
 
   async function handleConversationalNotificationSettings(message) {
     const text = String(message || "").trim();
-    const read = /^(?:grace\s*[, :]\s*)?(?:show|read|get|what are)\s+(?:my\s+)?notification settings[?.!]*$/i.test(text);
+    const read = /^(?:grace\s*[, :]\s*)?(?:(?:what(?:'s|\s+(?:is|are))|tell me|show|read|get|check|how are)\s+)?(?:(?:the|my)\s+)?(?:(?:current|saved|active|configured)\s+)?notification(?:s)?(?:\s+(?:setting|settings|level|preferences|configuration|configured))?[?.!]*$/i.test(text)
+      || /^(?:grace\s*[, :]\s*)?(?:what(?:'s|\s+(?:is|are))|tell me|show|check)\s+(?:(?:the|my)\s+)?(?:(?:current|saved|active)\s+)?notification\s+(?:setting|settings|level|preferences|configuration)[?.!]*$/i.test(text);
     const levelMatch = /^(?:grace\s*[, :]\s*)?(?:set\s+)?notification(?:\s+level)?\s+(?:to|=)\s*(all|important|critical\s+only|paused)[.!]*$/i.exec(text);
     const quietMatch = /^(?:grace\s*[, :]\s*)?(?:set\s+)?quiet hours\s+(on|off|enabled|disabled)[.!]*$/i.exec(text);
     const hoursMatch = /^(?:grace\s*[, :]\s*)?set quiet hours to (\d{2}:\d{2})\s*(?:-|to)\s*(\d{2}:\d{2})\s+in\s+([A-Za-z_]+(?:\/[A-Za-z0-9_+.-]+)+)[.!]*$/i.exec(text);
@@ -338,8 +353,8 @@ History: Git and revision/backup manifest
       return true;
     }
     try {
-      const current = await api("/api/v1/notification-settings");
-      const description = (settings) => `Level: ${settings.level.replace("_", " ")}. Quiet hours: ${settings.quiet_hours.enabled ? `on, ${settings.quiet_hours.start}–${settings.quiet_hours.end} ${settings.quiet_hours.timezone}` : "off"}. Critical alerts always pass, including during Paused and quiet hours.`;
+      const current = await apiWithTransientRetry("/api/v1/notification-settings");
+      const description = (settings) => `Level: ${settings.level.replaceAll("_", " ")}. Quiet hours: ${settings.quiet_hours.enabled ? "on" : "off"}, ${settings.quiet_hours.start}–${settings.quiet_hours.end}; time zone: ${settings.quiet_hours.timezone}. Critical alerts always pass, including during Paused and quiet hours.`;
       if (read) { status.textContent = description(current); return true; }
       const next = {level: current.level, quiet_hours: {...current.quiet_hours}};
       if (levelMatch) next.level = levelMatch[1].toLowerCase().replace(/\s+/g, "_");
@@ -354,7 +369,7 @@ History: Git and revision/backup manifest
         status.textContent = "Settings change cancelled; current preferences are unchanged.";
         return true;
       }
-      const saved = await api("/api/v1/notification-settings", {method: "PUT", body: {
+      const saved = await apiWithTransientRetry("/api/v1/notification-settings", {method: "PUT", body: {
         level: next.level, quiet_hours: next.quiet_hours
       }});
       status.textContent = `Settings saved to Riverview. ${description(saved)}`;

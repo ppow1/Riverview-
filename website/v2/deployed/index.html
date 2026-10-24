@@ -30,7 +30,7 @@ History: Git and revision/backup manifest
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <title>Riverview V2 Workspace Preview</title>
+  <title>Riverview V2 Workspace</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/workspace.css">
   <link rel="stylesheet" href="assets/communications.css">
@@ -49,7 +49,7 @@ History: Git and revision/backup manifest
   <script defer src="assets/notification-settings.js"></script>
 <meta name="rv-v2-snapshot-mode" content="authenticated-dashboard"></head>
 <body>
-  <div class="preview-banner"><span class="dot"></span> V2 preview <b>Fixture workspace · Grace uses secure Dashboard authentication</b></div>
+  <div class="preview-banner"><span class="dot"></span> Riverview V2 <b>Grace and connected settings use authenticated Riverview services; overview cards contain sample records.</b></div>
   <div class="app-shell">
     <aside class="rail" id="left-sidebar" data-sidebar="left" aria-label="Primary navigation" data-tooltip="Primary navigation">
       <a class="brand" href="#overview" aria-label="Riverview home" data-tooltip="Go to workspace overview"><span class="brand-mark">R</span><span>Riverview<small>WORKSPACE</small></span></a>
@@ -67,11 +67,11 @@ History: Git and revision/backup manifest
     </aside>
 
     <main class="main-column">
-      <header class="topbar"><button id="mobile-menu" aria-label="Toggle navigation" data-tooltip="Open navigation">☰</button><div><span class="eyebrow">RIVERVIEW V2</span><h1 id="page-title">Workspace overview</h1></div><div class="top-actions"><label class="theme-control" for="theme-select" data-tooltip="Choose Light, Dark, or System appearance">Theme <select id="theme-select" aria-label="Color theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><button id="left-state" class="icon-button" type="button" aria-label="Change left sidebar state" data-tooltip="Cycle navigation: expanded, icons, hidden">⇤</button><button id="right-state" class="icon-button" type="button" aria-label="Change right sidebar state" data-tooltip="Cycle context panel: expanded, compact, hidden">⇥</button><span class="status-pill"><i></i> Preview mode</span><button id="help-button" class="icon-button" aria-label="Help" data-tooltip="Help: this is a fixture-only preview">?</button></div></header>
+      <header class="topbar"><button id="mobile-menu" aria-label="Toggle navigation" data-tooltip="Open navigation">☰</button><div><span class="eyebrow">RIVERVIEW V2</span><h1 id="page-title">Workspace overview</h1></div><div class="top-actions"><label class="theme-control" for="theme-select" data-tooltip="Choose Light, Dark, or System appearance">Theme <select id="theme-select" aria-label="Color theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><button id="left-state" class="icon-button" type="button" aria-label="Change left sidebar state" data-tooltip="Cycle navigation: expanded, icons, hidden">⇤</button><button id="right-state" class="icon-button" type="button" aria-label="Change right sidebar state" data-tooltip="Cycle context panel: expanded, compact, hidden">⇥</button><span class="status-pill"><i></i> Connected features</span><button id="help-button" class="icon-button" aria-label="Help" data-tooltip="Overview cards use sample records; connected panels require authorized Riverview access">?</button></div></header>
       <div class="workspace-grid">
         <button id="left-restore" class="sidebar-restore left-restore" type="button" aria-label="Restore navigation sidebar" data-tooltip="Restore navigation sidebar" hidden>☰</button>
         <section class="content" id="workspace-main" aria-label="Workspace" data-current-view="overview">
-          <div class="welcome-row"><div><p class="eyebrow">TUESDAY, OCTOBER 20</p><h2>A clear view of the work.</h2><p class="muted">A workspace-first shell, running entirely on local preview fixtures.</p></div><div class="welcome-actions"><div class="fixture-chip">◈ &nbsp;Fixture workspace</div><button id="snapshot-action" class="snapshot-action" type="button" aria-describedby="snapshot-status" data-tooltip="Download a bounded snapshot of this V2 preview view">Snapshot</button></div></div><p id="snapshot-status" class="integration-note">Downloads a bounded ZIP of the current V2 view. Grace message contents are excluded.</p>
+          <div class="welcome-row"><div><p class="eyebrow" id="v2-current-date">RIVERVIEW V2</p><h2>A clear view of the work.</h2><p class="muted">Overview cards show sample records. Grace, Hardware, Communications, Work, and notification settings use connected Riverview services when authorized.</p></div><div class="welcome-actions"><div class="fixture-chip">◈ &nbsp;Sample overview</div><button id="snapshot-action" class="snapshot-action" type="button" aria-describedby="snapshot-status" data-tooltip="Download a bounded snapshot of the current V2 view">Snapshot</button></div></div><p id="snapshot-status" class="integration-note">Downloads a bounded ZIP of the current V2 view. Grace message contents are excluded.</p>
           <div id="overview-content">
           <div class="metric-grid">
             <article class="metric-card"><span>Active work</span><strong>04</strong><small>Preview fixture count</small></article>
@@ -238,7 +238,7 @@ History: Git and revision/backup manifest
             <div id="engineering-progress-list" class="engineering-progress-list"></div>
             <p class="engineering-progress-note">Cancellation is available only for work the existing lifecycle can safely stop and the authenticated Steward is authorized to cancel.</p>
           </section>
-          <div class="panel-foot"><span class="shield">▣</span>Preview workspace<br><small>Grace conversation uses Dashboard account grants</small></div>
+          <div class="panel-foot"><span class="shield">▣</span>V2 workspace<br><small>Grace conversation uses Dashboard account grants</small></div>
         </aside>
       </div>
         <button id="right-restore" class="sidebar-restore right-restore" type="button" aria-label="Restore context panel" data-tooltip="Restore context panel" hidden>◉</button>

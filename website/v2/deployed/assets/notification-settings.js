@@ -13,6 +13,7 @@
     if (!item) return "";
     try { return decodeURIComponent(item.slice("rv_account_csrf=".length)); } catch (_) { return ""; }
   }
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   async function api(method, body) {
     const headers = {Accept: "application/json"};
     if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -20,13 +21,26 @@
       const csrf = csrfToken();
       if (csrf) headers["X-Riverview-CSRF"] = csrf;
     }
-    const response = await fetch("/api/v1/notification-settings", {
-      method, headers, credentials: "same-origin", cache: "no-store",
-      body: body === undefined ? undefined : JSON.stringify(body)
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || `http_${response.status}`);
-    return result;
+    const delays = [0, 300, 800, 1500];
+    let lastError;
+    for (const delay of delays) {
+      if (delay) await wait(delay);
+      try {
+        const response = await fetch("/api/v1/notification-settings", {
+          method, headers, credentials: "same-origin", cache: "no-store",
+          body: body === undefined ? undefined : JSON.stringify(body)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (response.ok) return result;
+        lastError = new Error(result.error || `http_${response.status}`);
+        lastError.status = response.status;
+        if (![502, 503, 504].includes(response.status)) throw lastError;
+      } catch (error) {
+        lastError = error;
+        if (error.status && ![502, 503, 504].includes(error.status)) throw error;
+      }
+    }
+    throw lastError || new Error("notification_settings_unavailable");
   }
   function display(settings) {
     $("notification-settings-level").value = settings.level;
