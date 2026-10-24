@@ -88,7 +88,13 @@ class GraceExecutionService:
 
     MAX_REASONING_FAILURES = 3
     REASONING_FAILURE_WINDOW_SECONDS = 60
-    PERSISTED_PROPOSAL_BLOCK_CODES = frozenset({"PROPOSAL_CRITERIA_BINDING_REJECTED"})
+    # These are deterministic validator rejections for a fixed objective revision.
+    # A retry cannot change the approved scope or artifact paths, and counting only
+    # failures from the current immutable runtime would reopen the loop on deploy.
+    PERSISTED_PROPOSAL_BLOCK_CODES = frozenset({
+        "PROPOSAL_CRITERIA_BINDING_REJECTED",
+        "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+    })
 
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,

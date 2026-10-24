@@ -394,6 +394,58 @@ class CodingWorkOrderContractTests(unittest.TestCase):
 
 
 class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
+    def test_artifact_path_fence_suppresses_again_after_service_reconstruction(self):
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        class Cursor:
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def execute(self, query, params):
+                self.query, self.params = query, params
+            def fetchone(self): return {"blocked": True}
+
+        class DB:
+            def __init__(self): self.value = Cursor()
+            def cursor(self): return self.value
+
+        class Reasoner:
+            providers = {"provider.test": object()}
+            office_id = "office:test"
+            calls = 0
+            def propose(self, *_args, **_kwargs):
+                self.calls += 1
+                raise AssertionError("durably fenced objective must not be reasoned again")
+
+        pipeline = SimpleNamespace(
+            ledger=SimpleNamespace(db=DB(), _set_search_path=lambda _cur: None),
+            grounded_objectives=lambda **_kwargs: [{
+                "objective_id": "objective:artifact-path-fence:r2", "revision": 2}],
+        )
+
+        def restarted_service():
+            service = object.__new__(GraceExecutionService)
+            service.pipeline = pipeline
+            service.resident_reasoner = Reasoner()
+            service.authority_ref = "work-order:test"
+            service.external_reasoning_exchange = None
+            service._claim_approved_recovery = lambda *_args: None
+            service._claim_experiment_recovery = lambda *_args: None
+            service._reasoning_failure_count = lambda *_args: self.fail(
+                "terminal revision fence should be checked before retry counters")
+            return service
+
+        first = restarted_service()
+        self.assertFalse(first.reason_one_grounded_objective())
+        second = restarted_service()
+        self.assertFalse(second.reason_one_grounded_objective())
+        self.assertEqual(first.resident_reasoner.calls, 0)
+        self.assertEqual(second.resident_reasoner.calls, 0)
+        self.assertEqual(set(pipeline.ledger.db.value.params[2]), {
+            "PROPOSAL_CRITERIA_BINDING_REJECTED",
+            "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+        })
+
     def test_revision_failure_fence_survives_immutable_release_change(self):
         from types import SimpleNamespace
         from riverview_core.resident_execution.service import GraceExecutionService
@@ -421,6 +473,8 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
         self.assertNotIn("runtime_revision", query)
         self.assertEqual(service.pipeline.ledger.db.cursor_value.params[:2],
                          ("objective:test:r2", "2"))
+        self.assertIn("PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+                      service.pipeline.ledger.db.cursor_value.params[2])
 
     def test_recorded_objective_criteria_have_one_lifecycle_binding_in_offline_fixture(self):
         from riverview_core.resident_execution.service import GraceExecutionService
@@ -818,6 +872,42 @@ class GraceExecutionTests(unittest.TestCase):
                            self.pipeline.objective_events(objective_id)]
             self.assertEqual(event_types.count("execution.reasoning_attempted"), 2)
             self.assertEqual(event_types.count("execution.reasoning_failed"), 2)
+
+    def test_artifact_path_terminal_failure_stays_fenced_after_service_restart(self):
+        from types import SimpleNamespace
+
+        objective_id = "objective:artifact-path-fence:" + uuid4().hex
+        objective = self._create_grounded_reasoning_objective(objective_id)
+
+        class CountingReasoner:
+            office_id = "office:grace-test"
+            providers = {"provider.test": object()}
+            calls = []
+            def propose(self, *_args, **_kwargs):
+                self.calls.append(True)
+                raise AssertionError("persisted terminal fence must suppress reasoning")
+
+        first_service = self._reasoning_service(CountingReasoner())
+        first_service._record_reasoning_failure(objective_id,
+            failure_type="ObjectiveStateError",
+            detail_code="PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+            blocked_revision=objective["revision"])
+        before = [event for event in self.pipeline.objective_events(objective_id)
+                  if event["event_type"] == "execution.reasoning_attempted"]
+
+        # Reconstruct the service over the same durable ledger, as after a process
+        # restart or immutable release switch. No in-memory retry counter is shared.
+        restarted = self._reasoning_service(CountingReasoner())
+        self.assertFalse(restarted.reason_one_grounded_objective())
+        after = [event for event in self.pipeline.objective_events(objective_id)
+                 if event["event_type"] == "execution.reasoning_attempted"]
+        self.assertEqual(after, before)
+        failures = [event for event in self.pipeline.objective_events(objective_id)
+                    if event["event_type"] == "execution.reasoning_failed"]
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(failures[0]["payload"]["status"], "BLOCKED")
+        self.assertEqual(failures[0]["payload"]["detail_code"],
+                         "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED")
 
     def test_single_grounded_objective_can_still_persist_its_typed_proposal(self):
         from types import SimpleNamespace
