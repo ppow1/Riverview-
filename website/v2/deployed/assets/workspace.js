@@ -148,6 +148,10 @@ History: Git and revision/backup manifest
     initTooltips();
     document.dispatchEvent(new CustomEvent("rvv2:view", { detail: { view } }));
   };
+  const dateNode = document.getElementById("v2-current-date");
+  if (dateNode) dateNode.textContent = new Intl.DateTimeFormat(undefined, {
+    weekday: "long", month: "long", day: "numeric", year: "numeric"
+  }).format(new Date()).toUpperCase();
   const selectResident = (resident) => {
     currentResident = resident;
     updateResidentContext(resident);
