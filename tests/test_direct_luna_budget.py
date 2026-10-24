@@ -39,7 +39,7 @@ class DirectLunaBudgetTests(unittest.TestCase):
         self.assertNotIn("\n", detail)
 
     def test_typed_supervision_has_room_for_advisory_output(self):
-        self.assertEqual(MAX_OUTPUT_TOKENS, 512)
+        self.assertEqual(MAX_OUTPUT_TOKENS, 4096)
 
 
 if __name__ == "__main__":

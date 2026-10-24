@@ -855,6 +855,7 @@ class DashboardProjection:
                                                if rework_is_current else None)},
                     "performance_evaluation": ({
                         "grade": performance.get("grade"),
+                        "grade_explanation": performance.get("grade_explanation"),
                         "rubric": performance.get("rubric"),
                         "what_went_well": performance.get("what_went_well"),
                         "gaps": performance.get("gaps"),

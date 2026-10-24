@@ -15,7 +15,13 @@ BASELINE_TOTAL = 0.04104010
 TOTAL_CREDIT = 5.0
 ADDITIONAL_LIMIT = round(TOTAL_CREDIT - BASELINE_TOTAL, 8)
 RESERVED_CALL_COST = 0.01
-MAX_OUTPUT_TOKENS = 512
+MAX_OUTPUT_TOKENS = 4096
+REQUEST_TYPE_OUTPUT_LIMITS = {
+    "cme_diagnostic_recovery": 4096,
+    "performance_evaluation": 2048,
+    "objective_reasoning": 512,
+    "proposal_review": 512,
+}
 LOG = logging.getLogger("riverview.grace_execution")
 
 
@@ -80,8 +86,10 @@ def process_one(exchange):
         return {"status": "BUDGET_OR_REPEAT_BLOCKED"}
     payload = row["request_payload"]
     request_type = payload.get("request_type", "objective_reasoning")
-    max_output_tokens = payload.get("max_tokens", MAX_OUTPUT_TOKENS)
-    if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= MAX_OUTPUT_TOKENS:
+    max_output_tokens = payload.get("max_tokens", 512)
+    request_type_limit = REQUEST_TYPE_OUTPUT_LIMITS.get(request_type, 512)
+    if (type(max_output_tokens) is not int or
+            not 1 <= max_output_tokens <= request_type_limit):
         exchange.finish_provider_attempt(row["request_id"], row["correlation_id"],
             status="failed", failure_type="request_token_budget_invalid")
         return {"status": "REQUEST_TOKEN_BUDGET_INVALID"}
@@ -94,19 +102,22 @@ def process_one(exchange):
         "that this response grants authority, approves work, or bypasses independent verification.")
     if request_type == "performance_evaluation":
         instructions = (
-            "Independently evaluate Grace's actual execution evidence. Return only one JSON object with "
-            "schema rv.grace.performance-evaluation.v1, grade (integer 1 through 5), rubric (object with "
-            "reasoning, authorization, execution, verification each scored 1 through 5), what_went_well "
-            "(array of concise strings), gaps (array of concise strings), actionable_feedback (array of "
-            "concise strings), and authority_promotion_recommendation (always 'Steward_decision_required'). "
+            "Evaluate only the supplied Grace execution evidence. Return one JSON object with schema "
+            "rv.grace.performance-evaluation.v1; grade (integer 1-5); grade_explanation (brief evidence-based "
+            "string); rubric (reasoning, authorization, execution, verification, each integer 1-5); "
+            "what_went_well, gaps, actionable_feedback (each an array of concise strings); and "
+            "authority_promotion_recommendation='Steward_decision_required'. Include specific guidance Grace "
+            "can apply to later work. Keep every field complete and concise. "
             "Do not infer success without evidence and do not grant or recommend automatic authority changes.")
-    body = json.dumps({"model": MODEL_ID, "store": False, "max_output_tokens": max_output_tokens,
+    body_data = {"model": MODEL_ID, "store": False, "max_output_tokens": max_output_tokens,
         "reasoning": {"effort": "low"}, "instructions": (
             instructions if request_type in {"cme_diagnostic_recovery", "performance_evaluation"}
             else "Give concise advisory reasoning to Grace. Identify missing evidence and safe next "
             "steps. Do not claim approval, authorize execution, or dispatch Engineering work."),
-        "input": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))},
-        separators=(",", ":")).encode()
+        "input": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))}
+    if request_type in {"cme_diagnostic_recovery", "performance_evaluation"}:
+        body_data["text"] = {"format": {"type": "json_object"}}
+    body = json.dumps(body_data, separators=(",", ":")).encode()
     request = urllib.request.Request("https://api.openai.com/v1/responses", data=body,
         headers={"Authorization": "Bearer " + _api_key(), "Content-Type": "application/json"},
         method="POST")
@@ -126,6 +137,34 @@ def process_one(exchange):
     output_details = usage.get("output_tokens_details") or {}
     reasoning = int(output_details.get("reasoning_tokens", 0))
     cost = ((input_tokens - cached) * 0.10 + cached * 0.01 + output_tokens * 0.50) / 1_000_000
+    response_status = result.get("status")
+    incomplete_details = result.get("incomplete_details")
+    if response_status != "completed" or incomplete_details:
+        incomplete_reason = (incomplete_details.get("reason")
+            if isinstance(incomplete_details, dict) else None)
+        if not isinstance(incomplete_reason, str) or not re.fullmatch(
+                r"[a-z][a-z0-9_]{0,63}", incomplete_reason):
+            incomplete_reason = "unspecified"
+        failure_type = ("IncompleteResponse" if response_status == "incomplete" or
+                        incomplete_details else "ResponseNotCompleted")
+        usage = {"input_tokens": input_tokens, "output_tokens": output_tokens,
+            "reasoning_tokens": reasoning, "cached_input_tokens": cached,
+            "cost_usd": cost, "response_status": str(response_status)[:32],
+            "incomplete_reason": incomplete_reason}
+        exchange.finish_provider_attempt(row["request_id"], row["correlation_id"],
+            status="failed", failure_type=failure_type, usage=usage)
+        request_id, correlation_id = _response_ids(row)
+        detail = "Incomplete API response: " + incomplete_reason
+        exchange.fail_provider_response_submission(row["request_id"], row["correlation_id"],
+            provider_id=PROVIDER_ID, principal_id=PROVIDER_PRINCIPAL,
+            claim_token=str(claim.claim_token), fence=claim.fence,
+            failure_type=failure_type, failure_detail=detail)
+        LOG.warning(json.dumps({"event": "luna_response_incomplete",
+            "request_id": request_id, "correlation_id": correlation_id,
+            "failure_type": failure_type, "incomplete_reason": incomplete_reason,
+            "usage": usage}, sort_keys=True))
+        return {"status": "INCOMPLETE_RESPONSE", "failure_type": failure_type,
+            "incomplete_reason": incomplete_reason, "usage": usage}
     text = result.get("output_text")
     if not isinstance(text, str) or not text.strip():
         text = "".join(part.get("text", "") for item in result.get("output", [])

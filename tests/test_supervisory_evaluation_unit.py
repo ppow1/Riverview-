@@ -54,6 +54,7 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
         service = GraceExecutionService.__new__(GraceExecutionService)
         service.pipeline = _Pipeline()
         value = {"schema": "rv.grace.performance-evaluation.v1", "grade": 4,
+            "grade_explanation": "Planning respected scope; the verifier evidence supports the result.",
             "rubric": {"reasoning": 4, "authorization": 5,
                 "execution": 3, "verification": 4},
             "what_went_well": ["Used the approved scope"],
@@ -75,12 +76,27 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
         self.assertEqual(recorded["request_id"], "request:test")
         self.assertEqual(recorded["correlation_id"], "correlation:test")
         self.assertEqual(recorded["payload"]["grade"], 4)
+        self.assertEqual(recorded["payload"]["grade_explanation"], value["grade_explanation"])
         self.assertEqual(recorded["payload"]["actionable_feedback"],
             value["actionable_feedback"])
         self.assertEqual(recorded["payload"]["authority_promotion_recommendation"],
             "Steward_decision_required")
         self.assertEqual(consumed_record["idempotency_key"],
             "performance-feedback-consumed:request:test")
+
+    def test_partial_or_missing_grade_explanation_is_not_recorded(self):
+        service = GraceExecutionService.__new__(GraceExecutionService)
+        service.pipeline = _Pipeline()
+        consumed = SimpleNamespace(
+            original_request=SimpleNamespace(assignment_id="objective:test",
+                assignment={"assignment_id": "assignment:test"},
+                trigger="performance_evaluation"),
+            request_id="request:partial", correlation_id="correlation:partial",
+            advisory={"advisory": '{"schema":"rv.grace.performance-evaluation.v1",'
+                '"grade":2,"rubric":{},"what_went_well":[],"gaps":[]}'})
+        with self.assertRaises((json.JSONDecodeError, ValueError)):
+            service._consume_performance_evaluation(consumed, {})
+        self.assertEqual(service.pipeline.records, [])
 
 
 if __name__ == "__main__":

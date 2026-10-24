@@ -1495,7 +1495,7 @@ class GraceExecutionService:
         request = ReasoningRequest(request_id=original_id, office_id=reasoner.office_id,
             assignment_id=objective_id, assignment_revision=str(objective["revision"]),
             binding_revision=binding_revision, implementation_revision=implementation_revision,
-            trigger="cme_diagnostic_recovery", token_budget=512, assignment=source,
+            trigger="cme_diagnostic_recovery", token_budget=4096, assignment=source,
             verified_knowledge=(), prior_plan=None,
             external_reasoning_targets=reasoner.external_reasoning_targets,
             correlation_id=original_id)
@@ -1506,7 +1506,7 @@ class GraceExecutionService:
             escalation_source += ":authorized-amendment-diagnostic-1"
         escalation_id = str(uuid5(NAMESPACE_URL, escalation_source))
         envelope = EscalationRequest.create(request, reason="capability_gap",
-            target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
+            target_provider_id="gpt-6-luna", max_tokens=4096, timeout_seconds=45,
             escalation_id=escalation_id)
         return self.request_external_reasoning(envelope, request,
             idempotency_key=idempotency_key,
@@ -1619,12 +1619,12 @@ class GraceExecutionService:
             assignment_id=objective_id, assignment_revision=str(objective["revision"]),
             binding_revision=office["binding_revision"],
             implementation_revision=office["implementation_revision"],
-            trigger="performance_evaluation", token_budget=512, assignment=assignment,
+            trigger="performance_evaluation", token_budget=2048, assignment=assignment,
             verified_knowledge=(), prior_plan=None,
             external_reasoning_targets=reasoner.external_reasoning_targets,
             correlation_id=request_id)
         escalation = EscalationRequest.create(request, reason="low_confidence",
-            target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
+            target_provider_id="gpt-6-luna", max_tokens=2048, timeout_seconds=45,
             escalation_id=request_id)
         return self.request_external_reasoning(escalation, request,
             idempotency_key=evaluation_key,
@@ -1721,11 +1721,13 @@ class GraceExecutionService:
                 "response_sha256": response_sha})
 
     def _consume_performance_evaluation(self, consumed, item):
-        fields = {"schema", "grade", "rubric", "what_went_well", "gaps",
+        fields = {"schema", "grade", "grade_explanation", "rubric", "what_went_well", "gaps",
                   "actionable_feedback", "authority_promotion_recommendation"}
         value = self._json_advisory(consumed, "rv.grace.performance-evaluation.v1", fields)
         rubric = value["rubric"]
         if (type(value["grade"]) is not int or not 1 <= value["grade"] <= 5 or
+                not isinstance(value["grade_explanation"], str) or
+                not value["grade_explanation"].strip() or len(value["grade_explanation"]) > 1000 or
                 not isinstance(rubric, dict) or set(rubric) !=
                     {"reasoning", "authorization", "execution", "verification"} or
                 any(type(score) is not int or not 1 <= score <= 5 for score in rubric.values()) or
@@ -1743,7 +1745,8 @@ class GraceExecutionService:
                 exchange_meta["consumption_owner"] != "resident:grace" or
                 exchange_meta["request_payload"].get("request_type") != "performance_evaluation"):
             raise ValueError("performance_exchange_response_correlation_invalid")
-        payload = {"grade": value["grade"], "rubric": rubric,
+        payload = {"grade": value["grade"], "grade_explanation": value["grade_explanation"],
+            "rubric": rubric,
             "what_went_well": value["what_went_well"], "gaps": value["gaps"],
             "actionable_feedback": value["actionable_feedback"],
             "authority_promotion_recommendation": "Steward_decision_required",

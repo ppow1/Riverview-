@@ -104,6 +104,15 @@ class EscalationContractTests(unittest.TestCase):
             ReasoningEscalationRouter({provider.provider_id: provider}).execute(
                 envelope, altered, principal_id="resident:grace", authorize=lambda *_: True)
 
+    def test_escalation_token_ceiling_accepts_four_thousand_ninety_six_only(self):
+        original = request()
+        envelope = EscalationRequest.create(original, reason="capability_gap",
+            target_provider_id="provider:synthetic-high", max_tokens=4096)
+        self.assertEqual(envelope.max_tokens, 4096)
+        with self.assertRaisesRegex(ValueError, "bounded contract"):
+            EscalationRequest.create(original, reason="capability_gap",
+                target_provider_id="provider:synthetic-high", max_tokens=4097)
+
     def test_unavailable_target_and_invalid_limits_do_not_fallback(self):
         original = request()
         with self.assertRaises(ValueError):

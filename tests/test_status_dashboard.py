@@ -1673,6 +1673,7 @@ class DashboardPostgresTests(unittest.TestCase):
                         (objective_id, "evaluation:" + objective_id, json.dumps({
                             "assignment_id": "assignment:test", "request_id": str(uuid4()),
                             "correlation_id": str(uuid4()), "grade": 4,
+                            "grade_explanation": "The result is supported by verification evidence.",
                             "rubric": {"reasoning": 4, "authorization": 5,
                                 "execution": 4, "verification": 5},
                             "what_went_well": ["Used the verifier's rejection."],
@@ -1694,6 +1695,8 @@ class DashboardPostgresTests(unittest.TestCase):
         self.assertNotIn("performance_evaluation", item)
         steward_view = self.projection.objectives(limit=10, objective_id=own_objective)["items"][0]
         self.assertEqual(steward_view["performance_evaluation"]["grade"], 4)
+        self.assertEqual(steward_view["performance_evaluation"]["grade_explanation"],
+                         "The result is supported by verification evidence.")
         self.assertEqual(steward_view["performance_evaluation"]["actionable_feedback"],
                          ["Capture evidence before dispatch."])
         self.assertEqual(item["grounding_diagnostics"][0]["diagnostic"]["reason_code"],

@@ -87,7 +87,7 @@ class EscalationRequest:
                 reason not in {"task_complexity", "capability_gap", "low_confidence"} or
                 not isinstance(target_provider_id, str) or not target_provider_id or
                 len(target_provider_id) > 160 or type(max_tokens) is not int or
-                not 1 <= max_tokens <= 512 or type(timeout_seconds) is not int or
+                not 1 <= max_tokens <= 4096 or type(timeout_seconds) is not int or
                 not 1 <= timeout_seconds <= 60):
             raise ValueError("escalation request exceeds its bounded contract")
         escalation_id = str(uuid4()) if escalation_id is None else escalation_id
