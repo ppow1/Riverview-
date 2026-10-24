@@ -1914,10 +1914,10 @@ class GraceExecutionPipeline:
                             self.runtime_release_id()):
                     continue
                 prior_generation = last_receipt["payload"].get("review_generation", 1)
-                # A release change may reopen this authorization stop once so
-                # Grace can see current server-derived facts. It must not turn
-                # into an unbounded series of model reviews after deployments.
-                if type(prior_generation) is not int or prior_generation != 1:
+                # Release changes may reopen this authorization stop only for
+                # a small fixed number of reviews. This prevents deployment
+                # churn from becoming an unbounded reasoning loop.
+                if type(prior_generation) is not int or prior_generation not in {1, 2}:
                     continue
                 review_generation = prior_generation + 1
                 reopened_after_release_change = True
@@ -2034,7 +2034,14 @@ class GraceExecutionPipeline:
                 "action": self.assignment_intake.ACTION,
                 "scope_ref": row["authority_ref"],
                 "principal_id": grant["principal_id"] if grant else None,
-                "grant_id": grant["grant_id"] if grant else None}}
+                "grant_id": grant["grant_id"] if grant else None},
+            "same_assignment_rework": {"available": bool(grant is not None and dispatched and
+                    row["assignment_state"] == "rework_required"),
+                "assignment_id": row["assignment_id"],
+                "prior_rework_attempts": context.get("rework_attempt_count", 0),
+                "maximum_rework_attempts": self.MAX_GOVERNED_REWORK_ATTEMPTS,
+                "scope_changes": False,
+                "independent_verification_required": True}}
 
     def record_rework_decision(self, context, decision, *, credential):
         """Persist Grace's bounded reject/stop decision and governed same-assignment requeue."""

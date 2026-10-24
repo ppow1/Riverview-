@@ -1971,6 +1971,10 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertTrue(authority["read_only"])
         self.assertTrue(authority["assignment_create_grant"]["active"])
+        self.assertTrue(authority["same_assignment_rework"]["available"])
+        self.assertEqual(authority["same_assignment_rework"]["maximum_rework_attempts"],
+            self.pipeline.MAX_GOVERNED_REWORK_ATTEMPTS)
+        self.assertTrue(authority["same_assignment_rework"]["independent_verification_required"])
         self.assertEqual(authority["assignment_id"], assignment_id)
 
         rework = {"decision":"REWORK_PROPOSED",

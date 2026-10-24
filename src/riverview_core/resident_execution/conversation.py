@@ -2138,7 +2138,10 @@ class ResidentConversationService:
                         "rv.grace-rework-authority-evidence.v1" or
                      current_authority_evidence.get("read_only") is not True or
                      current_authority_evidence.get("objective_id") != context["objective_id"] or
-                     current_authority_evidence.get("assignment_id") != context["assignment_id"]))):
+                     current_authority_evidence.get("assignment_id") != context["assignment_id"] or
+                     not isinstance(current_authority_evidence.get("same_assignment_rework"), dict) or
+                     current_authority_evidence["same_assignment_rework"].get("assignment_id") !=
+                        context["assignment_id"]))):
             raise ValueError("current proposal-origin authority evidence is required")
         artifact = completion.get("artifact") if isinstance(completion.get("artifact"), dict) else {}
         review_unavailable = context.get("artifact_review_unavailable")
@@ -2208,7 +2211,12 @@ class ResidentConversationService:
                     "evidence is read-only server-derived state for this exact objective and assignment; "
                     "use it to avoid mistaking stale artifact text for current authorization. It is not "
                     "approval and does not widen scope or replace the execution/verifier gates. Never claim acceptance, "
-                    "verification, or execution. If the artifact review status is integrity_check_failed, "
+                    "verification, or execution. Judge only the current assignment's acceptance criteria; "
+                    "criteria assigned to later plan steps are not prerequisites for this step and their absence "
+                    "from the current artifact is not an authorization failure. The server-derived same-assignment "
+                    "rework facts describe whether a bounded retry is available; any proposal is still rechecked "
+                    "against the active grant and retry cap before dispatch, then independently verified. "
+                    "If the artifact review status is integrity_check_failed, "
                     "the artifact text was withheld; do not choose OBJECTIVE_SATISFIED. Propose bounded "
                     "rework only when verifier evidence identifies an in-scope correction, otherwise "
                     "request Steward direction. The existing assignment.create grant is rechecked by "
