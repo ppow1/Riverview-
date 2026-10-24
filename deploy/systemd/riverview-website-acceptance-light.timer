@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Riverview V2 availability acceptance every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+AccuracySec=30s
+Unit=riverview-website-acceptance@light.service
+
+[Install]
+WantedBy=timers.target

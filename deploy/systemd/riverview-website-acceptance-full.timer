@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Riverview V2 role-based acceptance every four hours
+
+[Timer]
+OnBootSec=12min
+OnUnitActiveSec=4h
+AccuracySec=2min
+Unit=riverview-website-acceptance@full.service
+
+[Install]
+WantedBy=timers.target
