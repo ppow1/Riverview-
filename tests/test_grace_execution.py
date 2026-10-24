@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.64
+# Revision: 1.0.65
+# Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-RECOVERY-20261023 | Verify single-step recovery preserves every exact Steward acceptance criterion and rejects ambiguous scopes.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify Grace persists the exact configured worker capability set.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve cancellation authorization, audit, idempotency, queue exclusion, and active-work protection tests.
@@ -403,6 +404,32 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
             "PROPOSAL_CRITERIA_BINDING_REJECTED")
         self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
             RuntimeError("untrusted provider message")), "REASONING_CYCLE_FAILED")
+
+    def test_single_step_recovery_binds_exact_steward_criteria_without_widening_scope(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.resident_reasoning import PlanProposal, PlanStep
+        criteria = ["Verify one bounded Luna request.",
+                    "Confirm Grace consumes the correlated response."]
+        original = PlanProposal("Run bounded diagnostics", (
+            PlanStep("diagnostic", "Verify one bounded diagnostic", (criteria[0],)),), 12)
+        repaired = GraceExecutionService._restore_exact_single_step_criteria(original, {
+            "acceptance_criteria_source": "steward_supplied",
+            "acceptance_criteria": criteria,
+        })
+        self.assertEqual(repaired.summary, original.summary)
+        self.assertEqual(len(repaired.steps), 1)
+        self.assertEqual(repaired.steps[0].objective, original.steps[0].objective)
+        self.assertEqual(repaired.steps[0].execution_capability,
+                         original.steps[0].execution_capability)
+        self.assertEqual(repaired.steps[0].acceptance_criteria, tuple(criteria))
+        self.assertEqual(GraceExecutionService._restore_exact_single_step_criteria(
+            original, {"acceptance_criteria_source": "grace_derived",
+                      "acceptance_criteria": criteria}), None)
+        multiple = PlanProposal("Two steps", (original.steps[0],
+            PlanStep("diagnostic-2", "Check diagnostics", (criteria[1],))), 12)
+        self.assertIsNone(GraceExecutionService._restore_exact_single_step_criteria(
+            multiple, {"acceptance_criteria_source": "steward_supplied",
+                      "acceptance_criteria": criteria}))
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
 class GraceExecutionTests(unittest.TestCase):

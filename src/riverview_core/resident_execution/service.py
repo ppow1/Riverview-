@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.41
+# Revision: 1.0.42
+# Changed: 2026-10-23 UTC | RV-GRACE-CRITERIA-BINDING-RECOVERY-20261023 | Rebind only unchanged Steward criteria to one existing bounded step after the exact criteria-binding rejection.
 # Changed: 2026-10-23 UTC | RV-GRACE-REASONING-FAILURE-FENCE-20261023 | Fence repeated objective reasoning failures by runtime revision and persist a safe blocked diagnostic.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Route only explicitly configured typed ComfyUI proposal steps to the existing capability worker.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Reconcile the latest verified step first so terminal evidence uses the final completion cycle after restart.
@@ -62,6 +63,7 @@ import logging
 import os
 import re
 import time
+from dataclasses import replace
 from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
@@ -308,6 +310,24 @@ class GraceExecutionService:
                         objective_id, result.proposal,
                         actor_id="office:" + self.resident_reasoner.office_id)
                 except Exception as exc:
+                    if self._reasoning_failure_detail_code(exc) == "PROPOSAL_CRITERIA_BINDING_REJECTED":
+                        request = result.reasoning_request
+                        assignment = getattr(request, "assignment", None)
+                        repaired = self._restore_exact_single_step_criteria(
+                            result.proposal, assignment)
+                        if repaired is not None:
+                            self.pipeline.record_proposal(objective_id, repaired,
+                                actor_id="office:" + self.resident_reasoner.office_id)
+                            LOG.info(json.dumps({
+                                "event": "resident_proposal_criteria_reconciled",
+                                "objective_id": objective_id,
+                                "request_id": result.request_id,
+                                "objective_revision": candidate_revision,
+                                "step_count": 1,
+                                "criteria_count": len(assignment["acceptance_criteria"]),
+                                "criteria_source": "steward_supplied_exact",
+                            }, sort_keys=True))
+                            return True
                     LOG.warning(json.dumps({
                         "event": "resident_objective_proposal_persistence_failed",
                         "request_id": result.request_id,
@@ -355,6 +375,25 @@ class GraceExecutionService:
                 str(exc) == "proposal must bind every original criterion to an Engineering step or a supported lifecycle event"):
             return "PROPOSAL_CRITERIA_BINDING_REJECTED"
         return "REASONING_CYCLE_FAILED"
+
+    @staticmethod
+    def _restore_exact_single_step_criteria(proposal, assignment):
+        """Rebind verbatim approved criteria to one existing step; never widen scope."""
+        from ..resident_reasoning import PlanProposal, lifecycle_evidence_event
+        if (not isinstance(proposal, PlanProposal) or len(proposal.steps) != 1 or
+                not isinstance(assignment, Mapping) or
+                assignment.get("acceptance_criteria_source") != "steward_supplied"):
+            return None
+        criteria = assignment.get("acceptance_criteria")
+        if (not isinstance(criteria, (list, tuple)) or not 1 <= len(criteria) <= 20 or
+                any(not isinstance(item, str) or not item.strip() for item in criteria) or
+                len(criteria) != len(set(criteria))):
+            return None
+        accepted_lifecycle = tuple(item for item in proposal.system_owned_criteria
+            if item in criteria and lifecycle_evidence_event(item) is not None)
+        step_criteria = tuple(item for item in criteria if item not in accepted_lifecycle)
+        step = replace(proposal.steps[0], acceptance_criteria=step_criteria)
+        return replace(proposal, steps=(step,), system_owned_criteria=accepted_lifecycle)
 
     def _runtime_revision(self):
         value = os.environ.get("RIVERVIEW_SOURCE_COMMIT", "")
