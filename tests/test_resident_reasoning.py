@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.25
+# Revision: 1.0.26
 # Changed: 2026-10-24 UTC | RV-WEB-CI-TEST-SCHEMA-FIX | Model the pipeline objective lookup added to the persistent reasoning path.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Cover explicit exactly-one dispatch lifecycle mapping and structural bullets.
@@ -354,10 +354,12 @@ class ResidentReasoningTests(unittest.TestCase):
             authority_ref = "work-order:test"
 
             class FailureCursor:
+                def __init__(self): self.row = None
                 def __enter__(self): return self
                 def __exit__(self, *_): return False
-                def execute(self, *_args): pass
-                def fetchone(self): return {"failures": 0}
+                def execute(self, query, *_args):
+                    self.row = {"failures": 0} if "count(*) AS failures" in query else None
+                def fetchone(self): return self.row
 
             def __init__(self, assignment_id):
                 self.assignment_id = assignment_id

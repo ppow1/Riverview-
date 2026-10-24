@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.75
+# Revision: 1.0.76
 # Changed: 2026-10-24 UTC | RV-WEB-CI-TEST-SCHEMA-FIX | Install resident-objective migrations in isolated Dashboard PostgreSQL schemas.
 # Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify dashboard presents correlated blocked-objective recovery guidance without authorizing retry.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify idle worker health requires matching active engineering registration.
@@ -1745,11 +1745,6 @@ class DashboardPostgresTests(unittest.TestCase):
         capability = "engineering.comfyui-image.v1"
         now = datetime.now(timezone.utc)
         with self.admin.cursor() as cur:
-            cur.execute("""CREATE TABLE grace_execution_health (
-                service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
-                worker_capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
-                last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
-                last_error_type TEXT, cycles_completed BIGINT NOT NULL)""")
             cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
                 "VALUES (%s,%s,%s::jsonb,'work-order:engineering')",
                 (worker_id, b"g" * 32, json.dumps([capability])))
@@ -1787,11 +1782,6 @@ class DashboardPostgresTests(unittest.TestCase):
         )
         runtime_capabilities = []
         with self.admin.cursor() as cur:
-            cur.execute("""CREATE TABLE grace_execution_health (
-                service_id TEXT PRIMARY KEY, instance_id UUID NOT NULL, status TEXT NOT NULL,
-                worker_capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
-                last_heartbeat_at TIMESTAMPTZ NOT NULL, last_cycle_at TIMESTAMPTZ,
-                last_error_type TEXT, cycles_completed BIGINT NOT NULL)""")
             for worker_id, registered, scope in cases:
                 cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
                     "VALUES (%s,%s,%s::jsonb,%s)",
