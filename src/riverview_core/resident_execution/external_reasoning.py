@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.5
+# Revision: 1.1.6
+# Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-INPUT-RETRY-20261024 | Expose only the last provider error status and input parameter for bounded retry selection.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Terminalize a fenced provider request when authorization blocks it before any paid attempt.
 # Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Expose durable request payload metadata to the bounded evaluation retry gate.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Bind system-owned lifecycle criteria into exact external review subjects
@@ -697,10 +698,18 @@ class DurableExternalReasoningExchange:
     def request_for_idempotency(self, idempotency_key: str):
         with self.ledger.db.cursor() as cur:
             self._set_path(cur)
-            cur.execute("""SELECT request_id::text AS request_id,
-                    correlation_id::text AS correlation_id,delivery_state,last_error_code,
-                    request_payload
-                FROM external_reasoning_exchanges WHERE idempotency_key=%s""",
+            cur.execute("""SELECT x.request_id::text AS request_id,
+                    x.correlation_id::text AS correlation_id,x.delivery_state,x.last_error_code,
+                    x.request_payload,
+                    (SELECT e.payload->'usage'->>'provider_error_param'
+                       FROM external_reasoning_exchange_events e
+                      WHERE e.request_id=x.request_id AND e.event_type='provider_attempt_settled'
+                      ORDER BY e.sequence DESC LIMIT 1) AS provider_error_param,
+                    (SELECT (e.payload->'usage'->>'http_status')::integer
+                       FROM external_reasoning_exchange_events e
+                      WHERE e.request_id=x.request_id AND e.event_type='provider_attempt_settled'
+                      ORDER BY e.sequence DESC LIMIT 1) AS provider_http_status
+                FROM external_reasoning_exchanges x WHERE x.idempotency_key=%s""",
                 (idempotency_key,))
             row = cur.fetchone()
         return dict(row) if row else None

@@ -1,12 +1,13 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify durable supervisory grading and bounded Luna retry selection
 # Execution Model: Offline unit tests
 # Observability: unittest assertions and exit status
 # Dependencies: Grace execution service
 # Authority: Tests only; no live supervisory requests
+# Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-INPUT-RETRY-20261024 | Assert input-field retry gating and compact evidence preservation.
 # Changed: 2026-10-24 UTC | RV-GRACE-CME-ESCALATION-ID-FALLBACK-20261024 | Assert every bounded CME attempt uses a distinct escalation identity.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Assert bounded fallback and retry idempotency
 # History: Git and .riverview-backups/manifest.jsonl
@@ -101,6 +102,42 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             "request_payload": {"max_tokens": 2048}}, None, {"old-request"}))
         self.assertIsNone(choose(trigger, {**prior,
             "delivery_state": "awaiting_response"}, None, {"old-request"}))
+
+    def test_input_field_retry_is_exact_and_compacts_optional_history_once(self):
+        choose = GraceExecutionService._select_performance_evaluation_request
+        trigger = "step-event"
+        prior = {"request_id": "old", "delivery_state": "grace_consumed",
+            "request_payload": {"max_tokens": 512}}
+        retry1 = {"request_id": "retry1", "delivery_state": "failed",
+            "last_error_code": "provider_response_submission_failed",
+            "request_payload": {"max_tokens": 2048}}
+        retry2 = {"request_id": "retry2", "delivery_state": "failed",
+            "last_error_code": "provider_response_submission_failed",
+            "provider_http_status": 400, "provider_error_param": "input",
+            "request_payload": {"max_tokens": 512}}
+        key = "performance-evaluation:step-event:bounded-input-retry-1"
+        self.assertEqual(choose(trigger, prior, retry1, {"old"}, retry2), key)
+        self.assertIsNone(choose(trigger, prior, retry1, {"old"},
+            {**retry2, "provider_error_param": "max_output_tokens"}))
+        self.assertIsNone(choose(trigger, prior, retry1, {"old"},
+            {**retry2, "provider_http_status": 429}))
+        self.assertIsNone(choose(trigger, prior, retry1, {"old"}, retry2,
+            {"request_id": "retry3"}))
+        source = {"proposal": {"summary": "s" * 1000,
+            "steps": [{"step_id": str(index), "objective": "o" * 300,
+                "acceptance_criteria": ["c" * 200] * 5} for index in range(8)]},
+            "evidence": [{"event_id": str(index)} for index in range(9)],
+            "reasoning_history": [{"event_id": str(index)} for index in range(10)],
+            "exchange_history": [{"event_id": str(index)} for index in range(10)],
+            "reasoning_failure_count": 37}
+        compact = GraceExecutionService._compact_performance_evaluation_assignment(source)
+        self.assertEqual(len(compact["evidence"]), 6)
+        self.assertEqual(len(compact["reasoning_history"]), 4)
+        self.assertEqual(len(compact["exchange_history"]), 4)
+        self.assertEqual(compact["reasoning_failure_count"], 37)
+        self.assertEqual(len(compact["proposal"]["summary"]), 400)
+        self.assertEqual(len(compact["proposal"]["steps"]), 5)
+        self.assertEqual(len(compact["proposal"]["steps"][0]["objective"]), 180)
 
     def test_real_evaluation_feedback_is_durably_correlated_for_grace_and_steward(self):
         service = GraceExecutionService.__new__(GraceExecutionService)

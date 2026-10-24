@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.47
+# Revision: 1.0.48
+# Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-INPUT-RETRY-20261024 | Permit one compact same-evidence evaluation retry only after HTTP 400 identifies input as the rejected field.
 # Changed: 2026-10-24 UTC | RV-GRACE-CME-ESCALATION-ID-FALLBACK-20261024 | Give the bounded fourth diagnostic attempt its own deterministic escalation identity.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Bound Luna supervisory output to the verified 512-token envelope and permit one durable low-output fallback after the bounded retry fails at transport.
 # Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Permit one re-request only after durable JSON truncation at the former 512-token output cap.
@@ -1590,12 +1591,15 @@ class GraceExecutionService:
             prior_retry = exchange.request_for_idempotency(retry_key) if prior_evaluation else None
             retry2_key = evaluation_key + ":bounded-output-retry-2"
             prior_retry2 = exchange.request_for_idempotency(retry2_key) if prior_retry else None
+            retry3_key = evaluation_key + ":bounded-input-retry-1"
+            prior_retry3 = exchange.request_for_idempotency(retry3_key) if prior_retry2 else None
             blocked_prior_ids = {str((event.get("payload") or {}).get("request_id"))
                 for event in events if event["event_type"] ==
                     "resident.performance.evaluation_blocked" and
                     (event.get("payload") or {}).get("reason_code") == "JSONDecodeError"}
             selected_key = self._select_performance_evaluation_request(
-                trigger_id, prior_evaluation, prior_retry, blocked_prior_ids, prior_retry2)
+                trigger_id, prior_evaluation, prior_retry, blocked_prior_ids, prior_retry2,
+                prior_retry3)
             if selected_key is None:
                 continue
             office = reasoner.registry.authorize_office_state(reasoner._credential, reasoner.office_id)
@@ -1632,6 +1636,8 @@ class GraceExecutionService:
                     "request_id": event["payload"].get("request_id"),
                     "correlation_id": event["payload"].get("correlation_id")}
                     for event in events if event["event_type"].startswith("external_reasoning.")][-8:]}
+            if selected_key.endswith(":bounded-input-retry-1"):
+                assignment = self._compact_performance_evaluation_assignment(assignment)
             request_id = str(uuid5(NAMESPACE_URL, "rv-performance-evaluation:" + selected_key))
             request = ReasoningRequest(request_id=request_id, office_id=reasoner.office_id,
                 assignment_id=objective_id, assignment_revision=str(objective["revision"]),
@@ -1654,8 +1660,8 @@ class GraceExecutionService:
 
     @staticmethod
     def _select_performance_evaluation_request(trigger_id, prior_request,
-            prior_retry, blocked_prior_ids, prior_retry2=None):
-        """Allow one corrected low-output retry after truncation and one transport failure."""
+            prior_retry, blocked_prior_ids, prior_retry2=None, prior_retry3=None):
+        """Allow bounded output and exact-field input retries after documented provider failures."""
         base_key = "performance-evaluation:" + str(trigger_id)
         if prior_request is None:
             return base_key
@@ -1673,7 +1679,43 @@ class GraceExecutionService:
                 prior_retry.get("last_error_code") == "provider_response_submission_failed" and
                 type(retry_tokens) is int and retry_tokens > 512):
             return base_key + ":bounded-output-retry-2"
+        retry2_payload = (prior_retry2.get("request_payload")
+            if isinstance(prior_retry2, dict) else None)
+        retry2_tokens = (retry2_payload.get("max_tokens")
+            if isinstance(retry2_payload, dict) else None)
+        if (prior_retry3 is None and prior_retry2 is not None and
+                prior_retry2.get("delivery_state") == "failed" and
+                prior_retry2.get("last_error_code") == "provider_response_submission_failed" and
+                prior_retry2.get("provider_http_status") == 400 and
+                prior_retry2.get("provider_error_param") == "input" and retry2_tokens == 512):
+            return base_key + ":bounded-input-retry-1"
         return None
+
+    @staticmethod
+    def _compact_performance_evaluation_assignment(assignment):
+        """Retain core grading evidence while bounding optional history after input rejection."""
+        compact = dict(assignment)
+        proposal = assignment.get("proposal")
+        if isinstance(proposal, dict):
+            compact_proposal = dict(proposal)
+            compact_proposal["summary"] = str(proposal.get("summary", ""))[:400]
+            steps = []
+            for step in proposal.get("steps", [])[:5]:
+                if not isinstance(step, dict):
+                    continue
+                item = dict(step)
+                if isinstance(item.get("objective"), str):
+                    item["objective"] = item["objective"][:180]
+                if isinstance(item.get("acceptance_criteria"), list):
+                    item["acceptance_criteria"] = [str(value)[:160]
+                        for value in item["acceptance_criteria"][:3]]
+                steps.append(item)
+            compact_proposal["steps"] = steps
+            compact["proposal"] = compact_proposal
+        compact["evidence"] = assignment.get("evidence", [])[-6:]
+        compact["reasoning_history"] = assignment.get("reasoning_history", [])[-4:]
+        compact["exchange_history"] = assignment.get("exchange_history", [])[-4:]
+        return compact
 
     @staticmethod
     def _performance_evaluation_evidence(events):
