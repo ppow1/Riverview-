@@ -42,6 +42,11 @@ test('objective status view maps only recorded lifecycle/status fields and keeps
   const model = adapter.objective({objective_id:'objective:from-api', request:'A real authorized title', lifecycle_stage:'Engineering executing'});
   assert.equal(model.title, 'A real authorized title');
   assert.equal(model.objectiveId, 'objective:from-api');
+  const long = 'Grace autonomy objective with a long explanatory request describing the approved work and outcomes across multiple institutional systems. Preserve this entire request.';
+  const longModel = adapter.objective({request:long, lifecycle_stage:'Design'});
+  assert.ok(longModel.title.length <= 76);
+  assert.equal(longModel.fullRequest, long);
+  assert.deepEqual(adapter.filterItems([longModel], {query:'multiple institutional systems'}).length, 1);
   assert.equal(adapter.objective({}).title, 'Riverview objective');
 });
 
@@ -85,15 +90,20 @@ test('V2 navigation loads the interactive view and only reads the existing prote
   assert.match(html, /data-view="roadmap"/);
   assert.match(html, /id="living-roadmap-workspace"/);
   assert.match(html, /id="roadmap-search"/);
+  assert.match(html, /id="roadmap-live-details"[^>]*class="roadmap-execution-history"/);
+  assert.match(html, /Execution History \/ Live Objectives/);
+  assert.match(html, /id="roadmap-refresh"/);
   assert.match(html, /id="roadmap-tag"/);
   for (const stage of ['Parking Lot', 'Steward-approved elaboration', 'Design\/Specification', 'Ready Bench', 'Active Work', 'Complete']) assert.ok(html.includes(stage));
   assert.match(shell, /RiverviewV2LivingRoadmap\?\.render/);
   assert.match(view, /identity\.roles\.includes\("steward"\)/);
   assert.match(view, /\/api\/v1\/objectives\?limit=25/);
-  assert.match(view, /Verified live operational record/);
-  assert.match(view, /Not exposed by the authenticated objective API; none inferred/);
-  assert.match(view, /Recorded blocker \/ waiting reason/);
-  assert.match(html, /canonical master-roadmap PostgreSQL tables and API are not present/);
-  assert.match(html, /RB-0001, remain Unknown/);
+  assert.match(view, /Goals & milestones/); assert.match(view, /Dependencies/); assert.match(view, /Blockers/);
+  assert.match(view, /Historical delivery evidence/); assert.match(view, /Live execution evidence/); assert.match(view, /Documented roadmap intent/);
+  assert.match(view, /Verified live operational record/); assert.match(view, /Not exposed by the authenticated objective API; none inferred/);
+  assert.match(view, /Recorded blocker \/ waiting reason/); assert.match(html, /canonical master-roadmap PostgreSQL tables and API are not present/);
+  assert.match(html, /RB-0001, remain Unknown/); assert.match(html, /roadmap-lifecycle/);
   assert.doesNotMatch(view, /method\s*:\s*"(POST|PUT|PATCH|DELETE)"/);
+  const milestoneItems = data.items.filter((item) => !['grace-autonomy','website-visualization'].includes(item.id));
+  assert.ok(milestoneItems.every((item) => Array.isArray(item.links) && item.links.length > 0), 'each displayed milestone has source/evidence links');
 });

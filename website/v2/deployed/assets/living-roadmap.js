@@ -11,7 +11,6 @@
     blocked: ["⚑", "Blocked"], waiting: ["◷", "Waiting"], parked: ["◇", "Parked"],
     canceled: ["×", "Canceled"], completed: ["✓", "Completed"], unknown: ["?", "Unknown"]
   };
-  const stages = ["Parking Lot", "Steward-approved elaboration", "Design/Specification", "Ready Bench", "Active Work", "Complete"];
   const $ = (id) => document.getElementById(id);
   const state = {objectives: [], status: "not_checked", fetchedAt: null, loading: false};
   const node = (tag, text, className) => {
@@ -45,13 +44,6 @@
     }
     if (list.childElementCount) parent.append(list);
   }
-  function visible(item) {
-    return adapter.filterItems([item], {
-      query: $("roadmap-search")?.value || "",
-      tag: $("roadmap-tag")?.value || "",
-      priority: $("roadmap-priority")?.value || ""
-    }).length > 0;
-  }
   function card(item, live = false) {
     const details = node("details", null, "roadmap-item");
     details.dataset.status = item.status;
@@ -61,24 +53,25 @@
     summary.append(statusNode(item.status), node("strong", item.title, "roadmap-item-title"), priorityNode(item.priority));
     details.append(summary);
     const body = node("div", null, "roadmap-item-body");
-    body.append(node("p", live ? item.evidenceLabel : "Documented roadmap intent / delivery evidence · not a live lifecycle status.", "roadmap-evidence-label"));
+    body.append(node("p", live ? "Verified live operational record · Live execution evidence from the authenticated objective projection; not a roadmap milestone." : (item.evidenceLabel || (item.status === "completed" ? "Historical delivery evidence" : item.status === "parked" ? "Documented Parking Lot intent" : "Documented roadmap intent · not live execution status")), live ? "roadmap-evidence-label" : "roadmap-record-kind"));
     const meta = node("p", null, "roadmap-item-meta");
     meta.append(node("span", item.workstream || (live ? "Current Riverview objective" : "Planning item")),
       node("span", `Stage: ${item.stage}`));
     body.append(meta, node("p", item.detail || item.summary));
-    if (live) {
+    if (!live) {
+      const facts = node("dl", null, "roadmap-item-facts");
+      const addFact = (label, value) => { facts.append(node("dt", label), node("dd", value || "Not recorded in the roadmap summary; consult the linked source.")); };
+      addFact("Priority", item.sourcePriority ? `${item.priority === "unassigned" ? "Unassigned" : item.priority} · source: ${item.sourcePriority}` : item.priority === "unassigned" ? "Unassigned in source" : item.priority);
+      addFact("Lifecycle stage", item.stage || "Not recorded in source"); addFact("Dependencies", item.dependencies); addFact("Blockers", item.blockers); body.append(facts);
+    } else {
       const facts = node("dl", null, "roadmap-live-facts");
-      const addFact = (label, value) => {
-        const term = node("dt", label), description = node("dd", value || "Unavailable in this API projection");
-        facts.append(term, description);
-      };
-      addFact("Authoritative lifecycle stage", item.stage);
-      addFact("Assignment state", item.assignmentState);
+      const addFact = (label, value) => { facts.append(node("dt", label), node("dd", value || "Unavailable in this API projection")); };
+      addFact("Authoritative lifecycle stage", item.stage); addFact("Assignment state", item.assignmentState);
       addFact(item.status === "blocked" || item.status === "waiting" ? "Recorded blocker / waiting reason" : "Blocker", item.blocker);
       addFact("Dependencies", item.dependencies || "Not exposed by the authenticated objective API; none inferred.");
       addFact("Latest event", item.latestEvent?.type ? `${item.latestEvent.type}${item.latestEvent.occurredAt ? ` · ${new Date(item.latestEvent.occurredAt).toLocaleString()}` : " · timestamp unavailable"}` : "No event returned by the API.");
       if (item.verification) addFact("Latest verification", `${item.verification.decision || "Decision unavailable"}${item.verification.summary ? ` · ${item.verification.summary}` : ""}`);
-      body.append(facts);
+      body.append(facts); if (item.fullRequest) body.append(node("p", `Full objective request: ${item.fullRequest}`, "roadmap-full-request"));
     }
     if (item.sourcePriority) body.append(node("p", `Source priority: ${item.sourcePriority} (the source board does not use P0–P3).`));
     if (item.tags?.length) {
@@ -99,13 +92,13 @@
   }
   function renderStatic() {
     const workstreams = $("roadmap-workstreams");
-    const items = $("roadmap-lifecycle");
     workstreams.replaceChildren();
-    items.replaceChildren();
     const filters = {query:$("roadmap-search")?.value || "", tag:$("roadmap-tag")?.value || "", priority:$("roadmap-priority")?.value || ""};
     const filtered = adapter.filterItems(data.items, filters);
-    for (const item of data.items.filter((entry) => ["grace-autonomy", "website-visualization"].includes(entry.id))) {
-      if (!visible(item)) continue;
+    const parents = data.items.filter((entry) => ["grace-autonomy", "website-visualization"].includes(entry.id));
+    for (const item of parents) {
+      const milestones = filtered.filter((entry) => entry.workstream === item.workstream && entry.id !== item.id);
+      if (!filtered.some((entry) => entry.id === item.id) && !milestones.length) continue;
       const section = node("article", null, "roadmap-workstream-card");
       const heading = node("div", null, "roadmap-workstream-heading");
       heading.append(node("h4", item.workstream), statusNode(item.status), priorityNode(item.priority));
@@ -114,28 +107,13 @@
       more.append(node("summary", "Workstream notes"), node("p", item.detail));
       links(more, item.links);
       section.append(more);
+      const milestoneTitle = node("h5", "Goals & milestones", "roadmap-milestone-heading");
+      section.append(milestoneTitle);
+      if (milestones.length) milestones.forEach((milestone) => section.append(card(milestone)));
+      else section.append(node("p", "No milestones match the current filters.", "roadmap-empty"));
       workstreams.append(section);
     }
     if (!workstreams.childElementCount) workstreams.append(node("p", "No workstreams match the current filters.", "roadmap-empty"));
-    const staged = [
-      {stage:"Parking Lot", records:filtered.filter((item) => item.stage === "Parking Lot")},
-      {stage:"Steward-approved elaboration", records:filtered.filter((item) => item.stage.startsWith("Steward-approved elaboration"))},
-      {stage:"Design/Specification", records:[]},
-      {stage:"Ready Bench", records:filtered.filter((item) => item.stage.startsWith("Ready Bench"))},
-      {stage:"Active Work", records:filtered.filter((item) => item.stage.startsWith("Active Work"))},
-      {stage:"Complete", records:filtered.filter((item) => item.stage === "Complete")},
-      {stage:"Lifecycle stage not recorded", records:filtered.filter((item) =>
-        !stages.some((stage) => item.stage === stage || item.stage.startsWith(stage + " ·")))}
-    ];
-    for (const lane of staged) {
-      const column = node("section", null, "roadmap-lane");
-      column.append(node("h4", lane.stage));
-      if (lane.records.length) lane.records.forEach((item) => column.append(card(item)));
-      else column.append(node("p", lane.stage === "Design/Specification"
-        ? "No design-stage items are connected here. An item in this stage is still distinct from the Ready Bench."
-        : "No connected items in this stage.", "roadmap-empty"));
-      items.append(column);
-    }
   }
   function renderLive() {
     const target = $("roadmap-live-items");
@@ -210,11 +188,13 @@
     renderLegend();
     fillTagFilter();
     renderStatic();
-    refresh();
   }
   document.addEventListener("DOMContentLoaded", () => {
     ["roadmap-search", "roadmap-tag", "roadmap-priority"].forEach((id) => $(id)?.addEventListener(id.endsWith("search") ? "input" : "change", () => { renderStatic(); renderLive(); }));
     $("roadmap-refresh")?.addEventListener("click", refresh);
+    $("roadmap-live-details")?.addEventListener("toggle", (event) => {
+      if (event.target.open && state.status === "not_checked") refresh();
+    });
     $("living-roadmap-workspace")?.addEventListener("click", (event) => {
       const link = event.target.closest("a[data-roadmap-view]");
       if (!link) return;
