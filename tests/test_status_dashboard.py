@@ -266,7 +266,9 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("n.source_details.objective_id", app)
         self.assertIn("n.source_details.last_error_code", app)
         self.assertIn("n.source_details.recommended_action", app)
-        self.assertIn("No retry was authorized.", app)
+        self.assertIn("A receipt alone never authorizes recovery.", app)
+        self.assertIn("Approve one retry", app)
+        self.assertIn("/api/v1/grace-recovery/", app)
 
     def test_documentation_catalog_uses_canonical_graph_refs_and_qualifies_evidence(self):
         app = (ROOT / "src/riverview_core/status_dashboard/static/app.js").read_text(encoding="utf-8")

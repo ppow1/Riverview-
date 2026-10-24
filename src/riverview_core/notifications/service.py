@@ -83,6 +83,11 @@ class NotificationService:
                                          n.delivered_at,n.acknowledged_at,d.request_id,
                                          d.status AS decision_status,d.assignment_version,
                                          e.details AS source_details,
+                                         r.request_id AS recovery_request_id,
+                                         r.status AS recovery_status,
+                                         r.objective_id AS recovery_objective_id,
+                                         r.objective_revision AS recovery_objective_revision,
+                                         r.recovery_action,r.attempt_limit,r.expires_at AS recovery_expires_at,
                                          CASE WHEN n.acknowledged_at IS NOT NULL THEN 'acknowledged'
                                               WHEN n.delivered_at IS NOT NULL THEN 'delivered'
                                               ELSE 'queued' END AS delivery_status
@@ -90,6 +95,8 @@ class NotificationService:
                                   JOIN cme_monitor_events e ON e.event_id=n.source_event_id
                                   LEFT JOIN steward_decision_requests d
                                     ON d.request_id=n.decision_request_id
+                                  LEFT JOIN grace_recovery_decision_requests r
+                                    ON r.notification_id=n.notification_id
                                   WHERE n.assignment_id IS NULL OR NOT EXISTS (
                                       SELECT 1 FROM events p WHERE p.assignment_id=n.assignment_id
                                         AND p.privacy_domain <> 'institution')
@@ -122,6 +129,10 @@ class NotificationService:
                                            "grace_objective_blocked" else None),
                                        "decision_request_id": (str(row["request_id"])
                                            if row["request_id"] else None),
+                                       "recovery_request_id": (str(row["recovery_request_id"])
+                                           if row["recovery_request_id"] else None),
+                                       "recovery_expires_at": (row["recovery_expires_at"].isoformat()
+                                           if row["recovery_expires_at"] else None),
                                        "summary": _SUMMARY[row["event_type"]]}
                                       for row in rows]}
         except psycopg.Error as exc:
@@ -197,3 +208,93 @@ class NotificationService:
     def acknowledge_receipt(self, notification_id: str) -> dict:
         """Record a client's receipt acknowledgment; this is not decision authority."""
         return self._transition(notification_id, transition="acknowledged")
+
+    def decide_grace_recovery(self, request_id: str, *, decision: str,
+                              actor_principal_id: str, authority_reference: str,
+                              reason: str, idempotency_key: str) -> dict:
+        """Record an exact, one-attempt Steward decision without running Grace."""
+        from uuid import UUID
+        try:
+            request_uuid = UUID(request_id)
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise ValueError("invalid recovery request") from exc
+        if decision not in {"approve", "defer", "reject"}:
+            raise ValueError("invalid recovery decision")
+        if not all(isinstance(v, str) and v.strip() for v in
+                   (actor_principal_id, authority_reference, reason, idempotency_key)):
+            raise ValueError("invalid decision evidence")
+        if len(reason) > 1000 or len(idempotency_key) > 200:
+            raise ValueError("decision evidence exceeds bounds")
+        status = {"approve": "approved", "defer": "deferred", "reject": "rejected"}[decision]
+        try:
+            with self._connect() as db, db.transaction(), db.cursor() as cur:
+                cur.execute(sql.SQL("SET LOCAL search_path TO {},pg_catalog").format(
+                    sql.Identifier(self.schema)))
+                cur.execute("""SELECT r.*,e.event_type,e.details,
+                    (r.expires_at<=clock_timestamp()) AS is_expired
+                    FROM grace_recovery_decision_requests r
+                    JOIN cme_monitor_events e ON e.event_id=r.source_event_id
+                    WHERE r.request_id=%s FOR UPDATE OF r""", (request_uuid,))
+                row = cur.fetchone()
+                if row is None:
+                    raise NotificationNotFound("recovery decision request not found")
+                # Recheck the authoritative objective and exact fence before any approval.
+                cur.execute("""SELECT o.revision,o.status,
+                    EXISTS(SELECT 1 FROM grace_objective_events b
+                      WHERE b.objective_id=o.objective_id
+                        AND b.event_type='execution.reasoning_failed'
+                        AND b.payload->>'status'='BLOCKED'
+                        AND b.payload->>'objective_revision'=o.revision::text) AS still_blocked
+                    FROM grace_objectives o WHERE o.objective_id=%s""",
+                    (row["objective_id"],))
+                objective = cur.fetchone()
+                if (row["event_type"] != "grace_objective_blocked" or
+                        not isinstance(row["details"], dict) or
+                        row["details"].get("objective_id") != row["objective_id"] or
+                        row["details"].get("objective_revision") != row["objective_revision"]):
+                    raise NotificationConflict("escalation binding is invalid")
+                if (objective is None or
+                        objective["revision"] != row["objective_revision"] or
+                        objective["status"] != "GROUNDED" or not objective["still_blocked"]):
+                    raise NotificationConflict("objective revision or blocked state is stale")
+                cur.execute("""SELECT decision_id,decision,request_id,actor_principal_id,
+                    reason,authority_reference FROM grace_recovery_decision_events
+                    WHERE idempotency_key=%s""", (idempotency_key,))
+                prior = cur.fetchone()
+                if prior:
+                    if (prior["request_id"] != request_uuid or prior["decision"] != decision or
+                            prior["actor_principal_id"] != actor_principal_id or
+                            prior["reason"] != reason or
+                            prior["authority_reference"] != authority_reference):
+                        raise NotificationConflict("idempotency key was used for another decision")
+                    return {"status": "recorded", "decision_id": str(prior["decision_id"]),
+                            "request_id": str(request_uuid), "decision": decision,
+                            "idempotent_replay": True, "authority_effect": "decision_only"}
+                if row["status"] != "pending":
+                    raise NotificationConflict("recovery request is already decided")
+                if row["is_expired"]:
+                    cur.execute("UPDATE grace_recovery_decision_requests SET status='expired',decided_at=clock_timestamp() WHERE request_id=%s",
+                                (request_uuid,))
+                    return {"status": "expired", "request_id": str(request_uuid),
+                            "authority_effect": "none", "retry_dispatched": False}
+                cur.execute("""INSERT INTO grace_recovery_decision_events
+                    (request_id,source_event_id,objective_id,objective_revision,recovery_action,
+                     decision,actor_principal_id,authority_reference,reason,idempotency_key)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING decision_id""",
+                    (request_uuid,row["source_event_id"],row["objective_id"],
+                     row["objective_revision"],row["recovery_action"],decision,
+                     actor_principal_id,authority_reference,reason,idempotency_key))
+                decision_id = cur.fetchone()["decision_id"]
+                cur.execute("UPDATE grace_recovery_decision_requests SET status=%s,decided_at=clock_timestamp() WHERE request_id=%s",
+                            (status, request_uuid))
+                return {"status": "recorded", "decision_id": str(decision_id),
+                        "request_id": str(request_uuid), "decision": decision,
+                        "objective_id": row["objective_id"],
+                        "objective_revision": row["objective_revision"],
+                        "source_event_id": str(row["source_event_id"]),
+                        "recovery_action": row["recovery_action"], "attempt_limit": row["attempt_limit"],
+                        "authority_effect": "decision_only", "retry_dispatched": False}
+        except (NotificationNotFound, NotificationConflict, ValueError):
+            raise
+        except psycopg.Error as exc:
+            raise NotificationUnavailable("recovery decision unavailable") from exc

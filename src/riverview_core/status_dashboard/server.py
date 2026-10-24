@@ -95,6 +95,8 @@ _DOC_NAME = re.compile(r"^[A-Za-z0-9_-]+\.md$")
 _COMFYUI_ARTIFACT = re.compile(r"^/api/v1/assignments/([A-Za-z0-9:._-]{1,128})/artifacts/([1-8])$")
 _NOTICE_WRITE = re.compile(
     r"^/api/v1/notifications/([0-9a-fA-F-]{36})/(delivered|acknowledge)$")
+_GRACE_RECOVERY_DECISION = re.compile(
+    r"^/api/v1/grace-recovery/([0-9a-fA-F-]{36})/decision$")
 _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
 _OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/proposal$")
 _OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
@@ -597,6 +599,8 @@ def make_handler():
             parsed = urlsplit(self.path)
             notification_write = (_NOTICE_WRITE.fullmatch(parsed.path)
                                   if self.command == "POST" else None)
+            recovery_decision = (_GRACE_RECOVERY_DECISION.fullmatch(parsed.path)
+                                 if self.command == "POST" else None)
             objective_submit = (parsed.path == "/api/v1/objectives" and
                                 self.command == "POST")
             objective_proposal = (_OBJECTIVE_PROPOSAL.fullmatch(parsed.path)
@@ -646,6 +650,7 @@ def make_handler():
                 self._error(400, "invalid_host", request_id)
                 return
             if (self.command not in {"GET", "HEAD"} and not notification_write
+                    and not recovery_decision
                     and not objective_submit and not objective_proposal and not objective_cancel
                     and not objective_rereview
                     and not conversation_send and not conversation_stream_send and not conversation_session and not public_auth
@@ -1884,6 +1889,44 @@ def make_handler():
                             conversation_match.group(1))
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
+                        return
+                    self._json(200, result, request_id)
+                elif recovery_decision:
+                    identity = getattr(self, "_account_identity", None)
+                    if (not getattr(self, "_account_cookie_authenticated", False)
+                            or not identity or "steward" not in identity.get("roles", ())
+                            or not identity.get("authority_principal_id")):
+                        self._error(403, "steward_account_session_required", request_id)
+                        return
+                    data = self._json_body(4096)
+                    if (set(data) != {"decision", "reason", "idempotency_key"} or
+                            data.get("decision") not in {"approve", "defer", "reject"} or
+                            not all(isinstance(data.get(k), str) for k in data)):
+                        self._error(400, "invalid_recovery_decision", request_id)
+                        return
+                    service = self.server._notification_service
+                    if service is None:
+                        self._error(503, "notifications_not_initialized", request_id)
+                        return
+                    try:
+                        result = service.decide_grace_recovery(
+                            recovery_decision.group(1), decision=data["decision"],
+                            actor_principal_id=identity["authority_principal_id"],
+                            authority_reference=(f"account-auth-session:{identity['account_id']}:steward"),
+                            reason=data["reason"], idempotency_key=data["idempotency_key"])
+                    except Exception as exc:
+                        from riverview_core.notifications import (NotificationConflict,
+                            NotificationNotFound, NotificationUnavailable)
+                        if isinstance(exc, NotificationNotFound):
+                            self._error(404, "recovery_decision_not_found", request_id)
+                        elif isinstance(exc, NotificationConflict):
+                            self._error(409, "recovery_decision_conflict", request_id)
+                        elif isinstance(exc, ValueError):
+                            self._error(400, "invalid_recovery_decision", request_id)
+                        elif isinstance(exc, NotificationUnavailable):
+                            self._error(503, "recovery_decision_unavailable", request_id)
+                        else:
+                            raise
                         return
                     self._json(200, result, request_id)
                 elif notification_write:

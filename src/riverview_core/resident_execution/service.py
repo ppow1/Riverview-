@@ -239,23 +239,29 @@ class GraceExecutionService:
         for row in rows:
             candidate_id = row["objective_id"]
             candidate_revision = row.get("revision")
-            if (type(candidate_revision) is int and
-                    self._proposal_rejection_blocked(candidate_id, candidate_revision)):
-                continue
-            if self._reasoning_failure_count(candidate_id) >= self.MAX_REASONING_FAILURES:
-                continue
             if (self.external_reasoning_exchange is not None and
                     (self.external_reasoning_exchange.has_active_for_objective(candidate_id) or
                      self.external_reasoning_exchange.has_terminal_review_for_objective(candidate_id))):
                 continue
-            candidate = row
+            recovery_request_id = None
+            if (type(candidate_revision) is int and
+                    self._proposal_rejection_blocked(candidate_id, candidate_revision)):
+                recovery_request_id = self._claim_approved_recovery(candidate_id,
+                                                                    candidate_revision)
+                if recovery_request_id is None:
+                    continue
+            if (recovery_request_id is None and
+                    self._reasoning_failure_count(candidate_id) >= self.MAX_REASONING_FAILURES):
+                continue
+            candidate = {**row, "recovery_request_id": recovery_request_id}
             break
         if candidate is None:
             return False
         objective_id = candidate["objective_id"]
         self._current_objective_id = objective_id
         try:
-            self._record_reasoning_attempt(objective_id)
+            self._record_reasoning_attempt(objective_id,
+                recovery_request_id=candidate.get("recovery_request_id"))
             result = self.resident_reasoner.propose(
                 objective_id, trigger="persistent_resident_cycle",
                 token_budget=self.resident_token_budget)
@@ -515,18 +521,74 @@ class GraceExecutionService:
                 (objective_id, self._runtime_revision(), objective_id))
             return int(cur.fetchone()["failures"])
 
-    def _record_reasoning_attempt(self, objective_id):
+    def _record_reasoning_attempt(self, objective_id, *, recovery_request_id=None):
         request_id = str(uuid4())
         key = f"grace-reasoning-attempt:{objective_id}:{request_id}"
+        payload = ({"authorized_recovery_request_id": recovery_request_id,
+                    "recovery_attempt_limit": 1} if recovery_request_id else {})
         with self.pipeline.ledger.db.transaction():
             with self.pipeline.ledger.db.cursor() as cur:
                 self.pipeline.ledger._set_search_path(cur)
                 cur.execute("""INSERT INTO grace_objective_events
                     (objective_id,event_type,idempotency_key,actor_id,payload)
                     VALUES (%s,'execution.reasoning_attempted',%s,
-                        'service:grace-execution','{}'::jsonb)
+                        'service:grace-execution',%s::jsonb)
                     ON CONFLICT (idempotency_key) DO NOTHING""",
-                    (objective_id, key))
+                    (objective_id, key, json.dumps(payload, sort_keys=True,
+                        separators=(",", ":"))))
+
+    def _claim_approved_recovery(self, objective_id, objective_revision):
+        """Consume one exact, unexpired Steward authorization; never lifts other fences."""
+        try:
+            with self.pipeline.ledger.db.transaction():
+                with self.pipeline.ledger.db.cursor() as cur:
+                    self.pipeline.ledger._set_search_path(cur)
+                    cur.execute("""SELECT r.request_id,r.source_event_id
+                        FROM grace_recovery_decision_requests r
+                        JOIN cme_monitor_events e ON e.event_id=r.source_event_id
+                        JOIN grace_recovery_decision_events d ON d.request_id=r.request_id
+                          AND d.decision='approve'
+                        WHERE r.objective_id=%s AND r.objective_revision=%s
+                          AND r.recovery_action='retry_reasoning_once' AND r.attempt_limit=1
+                          AND r.status='approved' AND r.expires_at>clock_timestamp()
+                          AND e.event_type='grace_objective_blocked'
+                          AND e.details->>'objective_id'=r.objective_id
+                          AND (e.details->>'objective_revision')::integer=r.objective_revision
+                          AND EXISTS (SELECT 1 FROM grace_objective_events b
+                            WHERE b.objective_id=r.objective_id
+                              AND b.event_type='execution.reasoning_failed'
+                              AND b.payload->>'status'='BLOCKED'
+                              AND b.payload->>'objective_revision'=r.objective_revision::text)
+                        ORDER BY d.recorded_at DESC LIMIT 1 FOR UPDATE OF r SKIP LOCKED""",
+                        (objective_id, objective_revision))
+                    row = cur.fetchone()
+                    if row is None:
+                        return None
+                    request_id = str(row["request_id"])
+                    cur.execute("""UPDATE grace_recovery_decision_requests
+                        SET status='dispatched' WHERE request_id=%s AND status='approved'
+                        RETURNING request_id""", (row["request_id"],))
+                    if cur.fetchone() is None:
+                        return None
+                    payload = json.dumps({"request_id": request_id,
+                        "source_event_id": str(row["source_event_id"]),
+                        "objective_id": objective_id,
+                        "objective_revision": objective_revision,
+                        "recovery_action": "retry_reasoning_once", "attempt_limit": 1},
+                        sort_keys=True, separators=(",", ":"))
+                    cur.execute("""INSERT INTO grace_objective_events
+                        (objective_id,event_type,idempotency_key,actor_id,payload)
+                        VALUES (%s,'execution.recovery_authorized',%s,
+                          'service:grace-execution',%s::jsonb)
+                        ON CONFLICT (idempotency_key) DO NOTHING""",
+                        (objective_id, f"grace-recovery-dispatched:{request_id}", payload))
+                    return request_id
+        except Exception as exc:
+            # Missing migration or unavailable authority ledger fails closed.
+            LOG.warning(json.dumps({"event": "grace_recovery_authorization_unavailable",
+                "objective_id": objective_id, "failure_type": type(exc).__name__},
+                sort_keys=True))
+            return None
 
     def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None,
                                   detail_code=None, blocked_revision=None):

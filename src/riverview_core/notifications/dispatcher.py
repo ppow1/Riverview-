@@ -89,7 +89,7 @@ class NotificationDispatcher:
                 if not cur.fetchone()["locked"]:
                     return {"status": "another_instance_active", "scanned": 0,
                             "notifications_created": 0, "decision_requests_created": 0}
-                cur.execute("""SELECT e.event_id,e.assignment_id,e.event_type,e.recorded_at,
+                cur.execute("""SELECT e.event_id,e.assignment_id,e.event_type,e.recorded_at,e.details,
                                       a.state AS assignment_state,a.version AS assignment_version
                                FROM cme_monitor_events e
                                LEFT JOIN assignments a ON a.id=e.assignment_id
@@ -136,6 +136,20 @@ class NotificationDispatcher:
                     notice = cur.fetchone()
                     if notice:
                         created += 1
+                        if row["event_type"] == "grace_objective_blocked":
+                            details = row["details"] or {}
+                            objective_id = details.get("objective_id")
+                            objective_revision = details.get("objective_revision")
+                            if (isinstance(objective_id, str) and objective_id and
+                                    type(objective_revision) is int and objective_revision > 0):
+                                cur.execute("""INSERT INTO grace_recovery_decision_requests
+                                    (source_event_id,notification_id,objective_id,objective_revision,
+                                     recovery_action,attempt_limit,expires_at)
+                                    VALUES (%s,%s,%s,%s,'retry_reasoning_once',1,
+                                            clock_timestamp()+interval '24 hours')
+                                    ON CONFLICT(source_event_id) DO NOTHING""",
+                                    (row["event_id"], notice["notification_id"],
+                                     objective_id, objective_revision))
                         cur.execute("""INSERT INTO notification_events
                             (notification_id,event_type,actor_type,idempotency_key)
                             VALUES (%s,'notification_queued','notification_dispatcher',%s)

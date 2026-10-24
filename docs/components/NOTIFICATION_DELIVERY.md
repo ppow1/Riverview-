@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.2
+File Revision: 1.0.3
 Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Document Grace block escalation visual delivery and receipt boundaries.
-Purpose: Define durable visual notification and pending decision-request projection
-Authority: Records notification state only; cannot approve or resolve institutional decisions
+Changed: 2026-10-24 UTC | RV-GRACE-BOUNDED-RECOVERY-DECISION-20261024 | Document exact Steward-bound single-use recovery decisions.
+Purpose: Define durable notifications and exact-bound Grace recovery decisions
+Authority: Receipt is non-authoritative; recovery decision requires the authenticated Steward account workflow
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Normalize controlled Markdown spacing
 History: Git and revision/backup manifest
 -->
@@ -19,9 +20,9 @@ History: Git and revision/backup manifest
 
 The CME monitor remains responsible for detecting attention conditions and
 recording `cme_monitor_events`. The notification dispatcher periodically scans
-that durable table and writes only `attention_notifications`,
-`steward_decision_requests`, `notification_events`, and
-`notification_dispatcher_health`. It never changes assignment lifecycle,
+that durable table and writes `attention_notifications`,
+`steward_decision_requests`, the exact-bound Grace recovery request,
+`notification_events`, and `notification_dispatcher_health`. It never changes assignment lifecycle,
 leases, or source events. A transaction advisory lock limits active scanners;
 stable source-event uniqueness makes restart and repeated scan safe. Migration
 0006 adds a scan index to the existing CME event table, preventing periodic
@@ -33,17 +34,25 @@ Only these CME event types are projected: `assignment_stalled`,
 `monitor_failed`, `attention_resolved`, and `grace_objective_blocked`. The Grace
 block notice keeps the source CME event ID and projects an allowlisted objective
 ID/revision, failure count, safe reason code, and recommended next action from
-the durable source details. It creates no `steward_decision_request`, because
-those requests are assignment-scoped. Private assignments are excluded by
+the durable source details. Migration 0008 adds a separate
+`retry_reasoning_once` request bound to that exact event, notification,
+objective and revision. Its maximum attempt count is one, and approval expires.
+It is not an assignment review request. Private assignments are excluded by
 the institution privacy-domain filter. Notice summaries are fixed server-side
 strings; only the explicit Grace block detail allowlist is rendered.
 
 An `assignment_attention` event creates a pending decision request only if the
 authoritative current assignment state is `awaiting_steward`. The dashboard
-bearer is a service credential and does not identify a Steward. M3.2 provides
-no decision-resolution operation. Both browser receipts carry
+bearer is a service credential and does not identify a Steward. Both browser receipts carry
 `authenticated_dashboard_client` provenance and have `authority_effect: none`.
 The request remains `pending` after rendering and receipt acknowledgment.
+Grace recovery decisions use a separate endpoint requiring the existing
+authenticated Steward account role, linked authority principal, and CSRF token.
+The append-only decision binds the source escalation ID, exact objective
+revision, proposed action, actor, reason and idempotency key. Approval can be
+consumed once by Grace's existing persistent reasoning cycle; deferral and
+rejection leave the failure fence in place. The endpoint itself never invokes
+reasoning or dispatches Engineering work.
 
 ## Visual delivery contract
 
@@ -76,17 +85,22 @@ See `NOTIFICATION_DELIVERY_API.schema.json` for bounded response schemas and
 | `GET /api/v1/notifications?limit=n` | Authenticated, read-only, maximum 50 notifications and dispatcher health. | Projection only. |
 | `POST /api/v1/notifications/{uuid}/delivered` | Empty body; record client rendering receipt after visible render. | Receipt only. |
 | `POST /api/v1/notifications/{uuid}/acknowledge` | Empty body; requires `delivered_at`; append receipt acknowledgment. | Receipt only; cannot decide. |
+| `POST /api/v1/grace-recovery/{uuid}/decision` | Steward account + CSRF; `{decision, reason, idempotency_key}` for `approve`, `defer`, or `reject`. | Exact-bound, single-use recovery decision; not Engineering execution authority. |
 
 Every route is loopback and Host-header checked. API access requires the
-existing dashboard bearer over the same origin. Request bodies, browser URLs,
+existing dashboard bearer over the same origin. Recovery decision posts also
+require an authenticated Steward account session. Request bodies, browser URLs,
 and credentials are not logged. Other mutating methods remain rejected. A
 receipt before delivery returns conflict; malformed/unknown notices return
-not-found; database errors return unavailable. There is no endpoint that can
-change `steward_decision_requests.status`.
+not-found; database errors return unavailable. Recovery decisions do not change
+`steward_decision_requests.status`, objective approval history, Engineering
+work orders, or execution grants. Grace atomically marks an exact unexpired
+approval `dispatched` before making the one bounded reasoning call; the existing
+revision failure fence remains unless that claim succeeds.
 
 ## Persistence and migration
 
-Migration `0006_durable_notifications` is an additive explicit migration under
+Migrations `0006_durable_notifications` through `0008_grace_recovery_decisions` are additive explicit migrations under
 the selected schema. It has no startup DDL. Before applying it to the shared
 `riverview_dev` schema, record preflight inventory, create a protected custom
 format PostgreSQL backup, verify its checksum, and restore it to a disposable

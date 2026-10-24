@@ -55,7 +55,7 @@
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
       const headers = {Accept: "application/json"};
-      if (state.token && !options.public) headers.Authorization = `Bearer ${state.token}`;
+      if (state.token && !options.public && !options.account) headers.Authorization = `Bearer ${state.token}`;
       if (!options.public && !["GET", "HEAD"].includes(method)) {
         const csrf = document.cookie.split(";").map((part) => part.trim())
           .find((part) => part.startsWith("rv_account_csrf="))?.slice("rv_account_csrf=".length);
@@ -227,11 +227,12 @@
       const rendered = ["delivered", "acknowledged"].includes(n.delivery_status);
       const acknowledged = n.delivery_status === "acknowledged";
       const request = n.decision_request_id ? `<div class="row-meta">Decision request: ${esc(n.decision_request_id)} · status ${esc(n.decision_status || "unavailable")}. A receipt cannot resolve this request.</div>` : `<div class="row-meta">Decision request: none linked in this projection.</div>`;
-      const escalation = n.event_type === "grace_objective_blocked" && n.source_details ? `<div class="row-meta"><strong>Objective:</strong> ${esc(n.source_details.objective_id)} · revision ${esc(n.source_details.objective_revision)} · ${esc(n.source_details.failure_count)} failures<br><strong>Reason:</strong> ${esc(n.source_details.last_error_code)}<br><strong>Recommended next action:</strong> ${esc(n.source_details.recommended_action)}. No retry was authorized.</div>` : "";
+      const recovery = n.recovery_request_id ? `<div class="row-meta">Bound recovery request ${esc(n.recovery_request_id)} · ${esc(n.recovery_action)} · maximum attempts ${esc(n.attempt_limit)} · ${esc(n.recovery_status)} · expires ${esc(when(n.recovery_expires_at))}.</div>${n.recovery_status === "pending" ? `<div class="notification-actions"><button class="primary" data-recovery-decision="approve" data-recovery-request="${esc(n.recovery_request_id)}">Approve one retry</button><button class="secondary" data-recovery-decision="defer" data-recovery-request="${esc(n.recovery_request_id)}">Defer</button><button class="secondary" data-recovery-decision="reject" data-recovery-request="${esc(n.recovery_request_id)}">Reject</button></div>` : ""}` : "";
+      const escalation = n.event_type === "grace_objective_blocked" && n.source_details ? `<div class="row-meta"><strong>Objective:</strong> ${esc(n.source_details.objective_id)} · revision ${esc(n.source_details.objective_revision)} · ${esc(n.source_details.failure_count)} failures<br><strong>Reason:</strong> ${esc(n.source_details.last_error_code)}<br><strong>Recommended next action:</strong> ${esc(n.source_details.recommended_action)}. A receipt alone never authorizes recovery.</div>` : "";
       const lifecycle = `<div class="row-meta">Dashboard rendering: ${rendered ? "confirmed" : n.delivery_status === "queued" ? "not confirmed" : "unavailable"} · Person seen: not reported by this source · Receipt acknowledgment: ${acknowledged ? "recorded" : n.delivery_status === "delivered" ? "not recorded" : "not available yet"}</div>`;
       const receipt = n.delivery_status === "delivered" ? `<button class="secondary" data-acknowledge="${esc(n.notification_id)}">Acknowledge receipt</button>` :
         `<span class="status-text status-accepted">${esc(human(n.delivery_status))}</span>`;
-      return `<article class="notification-row"><div><strong>${esc(human(n.event_type))}</strong><p>${esc(n.summary)}</p><div class="row-meta">${esc(n.assignment_id || "Service event")} · source event ${esc(n.source_event_id)} · source ${esc(when(n.source_recorded_at))} · queued ${esc(when(n.created_at))}</div>${escalation}${lifecycle}${request}</div><div class="notification-actions"><span class="status-text ${stateClass(n.delivery_status)}">${esc(human(n.delivery_status))}</span>${receipt}</div></article>`;
+      return `<article class="notification-row"><div><strong>${esc(human(n.event_type))}</strong><p>${esc(n.summary)}</p><div class="row-meta">${esc(n.assignment_id || "Service event")} · source event ${esc(n.source_event_id)} · source ${esc(when(n.source_recorded_at))} · queued ${esc(when(n.created_at))}</div>${escalation}${recovery}${lifecycle}${request}</div><div class="notification-actions"><span class="status-text ${stateClass(n.delivery_status)}">${esc(human(n.delivery_status))}</span>${receipt}</div></article>`;
     });
     const messages = {not_initialized:"Notification migration is not initialized.", unavailable:"Notification source is unavailable; no delivery is claimed.", available:"No durable notices in this bounded page."};
     $("notification-list").innerHTML = rows.length ? rows.join("") : noData(messages[state.notificationStatus] || "No notification state observed.");
@@ -244,6 +245,18 @@
       button.disabled = true;
       try { const receipt = await api(`/api/v1/notifications/${encodeURIComponent(button.dataset.acknowledge)}/acknowledge`, 2600, "POST"); await loadNotifications(); toast(receipt.authority_effect === "none" ? "Receipt recorded; no decision was made." : "Receipt result unavailable."); }
       catch (error) { button.disabled = false; toast(`Receipt not recorded: ${error.message}`); }
+    }));
+    document.querySelectorAll("[data-recovery-decision]").forEach((button) => button.addEventListener("click", async () => {
+      const decision = button.dataset.recoveryDecision;
+      const reason = window.prompt(`Record Steward ${decision} for this exact one-attempt recovery. Reason:`);
+      if (!reason?.trim()) return;
+      button.disabled = true;
+      try {
+        const requestId = button.dataset.recoveryRequest;
+        const result = await api(`/api/v1/grace-recovery/${encodeURIComponent(requestId)}/decision`, 5000, "POST", {account:true,body:{decision,reason:reason.trim(),idempotency_key:`grace-recovery-decision:${requestId}:${decision}`}});
+        await loadNotifications();
+        toast(result.retry_dispatched ? "Recovery dispatched." : `Steward decision recorded; ${result.retry_dispatched === false ? "no recovery has been dispatched by this action" : "status refreshed"}.`);
+      } catch (error) { button.disabled = false; toast(`Recovery decision not recorded: ${error.message}`); }
     }));
     if (state.activeView === "notifications") requestAnimationFrame(() => {
       if (state.activeView !== "notifications" || document.visibilityState !== "visible") return;

@@ -89,9 +89,13 @@ class NotificationHTTPTests(unittest.TestCase):
         self.thread.join(timeout=2)
         self.temp.cleanup()
 
-    def request(self, method, path, *, token=None, body=None):
+    def request(self, method, path, *, token=None, body=None, cookie=None, csrf=None):
         conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
         headers = {"Authorization": "Bearer " + token} if token else {}
+        if cookie:
+            headers["Cookie"] = cookie
+        if csrf:
+            headers["X-Riverview-CSRF"] = csrf
         conn.request(method, path, body=body, headers=headers)
         response = conn.getresponse()
         result = (response.status, json.loads(response.read()))
@@ -117,6 +121,44 @@ class NotificationHTTPTests(unittest.TestCase):
                                     token=self.token, body="x")
         self.assertEqual(status, 400)
 
+    def test_recovery_decision_requires_steward_account_not_dashboard_bearer(self):
+        body = json.dumps({"decision": "approve", "reason": "reviewed",
+                           "idempotency_key": "test-key"})
+        status, result = self.request("POST", f"/api/v1/grace-recovery/{uuid4()}/decision",
+                                      token=self.token, body=body)
+        self.assertEqual(status, 403)
+        self.assertEqual(result["error"], "steward_account_session_required")
+
+    def test_csrf_steward_recovery_decision_records_exact_request(self):
+        class AccountAuth:
+            def authenticate(_self, credential, *, csrf_token, state_changing):
+                if credential != "session" or (state_changing and csrf_token != "csrf"):
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied("denied")
+                return {"account_id": "account-1", "roles": ["steward"],
+                        "authority_principal_id": "steward:camrui"}
+            def require_role(_self, identity, *roles):
+                if not set(identity.get("roles", ())).intersection(roles):
+                    raise PermissionError("role required")
+        calls = []
+        self.server._account_auth_service = AccountAuth()
+        self.server._notification_service.decide_grace_recovery = lambda request_id, **values: (
+            calls.append((request_id, values)) or {"status": "recorded", "retry_dispatched": False})
+        request_id = str(uuid4())
+        body = json.dumps({"decision": "defer", "reason": "inspect failure record",
+                           "idempotency_key": "recovery-defer-once"})
+        status, result = self.request("POST", f"/api/v1/grace-recovery/{request_id}/decision",
+            body=body, cookie="rv_account_session=session", csrf="csrf")
+        self.assertEqual(status, 200, result)
+        self.assertEqual(calls[0][0], request_id)
+        self.assertEqual(calls[0][1]["actor_principal_id"], "steward:camrui")
+        self.assertEqual(calls[0][1]["decision"], "defer")
+        self.assertEqual(calls[0][1]["authority_reference"],
+                         "account-auth-session:account-1:steward")
+        status, _ = self.request("POST", f"/api/v1/grace-recovery/{request_id}/decision",
+            body=body, cookie="rv_account_session=session", csrf="wrong")
+        self.assertEqual(status, 403)
+
     def test_dispatcher_unit_is_dedicated_credentialled_and_non_root(self):
         unit = (ROOT / "deploy/systemd/riverview-notification-dispatcher.service").read_text()
         self.assertIn("User=riverview", unit)
@@ -139,6 +181,13 @@ class NotificationPostgresTests(unittest.TestCase):
             apply_migrations(DSN, schema=self.schema,
                              migrations_dir=core / component / "migrations")
         self.admin.execute("SELECT set_config('search_path', %s, false)", (self.schema,))
+        self.admin.execute("""CREATE TABLE grace_objectives (
+            objective_id TEXT PRIMARY KEY,status TEXT NOT NULL,revision INTEGER NOT NULL,
+            assignment_id TEXT)""")
+        self.admin.execute("""CREATE TABLE grace_objective_events (
+            sequence BIGSERIAL PRIMARY KEY,objective_id TEXT NOT NULL,event_type TEXT NOT NULL,
+            idempotency_key TEXT NOT NULL UNIQUE,actor_id TEXT NOT NULL,
+            payload JSONB NOT NULL,occurred_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp())""")
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         self.monitor = CMEPostgresMonitor(DSN, schema=self.schema, stall_after_seconds=0.01)
         self.dispatcher = NotificationDispatcher(DSN, schema=self.schema, poll_interval=0.05)
@@ -218,9 +267,135 @@ class NotificationPostgresTests(unittest.TestCase):
         self.assertEqual(notice["source_details"], details)
         self.assertEqual(notice["delivery_status"], "queued")
         self.assertIsNone(notice["decision_request_id"])
+        self.assertIsNotNone(notice["recovery_request_id"])
+        self.assertEqual(notice["recovery_objective_id"], objective_id)
+        self.assertEqual(notice["recovery_objective_revision"], 2)
+        self.assertEqual(notice["recovery_action"], "retry_reasoning_once")
+        self.assertEqual(notice["attempt_limit"], 1)
+        self.assertEqual(notice["recovery_status"], "pending")
         self.assertEqual(self.dispatcher.scan_once()["notifications_created"], 0)
         self.assertEqual(len(self.rows("attention_notifications")), 1)
         self.assertEqual(len(self.rows("steward_decision_requests")), 0)
+
+    def _create_recovery_fixture(self, label):
+        objective_id = f"objective:recovery-test:{label}:r2"
+        source_id = uuid4()
+        details = {"objective_id": objective_id, "objective_revision": 2,
+            "runtime_revision": "test-runtime", "failure_count": 33,
+            "last_error_code": "PROPOSAL_CRITERIA_BINDING_REJECTED",
+            "recommended_action": "review_failure_evidence_before_authorizing_retry",
+            "automatic_recovery": False}
+        self.admin.execute("INSERT INTO grace_objectives VALUES (%s,'GROUNDED',2)", (objective_id,))
+        self.admin.execute("""INSERT INTO grace_objective_events
+            (objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,'execution.reasoning_failed',%s,'service:test',%s::jsonb)""",
+            (objective_id, f"failure:{label}",
+             json.dumps({"status": "BLOCKED", "objective_revision": 2})))
+        self.admin.execute("""INSERT INTO cme_monitor_events
+            (event_id,event_key,service_id,event_type,details)
+            VALUES (%s,%s,'cme.monitor.v1','grace_objective_blocked',%s::jsonb)""",
+            (source_id, f"recovery:{label}", json.dumps(details)))
+        self.dispatcher.scan_once()
+        item = next(item for item in self.service.list_notifications(limit=50)["items"]
+                    if item["source_event_id"] == str(source_id))
+        return objective_id, source_id, item["recovery_request_id"]
+
+    def test_steward_decision_is_exact_idempotent_and_never_dispatches(self):
+        objective_id, source_id, request_id = self._create_recovery_fixture("approve")
+        args = {"actor_principal_id": "steward:test",
+                "authority_reference": "account-auth-session:test:steward",
+                "reason": "Approve exactly one bounded diagnostic retry.",
+                "idempotency_key": "recovery-approve-approve"}
+        result = self.service.decide_grace_recovery(request_id, decision="approve", **args)
+        self.assertEqual(result["objective_id"], objective_id)
+        self.assertEqual(result["objective_revision"], 2)
+        self.assertEqual(result["source_event_id"], str(source_id))
+        self.assertEqual(result["attempt_limit"], 1)
+        self.assertFalse(result["retry_dispatched"])
+        replay = self.service.decide_grace_recovery(request_id, decision="approve", **args)
+        self.assertTrue(replay["idempotent_replay"])
+        with self.assertRaises(NotificationConflict):
+            self.service.decide_grace_recovery(request_id, decision="approve",
+                actor_principal_id=args["actor_principal_id"],
+                authority_reference=args["authority_reference"],
+                reason="different payload", idempotency_key=args["idempotency_key"])
+        self.assertEqual(len(self.rows("grace_recovery_decision_events")), 1)
+        self.assertEqual(self.rows("grace_recovery_decision_requests")[0]["status"], "approved")
+        self.assertEqual(self.rows("grace_objective_events")[-1]["event_type"],
+                         "execution.reasoning_failed")
+        with self.assertRaises(NotificationConflict):
+            self.service.decide_grace_recovery(request_id, decision="approve",
+                actor_principal_id="steward:test",
+                authority_reference="account-auth-session:test:steward",
+                reason="second decision", idempotency_key="different-key")
+
+    def test_approved_recovery_claim_is_single_use_and_exactly_correlated(self):
+        import json
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.service import GraceExecutionService
+        objective_id, source_id, request_id = self._create_recovery_fixture("claim")
+        self.service.decide_grace_recovery(request_id, decision="approve",
+            actor_principal_id="steward:test",
+            authority_reference="account-auth-session:test:steward",
+            reason="test exact single-use claim", idempotency_key="recovery-claim")
+
+        class Ledger:
+            db = self.admin
+            def _set_search_path(inner_self, cur):
+                cur.execute("SELECT set_config('search_path', %s, true)", (self.schema,))
+        service = object.__new__(GraceExecutionService)
+        service.pipeline = SimpleNamespace(ledger=Ledger())
+        claimed = service._claim_approved_recovery(objective_id, 2)
+        self.assertEqual(claimed, request_id)
+        self.assertIsNone(service._claim_approved_recovery(objective_id, 2))
+        self.assertIsNone(service._claim_approved_recovery(objective_id + "-other", 2))
+        request = next(row for row in self.rows("grace_recovery_decision_requests")
+                       if str(row["request_id"]) == request_id)
+        self.assertEqual(request["status"], "dispatched")
+        recovery_event = next(row for row in self.rows("grace_objective_events")
+                              if row["event_type"] == "execution.recovery_authorized")
+        payload = recovery_event["payload"]
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        self.assertEqual(payload["source_event_id"], str(source_id))
+        self.assertEqual(payload["objective_id"], objective_id)
+        self.assertEqual(payload["objective_revision"], 2)
+        self.assertEqual(payload["attempt_limit"], 1)
+
+    def test_defer_and_reject_record_decisions_without_retry(self):
+        for label, decision, status in (("defer", "defer", "deferred"),
+                                        ("reject", "reject", "rejected")):
+            _objective, _event, request_id = self._create_recovery_fixture(label)
+            result = self.service.decide_grace_recovery(request_id, decision=decision,
+                actor_principal_id="steward:test",
+                authority_reference="account-auth-session:test:steward",
+                reason=f"Steward {decision}.", idempotency_key=f"recovery-{label}")
+            self.assertEqual(result["decision"], decision)
+            self.assertFalse(result["retry_dispatched"])
+            row = self.admin.execute("SELECT status FROM grace_recovery_decision_requests WHERE request_id=%s",
+                                     (request_id,)).fetchone()
+            self.assertEqual(row["status"], status)
+
+    def test_stale_revision_expired_request_and_attempt_limit_fail_closed(self):
+        objective_id, _event, stale_request = self._create_recovery_fixture("stale")
+        self.admin.execute("UPDATE grace_objectives SET revision=3 WHERE objective_id=%s",
+                           (objective_id,))
+        with self.assertRaises(NotificationConflict):
+            self.service.decide_grace_recovery(stale_request, decision="approve",
+                actor_principal_id="steward:test",
+                authority_reference="account-auth-session:test:steward", reason="stale",
+                idempotency_key="recovery-stale")
+        _objective, _event, expired_request = self._create_recovery_fixture("expired")
+        self.admin.execute("UPDATE grace_recovery_decision_requests SET expires_at=clock_timestamp()-interval '1 second' WHERE request_id=%s",
+                           (expired_request,))
+        expired = self.service.decide_grace_recovery(expired_request, decision="approve",
+            actor_principal_id="steward:test",
+            authority_reference="account-auth-session:test:steward", reason="expired",
+            idempotency_key="recovery-expired")
+        self.assertEqual(expired["status"], "expired")
+        with self.assertRaises(psycopg.errors.CheckViolation):
+            self.admin.execute("UPDATE grace_recovery_decision_requests SET attempt_limit=2 WHERE request_id=%s",
+                               (expired_request,))
 
     def test_receipt_states_are_ordered_idempotent_and_never_resolve_request(self):
         assignment = self.create_assignment("awaiting", awaiting=True)

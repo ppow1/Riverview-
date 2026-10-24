@@ -22,7 +22,7 @@
     },
     "item": {
       "type":"object",
-      "required":["notification_id","source_event_id","assignment_id","event_type","channel","source_recorded_at","created_at","delivered_at","acknowledged_at","request_id","decision_status","assignment_version","delivery_status","decision_request_id","summary","source_details"],
+      "required":["notification_id","source_event_id","assignment_id","event_type","channel","source_recorded_at","created_at","delivered_at","acknowledged_at","request_id","decision_status","assignment_version","delivery_status","decision_request_id","recovery_request_id","recovery_status","recovery_objective_id","recovery_objective_revision","recovery_action","attempt_limit","recovery_expires_at","summary","source_details"],
       "properties":{
         "notification_id":{"type":"string","format":"uuid"},
         "source_event_id":{"type":"string","format":"uuid"},
@@ -35,6 +35,13 @@
         "acknowledged_at":{"type":["string","null"],"format":"date-time"},
         "request_id":{"type":["string","null"],"format":"uuid"},
         "decision_request_id":{"type":["string","null"],"format":"uuid"},
+        "recovery_request_id":{"type":["string","null"],"format":"uuid"},
+        "recovery_status":{"type":["string","null"],"enum":["pending","approved","deferred","rejected","expired","dispatched","consumed",null]},
+        "recovery_objective_id":{"type":["string","null"],"maxLength":160},
+        "recovery_objective_revision":{"type":["integer","null"],"minimum":1},
+        "recovery_action":{"type":["string","null"],"enum":["retry_reasoning_once",null]},
+        "attempt_limit":{"type":["integer","null"],"enum":[1,null]},
+        "recovery_expires_at":{"type":["string","null"],"format":"date-time"},
         "decision_status":{"type":["string","null"],"enum":["pending",null]},
         "assignment_version":{"type":["integer","null"],"minimum":1},
         "delivery_status":{"enum":["queued","delivered","acknowledged"]},
