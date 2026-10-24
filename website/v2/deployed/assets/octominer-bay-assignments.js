@@ -1,3 +1,4 @@
+// Revision: 1.0.0
 /*
 Riverview~ Controlled Data
 File: website/v2/deployed/assets/octominer-bay-assignments.js

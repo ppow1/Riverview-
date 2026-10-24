@@ -1,3 +1,4 @@
+# Revision: 1.0.0
 """Single-call GPT-6 Luna transport over Grace's existing durable exchange."""
 from __future__ import annotations
 

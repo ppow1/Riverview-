@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.24
+# Revision: 1.0.25
+# Changed: 2026-10-24 UTC | RV-WEB-CI-TEST-SCHEMA-FIX | Model the pipeline objective lookup added to the persistent reasoning path.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Cover explicit exactly-one dispatch lifecycle mapping and structural bullets.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-GROUNDING-DIAGNOSTICS-20261021 | Verify correlated separate grounding results and sanitized exceptions
@@ -372,6 +373,9 @@ class ResidentReasoningTests(unittest.TestCase):
                 if objective_id and objective_id != self.assignment_id:
                     return []
                 return [{"objective_id": self.assignment_id, "revision": 1}]
+
+            def get_objective(self, objective_id):
+                return None
 
             def record_proposal(self, objective_id, proposal, *, actor_id):
                 self.proposals.append((objective_id, proposal, actor_id))

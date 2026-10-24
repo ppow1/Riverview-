@@ -1,3 +1,4 @@
+<!-- Document Revision: 1.0.0 -->
 # Riverview visualization and navigation roadmap
 
 This roadmap is an extensible sequence of capability slices, not a fixed inventory of tabs. Each item should reuse an existing owner API and data source, have current-vs-historical evidence labels, and preserve the authorization boundary. The separate Grace reasoning/execution workstream remains outside this roadmap's implementation scope.

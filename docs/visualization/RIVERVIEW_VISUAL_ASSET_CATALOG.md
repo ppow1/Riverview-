@@ -1,3 +1,4 @@
+<!-- Document Revision: 1.0.0 -->
 # Riverview visual asset catalog
 
 Surveyed 2026-10-24 in `ppow1/theestate` main at `6f8c620225bc757eaf11b0b090c9c56bd13bb110`, `ppow1/Riverview` main at `4590f2fb5e6813d409b3faf8e37a151778aea1f6`, the deployed `ppow1/Riverview-` tree at production source `ebd53a84ae6e016353083ffe40f15048512ac6c6`, and `ppow1/Riverview-Historical-Archive` main at `6e1156af95e47ae7098e859e8c462042c7aac4b4`. No asset was transformed or copied during this inventory.

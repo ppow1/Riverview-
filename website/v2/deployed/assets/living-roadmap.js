@@ -1,3 +1,4 @@
+// Revision: 1.0.0
 /* Reusable, read-only Living Roadmap view over canonical planning references and protected work state. */
 (() => {
   "use strict";

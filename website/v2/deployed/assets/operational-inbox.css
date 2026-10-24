@@ -1,3 +1,6 @@
+/*
+Revision: 1.0.0
+*/
 .operational-inbox{padding:17px;border:1px solid var(--line);border-radius:9px;background:var(--surface,#fff);color:var(--ink)}
 .operational-inbox-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .operational-inbox-heading h3{margin:0 0 6px;font:500 19px Georgia,"Times New Roman",serif}

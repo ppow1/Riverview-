@@ -1,3 +1,4 @@
+<!-- Document Revision: 1.0.0 -->
 # Riverview V2 Living Roadmap
 
 The first V2 roadmap view is a read-only presentation over the committed V2 development roadmap, Issue #268 evidence, and the canonical Parking Lot / Ready Bench documents in `ppow1/Riverview`. The planning summaries and source links are a curated UI index, not an execution registry. Parking Lot, Steward-approved elaboration, Design/Specification, Ready Bench, Active Work, and Complete are distinct lanes; where a board is not integrated, the view links to its authoritative source and reports that limitation.
