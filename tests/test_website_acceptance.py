@@ -60,6 +60,7 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn('live_source_commit=live_source_commit',source)
         self.assertIn('"account_email_settings_steward_read"',source)
         self.assertIn("/api/v1/account/email-settings",source)
+        self.assertIn("?.value??null",source)
 
     def test_predeploy_account_denial_and_nginx_snippet_rollback_are_safe(self):
         runner=(ROOT/"scripts/run_website_acceptance.py").read_text()
