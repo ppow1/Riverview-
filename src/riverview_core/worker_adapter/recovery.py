@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.15
+# Revision: 1.2.16
+# Changed: 2026-10-25 UTC | RV-GRACE-ASSIGNMENT-EVIDENCE-HANDOFF-20261025 | Reconcile the durable preflight_assignment_evidence wait observation through the existing bounded recovery path.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Reconcile a narrowly proven pre-execution ObjectiveStateError during same-assignment rework while retaining prior artifacts and rejection history.
 # Changed: 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Add an exact-grant, append-only single-use disposition for one exhausted no-artifact assignment retry.
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Select no-artifact recovery through the exact durable objective-step assignment, dispatch event, and persisted proposal step rather than the latest objective assignment pointer.

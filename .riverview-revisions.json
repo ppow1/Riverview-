@@ -2909,7 +2909,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2927,7 +2927,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -9092,6 +9092,12 @@
       "revision": "1.0.1",
       "sha256": "2c9f40826ec405ded2f2f14c0b12f281b625358707943f67a8e642a59556930c",
       "size_bytes": 1891
+    },
+    "src/riverview_core/worker_adapter/migrations/0003_assignment_evidence_preflight_observation.sql": {
+      "path": "src/riverview_core/worker_adapter/migrations/0003_assignment_evidence_preflight_observation.sql",
+      "revision": "1.0.0",
+      "sha256": "4c3f41bf9774663788891963545ce8bd4b36cd6991a0cac69abd641228776fc4",
+      "size_bytes": 509
     },
     "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql": {
       "path": "src/riverview_core/worker_adapter/migrations/0003_independent_verification.sql",
