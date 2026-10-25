@@ -12,7 +12,6 @@
   };
   let refreshedAt = null;
   let canWriteReceipts = false;
-  const renderReceiptAttempts = new Set();
   const receiptRequests = new Set();
 
   const node = (tag, value, className) => {
@@ -78,16 +77,17 @@
       eventCell.append(node("strong", human(row.eventType)), node("span", row.description, "inbox-description"),
         node("small", row.sources.map((s) => s === "event" ? "Operational event" : s === "attention" ? "Attention" : "Notification").join(" · "), "inbox-meta"));
       const receiptAction = adapter.notificationReceiptAction(row, canWriteReceipts);
-      if (receiptAction === "acknowledge") {
-        const acknowledge = node("button", "Acknowledge receipt", "inbox-receipt-action");
-        acknowledge.type = "button";
-        acknowledge.dataset.notificationAcknowledge = row.notificationId;
-        acknowledge.setAttribute("aria-label", `Acknowledge receipt for ${human(row.eventType)}`);
-        eventCell.append(acknowledge);
+      if (receiptAction) {
+        const actionButton = node("button", receiptAction === "delivered" ? "Confirm displayed" : "Acknowledge receipt", "inbox-receipt-action");
+        actionButton.type = "button";
+        actionButton.dataset.notificationReceiptAction = receiptAction;
+        actionButton.dataset.notificationId = row.notificationId;
+        actionButton.setAttribute("aria-label", `${receiptAction === "delivered" ? "Confirm dashboard display" : "Acknowledge receipt"} for ${human(row.eventType)}`);
+        eventCell.append(actionButton);
       } else if (row.notificationId && row.deliveryState === "acknowledged") {
         eventCell.append(node("small", "Receipt acknowledged; no decision was made.", "inbox-receipt-note"));
-      } else if (row.notificationId && row.deliveryState === "queued" && !canWriteReceipts) {
-        eventCell.append(node("small", "An operator or Steward session is required to record dashboard display.", "inbox-receipt-note"));
+      } else if (row.notificationId && ["queued", "delivered"].includes(row.deliveryState) && !canWriteReceipts) {
+        eventCell.append(node("small", "An operator or Steward session is required to record a receipt.", "inbox-receipt-note"));
       }
       if (row.sources.includes("event")) {
         const details = document.createElement("details");
@@ -126,8 +126,7 @@
     empty.textContent = rows.length ? "" : Object.values(feeds).every((feed) => feed.status === "not checked")
       ? "No source records have been loaded."
       : "No records match the selected filters, or all available sources returned no records.";
-    document.querySelectorAll("[data-notification-acknowledge]").forEach((button) => button.addEventListener("click", () => acknowledgeNotice(button)));
-    confirmRenderedNotices(rows);
+    document.querySelectorAll("[data-notification-receipt-action]").forEach((button) => button.addEventListener("click", () => recordNoticeReceipt(button)));
   }
   async function readReceiptAuthority() {
     try {
@@ -153,44 +152,24 @@
     await readFeed("notifications", feeds.notifications);
     render();
   }
-  async function acknowledgeNotice(button) {
-    const notificationId = button.dataset.notificationAcknowledge;
-    if (!canWriteReceipts || !notificationId || receiptRequests.has(notificationId)) return;
+  async function recordNoticeReceipt(button) {
+    const notificationId = button.dataset.notificationId;
+    const action = button.dataset.notificationReceiptAction;
+    if (!canWriteReceipts || !notificationId || !["delivered", "acknowledge"].includes(action) || receiptRequests.has(notificationId)) return;
     receiptRequests.add(notificationId); button.disabled = true;
-    $("#inbox-action-status").textContent = "Recording receipt acknowledgment…";
+    $("#inbox-action-status").textContent = action === "delivered" ? "Recording dashboard display…" : "Recording receipt acknowledgment…";
     try {
-      const receipt = await postNoticeReceipt(notificationId, "acknowledge");
+      const receipt = await postNoticeReceipt(notificationId, action);
       await refreshNotifications();
-      $("#inbox-action-status").textContent = receipt.authority_effect === "none"
-        ? "Receipt acknowledged. No decision or recovery authorization was made."
-        : "Receipt response did not confirm that authority was unchanged.";
+      $("#inbox-action-status").textContent = action === "delivered"
+        ? "Dashboard display receipt recorded. This does not confirm phone delivery or that a person saw it."
+        : receipt.authority_effect === "none"
+          ? "Receipt acknowledged. No decision or recovery authorization was made."
+          : "Receipt response did not confirm that authority was unchanged.";
     } catch (error) {
       button.disabled = false;
       $("#inbox-action-status").textContent = `Receipt was not recorded (${error.message}).`;
     } finally { receiptRequests.delete(notificationId); }
-  }
-  function confirmRenderedNotices(rows) {
-    const workspace = $("#communications-workspace");
-    if (!canWriteReceipts || document.visibilityState !== "visible" || !workspace || workspace.hidden) return;
-    const notices = rows.filter((row) => row.notificationId && row.deliveryState === "queued" &&
-      !renderReceiptAttempts.has(row.notificationId) && !receiptRequests.has(row.notificationId));
-    if (!notices.length) return;
-    for (const row of notices) { renderReceiptAttempts.add(row.notificationId); receiptRequests.add(row.notificationId); }
-    requestAnimationFrame(async () => {
-      if (document.visibilityState !== "visible" || workspace.hidden) {
-        for (const row of notices) { renderReceiptAttempts.delete(row.notificationId); receiptRequests.delete(row.notificationId); }
-        return;
-      }
-      const outcomes = await Promise.allSettled(notices.map((row) => postNoticeReceipt(row.notificationId, "delivered")));
-      const completed = outcomes.filter((outcome) => outcome.status === "fulfilled").length;
-      for (const row of notices) receiptRequests.delete(row.notificationId);
-      const failed = outcomes.length - completed;
-      if (completed) {
-        $("#inbox-action-status").textContent = `Dashboard display recorded for ${completed} notification${completed === 1 ? "" : "s"}. This does not confirm phone delivery or that a person saw it.`;
-        await refreshNotifications();
-      }
-      if (failed) $("#inbox-action-status").textContent = `Dashboard display receipt could not be recorded for ${failed} notification${failed === 1 ? "" : "s"}. The server did not confirm display.`;
-    });
   }
   async function readFeed(name, feed) {
     try {
@@ -263,7 +242,6 @@
         else render();
       }
     });
-    $("#operational-inbox-refresh").addEventListener("click", () => renderReceiptAttempts.clear());
   });
   window.RiverviewV2OperationalInbox = Object.freeze({render, refresh});
 })();

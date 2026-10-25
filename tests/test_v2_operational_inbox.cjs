@@ -49,11 +49,11 @@ test("event paging merges older and newer cursor pages without duplicates", () =
   assert.equal(newer.canLoadNewer,false);
 });
 
-test("notification acknowledgment is offered only for delivered notices to writable roles", () => {
+test("notification receipt actions are explicit and gated by writable roles", () => {
   const notice={notificationId:"n-1",deliveryState:"delivered"};
   assert.equal(notificationReceiptAction(notice,true),"acknowledge");
   assert.equal(notificationReceiptAction(notice,false),null);
-  assert.equal(notificationReceiptAction({...notice,deliveryState:"queued"},true),null);
+  assert.equal(notificationReceiptAction({...notice,deliveryState:"queued"},true),"delivered");
   assert.equal(notificationReceiptAction({...notice,deliveryState:"acknowledged"},true),null);
   assert.equal(notificationReceiptAction({deliveryState:"delivered"},true),null);
 });
@@ -95,9 +95,10 @@ test("receipt controls reuse the existing authenticated receipt endpoints and pr
   assert.match(js,/X-Riverview-CSRF/);
   assert.match(js,/credentials:\s*"same-origin"/);
   assert.match(js,/roles\.includes\("operator"\).*roles\.includes\("steward"\)/);
-  assert.match(js,/document\.visibilityState !== "visible"/);
-  assert.match(js,/row\.deliveryState === "queued"/);
+  assert.match(adapter,/row\.deliveryState === "queued"/);
   assert.match(adapter,/row\.deliveryState === "delivered"/);
   assert.match(js,/No decision or recovery authorization was made/);
+  assert.match(js,/Confirm displayed/);
+  assert.doesNotMatch(js,/confirmRenderedNotices|requestAnimationFrame\(async/);
   assert.match(html,/No authorized read-only Comms5 activity feed is connected/);
 });

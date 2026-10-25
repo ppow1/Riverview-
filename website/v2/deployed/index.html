@@ -54,7 +54,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
-  <link rel="stylesheet" href="assets/operational-inbox.css?rev=notification-receipts-20261025">
+  <link rel="stylesheet" href="assets/operational-inbox.css?rev=notification-receipts-explicit-20261025">
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/octominer-bay-assignments.js?rev=steward-reported-20261024"></script>
   <script defer src="assets/resource-monitor.js?rev=octo-bay-assignment-20261024"></script>
@@ -74,8 +74,8 @@ History: Git and revision/backup manifest
   <script defer src="assets/grace-chat.js?rev=blocker-20261024"></script>
   <script defer src="assets/manual-image-generation.js"></script>
   <script defer src="assets/notification-settings.js"></script>
-  <script defer src="assets/operational-inbox-adapter.js?rev=notification-receipts-20261025"></script>
-  <script defer src="assets/operational-inbox.js?rev=notification-receipts-20261025"></script>
+  <script defer src="assets/operational-inbox-adapter.js?rev=notification-receipts-explicit-20261025"></script>
+  <script defer src="assets/operational-inbox.js?rev=notification-receipts-explicit-20261025"></script>
   <script defer src="assets/verification-status.js?rev=acceptance-v1"></script>
 <meta name="rv-v2-snapshot-mode" content="authenticated-dashboard"></head>
 <body>
@@ -321,7 +321,7 @@ History: Git and revision/backup manifest
               <details class="activity-detail" id="communications-detail"><summary>Selected event details</summary><p>Select a ledger event to inspect its redacted details. Payload content is not exposed.</p></details>
             </section>
             <section class="operational-inbox" id="operational-inbox" aria-labelledby="operational-inbox-heading">
-              <div class="operational-inbox-heading"><div><p class="eyebrow">OPERATIONAL RECORDS & RECEIPTS</p><h3 id="operational-inbox-heading">Notifications and operational events</h3><p class="muted">A consolidated view of existing notification, attention, and institution event records. When a queued notice is visible in this inbox for an operator or Steward, V2 records the existing dashboard-display receipt. Acknowledgment is separate. Neither state confirms NTFY phone delivery or that anyone saw the phone notification; receipts never approve decisions or recovery.</p></div><button id="operational-inbox-refresh" type="button">Refresh inbox</button></div>
+              <div class="operational-inbox-heading"><div><p class="eyebrow">OPERATIONAL RECORDS & RECEIPTS</p><h3 id="operational-inbox-heading">Notifications and operational events</h3><p class="muted">A consolidated view of existing notification, attention, and institution event records. An operator or Steward must explicitly confirm dashboard display for a queued notice; acknowledgment is separate. Neither state confirms NTFY phone delivery or that anyone saw the phone notification. Receipts never approve decisions or recovery.</p></div><button id="operational-inbox-refresh" type="button">Refresh inbox</button></div>
               <p id="operational-inbox-freshness" class="inbox-freshness" role="status" aria-live="polite">Inbox has not been refreshed in this session.</p>
               <p id="inbox-action-status" class="inbox-action-status" role="status" aria-live="polite"></p>
               <div class="inbox-source-status" id="operational-inbox-sources" aria-label="Source status"></div>
