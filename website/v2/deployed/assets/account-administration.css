@@ -1,0 +1,30 @@
+/*
+Revision: 1.0.0
+*/
+.account-administration-workspace{max-width:1100px;margin:0 auto;padding:4px 0 28px}
+.account-admin-heading,.account-admin-section-heading{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.account-admin-heading{margin-bottom:16px}
+.account-admin-heading h2{margin:2px 0 8px;font-size:24px;font-weight:560}
+.account-admin-heading p,.account-admin-section-heading p{max-width:760px;line-height:1.55}
+.account-admin-status{min-height:24px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-soft);color:var(--muted)}
+.account-admin-section{margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.account-admin-section h3{margin:0 0 5px;font-size:16px}
+.account-admin-section-heading p{margin:0;color:var(--muted);font-size:12px}
+.account-admin-count{flex:0 0 auto;color:var(--muted);font-size:11px}
+.account-admin-list{display:grid;gap:9px;margin-top:14px}
+.account-admin-row{display:flex;justify-content:space-between;align-items:center;gap:14px;min-width:0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-soft)}
+.account-admin-record{display:grid;gap:5px;min-width:0;overflow-wrap:anywhere}
+.account-admin-record strong{font-size:13px}
+.account-admin-record span{color:var(--muted);font-size:11px;line-height:1.5}
+.account-admin-role{display:grid;gap:5px;flex:0 0 145px;color:var(--muted);font-size:11px}
+.account-admin-role select{width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit}
+.account-admin-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.account-admin-actions button,.account-admin-row>button,.account-admin-heading>button{min-height:36px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
+.account-admin-actions button:hover,.account-admin-row>button:hover,.account-admin-heading>button:hover{border-color:var(--teal)}
+.account-admin-actions button:disabled,.account-admin-row>button:disabled{opacity:.55;cursor:not-allowed}
+.account-admin-actions .account-admin-secondary,.account-admin-row>.account-admin-secondary{color:var(--muted)}
+.account-admin-empty{margin:0;padding:12px;color:var(--muted);font-size:12px}
+.account-admin-boundary{margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-soft);font-size:12px}
+.account-admin-boundary p{margin:6px 0 0;color:var(--muted);line-height:1.55}
+@media(max-width:900px){.enrollment-row{display:grid;grid-template-columns:1fr 145px}.enrollment-row .account-admin-actions{grid-column:1/-1;justify-content:flex-start}}
+@media(max-width:600px){.account-admin-heading,.account-admin-section-heading{display:block}.account-admin-heading>button{margin-top:8px;min-height:40px}.account-admin-count{display:block;margin-top:7px}.account-admin-row{align-items:flex-start;flex-direction:column}.account-admin-row>button{min-height:40px}.account-admin-role{width:100%;flex-basis:auto}.enrollment-row{display:grid;grid-template-columns:1fr}.enrollment-row .account-admin-actions{grid-column:auto;display:grid;grid-template-columns:1fr 1fr;width:100%}.account-admin-actions button{min-height:40px}}
