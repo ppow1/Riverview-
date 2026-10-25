@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.78
+# Revision: 1.0.80
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Verify historical S3 event persistence after pointer advancement and reject cross-objective assignment references.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Exercise exact consumed Luna exchange provenance and evaluation lifecycle evidence through PostgreSQL.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Fix the integration fixture's explicit service import for concurrent admission coverage.
@@ -2391,10 +2391,25 @@ class GraceExecutionTests(unittest.TestCase):
 
         request_id, correlation_id = str(uuid4()), str(uuid4())
         response_sha256 = "d" * 64
-        request_payload = {"request_type":"performance_evaluation",
-            "original_request":{"trigger":"performance_evaluation",
-                "assignment_id":objective_id,
-                "assignment":{"assignment_id":s3_assignment}}}
+        from dataclasses import asdict
+        from riverview_core.resident_reasoning import ReasoningRequest
+        from riverview_core.resident_execution.external_reasoning import (
+            DurableExternalReasoningExchange)
+        from riverview_core.reasoning_escalation import (
+            EscalationRequest, ReasoningEscalationRouter)
+        original_request = ReasoningRequest(request_id=str(uuid4()),
+            office_id="office:grace", assignment_id=objective_id,
+            assignment_revision="9", binding_revision=1,
+            implementation_revision="a"*64, trigger="performance_evaluation",
+            token_budget=512, assignment={"assignment_id":s3_assignment,
+                "evaluation_trigger_event_id":"event:s3-evaluation-trigger"},
+            verified_knowledge=(), prior_plan=None,
+            external_reasoning_targets=("gpt-6-luna",), correlation_id=request_id)
+        envelope = EscalationRequest.create(original_request, reason="low_confidence",
+            target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
+            escalation_id=request_id)
+        request_payload = {"request_type":"performance_evaluation", "max_tokens":512,
+            "timeout_seconds":45, "original_request":asdict(original_request)}
         response_payload = {"advisory":json.dumps({
             "schema_version":"rv.grace.performance-evaluation.v1", "grade":2,
             "grade_explanation":"Persisted S3 evidence was evaluated.",
@@ -2413,8 +2428,8 @@ class GraceExecutionTests(unittest.TestCase):
              'rv.external-reasoning.response.v1','task_complexity',%s,'institutional',
              'gpt-6-luna',%s,%s,%s::jsonb,'grace_consumed',clock_timestamp()+interval '1 hour',
              %s::jsonb,%s,%s::jsonb,%s,clock_timestamp(),%s,clock_timestamp(),%s::jsonb)""",
-            (request_id,correlation_id,"request:s3-replay-fixture",objective_id,
-             str(uuid4()),"e"*64,"s3-replay:"+request_id,"f"*64,
+            (request_id,correlation_id,original_request.request_id,objective_id,
+             str(uuid4()),envelope.context_sha256,"s3-replay:"+request_id,"f"*64,
              json.dumps(request_payload),json.dumps(response_payload),response_sha256,
              json.dumps({"response_id":"resp_s3_replay_fixture","usage":{
                  "input_tokens":100,"output_tokens":50,"cost_usd":"0.0001"}}),
@@ -2434,24 +2449,15 @@ class GraceExecutionTests(unittest.TestCase):
 
         from types import SimpleNamespace
         from riverview_core.resident_execution.service import GraceExecutionService
-        class Exchange:
-            def pending_responses(_self, _principal, *, limit):
-                return []
-            def consume(_self, _request_id, _correlation_id, **_kwargs):
-                return SimpleNamespace(request_id=request_id, correlation_id=correlation_id,
-                    already_consumed=True,
-                    original_request=SimpleNamespace(trigger="performance_evaluation",
-                        assignment_id=objective_id, assignment={
-                            "assignment_id":s3_assignment,
-                            "evaluation_trigger_event_id":"event:s3-evaluation-trigger"}),
-                    advisory=response_payload, consumption_key=
-                        f"external-reasoning-consumed:{request_id}",
-                    consumption_token="", fence=1)
-            def acknowledge_consumed(_self, *_args, **_kwargs):
-                return "grace_consumed"
+        class Provider:
+            provider_id = "gpt-6-luna"
+            def propose(self, _request):
+                raise AssertionError("persisted replay must not call the provider")
+        exchange = DurableExternalReasoningExchange(self.ledger,
+            ReasoningEscalationRouter({"gpt-6-luna":Provider()}), actor_id="resident:grace")
         service=object.__new__(GraceExecutionService)
         service.pipeline=self.pipeline
-        service.external_reasoning_exchange=Exchange()
+        service.external_reasoning_exchange=exchange
         service.resident_reasoner=object()
         service.external_reasoning_principal="resident:grace"
         service.external_reasoning_authorize=lambda *_args, **_kwargs: True
@@ -2466,12 +2472,15 @@ class GraceExecutionTests(unittest.TestCase):
             "resident.performance.feedback_consumed" and
             event["payload"].get("request_id") == request_id)
         self.assertEqual(feedback["payload"]["assignment_id"],s3_assignment)
-        with self.assertRaisesRegex(ObjectiveStateError,
-                "supervisory event identity override rejected"):
-            self.pipeline.record_supervisory_event(objective_id, s3_assignment,
-                event_type="resident.performance.feedback_consumed", request_id=request_id,
-                correlation_id=correlation_id, idempotency_key="spoofed-feedback:"+request_id,
-                payload={"assignment_id":"assignment:foreign", "grade":2})
+        for key, forged in (("assignment_id", "assignment:foreign"),
+                ("request_id", str(uuid4())), ("correlation_id", str(uuid4()))):
+            with self.assertRaisesRegex(ObjectiveStateError,
+                    "supervisory event identity override rejected"):
+                self.pipeline.record_supervisory_event(objective_id, s3_assignment,
+                    event_type="resident.performance.feedback_consumed", request_id=request_id,
+                    correlation_id=correlation_id,
+                    idempotency_key="spoofed-"+key+":"+request_id,
+                    payload={key:forged, "grade":2})
         _foreign_objective, foreign_assignment, *_ = self._create_rework_fixture(
             "foreign-supervisory-assignment")
         with self.assertRaisesRegex(ObjectiveStateError,

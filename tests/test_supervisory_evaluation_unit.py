@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.13
+# Revision: 1.0.14
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Cover source-assignment replay, durable child membership, and revision-10 single-use admission.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Require exact durable evaluation evidence before issuing an S4 exception.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Cover response alias normalization, consumed-response replay, diagnostics, and exhausted-rework CME suppression.
@@ -488,7 +488,7 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
                 "reasoning":2,"authorization":3,"execution":2,"verification":2},
             "what_went_well":[],"gaps":[],"actionable_feedback":[],
             "authority_promotion_recommendation":"Steward_decision_required"}
-        consumed=SimpleNamespace(already_consumed=True,consumption_key=
+        consumed=SimpleNamespace(duplicate=True,consumption_key=
             "external-reasoning-consumed:request:replay",consumption_token="",fence=1,
             request_id="request:replay",correlation_id="correlation:replay",
             advisory={"advisory":json.dumps(value)},original_request=SimpleNamespace(

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.56
+# Revision: 1.0.57
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Use the durable exchange consumption duplicate flag in consumed performance-evaluation replay.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Replay consumed Luna evaluations idempotently and retain sanitized correlated consumer diagnostics.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Suppress CME provider admission only for assignments durably held at exhausted rework limit.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Carry the approved parent assignment separately from the current S3 child pointer.
@@ -1543,7 +1544,7 @@ class GraceExecutionService:
                 try:
                     consumed = exchange.consume(request_id, correlation_id,
                         principal_id=principal, authorize=self.external_reasoning_authorize)
-                    if (not consumed.already_consumed or
+                    if (not consumed.duplicate or
                             consumed.original_request.trigger != "performance_evaluation" or
                             consumed.original_request.assignment_id != objective_id or
                             consumed.original_request.assignment.get("assignment_id") !=
