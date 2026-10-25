@@ -31,6 +31,8 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn("proposal-status", source)
         self.assertIn(".proposal-decision-panel", source)
         self.assertIn("proposal_decisions_available", source)
+        self.assertIn("Restore the view expected by the existing account acceptance below", source)
+        self.assertIn("document.querySelector('[data-view=account-administration]')?.click()", source)
         # Acceptance only attempts the protected read; it never submits a decision.
         start = source.index('stage = "proposal_decision_unbound_steward"')
         end = source.index('if role == "steward":', start)
