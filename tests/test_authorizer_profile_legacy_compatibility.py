@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_authorizer_profile_legacy_compatibility.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.1
+# Revision: 1.0.2
+# Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Restrict the legacy fixture to migrations 0000–0007 so it models the pre-profile schema accurately.
 # Purpose: Verify exact-grant behavior before and after migration 0008
 # Execution Model: Disposable PostgreSQL schema and restricted runtime principal
 # Observability: Authorization allow/deny and fail-closed migration state
@@ -118,9 +119,8 @@ class ExactGrantProfileCompatibilityPostgresTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="rv-authority-0007-") as temp:
             target = Path(temp)
             for path in MIGRATIONS.glob("*.sql"):
-                if path.name.startswith("0008_"):
-                    continue
-                shutil.copyfile(path, target / path.name)
+                if path.name[:4].isdigit() and int(path.name[:4]) <= 7:
+                    shutil.copyfile(path, target / path.name)
             self.apply_migrations(DSN, schema=self.schema, migrations_dir=target)
 
     def _apply_profile_migration(self):

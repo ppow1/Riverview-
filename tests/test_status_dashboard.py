@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.74
+# Revision: 1.0.76
+# Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Build Grace objective, conversation, and step relations from source migrations in Dashboard PostgreSQL tests.
 # Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify dashboard presents correlated blocked-objective recovery guidance without authorizing retry.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify idle worker health requires matching active engineering registration.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-C4-MERGE-20261023 | Preserve ComfyUI artifact, telemetry, cancellation and Snapshot archive acceptance.
@@ -13,6 +14,7 @@ import json
 import hashlib
 import os
 import re
+import shutil
 import tempfile
 import sys
 import threading
@@ -1557,6 +1559,13 @@ class DashboardPostgresTests(unittest.TestCase):
         apply_migrations(DSN, schema=self.schema, migrations_dir=self.core / "assignment_scheduler/migrations")
         apply_migrations(DSN, schema=self.schema, migrations_dir=self.core / "worker_adapter/migrations")
         apply_migrations(DSN, schema=self.schema, migrations_dir=self.core / "cme/migrations")
+        with tempfile.TemporaryDirectory(prefix="rv-dashboard-objective-schema-") as temp:
+            target = Path(temp)
+            objective_migrations = self.core / "resident_execution/migrations"
+            for name in ("0001_grace_objectives.sql", "0003_resident_conversation.sql",
+                         "0009_durable_objective_steps.sql"):
+                shutil.copyfile(objective_migrations / name, target / name)
+            apply_migrations(DSN, schema=self.schema, migrations_dir=target)
         self.admin.execute("SELECT set_config('search_path', %s, false)", (self.schema,))
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         self.monitor = CMEPostgresMonitor(DSN, schema=self.schema, stall_after_seconds=2,
@@ -1612,13 +1621,8 @@ class DashboardPostgresTests(unittest.TestCase):
     def test_objective_progress_projection_filters_submitter_and_omits_request_content(self):
         from uuid import uuid4
 
-        # Install only the authoritative objective/conversation table definitions
-        # in this disposable schema; the surrounding dashboard fixture owns all
-        # assignment and verifier tables used by the projection joins.
-        self.admin.execute((self.core / "resident_execution/migrations/0001_grace_objectives.sql")
-                           .read_text(encoding="utf-8"))
-        self.admin.execute((self.core / "resident_execution/migrations/0003_resident_conversation.sql")
-                           .read_text(encoding="utf-8"))
+        # The fixture installed the authoritative objective/conversation migrations
+        # before this test, along with the durable objective-step relation.
         owner = "principal:viewer-one"
         other = "principal:viewer-two"
         own_conversation = str(uuid4())
