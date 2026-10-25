@@ -1,13 +1,13 @@
-<!-- Document Revision: 1.0.0 -->
+<!-- Document Revision: 1.0.1 -->
 # Riverview deployed V1/V2 parity inventory
 
-Observed 2026-10-24 against the live LAN website. V1 is the root operations portal (`/`); V2 is `/v2/`, whose deployed manifest identifies `RV-WEB-V2-ACCEPTANCE-ebd53a84` at commit `ebd53a84ae6e016353083ffe40f15048512ac6c6`. This is a UI and route inventory, not a claim that every protected operation was exercised. Unauthenticated probes of protected `/api/v1/...` paths returned 401, confirming the authentication boundary. Each endpoint continues to enforce its own authorization.
+Observed 2026-10-25 against the live LAN website. V1 is the root operations portal (`/`); V2 is `/v2/`, whose current deployed manifest identifies `RV-WEB-V2-ACCEPTANCE-75faec3329be` at commit `75faec3329be47aedec7130f200c9e9f285d9775`. This is a UI and route inventory, not a claim that every protected operation was exercised. Unauthenticated probes of protected `/api/v1/...` paths returned 401, confirming the authentication boundary. Each endpoint continues to enforce its own authorization.
 
 | V1 feature/function | V2 counterpart | Status | Backend/API availability and authorization | Suggested migration priority |
 |---|---|---|---|---|
 | Operations overview | Workspace overview and Website verification card | Working | Live V2 shell/release/report routes returned 200; report view is read-only. | Maintain |
 | Assignments and objective/work-order progress | Work: Objectives, assignment progress, Engineering Progress; cancellation controls | Partial | Both bundles use authenticated objective/work APIs. Cancellation remains subject to existing lifecycle rules and Steward authorization; production mutation is skipped without disposable work. | P1: complete parity and safe test fixtures |
-| Institutional proposal registry/details | No equivalent V2 registry/detail workflow | Missing | V1 bundle references `/api/v1/institutional-proposals`; operation requires existing institutional authorization. | P1: high; preserve lifecycle and audit behavior |
+| Institutional proposal registry/details | Read-only proposal list, lifecycle filter, and expandable revision/review/work-order evidence | Partial | V2 uses the existing Steward account and institutional-principal-gated `GET /api/v1/institutional-proposals` and `GET /api/v1/institutional-proposals/{proposal_id}`. Decisions, revisions, and promotion remain with the existing authorized V1/API operations. | P1: next: assess Resident Permissions parity |
 | Grace conversation | Grace chat in V2 | Working for authorized sessions; test persona blocked | V2 uses conversation-session, conversation, and stream APIs. Requires authenticated identity plus institutional conversation grants. | Maintain; enable isolated test authority separately |
 | Resident directory | Residents view | Working for directory | V2 view is present; protected server APIs remain authenticated. | Maintain |
 | Resident permission/profile administration | No V2 permission administration view | Missing | V1 bundle references `/api/v1/resident-permissions`; existing API authorization applies. | P1: high for operator administration |
@@ -23,7 +23,7 @@ Observed 2026-10-24 against the live LAN website. V1 is the root operations port
 ## Evidence and limits
 
 - Live V1 HTML title is “Riverview — Operations”; navigation includes Overview, Assignments, Objectives, Institutional proposals, Grace chat, Resident permissions, Activity, Workflows, Notifications, Documentation, and Account.
-- Live V2 HTML title is “Riverview V2 Workspace”; navigation includes Overview, Residents, Work, Image Generation, Resources, Knowledge, Communications, and Notification Settings. Work contains objective/assignment progress and Engineering Progress; Overview contains Website verification.
+- Live V2 HTML title is “Riverview V2 Workspace”; navigation includes Overview, Residents, Work, Proposals, Living Roadmap, Image Generation, Resources, Knowledge, Communications, and Notification Settings. Work contains objective/assignment progress and Engineering Progress; Overview contains Website verification.
 - V1 bundles reference `/api/v1/account/*`, `/api/v1/notifications`, `/api/v1/events`, `/api/v1/objectives`, `/api/v1/resident-permissions`, and `/api/v1/institutional-proposals`. V2 bundles reference notification settings, snapshot, resident conversation, objective, graph, and status APIs.
 - Unauthenticated protected API probes returned 401. This confirms protected routing, not operation-specific authorization or successful authenticated execution for every listed API. The full acceptance runner separately verifies its listed authenticated scenarios.
-- No production feature was changed for this inventory.
+- The V2 proposal view is read-only. The full V1 proposal lifecycle remains available through the existing Dashboard, and no backend operation, authorization rule, authority model, or proposal data was changed for parity.
