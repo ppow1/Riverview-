@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.31",
-      "sha256": "8329cc05bc503e56caf79f6fa49ac5f67c37488263871720c778bcc54520372b",
-      "size_bytes": 1571629
+      "revision": "1.0.32",
+      "sha256": "8ae648d6c7c2c40fedd3c3d74af6fd7dc49e551e8f34d1795297a24a4e2cc9cd",
+      "size_bytes": 1573391
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.331"
+      "revision": "1.1.332"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -2903,7 +2903,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2921,7 +2921,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -9641,5 +9641,5 @@
     }
   },
   "manifest_revision": "1.1.324",
-  "updated_at": "2026-10-23T02:19:41Z"
+  "updated_at": "2026-10-25T13:45:39Z"
 }

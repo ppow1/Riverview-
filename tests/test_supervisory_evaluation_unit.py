@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.12
+# Revision: 1.0.14
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Cover source-assignment replay, durable child membership, and revision-10 single-use admission.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Require exact durable evaluation evidence before issuing an S4 exception.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Cover response alias normalization, consumed-response replay, diagnostics, and exhausted-rework CME suppression.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Reject authorization requests outside the exact Steward-approved tuple.
@@ -405,31 +406,38 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         choose = GraceExecutionPipeline._available_s4_rework_exception
         from riverview_core.resident_execution.grace_supervisory_authorization import (
-            S4_REWORK_ASSIGNMENT_ID,S4_REWORK_OBJECTIVE_ID,S4_REWORK_VERIFICATION_ID,
-            S4_REWORK_OBJECTIVE_REVISION)
+            S4_REWORK_ASSIGNMENT_ID,S4_REWORK_OBJECTIVE_ID,S4_REWORK_VERIFICATION_ID)
         event_id="event:s4-rework-grant"
+        current_assignment="assignment:current-s4"
         grant={"event_id":event_id,"idempotency_key":
             "grace-s4-rework-authorized:"+S4_REWORK_VERIFICATION_ID,
             "event_type":"engineering.rework_retry_authorized","actor_id":"steward:camrui",
             "payload":{
                 "schema":"rv.grace.rework-retry-exception.v1",
                 "authorized_by":"steward:camrui","objective_id":S4_REWORK_OBJECTIVE_ID,
-                "objective_revision":S4_REWORK_OBJECTIVE_REVISION,
+                "objective_revision":10,"objective_assignment_id":current_assignment,
                 "assignment_id":S4_REWORK_ASSIGNMENT_ID,"step_id":"s4",
                 "verification_id":S4_REWORK_VERIFICATION_ID,"additional_attempts":1,
                 "expires_at":(datetime.now(timezone.utc)+timedelta(minutes=5)).isoformat()}}
         args=(S4_REWORK_OBJECTIVE_ID,S4_REWORK_ASSIGNMENT_ID,S4_REWORK_VERIFICATION_ID)
-        self.assertIsNotNone(choose([grant],*args))
-        self.assertIsNone(choose([grant],"objective:other",*args[1:]))
+        self.assertIsNotNone(choose([grant],*args,objective_revision=10,
+            objective_assignment_id=current_assignment))
+        self.assertIsNone(choose([grant],*args,objective_revision=9,
+            objective_assignment_id=current_assignment))
+        self.assertIsNone(choose([grant],*args,objective_revision=10,
+            objective_assignment_id="assignment:stale-pointer"))
+        self.assertIsNone(choose([grant],"objective:other",*args[1:],
+            objective_revision=10,objective_assignment_id=current_assignment))
         consumed={"event_id":"event:consumed","event_type":"engineering.rework_retry_consumed",
             "payload":{"grant_event_id":event_id}}
-        self.assertIsNone(choose([grant,consumed],*args))
+        self.assertIsNone(choose([grant,consumed],*args,objective_revision=10,
+            objective_assignment_id=current_assignment))
         from riverview_core.resident_execution.grace_supervisory_authorization import (
             GraceSupervisoryAuthorization)
         authority=object.__new__(GraceSupervisoryAuthorization)
         with self.assertRaisesRegex(PermissionError,"s4_rework_exception_scope_mismatch"):
             authority.authorize_one_s4_rework_attempt(actor_id="steward:camrui",
-                objective_id="objective:wrong",objective_revision=S4_REWORK_OBJECTIVE_REVISION,
+                objective_id="objective:wrong",objective_revision=10,
                 objective_assignment_id="assignment:wrong",assignment_id="assignment:wrong",
                 verification_id=S4_REWORK_VERIFICATION_ID,assignment_credential="unused",
                 explicit_steward_confirmation=True)
@@ -437,7 +445,6 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
     def test_s4_rework_exception_requires_replayed_evaluation_evidence(self):
         from riverview_core.resident_execution.grace_supervisory_authorization import (
             GraceSupervisoryAuthorization,S4_REWORK_OBJECTIVE_ID,
-            S4_REWORK_OBJECTIVE_REVISION,S4_REWORK_ROOT_ASSIGNMENT_ID,
             S4_REWORK_ASSIGNMENT_ID,S4_REWORK_VERIFICATION_ID)
         pipeline=SimpleNamespace(
             performance_evaluation_runtime_evidence_for_assignment=lambda *_args:None)
@@ -448,8 +455,8 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
                 "s4_durable_performance_evaluation_required"):
             authority.authorize_one_s4_rework_attempt(actor_id="steward:camrui",
                 objective_id=S4_REWORK_OBJECTIVE_ID,
-                objective_revision=S4_REWORK_OBJECTIVE_REVISION,
-                objective_assignment_id=S4_REWORK_ROOT_ASSIGNMENT_ID,
+                objective_revision=10,
+                objective_assignment_id=S4_REWORK_ASSIGNMENT_ID,
                 assignment_id=S4_REWORK_ASSIGNMENT_ID,
                 verification_id=S4_REWORK_VERIFICATION_ID,
                 assignment_credential="unused",explicit_steward_confirmation=True)
@@ -481,7 +488,7 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
                 "reasoning":2,"authorization":3,"execution":2,"verification":2},
             "what_went_well":[],"gaps":[],"actionable_feedback":[],
             "authority_promotion_recommendation":"Steward_decision_required"}
-        consumed=SimpleNamespace(already_consumed=True,consumption_key=
+        consumed=SimpleNamespace(duplicate=True,consumption_key=
             "external-reasoning-consumed:request:replay",consumption_token="",fence=1,
             request_id="request:replay",correlation_id="correlation:replay",
             advisory={"advisory":json.dumps(value)},original_request=SimpleNamespace(

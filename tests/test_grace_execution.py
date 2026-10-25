@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.73
+# Revision: 1.0.80
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Verify historical S3 event persistence after pointer advancement and reject cross-objective assignment references.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Exercise exact consumed Luna exchange provenance and evaluation lifecycle evidence through PostgreSQL.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Fix the integration fixture's explicit service import for concurrent admission coverage.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Exercise exact S4 single-use exception issuance and concurrent atomic consumption without resetting prior rework attempts.
@@ -2296,6 +2297,10 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertTrue(service.verify_one(assignment_id))
         context = self.pipeline.pending_rejected_work_order_reviews()[0]
         self.assertEqual(context["rework_attempt_count"], 3)
+        self.admin.execute("UPDATE " + self.schema +
+            ".grace_objectives SET revision=10 WHERE objective_id=%s", (objective_id,))
+        context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        self.assertEqual(context["objective_revision"], 10)
         self.assertEqual(service.publish_rejected_work_order_reviews(), 0)
         verification_id=context["completion"]["verification_id"]
         objective_revision=self.pipeline.get_objective(objective_id)["revision"]
@@ -2305,8 +2310,6 @@ class GraceExecutionTests(unittest.TestCase):
             fromlist=["S4_REWORK_OBJECTIVE_ID"])
         with ExitStack() as stack:
             for name,value in (("S4_REWORK_OBJECTIVE_ID",objective_id),
-                ("S4_REWORK_OBJECTIVE_REVISION",objective_revision),
-                ("S4_REWORK_ROOT_ASSIGNMENT_ID",assignment_id),
                 ("S4_REWORK_ASSIGNMENT_ID",assignment_id),
                 ("S4_REWORK_VERIFICATION_ID",verification_id),
                 ("S4_REWORK_EXCEPTION_IDEMPOTENCY_KEY",
@@ -2333,7 +2336,8 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(grant["status"],"authorized")
             events = self.pipeline.objective_events(objective_id)
             candidate = self.pipeline._available_s4_rework_exception(
-                events, objective_id, assignment_id, verification_id)
+                events, objective_id, assignment_id, verification_id,
+                objective_revision=10, objective_assignment_id=assignment_id)
             self.assertIsNotNone(candidate, repr([(event["event_type"],
                 event.get("idempotency_key"), event.get("actor_id"), event.get("payload")) for event in events
                 if event["event_type"] == "engineering.rework_retry_authorized"]))
@@ -2367,6 +2371,125 @@ class GraceExecutionTests(unittest.TestCase):
                 event["payload"].get("decision")=="REWORK_PROPOSED"]
             self.assertEqual(len(consumed),1)
             self.assertEqual(len(decisions),4)
+
+    def test_s3_evaluation_replay_uses_original_assignment_after_objective_advances_to_s4(self):
+        objective_id, s3_assignment, _criteria, _action, _worker, _verifier = \
+            self._create_rework_fixture("s3-evaluation-after-s4", step_id="s3")
+        s4_assignment = s3_assignment + ":step:s4"
+        self.intake.create(s4_assignment, "worker:test", "advance-to-s4:" + objective_id,
+            credential=self.credentials["steward"], authority_ref=self.scope,
+            objective_ref=objective_id, workflow_id=self.pipeline.WORKFLOW_ID,
+            workflow_step="s4", correlation_id=objective_id)
+        self.admin.execute("""INSERT INTO """ + self.schema + """.grace_objective_steps
+            (objective_id,step_id,step_order,step_objective,acceptance_criteria,
+             depends_on,status,assignment_id,dispatch_count)
+            VALUES (%s,'s4',2,'Complete S4 after S3',%s::jsonb,'["s3"]'::jsonb,
+                'assigned',%s,1)""", (objective_id, json.dumps(["S4 acceptance"]), s4_assignment))
+        self.admin.execute("UPDATE " + self.schema +
+            ".grace_objectives SET assignment_id=%s,revision=10 WHERE objective_id=%s",
+            (s4_assignment, objective_id))
+
+        request_id, correlation_id = str(uuid4()), str(uuid4())
+        response_sha256 = "d" * 64
+        from dataclasses import asdict
+        from riverview_core.resident_reasoning import ReasoningRequest
+        from riverview_core.resident_execution.external_reasoning import (
+            DurableExternalReasoningExchange)
+        from riverview_core.reasoning_escalation import (
+            EscalationRequest, ReasoningEscalationRouter)
+        original_request = ReasoningRequest(request_id=str(uuid4()),
+            office_id="office:grace", assignment_id=objective_id,
+            assignment_revision="9", binding_revision=1,
+            implementation_revision="a"*64, trigger="performance_evaluation",
+            token_budget=512, assignment={"assignment_id":s3_assignment,
+                "evaluation_trigger_event_id":"event:s3-evaluation-trigger"},
+            verified_knowledge=(), prior_plan=None,
+            external_reasoning_targets=("gpt-6-luna",), correlation_id=request_id)
+        envelope = EscalationRequest.create(original_request, reason="low_confidence",
+            target_provider_id="gpt-6-luna", max_tokens=512, timeout_seconds=45,
+            escalation_id=request_id)
+        request_payload = {"request_type":"performance_evaluation", "max_tokens":512,
+            "timeout_seconds":45, "original_request":asdict(original_request)}
+        response_payload = {"advisory":json.dumps({
+            "schema_version":"rv.grace.performance-evaluation.v1", "grade":2,
+            "grade_explanation":"Persisted S3 evidence was evaluated.",
+            "rubric_scores":{"reasoning":2,"authorization":3,
+                "execution":2,"verification":2},
+            "what_went_well":[],"gaps":[],"actionable_feedback":[],
+            "authority_promotion_recommendation":"Steward_decision_required"})}
+        self.admin.execute("""INSERT INTO """ + self.schema + """.external_reasoning_exchanges
+            (request_id,correlation_id,original_request_id,originating_resident_id,
+             objective_id,conversation_id,message_sequence,request_schema,response_schema,
+             reason,context_sha256,classification,provider_id,idempotency_key,
+             request_sha256,request_payload,delivery_state,deadline_at,response_payload,
+             response_sha256,response_provenance,response_idempotency_key,response_received_at,
+             consumption_key,consumed_at,consumption_result)
+            VALUES (%s,%s,%s,'resident:grace',%s,%s,1,'rv.external-reasoning.request.v1',
+             'rv.external-reasoning.response.v1','task_complexity',%s,'institutional',
+             'gpt-6-luna',%s,%s,%s::jsonb,'grace_consumed',clock_timestamp()+interval '1 hour',
+             %s::jsonb,%s,%s::jsonb,%s,clock_timestamp(),%s,clock_timestamp(),%s::jsonb)""",
+            (request_id,correlation_id,original_request.request_id,objective_id,
+             str(uuid4()),envelope.context_sha256,"s3-replay:"+request_id,"f"*64,
+             json.dumps(request_payload),json.dumps(response_payload),response_sha256,
+             json.dumps({"response_id":"resp_s3_replay_fixture","usage":{
+                 "input_tokens":100,"output_tokens":50,"cost_usd":"0.0001"}}),
+             "response:s3-replay:"+request_id,
+             f"external-reasoning-consumed:{request_id}",
+             json.dumps({"advisory_sha256":response_sha256})))
+        self.admin.execute("""INSERT INTO """ + self.schema + """.grace_objective_events
+            (objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,'resident.performance.evaluation_blocked',%s,'office:grace',%s::jsonb)""",
+            (objective_id,"s3-stale-evaluation-block:"+request_id,json.dumps({
+                "assignment_id":s4_assignment,"request_id":request_id,
+                "correlation_id":correlation_id,"reason_code":"supervisory_consumer_failed"})))
+
+        replay = self.pipeline.pending_consumed_performance_evaluation_replays()
+        selected = next(item for item in replay if item["request_id"] == request_id)
+        self.assertEqual(selected["assignment_id"], s3_assignment)
+
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.service import GraceExecutionService
+        class Provider:
+            provider_id = "gpt-6-luna"
+            def propose(self, _request):
+                raise AssertionError("persisted replay must not call the provider")
+        exchange = DurableExternalReasoningExchange(self.ledger,
+            ReasoningEscalationRouter({"gpt-6-luna":Provider()}), actor_id="resident:grace")
+        service=object.__new__(GraceExecutionService)
+        service.pipeline=self.pipeline
+        service.external_reasoning_exchange=exchange
+        service.resident_reasoner=object()
+        service.external_reasoning_principal="resident:grace"
+        service.external_reasoning_authorize=lambda *_args, **_kwargs: True
+        self.assertEqual(service.consume_external_reasoning(),1)
+        events=self.pipeline.objective_events(objective_id)
+        recorded=next(event for event in events if event["event_type"] ==
+            "resident.performance.evaluation_recorded" and
+            event["payload"].get("request_id") == request_id)
+        self.assertEqual(recorded["payload"]["assignment_id"],s3_assignment)
+        self.assertEqual(recorded["payload"]["grade"],2)
+        feedback=next(event for event in events if event["event_type"] ==
+            "resident.performance.feedback_consumed" and
+            event["payload"].get("request_id") == request_id)
+        self.assertEqual(feedback["payload"]["assignment_id"],s3_assignment)
+        for key, forged in (("assignment_id", "assignment:foreign"),
+                ("request_id", str(uuid4())), ("correlation_id", str(uuid4()))):
+            with self.assertRaisesRegex(ObjectiveStateError,
+                    "supervisory event identity override rejected"):
+                self.pipeline.record_supervisory_event(objective_id, s3_assignment,
+                    event_type="resident.performance.feedback_consumed", request_id=request_id,
+                    correlation_id=correlation_id,
+                    idempotency_key="spoofed-"+key+":"+request_id,
+                    payload={key:forged, "grade":2})
+        _foreign_objective, foreign_assignment, *_ = self._create_rework_fixture(
+            "foreign-supervisory-assignment")
+        with self.assertRaisesRegex(ObjectiveStateError,
+                "supervisory event correlation changed"):
+            self.pipeline.record_supervisory_event(objective_id, foreign_assignment,
+                event_type="resident.performance.feedback_consumed", request_id=request_id,
+                correlation_id=correlation_id, idempotency_key="foreign-feedback:"+request_id,
+                payload={"grade":2,"response_sha256":response_sha256})
+        self.assertEqual(self.pipeline.get_objective(objective_id)["assignment_id"], s4_assignment)
 
     def test_s4_performance_evidence_reader_validates_durable_exchange_and_grade(self):
         objective_id, assignment_id, _criteria, _action, _worker, _verifier = \
