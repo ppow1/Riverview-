@@ -1,3 +1,4 @@
+-- File Revision: 1.0.0
 -- Durable Steward decisions for one exact CME Grace-blocked escalation.
 -- The request authorizes at most one bounded retry; a receipt is not a decision.
 CREATE TABLE grace_recovery_decision_requests (
