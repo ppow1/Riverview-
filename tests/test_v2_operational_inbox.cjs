@@ -1,4 +1,5 @@
-// Revision: 1.0.0
+// Revision: 1.0.1
+// Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Cover server-confirmed recovery authority gating
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -80,10 +81,12 @@ test("notification detail adapter preserves API lifecycle timestamps and whiteli
   assert.equal(Object.hasOwn(detail,"private_token"),false);
 });
 
-test("recovery decision request controls require a Steward account role", () => {
-  assert.equal(canRequestRecoveryDecision({roles:["steward"]}),true);
+test("recovery decision controls require the server-confirmed linked Steward capability", () => {
+  assert.equal(canRequestRecoveryDecision({roles:["steward"],can_decide_grace_recovery:true}),true);
+  assert.equal(canRequestRecoveryDecision({roles:["steward"],can_decide_grace_recovery:false}),false);
+  assert.equal(canRequestRecoveryDecision({roles:["steward"]}),false);
   assert.equal(canRequestRecoveryDecision({roles:["operator"]}),false);
-  assert.equal(canRequestRecoveryDecision({roles:["steward","viewer"]}),true);
+  assert.equal(canRequestRecoveryDecision({roles:["steward","viewer"],can_decide_grace_recovery:true}),true);
   assert.equal(canRequestRecoveryDecision(null),false);
 });
 
@@ -160,6 +163,7 @@ test("recovery decisions use the existing CSRF-protected endpoint after confirma
   assert.match(js,/\/api\/v1\/grace-recovery\/\$\{encodeURIComponent\(requestId\)\}\/decision/);
   assert.match(js,/idempotency_key: `grace-recovery-decision:\$\{requestId\}:\$\{decision\}`/);
   assert.match(js,/csrfHeaders\(\)/);
-  assert.match(js,/Recovery decisions require a Steward account with linked institutional Steward authority/);
-  assert.match(adapter,/identity\.roles\.includes\("steward"\)/);
+  assert.match(js,/Recovery decision eligibility is unavailable from this server session/);
+  assert.match(js,/This Steward account has no linked institutional Steward authority/);
+  assert.match(adapter,/identity\?\.can_decide_grace_recovery === true/);
 });

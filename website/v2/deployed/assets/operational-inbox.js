@@ -1,4 +1,5 @@
-// Revision: 1.0.0
+// Revision: 1.0.1
+// Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Hide decision controls when server session says authority binding is unavailable
 /* Read-only V2 presentation for existing notification and event projections. */
 (() => {
   "use strict";
@@ -234,7 +235,13 @@
       canWriteReceipts = Array.isArray(roles) && (roles.includes("operator") || roles.includes("steward"));
       canRequestRecoveryDecision = adapter.canRequestRecoveryDecision(session?.identity);
       recoveryAccessMessage = !response.ok ? "A Steward account session is required for recovery decisions."
-        : "Recovery decisions require a Steward account with linked institutional Steward authority; this server authorization is checked before recording.";
+        : typeof session?.identity?.can_decide_grace_recovery !== "boolean"
+          ? "Recovery decision eligibility is unavailable from this server session; no decision controls are enabled."
+          : !session.identity.can_decide_grace_recovery
+            ? roles.includes("steward")
+              ? "This Steward account has no linked institutional Steward authority; recovery decisions are unavailable."
+              : "Recovery decisions require a Steward account linked to institutional Steward authority."
+            : "Eligible Steward session. The existing decision API rechecks authorization before recording each choice.";
     } catch (_) { canWriteReceipts = false; canRequestRecoveryDecision = false; recoveryAccessMessage = "Steward authorization status is unavailable; recovery decisions are disabled."; }
   }
   function csrfHeaders() {

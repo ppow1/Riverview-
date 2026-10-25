@@ -1,6 +1,6 @@
 """Focused acceptance-system tests.
 
-Revision: 1.1.0
+Revision: 1.1.1
 """
 import importlib.util
 from pathlib import Path
@@ -15,6 +15,13 @@ driver_module=importlib.util.module_from_spec(driver_spec); driver_spec.loader.e
 
 
 class WebsiteAcceptanceTests(unittest.TestCase):
+    def test_recovery_control_browser_check_requires_unlinked_steward_hint_and_hidden_controls(self):
+        source = (ROOT/"scripts/run_website_acceptance.py").read_text()
+        self.assertIn("recovery_controls_hidden_for_unlinked_steward", source)
+        self.assertIn("can_decide_grace_recovery", source)
+        self.assertIn("[data-recovery-decision]", source)
+        self.assertIn("no linked institutional steward authority", source)
+
     def test_seeded_password_hash_uses_account_auth_format(self):
         from riverview_core.account_auth import AccountAuthService
         secret="acceptance-secret-value-123456"
