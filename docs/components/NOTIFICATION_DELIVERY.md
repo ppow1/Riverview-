@@ -2,9 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.3
+File Revision: 1.0.4
 Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Document Grace block escalation visual delivery and receipt boundaries.
 Changed: 2026-10-24 UTC | RV-GRACE-BOUNDED-RECOVERY-DECISION-20261024 | Document exact Steward-bound single-use recovery decisions.
+Changed: 2026-10-25 UTC | RV-V2-NOTIFICATION-DETAIL-STATUS-20261025 | Document V2 read-only notification lifecycle detail and dispatcher status.
 Purpose: Define durable notifications and exact-bound Grace recovery decisions
 Authority: Receipt is non-authoritative; recovery decision requires the authenticated Steward account workflow
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Normalize controlled Markdown spacing
@@ -86,6 +87,19 @@ See `NOTIFICATION_DELIVERY_API.schema.json` for bounded response schemas and
 | `POST /api/v1/notifications/{uuid}/delivered` | Empty body; record client rendering receipt after visible render. | Receipt only. |
 | `POST /api/v1/notifications/{uuid}/acknowledge` | Empty body; requires `delivered_at`; append receipt acknowledgment. | Receipt only; cannot decide. |
 | `POST /api/v1/grace-recovery/{uuid}/decision` | Steward account + CSRF; `{decision, reason, idempotency_key}` for `approve`, `defer`, or `reject`. | Exact-bound, single-use recovery decision; not Engineering execution authority. |
+
+## V2 inbox detail semantics
+
+The authenticated V2 Operational Inbox reads the same notification projection and
+shows its recorded channel, source/queue/display/acknowledgment timestamps,
+linked decision and recovery status, and allowlisted blocked-objective details
+in a collapsed read-only detail view. It also displays dispatcher health from
+the same response. Opening the inbox or a detail does not write a receipt.
+`queued` means dispatch was projected, `delivered` means dashboard display was
+explicitly confirmed, and `acknowledged` means that dashboard receipt was
+explicitly acknowledged. None of these states proves NTFY relay acceptance,
+iPhone delivery, or that a person saw a message. The API contains no NTFY relay
+receipt. V2 does not expose recovery decision controls from this view.
 
 Every route is loopback and Host-header checked. API access requires the
 existing dashboard bearer over the same origin. Recovery decision posts also

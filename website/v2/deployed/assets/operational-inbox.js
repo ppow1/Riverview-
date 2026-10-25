@@ -6,7 +6,7 @@
   const adapter = window.RiverviewV2OperationalInboxAdapter;
   if (!adapter || !$("#operational-inbox")) return;
   const feeds = {
-    notifications: {path: "/api/v1/notifications?limit=50", status: "not checked", lastSuccess: null, items: []},
+    notifications: {path: "/api/v1/notifications?limit=50", status: "not checked", lastSuccess: null, items: [], dispatcher: null},
     attention: {path: "/api/v1/attention?limit=50", status: "not checked", lastSuccess: null, items: []},
     events: {path: "/api/v1/events?limit=50", status: "not checked", lastSuccess: null, items: [], olderCursor: null, newerCursor: null, canLoadOlder: false, canLoadNewer: false}
   };
@@ -56,6 +56,7 @@
       const label = name === "events" ? "Operational events" : name === "attention" ? "Attention" : "Notifications";
       return node("span", `${label}: ${stateLabel(feed)}`, `inbox-source inbox-source-${feed.status.replaceAll("_", "-")}`);
     }));
+    renderDispatcherHealth(feeds.notifications);
     const body = $("#inbox-rows");
     const eventFeed = feeds.events;
     $("#inbox-events-older").hidden = !eventFeed.canLoadOlder || eventFeed.status !== "available";
@@ -100,6 +101,7 @@
         details.append(summary, fields);
         eventCell.append(details);
       }
+      if (row.notificationDetails) eventCell.append(renderNotificationDetails(row.notificationDetails));
       tr.append(eventCell);
       const related = document.createElement("td");
       if (row.assignmentId) {
@@ -127,6 +129,80 @@
       ? "No source records have been loaded."
       : "No records match the selected filters, or all available sources returned no records.";
     document.querySelectorAll("[data-notification-receipt-action]").forEach((button) => button.addEventListener("click", () => recordNoticeReceipt(button)));
+  }
+
+  function renderDispatcherHealth(feed) {
+    const target = $("#inbox-dispatcher-health");
+    if (!target) return;
+    const health = feed.dispatcher;
+    if (!health) {
+      target.textContent = feed.status === "unavailable" && feed.lastSuccess
+        ? `Dispatcher status unavailable on refresh; last notification data is from ${dateLabel(feed.lastSuccess)}.`
+        : feed.status === "unavailable" ? "Dispatcher status unavailable; notification API could not be read."
+          : "Dispatcher health has not been read.";
+      return;
+    }
+    const parts = [`Dispatcher ${human(health.status)}`];
+    if (health.heartbeat_age_seconds != null && Number.isFinite(Number(health.heartbeat_age_seconds))) parts.push(`heartbeat ${ageLabel(Number(health.heartbeat_age_seconds))} ago`);
+    else if (health.last_heartbeat_at) parts.push(`heartbeat ${dateLabel(health.last_heartbeat_at)}`);
+    else parts.push("heartbeat not recorded");
+    if (health.last_scan_at) parts.push(`last scan ${dateLabel(health.last_scan_at)}`);
+    if (health.last_error_type) parts.push(`recorded error type ${human(health.last_error_type)}`);
+    if (feed.status === "unavailable" && feed.lastSuccess) parts.push(`last successful API read ${dateLabel(feed.lastSuccess)} (stale)`);
+    target.textContent = parts.join(" · ");
+  }
+
+  function ageLabel(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "unverified age";
+    if (seconds < 60) return `${Math.floor(seconds)}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  }
+
+  function renderNotificationDetails(item) {
+    const details = document.createElement("details");
+    details.className = "inbox-notification-details";
+    const summary = node("summary", "Notification status and source details");
+    const fields = document.createElement("dl");
+    const statusMeaning = {
+      queued: "Queued by Riverview; dashboard display is not confirmed. This does not confirm NTFY delivery.",
+      delivered: "Dashboard display was explicitly confirmed; this does not confirm NTFY delivery or that a person saw it.",
+      acknowledged: "Dashboard receipt was explicitly acknowledged; this is not a decision or proof of phone delivery."
+    };
+    const values = [
+      ["Notification status", statusMeaning[item.delivery_status] || "Status not supplied by the notification API."],
+      ["Configured notification channel (not delivery confirmation)", item.channel], ["Source event", item.source_event_id],
+      ["Source event time", item.source_recorded_at], ["Notification queued", item.created_at],
+      ["Dashboard display confirmation", item.delivered_at], ["Dashboard receipt acknowledgment", item.acknowledged_at],
+      ["Linked decision request", item.decision_request_id], ["Decision status", item.decision_status],
+      ["Decision assignment version", item.assignment_version]
+    ];
+    if (item.recovery_request_id) values.push(
+      ["Bound recovery request", item.recovery_request_id], ["Recovery status", item.recovery_status],
+      ["Recovery action", item.recovery_action], ["Recovery objective revision", item.recovery_objective_revision],
+      ["Recovery attempt limit", item.attempt_limit], ["Recovery expiry", item.recovery_expires_at]
+    );
+    for (const [label, value] of values) appendField(fields, label, value);
+    const transportNote = node("p", "This API does not report NTFY relay acceptance or iPhone delivery.", "inbox-receipt-note");
+    const source = item.source_details;
+    if (source) for (const [label, key] of [["Related objective", "objective_id"], ["Objective revision", "objective_revision"],
+      ["Runtime revision", "runtime_revision"], ["Failure count", "failure_count"], ["Last error code", "last_error_code"],
+      ["Blocked at", "blocked_at"], ["Last failure", "last_failure_at"], ["Recorded decision", "decision"],
+      ["Recommended next action", "recommended_action"], ["Automatic recovery state", "automatic_recovery"]]) {
+      if (source[key] != null && source[key] !== "") appendField(fields, label, source[key]);
+    }
+    details.append(summary, transportNote, fields);
+    return details;
+  }
+
+  function appendField(fields, label, value) {
+    const term = node("dt", label);
+    const isTime = /time|queued|confirmation|acknowledgment|expiry|blocked at|last failure/i.test(label);
+    const rendered = value == null || value === "" ? "Not recorded by source"
+      : isTime && typeof value === "string" && Number.isFinite(Date.parse(value)) ? dateLabel(value)
+        : typeof value === "object" ? JSON.stringify(value) : String(value);
+    const description = node("dd", rendered);
+    fields.append(term, description);
   }
   async function readReceiptAuthority() {
     try {
@@ -174,12 +250,13 @@
   async function readFeed(name, feed) {
     try {
       const response = await fetch(feed.path, {method: "GET", credentials: "same-origin", cache: "no-store", headers: {Accept: "application/json"}});
-      if (response.status === 401) { feed.status = "unauthenticated"; feed.items = []; feed.lastSuccess = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
-      if (response.status === 403) { feed.status = "denied"; feed.items = []; feed.lastSuccess = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
+      if (response.status === 401) { feed.status = "unauthenticated"; feed.items = []; feed.lastSuccess = null; if (name === "notifications") feed.dispatcher = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
+      if (response.status === 403) { feed.status = "denied"; feed.items = []; feed.lastSuccess = null; if (name === "notifications") feed.dispatcher = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
       if (!response.ok) throw new Error(`http_${response.status}`);
       const page = await response.json();
       feed.status = page.status || "available";
       if (!Array.isArray(page.items)) throw new Error("invalid_projection");
+      if (name === "notifications") feed.dispatcher = page.dispatcher || {status: "not_initialized"};
       if (feed.status === "available") {
         feed.items = page.items;
         feed.lastSuccess = page.observed_at || new Date().toISOString();

@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const {mergeFeeds, mergeEventPage, notificationReceiptAction, filterRows} = require("../website/v2/deployed/assets/operational-inbox-adapter.js");
+const {mergeFeeds, mergeEventPage, notificationReceiptAction, notificationDetails, filterRows} = require("../website/v2/deployed/assets/operational-inbox-adapter.js");
 
 test("adapter joins notification, attention, and event history by authoritative event ID", () => {
   const rows = mergeFeeds({
@@ -16,6 +16,8 @@ test("adapter joins notification, attention, and event history by authoritative 
   assert.equal(rows[0].eventId, "e-1");
   assert.equal(rows[0].deliveryState, "delivered");
   assert.equal(rows[0].assignmentId, "wo-7");
+  assert.equal(rows[0].notificationDetails.delivery_status,"delivered");
+  assert.equal(rows[0].notificationDetails.source_event_id,"e-1");
   assert.equal(rows[0].severity, null);
   assert.equal(rows[0].description, "Service needs review");
 });
@@ -56,6 +58,26 @@ test("notification receipt actions are explicit and gated by writable roles", ()
   assert.equal(notificationReceiptAction({...notice,deliveryState:"queued"},true),"delivered");
   assert.equal(notificationReceiptAction({...notice,deliveryState:"acknowledged"},true),null);
   assert.equal(notificationReceiptAction({deliveryState:"delivered"},true),null);
+});
+
+test("notification detail adapter preserves API lifecycle timestamps and whitelists blocked-source detail", () => {
+  const detail = notificationDetails({
+    notification_id:"n-5", source_event_id:"e-9", channel:"ntfy", delivery_status:"acknowledged",
+    source_recorded_at:"2026-10-25T10:00:00Z", created_at:"2026-10-25T10:01:00Z",
+    delivered_at:"2026-10-25T10:02:00Z", acknowledged_at:"2026-10-25T10:03:00Z",
+    decision_request_id:"d-2", decision_status:"pending", assignment_version:4,
+    source_details:{objective_id:"obj-1",failure_count:3,recommended_action:"review",secret:"must not pass"},
+    private_token:"must not pass"
+  });
+  assert.equal(detail.delivery_status,"acknowledged");
+  assert.equal(detail.channel,"ntfy");
+  assert.equal(detail.source_recorded_at,"2026-10-25T10:00:00Z");
+  assert.equal(detail.delivered_at,"2026-10-25T10:02:00Z");
+  assert.equal(detail.acknowledged_at,"2026-10-25T10:03:00Z");
+  assert.deepEqual(detail.source_details,{objective_id:"obj-1",objective_revision:null,runtime_revision:null,
+    failure_count:3,last_error_code:null,blocked_at:null,last_failure_at:null,decision:null,
+    recommended_action:"review",automatic_recovery:null});
+  assert.equal(Object.hasOwn(detail,"private_token"),false);
 });
 
 test("filters search, source, supplied severity, delivery state, and sort without mutating", () => {
@@ -101,4 +123,18 @@ test("receipt controls reuse the existing authenticated receipt endpoints and pr
   assert.match(js,/Confirm displayed/);
   assert.doesNotMatch(js,/confirmRenderedNotices|requestAnimationFrame\(async/);
   assert.match(html,/No authorized read-only Comms5 activity feed is connected/);
+});
+
+test("notification detail and dispatcher status are visible without automatic receipt writes", () => {
+  const root=path.resolve(__dirname,"../website/v2/deployed");
+  const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+  const js=fs.readFileSync(path.join(root,"assets/operational-inbox.js"),"utf8");
+  assert.match(html,/id="inbox-dispatcher-health"/);
+  assert.match(html,/notification-detail-status-20261025/);
+  assert.match(js,/Notification status and source details/);
+  for (const field of ["source_recorded_at","created_at","delivered_at","acknowledged_at","decision_status","recovery_status"])
+    assert.ok(js.includes(field));
+  assert.match(js,/This does not confirm NTFY delivery/);
+  assert.match(js,/Dispatcher \$\{human\(health\.status\)\}/);
+  assert.doesNotMatch(js,/\.addEventListener\(["'](?:load|DOMContentLoaded)["'][\s\S]{0,300}postNoticeReceipt/);
 });
