@@ -342,10 +342,13 @@ class CodexCLIAdapterTests(unittest.TestCase):
             CodexCLIExecutionAdapter._prompt(captured["request"]))
 
     def test_s5_final_dependency_does_not_infer_s3_or_s4_runtime_evidence(self):
-        # The pinned five-step scheduler fixture defines S5 as depending on
-        # verified S3/S4 and gives it no separate runtime-evidence criterion.
+        # Match the pinned five-step scheduler fixture's actual S5 acceptance,
+        # dependencies, and empty artifact contract.
         s5 = {"step_id": "s5", "objective": "final dependent step",
-            "acceptance_criteria": ["s5"], "artifact_requirements": []}
+            "acceptance_criteria": ["s5"], "depends_on": ["s3", "s4"],
+            "artifact_requirements": []}
+        self.assertEqual(s5["acceptance_criteria"], ["s5"])
+        self.assertEqual(s5["depends_on"], ["s3", "s4"])
         self.assertEqual(CodexWorkAction._required_runtime_evidence(s5), ())
         s5_with_evidence_requirements = {"step_id": "s5",
             "objective": "Compare the Luna evaluation grade with historical reasoning attempts",
