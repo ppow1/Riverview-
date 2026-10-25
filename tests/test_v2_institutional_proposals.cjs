@@ -17,15 +17,16 @@ test('proposal list adapter preserves authoritative status and handles absent fi
   assert.deepEqual(item.tags, []);
 });
 
-test('proposal detail adapter joins exact review, work-order, and lifecycle evidence without deriving state', () => {
+test('proposal detail adapter preserves the exact revision digest with review, work-order, and lifecycle evidence', () => {
   const detail = adapter.detail({
     proposal:{proposal_id:'proposal:123', lifecycle_status:'APPROVED'},
-    revision:{revision:2, title:'Network upgrade', lifecycle_status:'APPROVED', acceptance_criteria:['Verified'], source_references:['docs/network.md']},
+    revision:{revision:2, content_sha256:'a'.repeat(64), title:'Network upgrade', lifecycle_status:'APPROVED', acceptance_criteria:['Verified'], source_references:['docs/network.md']},
     reviews:[{review_outcome:'ACCEPTED', reviewer_office:'Engineering', findings:'Meets scope.', conditions:['Schedule window'], created_at:'2026-10-24T12:00:00Z'}],
     work_order_links:[{objective_id:'objective:abc', objective_status:'GROUNDED', assignment_id:'work-order:def'}],
     events:[{event_type:'proposal.steward_decision', revision:2, occurred_at:'2026-10-24T12:01:00Z'}]
   });
   assert.equal(detail.status, 'APPROVED');
+  assert.equal(detail.contentSha256, 'a'.repeat(64));
   assert.deepEqual(detail.acceptanceCriteria, ['Verified']);
   assert.equal(detail.reviews[0].outcome, 'ACCEPTED');
   assert.equal(detail.workOrders[0].assignmentId, 'work-order:def');
@@ -47,15 +48,30 @@ test('V2 exposes the proposal registry through an isolated Steward-facing worksp
   assert.match(client, /cache:"no-store"/);
 });
 
-test('V2 proposal client is read-only, renders untrusted records as text, and surfaces authorization failures', () => {
+test('V2 records an exact-revision decision only through the authenticated existing API', () => {
   const client = fs.readFileSync(path.join(ROOT, 'assets/institutional-proposals.js'), 'utf8');
   const css = fs.readFileSync(path.join(ROOT, 'assets/institutional-proposals.css'), 'utf8');
-  assert.doesNotMatch(client, /method\s*:\s*"(POST|PUT|PATCH|DELETE)"/);
+  assert.match(client, /\/decision`/);
+  assert.match(client, /method:"POST"/);
+  assert.match(client, /credentials:"same-origin"/);
+  assert.match(client, /X-Riverview-CSRF/);
+  assert.match(client, /content_sha256:detail\.contentSha256/);
+  assert.match(client, /window\.confirm\(confirmation\)/);
+  assert.match(client, /approved_purpose/);
+  assert.match(client, /No decision was recorded/);
+  assert.match(client, /error\.status === 409/);
+  assert.doesNotMatch(client, /method\s*:\s*"(PUT|PATCH|DELETE)"/);
+  assert.doesNotMatch(client, /\/work-orders/);
   assert.match(client, /textContent\s*=/);
   assert.doesNotMatch(client, /\.innerHTML\s*=/);
   assert.match(client, /error\.status === 401/);
   assert.match(client, /error\.status === 403/);
   assert.match(client, /institutional authority/);
+  assert.match(client, /detail\.status === "READY_FOR_STEWARD_DECISION"/);
+  assert.match(client, /crypto\.randomUUID\(\)/);
+  assert.match(client, /This will append an auditable Steward decision/);
+  assert.match(client, /does not create or dispatch an Engineering work order/);
+  assert.match(css, /proposal-decision-panel/);
   assert.match(css, /@media\(max-width:760px\)/);
   assert.match(css, /@media\(max-width:440px\)/);
 });

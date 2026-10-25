@@ -24,6 +24,19 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn("pre_recovery_control_release", source)
         self.assertIn("applicable=asset.includes", source)
 
+    def test_proposal_decision_acceptance_is_release_gated_and_never_mutates_production(self):
+        source = (ROOT/"scripts/run_website_acceptance.py").read_text()
+        self.assertIn("PROPOSAL_DECISIONS_PRE_FEATURE_COMMIT", source)
+        self.assertIn('"proposal_decisions_hidden_without_institutional_authority"', source)
+        self.assertIn("proposal-status", source)
+        self.assertIn(".proposal-decision-panel", source)
+        self.assertIn("proposal_decisions_available", source)
+        # Acceptance only attempts the protected read; it never submits a decision.
+        start = source.index('stage = "proposal_decision_unbound_steward"')
+        end = source.index('if role == "steward":', start)
+        self.assertNotIn("method:'POST'", source[start:end])
+        self.assertIn('proposal_access.get("http")==403', source[start:end])
+
     def test_seeded_password_hash_uses_account_auth_format(self):
         from riverview_core.account_auth import AccountAuthService
         secret="acceptance-secret-value-123456"

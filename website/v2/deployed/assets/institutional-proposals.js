@@ -1,5 +1,6 @@
-// Revision: 1.0.0
-/* Read-only V2 client for the existing Steward-authorized proposal registry. */
+// Revision: 1.1.0
+/* V2 client for existing authenticated proposal reads and exact-revision Steward decisions. */
+// Changed: 2026-10-25 UTC | RV-V2-PROPOSAL-DECISION-20261025 | Add explicitly confirmed, digest-bound Steward decisions without exposing revision or promotion writes.
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -21,6 +22,21 @@
   };
   async function get(path) {
     const response = await fetch(path, {method:"GET", credentials:"same-origin", cache:"no-store", headers:{Accept:"application/json"}});
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(body.error || `http_${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return body;
+  }
+  async function post(path, payload) {
+    const cookie = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("rv_account_csrf="));
+    if (!cookie) throw new Error("csrf_token_missing");
+    const response = await fetch(path, {method:"POST", credentials:"same-origin", cache:"no-store",
+      headers:{Accept:"application/json", "Content-Type":"application/json",
+        "X-Riverview-CSRF":decodeURIComponent(cookie.slice("rv_account_csrf=".length))},
+      body:JSON.stringify(payload)});
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(body.error || `http_${response.status}`);
@@ -99,6 +115,74 @@
     if (!detail.events.length) events.append(element("p", "No lifecycle events were returned."));
     for (const event of detail.events) events.append(element("p", `${event.type || "Event type unavailable"} · revision ${event.revision ?? "unavailable"} · ${formatTime(event.occurredAt)}`));
     target.append(events);
+    renderDecisionControls(target, detail);
+  }
+  function renderDecisionControls(target, detail) {
+    const panel = element("section", null, "proposal-decision-panel");
+    panel.append(element("h4", "Steward decision on this exact revision"));
+    const allowedStates = new Set(["DRAFT", "READY_FOR_REVIEW", "UNDER_REVIEW", "READY_FOR_STEWARD_DECISION"]);
+    if (!allowedStates.has(detail.status) || !detail.revision || !/^[a-f0-9]{64}$/.test(detail.contentSha256 || "")) {
+      panel.append(element("p", `No V2 decision is offered for ${detail.status || "the unavailable lifecycle state"}. The existing server remains authoritative for eligibility.`));
+      target.append(panel);
+      return;
+    }
+    panel.append(element("p", `The existing decision API validates Steward institutional authority, current lifecycle, revision ${detail.revision}, and its content digest. Approval does not create or dispatch an Engineering work order.`));
+    const decisionLabel = element("label", "Decision");
+    const decision = document.createElement("select");
+    decision.id = "proposal-decision-choice";
+    decision.required = true;
+    decision.append(new Option("Choose a decision", ""));
+    if (detail.status === "READY_FOR_STEWARD_DECISION") decision.append(new Option("Approve", "APPROVE"));
+    decision.append(new Option("Request changes", "REQUEST_CHANGES"), new Option("Defer", "DEFER"), new Option("Reject", "REJECT"));
+    decisionLabel.append(decision);
+    const reasonLabel = element("label", "Required audit reason");
+    const reason = document.createElement("textarea");
+    reason.id = "proposal-decision-reason";
+    reason.maxLength = 1000;
+    reason.required = true;
+    reason.rows = 3;
+    reasonLabel.append(reason);
+    const purposeLabel = element("label", "Approved purpose (required for approval)");
+    const purpose = document.createElement("input");
+    purpose.id = "proposal-approved-purpose";
+    purpose.type = "text";
+    purpose.maxLength = 1000;
+    purposeLabel.append(purpose);
+    decision.addEventListener("change", () => { purposeLabel.hidden = decision.value !== "APPROVE"; });
+    purposeLabel.hidden = true;
+    const submit = element("button", "Review and record decision");
+    submit.type = "button";
+    submit.className = "proposal-decision-submit";
+    submit.addEventListener("click", async () => {
+      const choice = decision.value;
+      const auditReason = reason.value.trim();
+      const approvedPurpose = purpose.value.trim();
+      if (!choice) { $("proposal-detail-status").textContent = "Choose a decision first."; return; }
+      if (!auditReason) { $("proposal-detail-status").textContent = "Enter the required audit reason."; return; }
+      if (choice === "APPROVE" && !approvedPurpose) { $("proposal-detail-status").textContent = "Enter the approved purpose before approval."; return; }
+      const confirmation = `Record ${choice} for proposal ${detail.proposalId}, revision ${detail.revision}? This will append an auditable Steward decision.`;
+      if (!window.confirm(confirmation)) return;
+      submit.disabled = true;
+      $("proposal-detail-status").textContent = "Submitting the exact-revision decision to Riverview…";
+      const body = {revision:detail.revision, decision:choice, reason:auditReason,
+        idempotency_key:`v2-proposal-decision:${detail.proposalId}:${detail.revision}:${crypto.randomUUID()}`,
+        content_sha256:detail.contentSha256};
+      if (choice === "APPROVE") body.approved_purpose = approvedPurpose;
+      try {
+        await post(`/api/v1/institutional-proposals/${encodeURIComponent(detail.proposalId)}/decision`, body);
+        await refresh();
+        await loadDetail(detail.proposalId);
+        $("proposal-detail-status").textContent = `Steward decision ${choice} recorded for revision ${detail.revision}.`;
+      } catch (error) {
+        $("proposal-detail-status").textContent = error.status === 403
+          ? "Decision denied: this session lacks the required institutional Steward authority. No decision was recorded."
+          : error.status === 409
+            ? "Decision not recorded: the proposal lifecycle or exact revision changed. Refresh the record before retrying."
+            : `Decision not confirmed (${String(error.message || "unavailable").replace(/[^a-z0-9_.-]/gi, "_")}). No success is claimed.`;
+      } finally { submit.disabled = false; }
+    });
+    panel.append(decisionLabel, reasonLabel, purposeLabel, submit);
+    target.append(panel);
   }
   async function refresh() {
     const generation = ++listGeneration;

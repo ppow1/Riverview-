@@ -19,6 +19,7 @@ ACCOUNT_ADMIN_PRE_FEATURE_COMMIT = "f737eb90537ddbc82d2a166b640b7e9f846bc16c"
 ACCOUNT_STATE_PRE_FEATURE_COMMIT = "8c59b5bfcdde0b08efc8b4807c16f37a8595f8a2"
 ACCOUNT_ROLE_GRANT_PRE_FEATURE_COMMIT = "68a05cd0316eccfd2db0b93cf408eac75dd92bfb"
 ACCOUNT_EMAIL_PRE_FEATURE_COMMIT = "3d5401bb47eef13133f7a09d4e6539a74339a62f"
+PROPOSAL_DECISIONS_PRE_FEATURE_COMMIT = "e994af0b79f5ce3a140702e67cb465107bc71987"
 
 
 def browser_acceptance(credentials: dict, *, account_admin_required: bool,
@@ -108,11 +109,21 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
             results.append({"check":f"login_role_{persona}","status":"PASS" if role in who.get("roles",[]) else "FAIL","http":who.get("status"),"expected_role":role})
             # Confirm the live route is serving the V2 shell and its current bundle.
             views=["resources","work","communications","notification-settings"]
+            proposal_decisions_available = live_source_commit != PROPOSAL_DECISIONS_PRE_FEATURE_COMMIT
+            if role == "steward" and proposal_decisions_available: views.append("institutional-proposals")
             if account_admin_available: views.append("account-administration")
             for view in views:
                 stage = "navigation_" + persona + "_" + view
                 shown=js("let b=document.querySelector('[data-view='+JSON.stringify(params[0])+']');if(!b)return false;b.click();return b.getAttribute('aria-current')==='page'",[view])
                 results.append({"check":f"navigation_{persona}_{view}","status":"PASS" if shown else "FAIL"})
+            if role == "steward" and proposal_decisions_available:
+                stage = "proposal_decision_unbound_steward"
+                proposal_access=js("let nav=document.querySelector('[data-view=institutional-proposals]');nav?.click();let r=await fetch('/api/v1/institutional-proposals?limit=1',{cache:'no-store'});await new Promise(resolve=>setTimeout(resolve,400));let status=document.querySelector('#proposal-status')?.textContent||'';return {http:r.status,controls:document.querySelectorAll('.proposal-decision-panel').length,status,visible:!document.querySelector('#institutional-proposals-workspace')?.hidden}")
+                proposal_ok=(proposal_access.get("http")==403 and proposal_access.get("controls")==0
+                    and proposal_access.get("visible") and "institutional authority" in proposal_access.get("status", "").lower())
+                results.append({"check":"proposal_decisions_hidden_without_institutional_authority",
+                    "status":"PASS" if proposal_ok else "FAIL","http":proposal_access.get("http"),
+                    "decision_panels":proposal_access.get("controls")})
             if role == "steward":
                 stage = "recovery_controls_unlinked_steward"
                 recovery_controls=js("let asset=[...document.scripts].find(s=>s.src.includes('operational-inbox.js'))?.src||'';let applicable=asset.includes('recovery-session-eligibility-20261025');await new Promise(r=>setTimeout(r,700));let r=await fetch('/api/v1/auth/session',{cache:'no-store'});let x=r.ok?await r.json():null;let notes=[...document.querySelectorAll('.inbox-recovery-unavailable')].map(e=>e.textContent||'');let explanation=notes.every(t=>t.toLowerCase().includes('no linked institutional steward authority'));return {status:r.status,applicable,eligible:x?.identity?.can_decide_grace_recovery,controls:document.querySelectorAll('[data-recovery-decision]').length,unavailable:notes.length,explanation}")
