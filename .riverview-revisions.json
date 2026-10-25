@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.35",
-      "sha256": "12350301908fcc30093cd7351fb184924a6d9869090d21935cfb728ffb5c5b22",
-      "size_bytes": 1584723
+      "revision": "1.0.38",
+      "sha256": "f4d3dd3da57dfba52e00fe942bc6f565f6f1ab2ee8f679950102920682848a8d",
+      "size_bytes": 1601082
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.336"
+      "revision": "1.1.339"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -491,21 +491,21 @@
     },
     "docs/components/GRACE_EXECUTION_COOKBOOK.md": {
       "path": "docs/components/GRACE_EXECUTION_COOKBOOK.md",
-      "revision": "1.1.29",
-      "sha256": "e5bf7da1f81df58544400b3340498869f6345c5cf632a3c336a7232f3859dddb",
-      "size_bytes": 51703
+      "revision": "1.1.35",
+      "sha256": "53dd6b9e0655a0501fa5ccf91ff8237e1468a37d0cf52bc0d5725086f697607d",
+      "size_bytes": 60081
     },
     "docs/components/GRACE_EXECUTION_PIPELINE.md": {
       "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
-      "revision": "1.1.33",
-      "sha256": "c4277e3edf11d8a75fe2beb71f5b1c243f511e2238fe2e988f022aabf37af719",
-      "size_bytes": 46002
+      "revision": "1.1.37",
+      "sha256": "1bd005d3a4842a7b5cb634a5ba92236ebbcb829bf7ba5500942dff01365753a7",
+      "size_bytes": 50854
     },
     "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md": {
       "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
-      "revision": "1.0.67",
-      "sha256": "a84e98477ee9833091da6301750e0080bd868e9fd38d75b698430866cd029456",
-      "size_bytes": 55128
+      "revision": "1.0.74",
+      "sha256": "c0ee2ac80c1228e799e72a28ed8992176221e5208f6bc261e15124774fa26dfa",
+      "size_bytes": 58832
     },
     "docs/components/GRACE_PERSISTENT_EXECUTION.md": {
       "path": "docs/components/GRACE_PERSISTENT_EXECUTION.md",
@@ -659,15 +659,15 @@
     },
     "docs/components/RUNTIME_BASELINE.md": {
       "path": "docs/components/RUNTIME_BASELINE.md",
-      "revision": "1.0.12",
-      "sha256": "ba269e753973701282bbfb112951014269d65b14e2fea68485b403b933c86243",
-      "size_bytes": 20686
+      "revision": "1.0.13",
+      "sha256": "66944e5a713c60a5e4736d82185f2c752eb9ba1e14e98afead67bb2ba2197f26",
+      "size_bytes": 23000
     },
     "docs/components/RUNTIME_BASELINE_COOKBOOK.md": {
       "path": "docs/components/RUNTIME_BASELINE_COOKBOOK.md",
-      "revision": "1.0.10",
-      "sha256": "c6f526a262adf0b9eb1b0ed31254a220cfa090925767f5dde04feec6fa7e5d36",
-      "size_bytes": 14737
+      "revision": "1.0.11",
+      "sha256": "a7a4efcada58501497ccb84bd319cf832746c0c4e18a4cd917ee257cdbf8ebe5",
+      "size_bytes": 16611
     },
     "docs/components/RUNTIME_BASELINE_FLOW.md": {
       "path": "docs/components/RUNTIME_BASELINE_FLOW.md",
@@ -1199,9 +1199,9 @@
     },
     "docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md": {
       "path": "docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md",
-      "revision": "1.0.0",
-      "sha256": "5ff9d092d9f2de0562c0633650f37a23825dc5b5da00a3f3c9c89066204943e5",
-      "size_bytes": 8092
+      "revision": "1.0.1",
+      "sha256": "8c09366c246a4cccdd5c4b3eee45962da6053cc8e0f0b158ea74650fc14fc210",
+      "size_bytes": 11051
     },
     "docs/standards/ENGINEERING_RECORDS_STANDARD.md": {
       "path": "docs/standards/ENGINEERING_RECORDS_STANDARD.md",
@@ -2909,7 +2909,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2927,7 +2927,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -7853,9 +7853,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.37",
-      "sha256": "d3d840511e46e5cd1ac471bba4993c64e3e09d7dce15a940ce0f0e2cb284f74a",
-      "size_bytes": 780643
+      "revision": "1.1.38",
+      "sha256": "d6367e830101081e047bc0ebb17d46f9c0a3156a574884baf35eac43421e6602",
+      "size_bytes": 780877
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7865,9 +7865,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.74",
-      "sha256": "5076d3a29c35cde054bca15fc150f7386edac534610b890eae349820175c6e0c",
-      "size_bytes": 105234
+      "revision": "1.0.75",
+      "sha256": "036c59426a8ad8dd5cded3c64f5673dc2ac5e085063de5d788387d1a35ecf660",
+      "size_bytes": 105460
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -8669,9 +8669,9 @@
     },
     "src/riverview_core/resident_execution/codex_workflow.py": {
       "path": "src/riverview_core/resident_execution/codex_workflow.py",
-      "revision": "1.2.17",
-      "sha256": "98b896cda5c7a2738429ed3bfdbb78e192eb23c44bb7b56368335998662e95c4",
-      "size_bytes": 37076
+      "revision": "1.2.23",
+      "sha256": "19ae384a21fc5346ff1aa880b61cb6fa97a56f5b5edecb86ff3cb9db09d695de",
+      "size_bytes": 52426
     },
     "src/riverview_core/resident_execution/comms5_operations.py": {
       "path": "src/riverview_core/resident_execution/comms5_operations.py",
@@ -9227,9 +9227,9 @@
     },
     "tests/test_codex_cli_adapter.py": {
       "path": "tests/test_codex_cli_adapter.py",
-      "revision": "1.2.11",
-      "sha256": "7894185782198f107cc4dd6d557c64042001f28e46dff575ee78d60d13104da0",
-      "size_bytes": 45287
+      "revision": "1.2.16",
+      "sha256": "c0a8eb52900eba76241a0c034a404d2e86cc47ddd9a5b90f678877e51fcbda09",
+      "size_bytes": 66914
     },
     "tests/test_codex_source_change.py": {
       "path": "tests/test_codex_source_change.py",
@@ -9365,9 +9365,9 @@
     },
     "tests/test_grace_execution.py": {
       "path": "tests/test_grace_execution.py",
-      "revision": "1.0.67",
-      "sha256": "5a7b6065284c9379becee6747f44b589952df8f66fd0623f9117b71f195b23b2",
-      "size_bytes": 221366
+      "revision": "1.0.83",
+      "sha256": "f96fa1fb58098d908e0d0c6e952bb30f0097024773c3d69ad468ab9c7488fd11",
+      "size_bytes": 278564
     },
     "tests/test_grace_execution_health_acl.py": {
       "path": "tests/test_grace_execution_health_acl.py",
@@ -9658,6 +9658,6 @@
       "size_bytes": 2008940
     }
   },
-  "manifest_revision": "1.1.334",
-  "updated_at": "2026-10-25T16:15:48Z"
+  "manifest_revision": "1.1.339",
+  "updated_at": "2026-10-25T20:45:45.161095Z"
 }

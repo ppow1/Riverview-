@@ -1,11 +1,38 @@
 # Riverview~ runtime baseline troubleshooting and recovery
 
-**Document Revision:** 1.0.10
+**Document Revision:** 1.0.11
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-011
 **Task:** RV-M1.1-001
 **Owner:** office:operations
 **Status:** libpq credential and loopback address checks corrected; live acceptance in progress
+
+## Local qualification before merge and deployment
+
+Run release tests on a Riverview-controlled machine from a clean checkout of
+the exact candidate commit. Use a disposable PostgreSQL 16 instance and the
+pinned packages in `deploy/qualification-requirements.txt`. Preserve all test
+requirements and do not count a skipped required PostgreSQL test as a pass.
+
+Required local checks are the full test suite, focused PostgreSQL regressions
+for the changed behavior, capability declarations against the actual PR base,
+process-graph consistency, controlled revision/predecessor checks, and verified
+package contents when packaging applies. Record the full commit and tree SHA,
+host/tool versions, exact commands, timestamps, exit codes, pass/fail/error/skip
+counts, log hashes, reviewer identity, findings, and disposition in the linked
+`evidence/checkouts` record. Retain failed runs. An independent reviewer must
+review the exact same commit before merge.
+
+GitHub Actions is optional and informational. Do not wait for or purchase
+hosted runner capacity, and do not characterize an unexecuted hosted job as
+passing. A red hosted result does not block when the required local checks and
+independent review pass; any failing local gate remains blocking.
+
+After merge, follow the exact-source package, checksum, protected predecessor
+backup, immutable release activation, targeted service-health check, and
+rollback procedures in `RUNTIME_BASELINE.md` and the owning component cookbook.
+Do not change branch protection or rulesets except for an authorized
+Actions-specific status check; keep unrelated protections intact.
 
 ## Consolidated read-only diagnostic
 
@@ -154,6 +181,7 @@ release. Its non-TTY guard can be checked without invoking privileged dispatch.
 
 ## Revision history
 
+- **1.0.11 — 2026-10-25:** Make local checkout and separate exact-commit review the release gate; retain all existing test and deployment safeguards. Predecessor: `.riverview-backups/20261025T203827423941Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md`.
 - 1.0.10: Permit and independently verify the exact supervised runner's Bash interpreter without relaxing checks for other scripts.
 - 1.0.5: Record proven systemd credential ownership mismatch, safe predicate split and scoped broker usage; predecessor `.riverview-backups/20261010T142904528427Z/docs/components/RUNTIME_BASELINE_COOKBOOK.md`.
 - 1.0.9: Repair collector command formatting and include the required output argument; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-M1.1-011.

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.82
+# Revision: 1.0.83
+# Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Use a supported exact-literal criterion in late-artifact verifier recovery and record verifier 1.0.5.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Cover a legitimately consumed S5 CME-recovery evaluation as runtime evidence for same-assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Exercise S4 rejection-trigger evaluation provenance and remove the historical S3 request pin from the one-use exception path.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Verify historical S3 event persistence after pointer advancement and reject cross-objective assignment references.
@@ -1401,7 +1402,7 @@ class GraceExecutionTests(unittest.TestCase):
         from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
 
         objective_id = "objective:late-codex:" + uuid4().hex
-        criterion = "artifact contains the exact late output"
+        criterion = 'The report contains exact phrase "late output from worker".'
         self.pipeline.submit_objective(objective_id,
             "produce one bounded report at reports/late-report.md", [criterion],
             credential=self.credentials["steward"], scope_ref=self.scope,
@@ -1509,7 +1510,7 @@ class GraceExecutionTests(unittest.TestCase):
             self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
             rows = self.admin.execute(f'SELECT verifier_revision,decision FROM "{self.schema}".verification_records '
                 "WHERE attempt_id=%s ORDER BY verifier_revision", (recovered[0]["attempt_id"],)).fetchall()
-            self.assertEqual(rows, [ ("1.0.0", "REJECTED"), ("1.0.4", "ACCEPTED")])
+            self.assertEqual(rows, [ ("1.0.0", "REJECTED"), ("1.0.5", "ACCEPTED")])
             self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".worker_attempts '
                 "WHERE assignment_id=%s", (assignment_id,)).fetchone()[0], 1)
         finally:

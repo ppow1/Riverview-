@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.73
+**Document Revision:** 1.0.74
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Show lifecycle criteria separately, prioritize ready work, and gate conversation-origin completion on Grace review.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -141,7 +141,7 @@ flowchart LR
     g_rv_grace_operational_integration_verified_result_review_decision_58c1884b{"Grace's durable substantive result decision gates conversation-origin objective completion, but cannot override verifier rejection, alter immutable criteria, or hold already-authorized dependency-ready dispatch."}
     g_rv_grace_operational_integration_internal_tool_call_340d40b0["IMPLEMENTED — Grace 80B may emit one strict bounded read-tool request; Comms5Application dispatches it through the existing dashboard backend, preserving published schemas, validation, and result shaping"]
     g_rv_grace_operational_integration_internal_tool_consume_a8336489["IMPLEMENTED — Grace receives the structured tool result in a bounded follow-up completion; the result is persisted with the assistant conversation event; malformed or failed calls return sanitized errors"]
-    g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766["Verify Codex artifacts against the durable dispatch contract; reject authoritative negative JSON outcomes and check explicit content literals while excluding echoed acceptance metadata; missing contract fields fail closed"]
+    g_rv_grace_operational_integration_codex_persisted_criteria_verification_3aad2766["Verify Codex artifacts against the durable dispatch contract; check both step and per-artifact criteria separately from integrity; reject unsupported criteria and authoritative negative JSON; explicit GitHub/repository publication requirements fail closed without an authorized publisher and independent remote-content proof"]
     g_rv_grace_operational_integration_external_advisory_consumer_d4127120["Grace consumes correlated responses; performance-evaluation validation failures retain sanitized correlation and can replay the same already-consumed exchange idempotently without another provider call"]
     g_rv_grace_operational_integration_s4_performance_evidence_handoff_085993ef["Read-only server validation joins the exact assignment to its consumed Luna exchange, actual usage/cost, grade and feedback events; Engineering receives bounded facts and no database access"]
     g_rv_grace_operational_integration_s4_rejection_performance_evaluation_b9e071a2["For the current S4 assignment only, the latest durable retry_limit_exhausted rejection triggers one authorized Luna performance evaluation; its request and feedback retain the exact S4 assignment and rejection event identity."]
