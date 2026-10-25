@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-25 UTC | RV-DEPLOY-ACCEPTANCE-TEST-DISCOVERY-20261025 | Run the focused deployment acceptance test by file discovery, independent of a conflicting top-level tests package.
 # Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-DEPLOY-ROLLBACK-20261025 | Back up and restore a pre-existing acceptance Nginx include during rollback.
 set -euo pipefail
 
@@ -12,7 +13,7 @@ fi
 
 python3 "$repo/scripts/install_acceptance_chromedriver.py"
 python3 "$repo/scripts/verify_v2_acceptance_candidate.py" "$repo/website/v2/deployed"
-PYTHONPATH="$repo/src" python3 -m unittest tests.test_website_acceptance
+PYTHONPATH="$repo/src" python3 -m unittest discover -s "$repo/tests" -p test_website_acceptance.py
 [[ -f /etc/riverview/website-acceptance/personas.json && ! -L /etc/riverview/website-acceptance/personas.json ]] || { echo 'FAIL: protected persona credential is missing'; exit 2; }
 [[ $(stat -c '%a' /etc/riverview/website-acceptance/personas.json) == 600 ]] || { echo 'FAIL: persona credential permissions must be 0600'; exit 2; }
 
