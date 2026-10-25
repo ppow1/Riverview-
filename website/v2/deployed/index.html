@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: website/v2/deployed/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.28
+File Revision: 1.0.29
+Changed: 2026-10-25 UTC | RV-V2-RESIDENT-PERMISSIONS-20261025 | Expose the existing audited Resident Permission Profiles interface in V2.
 Changed: 2026-10-25 UTC | RV-V2-INSTITUTIONAL-PROPOSALS-20261025 | Add the read-only proposal registry, review evidence, and linked work records to V2.
 Changed: 2026-10-24 UTC | RV-WEB-LIVING-ROADMAP-PLANNING-20261024 | Group milestones under primary workstreams and collapse execution history.
 Changed: 2026-10-24 UTC | RV-V2-ROADMAP-AUTH-STATUS-20261024 | Distinguish live operational evidence from documented planning and expose recorded status details.
@@ -48,6 +49,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=roadmap-integrated-20261024">
   <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposals-readonly-20261025">
+  <link rel="stylesheet" href="assets/resident-permissions.css?rev=resident-permissions-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
   <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
@@ -61,8 +63,9 @@ History: Git and revision/backup manifest
   <script defer src="assets/living-roadmap.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/institutional-proposals-adapter.js?rev=proposals-readonly-20261025"></script>
   <script defer src="assets/institutional-proposals.js?rev=proposals-readonly-20261025"></script>
+  <script defer src="assets/resident-permissions.js?rev=resident-permissions-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
-  <script defer src="assets/workspace.js?rev=proposals-navigation-20261025"></script>
+  <script defer src="assets/workspace.js?rev=resident-permissions-20261025"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
   <script defer src="assets/grace-chat.js?rev=blocker-20261024"></script>
@@ -82,6 +85,7 @@ History: Git and revision/backup manifest
         <button class="nav-item" data-view="residents" aria-label="Residents" data-tooltip="Browse resident directory"><span aria-hidden="true">◉</span><span class="nav-label">Residents</span></button>
         <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show institutional work status and workspace examples"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
         <button class="nav-item" data-view="institutional-proposals" aria-label="Institutional proposals" data-tooltip="Review existing institutional proposal records"><span aria-hidden="true">▱</span><span class="nav-label">Proposals</span></button>
+        <button class="nav-item" data-view="resident-permissions" aria-label="Resident permissions" data-tooltip="View and manage resident permission profiles through Steward authorization"><span aria-hidden="true">⚿</span><span class="nav-label">Resident permissions</span></button>
         <button class="nav-item" data-view="roadmap" aria-label="Living Roadmap" data-tooltip="Explore workstreams, planning stages, milestones, and current work"><span aria-hidden="true">⌖</span><span class="nav-label">Living Roadmap</span></button>
         <button class="nav-item" data-view="image-generation" aria-label="Manual image generation" data-tooltip="Generate and review images through the registered ComfyUI worker"><span aria-hidden="true">▧</span><span class="nav-label">Image generation</span></button>
         <button class="nav-item" data-view="resources" aria-label="Hardware and AI resources" data-tooltip="Inspect hardware and AI resource telemetry"><span aria-hidden="true">◇</span><span class="nav-label">Hardware &amp; AI</span></button>
@@ -135,6 +139,12 @@ History: Git and revision/backup manifest
             <p id="proposal-status" class="proposal-status" role="status" aria-live="polite">Sign in with a Steward account and institutional authority to read proposal records.</p>
             <div class="proposal-columns"><section class="proposal-list-panel" aria-labelledby="proposal-list-heading"><h3 id="proposal-list-heading">Proposal records</h3><div id="proposal-list" class="proposal-list" aria-live="polite"></div></section><section class="proposal-detail-panel" aria-labelledby="proposal-detail-heading"><h3 id="proposal-detail-heading">Selected proposal</h3><p id="proposal-detail-status" role="status" aria-live="polite">Select an authorized proposal record to inspect its revision and evidence.</p><div id="proposal-detail" class="proposal-detail"></div></section></div>
             <p class="proposal-boundary">This view uses the existing authenticated GET endpoints. It does not create, revise, decide, or promote proposals.</p>
+          </section>
+          <section class="resident-permissions-workspace" id="resident-permissions-workspace" aria-labelledby="resident-permissions-title" hidden>
+            <div class="resident-permissions-heading"><div><p class="eyebrow">EXISTING AUTHORITY REGISTRY</p><h2 id="resident-permissions-title">Resident permissions</h2><p class="muted">Profiles are a policy gate over existing exact grants. A tier never grants authority by itself. Every change uses the existing Steward authorization and audited revision API.</p></div><button id="resident-permission-refresh" type="button">Refresh</button></div>
+            <p id="resident-permission-state" class="resident-permission-state" role="status" aria-live="polite">Permission registry has not been checked.</p>
+            <div id="resident-permission-list" class="resident-permission-list">Select Refresh to load the authorized registry.</div>
+            <aside class="resident-permission-notice"><strong>Authorization boundary</strong><p>Access requires an authenticated Steward account with an institutional identity and the exact <code>office.manage</code> grant. Missing identity or registry access is reported here. This page cannot create grants or bypass server checks. Saving a profile creates a pending revision; activation and revocation are separate audited operations.</p></aside>
           </section>
           <section class="manual-image" id="manual-image-workspace" aria-labelledby="manual-image-heading" hidden>
             <div class="manual-image-heading"><div><p class="eyebrow">OPERATOR MANUAL MODE</p><h2 id="manual-image-heading">Image generation</h2><p class="muted">Uses the registered ComfyUI worker. Requests are recorded to your authenticated account and are separate from Grace and Engineering work.</p></div><button id="manual-image-refresh" type="button">Refresh history</button></div>
