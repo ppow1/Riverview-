@@ -2,8 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_PERMISSION_PROFILES.md
 Component: RESIDENT-PERMISSION-PROFILES
-Document Revision: 1.0.1
-Status: Development implementation contract; migration not commissioned
+Document Revision: 1.1.1
+Changed: 2026-10-25 UTC | RV-DYNAMIC-PERMISSIONS-20261025 | Document canonical dynamic declarations, effective authorization projection, and current registry limitations.
+Status: Deployed permissions API contract; Steward-only management
 Owner: Steward; future HR and Security duties remain uncommissioned
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Define profiles, capabilities, resources and Steward review
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Enforce registered resource bindings, identity continuity, and fail-closed classification/export
@@ -92,6 +93,62 @@ Steward decision). They use the existing account session, CSRF, and exact
 institutional authority. Account role alone is insufficient. The runtime gets
 function execution only after DBA preflight/application through the established
 authority boundary helper; profile/catalog tables remain inaccessible to it.
+
+### Dynamic V2 capability inventory
+
+V2 reads `capabilities`, `resources`, resident rules, inherited tier rules, and
+exact grants from the authenticated `/api/v1/resident-permissions` response. Its
+editor and inventory derive their rows from that response; capability IDs are
+not copied into website code. Adding a row and its resource binding to the
+canonical `capability_catalog` / `capability_resources` source makes the row
+available on the next page refresh without a website release. Registry
+visibility is discovery only: activation still uses the existing pending
+profile, institutional Steward decision, and exact authority grants. It does
+not mean an executor is registered, healthy, or authorized to execute.
+
+Release-shipped declarations are reconciled through the existing authority
+release migration from
+`src/riverview_core/institutional_authority/capability_declarations/`; the
+controlled-checkout declaration gate requires new dashboard API operations to
+declare a capability or an explicit exclusion. The installed declaration
+contract includes operation identity, input schema, authorization contract,
+executor implementation reference, dependencies, and registration blocker.
+Grace's existing `GraceCapabilityRegistry.snapshot()` bridge reads the same
+catalog, derives only the resident credential's authorized exact scopes, and
+rechecks the exact grant at invocation. Neither that bridge nor the V2
+inventory grants authority by discovery.
+
+The current list function returns enabled catalog records. If a resident rule
+or historical reference points to a capability absent from that response, V2
+shows it as unavailable and retains the reference in the view. It disables
+profile editing in that case because the existing save function accepts only
+enabled catalog entries; this avoids silently dropping those references. The
+API does not expose whether the absent entry was disabled, deprecated, or
+removed, so the UI reports that distinction as unavailable rather than
+guessing. Existing grant records and append-only profile audit remain separate
+and visible.
+
+The authority catalog currently supplies capability ID, description, authority
+action, owner office, implementation reference, dependencies, approval default,
+enabled state, declaration source, input schema, authorization contract,
+availability policy, registration blocker, and resource bindings. The V2
+permission API does not supply a live executor identity or health observation.
+The existing permission store augments
+the Steward response by invoking the canonical profile evaluator for each
+registered action/resource at its catalog classification, non-export
+condition, and action-derived access level, then intersects that result with
+the exact active grant for the same action and resource scope. V2 labels these
+conditions and shows explicit/inherited rules, grant scope, restrictions,
+approval, expiry, and provenance. This bounded result does not establish
+executor readiness or successful operation; the per-operation authorization
+check remains authoritative.
+
+The V2 page is a Steward management view. It does not expose the all-residents
+profile response to resident sessions. Grace's existing capability bridge
+provides a principal-bound authorized-scope snapshot for the resident
+credential; other resident operations remain guarded by the same exact-grant
+and profile evaluator at invocation. Worker executor declarations remain in
+the worker registry. No capability is granted by making it visible in V2.
 
 ## Grace initial proposal
 
