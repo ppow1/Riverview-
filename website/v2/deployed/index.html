@@ -54,7 +54,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
-  <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
+  <link rel="stylesheet" href="assets/operational-inbox.css?rev=event-ledger-20261025">
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/octominer-bay-assignments.js?rev=steward-reported-20261024"></script>
   <script defer src="assets/resource-monitor.js?rev=octo-bay-assignment-20261024"></script>
@@ -74,8 +74,8 @@ History: Git and revision/backup manifest
   <script defer src="assets/grace-chat.js?rev=blocker-20261024"></script>
   <script defer src="assets/manual-image-generation.js"></script>
   <script defer src="assets/notification-settings.js"></script>
-  <script defer src="assets/operational-inbox-adapter.js?rev=1"></script>
-  <script defer src="assets/operational-inbox.js?rev=1"></script>
+  <script defer src="assets/operational-inbox-adapter.js?rev=event-ledger-20261025"></script>
+  <script defer src="assets/operational-inbox.js?rev=event-ledger-20261025"></script>
   <script defer src="assets/verification-status.js?rev=acceptance-v1"></script>
 <meta name="rv-v2-snapshot-mode" content="authenticated-dashboard"></head>
 <body>
@@ -324,6 +324,11 @@ History: Git and revision/backup manifest
               <div class="operational-inbox-heading"><div><p class="eyebrow">READ-ONLY OPERATIONAL RECORD</p><h3 id="operational-inbox-heading">Notifications and operational events</h3><p class="muted">A consolidated view of existing notification, attention, and institution event records. A missing severity or delivery receipt is shown as unavailable when the source does not provide it.</p></div><button id="operational-inbox-refresh" type="button">Refresh inbox</button></div>
               <p id="operational-inbox-freshness" class="inbox-freshness" role="status" aria-live="polite">Inbox has not been refreshed in this session.</p>
               <div class="inbox-source-status" id="operational-inbox-sources" aria-label="Source status"></div>
+              <div class="inbox-event-pagination" aria-label="Institution event ledger paging">
+                <button id="inbox-events-older" type="button" hidden>Load older events</button>
+                <span id="inbox-events-page-status" role="status">Institution event history has not been loaded.</span>
+                <button id="inbox-events-newer" type="button" hidden>Load newer events</button>
+              </div>
               <div class="inbox-filters">
                 <label>Search<input id="inbox-search" type="search" maxlength="120" placeholder="Event, description, work order, or evidence ID"></label>
                 <label>Source<select id="inbox-source"><option value="all">All sources</option><option value="notification">Notifications</option><option value="attention">Attention</option><option value="event">Operational events</option></select></label>

@@ -15,7 +15,9 @@
       if (!byEvent.has(key)) byEvent.set(key, {
         key, eventId: eventId || null, eventType: "Unknown event", description: "Description not supplied by source",
         timestamp: null, assignmentId: null, notificationId: null, deliveryState: null,
-        sources: new Set(), severity: null
+        sources: new Set(), severity: null, sequence: null, occurredAt: null,
+        recordedAt: null, actorId: null, correlationId: null, causationId: null,
+        payloadSchema: null
       });
       return byEvent.get(key);
     };
@@ -26,6 +28,13 @@
       row.description = text(event.event_type) || row.description;
       row.timestamp = text(event.recorded_at) || row.timestamp;
       row.assignmentId = text(event.assignment_id) || row.assignmentId;
+      row.sequence = event.seq ?? row.sequence;
+      row.occurredAt = text(event.occurred_at) || row.occurredAt;
+      row.recordedAt = text(event.recorded_at) || row.recordedAt;
+      row.actorId = text(event.actor_id) || row.actorId;
+      row.correlationId = text(event.correlation_id) || row.correlationId;
+      row.causationId = text(event.causation_id) || row.causationId;
+      row.payloadSchema = text(event.payload_schema) || row.payloadSchema;
     }
     for (const item of attention) {
       const row = rowFor(text(item.event_id));
@@ -49,6 +58,20 @@
       .sort((a, b) => (isoTime(b.timestamp) ?? -Infinity) - (isoTime(a.timestamp) ?? -Infinity));
   }
 
+  function mergeEventPage(current = {}, page = {}, direction = "latest") {
+    const byId = new Map((current.items || []).map((item) => [item.event_id, item]));
+    for (const item of page.items || []) byId.set(item.event_id, item);
+    const items = [...byId.values()].sort((a, b) => Number(a.seq) - Number(b.seq));
+    const seqs = items.map((item) => Number(item.seq)).filter(Number.isFinite);
+    return {
+      items,
+      olderCursor: direction === "older" ? (page.older_cursor ?? null) : (page.older_cursor ?? current.olderCursor ?? null),
+      newerCursor: seqs.length ? Math.max(...seqs) : (current.newerCursor ?? null),
+      canLoadOlder: direction === "older" ? Boolean(page.older_cursor) : direction === "latest" ? Boolean(page.older_cursor) : Boolean(current.canLoadOlder),
+      canLoadNewer: direction === "newer" ? Boolean(page.next_cursor) : seqs.length > 0
+    };
+  }
+
   function filterRows(rows, {query = "", source = "all", severity = "all", status = "all", sort = "newest"} = {}) {
     const needle = query.trim().toLocaleLowerCase();
     return rows.filter((row) => {
@@ -65,7 +88,7 @@
     });
   }
 
-  const api = Object.freeze({mergeFeeds, filterRows});
+  const api = Object.freeze({mergeFeeds, mergeEventPage, filterRows});
   if (typeof window !== "undefined") window.RiverviewV2OperationalInboxAdapter = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();
