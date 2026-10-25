@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/workspace.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.2.0
+Revision: 1.3.0
 Purpose: Render workspace navigation, resident selection, and V2 monitor views
 Execution Model: Interactive browser event handlers; page lifecycle is browser-owned
 Observability: Selected view and resident state in DOM; Snapshot reports the active view
@@ -15,6 +15,7 @@ Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deplo
 Changed: 2026-10-25 UTC | RV-V2-INSTITUTIONAL-PROPOSALS-20261025 | Route the read-only proposal registry through the existing authenticated API.
 Changed: 2026-10-25 UTC | RV-V2-RESIDENT-PERMISSIONS-20261025 | Add V2 navigation to the existing resident permission profile API.
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Route the bounded account administration view through the existing account APIs.
+Changed: 2026-10-25 UTC | RV-V2-BATCH1-20261025 | Add the live authority-backed Residents view and tabbed central Settings workspace.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -22,7 +23,7 @@ History: Git and revision/backup manifest
 (() => {
   "use strict";
   const fixtures = window.RIVERVIEW_V2_FIXTURES;
-  const labels = { overview: "Workspace overview", residents: "Residents", work: "Work", "institutional-proposals": "Institutional proposals", "resident-permissions": "Resident permissions", "account-administration": "Account administration", "process-workflows": "Process workflows", documentation: "Documentation and diagnostics", roadmap: "Living Roadmap", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
+  const labels = { overview: "Workspace overview", residents: "Residents", settings: "Settings", work: "Work", "institutional-proposals": "Institutional proposals", "resident-permissions": "Resident permissions", "account-administration": "Account administration", "process-workflows": "Process workflows", documentation: "Documentation and diagnostics", roadmap: "Living Roadmap", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
   const nav = document.getElementById("primary-nav");
   const area = document.getElementById("view-content");
   const title = document.getElementById("page-title");
@@ -38,11 +39,14 @@ History: Git and revision/backup manifest
     const effective = choice === "system" ? (media.matches ? "dark" : "light") : choice;
     document.documentElement.dataset.theme = effective;
     document.getElementById("theme-select").value = choice;
+    const settingsTheme = document.getElementById("settings-theme-select");
+    if (settingsTheme) settingsTheme.value = choice;
     try { localStorage.setItem("rv.v2.theme", choice); } catch (_) { /* Theme remains active for this page. */ }
   };
   const sidebarStates = ["expanded", "compact", "hidden"];
   const setSidebar = (side, state) => {
     shell.dataset[`${side}State`] = state;
+    try { localStorage.setItem(`rv.v2.sidebar.${side}`, state); } catch (_) { /* Sidebar remains set for this page. */ }
     const sidebar = document.getElementById(`${side}-sidebar`);
     if (sidebar) sidebar.dataset.state = state;
     const restore = document.getElementById(`${side}-restore`);
@@ -58,7 +62,9 @@ History: Git and revision/backup manifest
   applyTheme(readTheme());
   media.addEventListener?.("change", () => { if (readTheme() === "system") applyTheme("system"); });
   document.getElementById("theme-select").addEventListener("change", (event) => applyTheme(event.target.value));
-  setSidebar("left", "expanded"); setSidebar("right", "expanded");
+  const readSidebar = (side) => { try { const value = localStorage.getItem(`rv.v2.sidebar.${side}`); return sidebarStates.includes(value) ? value : "expanded"; } catch (_) { return "expanded"; } };
+  setSidebar("left", readSidebar("left")); setSidebar("right", readSidebar("right"));
+  window.RiverviewV2WorkspacePreferences = Object.freeze({setSidebar, getSidebar:(side) => shell.dataset[`${side}State`] || "expanded", applyTheme});
   for (const side of ["left", "right"]) {
     document.getElementById(`${side}-state`).addEventListener("click", () => {
       const current = shell.dataset[`${side}State`];
@@ -93,6 +99,7 @@ History: Git and revision/backup manifest
     initTooltips();
   };
   const render = (view) => {
+    if (currentView === "settings" && view !== "settings") window.RiverviewV2AuthorityExplorer?.restoreSettingsPanels();
     currentView = view;
     content.dataset.currentView = view;
     title.textContent = labels[view] || labels.residents;
@@ -108,9 +115,11 @@ History: Git and revision/backup manifest
     const isNotificationSettings = view === "notification-settings";
     const isProcessWorkflows = view === "process-workflows";
     const isDocumentation = view === "documentation";
-    document.querySelector(".welcome-row").hidden = isRoadmap;
-    document.getElementById("snapshot-status").hidden = isRoadmap;
-    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isRoadmap || isProposals || isResidentPermissions || isAccountAdministration || isProcessWorkflows || isDocumentation;
+    const isResidents = view === "residents";
+    const isSettings = view === "settings";
+    document.querySelector(".welcome-row").hidden = isRoadmap || isResidents || isSettings;
+    document.getElementById("snapshot-status").hidden = isRoadmap || isResidents || isSettings;
+    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isRoadmap || isProposals || isResidentPermissions || isAccountAdministration || isProcessWorkflows || isDocumentation || isResidents || isSettings;
     document.getElementById("manual-image-workspace").hidden = !isImageGeneration;
     document.getElementById("grace-workspace").hidden = !isGrace;
     document.getElementById("communications-workspace").hidden = !isCommunications;
@@ -123,10 +132,13 @@ History: Git and revision/backup manifest
     document.getElementById("account-administration-workspace").hidden = !isAccountAdministration;
     document.getElementById("process-workflows-workspace").hidden = !isProcessWorkflows;
     document.getElementById("documentation-workspace").hidden = !isDocumentation;
-    heading.textContent = view === "overview" ? "Resident directory" : isWork ? "Workspace examples" : labels[view] || labels.residents;
-    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isRoadmap && !isProposals && !isResidentPermissions && !isAccountAdministration && !isProcessWorkflows && !isDocumentation) {
+    document.getElementById("resident-directory-workspace").hidden = !isResidents;
+    document.getElementById("capability-registry-workspace").hidden = true;
+    document.getElementById("settings-workspace").hidden = !isSettings;
+    heading.textContent = view === "overview" ? "Workspace examples" : isWork ? "Workspace examples" : labels[view] || labels.residents;
+    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isRoadmap && !isProposals && !isResidentPermissions && !isAccountAdministration && !isProcessWorkflows && !isDocumentation && !isResidents && !isSettings) {
       area.replaceChildren();
-      if (view === "overview" || view === "residents") {
+      if (view === "overview") {
         const list = el("div", "list-stack");
         fixtures.residents.forEach((resident) => {
           const item = card(resident, "resident-row");
@@ -162,6 +174,13 @@ History: Git and revision/backup manifest
     if (isCommunications) window.RiverviewV2Communications?.render();
     if (isNotificationSettings) window.RiverviewV2NotificationSettings?.render();
     if (isProcessWorkflows || isDocumentation) window.dispatchEvent(new CustomEvent("rvv2:view", { detail: { view } }));
+    if (isResidents) window.RiverviewV2AuthorityExplorer?.renderResidents();
+    if (isSettings) {
+      const settingsTheme = document.getElementById("settings-theme-select");
+      if (settingsTheme) settingsTheme.value = document.getElementById("theme-select").value;
+      const selectedTab = document.querySelector('[role="tab"][aria-selected="true"][data-settings-tab]')?.dataset.settingsTab || "preferences";
+      window.RiverviewV2AuthorityExplorer?.activateSettingsTab(selectedTab);
+    }
     document.querySelectorAll(".nav-item").forEach((button) => {
       const active = button.dataset.view === view || (view === "grace" && button.dataset.view === "residents");
       button.classList.toggle("active", active);

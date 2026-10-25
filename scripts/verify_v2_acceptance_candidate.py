@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Check a candidate static bundle is complete before the Nginx alias is switched.
 
-Revision: 1.0.0
+Revision: 1.0.1
+Changed: 2026-10-25 UTC | RV-V2-BATCH1-20261025 | Validate the new Settings, resident directory, capability registry, and pinned history asset.
 """
 from html.parser import HTMLParser
 from pathlib import Path
@@ -31,8 +32,12 @@ def main():
                    'id="snapshot-action"','data-view="institutional-proposals"',
                    'data-view="process-workflows"','data-view="documentation"',
                    'id="proposal-draft-dialog"','id="graph-canvas"',
+                   'data-view="settings"','id="resident-directory-workspace"',
+                   'id="capability-registry-workspace"','authority-explorer.js',
                    'proposal-lifecycle-20261025','verification-status.js'):
         if marker not in text: raise SystemExit("FAIL: candidate_contract_missing:"+marker)
+    history=root/"assets"/"resident-history-reference.json"
+    if not history.is_file(): raise SystemExit("FAIL: candidate_asset_missing:resident-history-reference.json")
     print(f"PASS candidate bundle: {len(parser.paths)} referenced assets present")
 
 
