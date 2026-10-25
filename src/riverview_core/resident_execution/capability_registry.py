@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/capability_registry.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Project the existing institutional capability catalog into Grace's typed tool route
 # Execution Model: Read-only catalog projection; exact-grant-checked typed invocation
 # Observability: Structured discovery, authorization, execution and result envelopes
@@ -232,7 +232,7 @@ class GraceCapabilityRegistry:
                     item["worker_id"] and cap_id in healthy for item in workers) else "degraded"
                 health_status = service_status if cap_id in healthy else "not_healthy"
             elif adapter_present:
-                availability, health_status = "available", "healthy"
+                availability, health_status = "available", "unknown"
             else:
                 availability, health_status = "unknown", "unknown"
             schema = row.get("input_schema")

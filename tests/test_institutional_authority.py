@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.17
+# Revision: 1.0.18
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
 # Observability: unittest evidence, authority events, binding/state revisions
@@ -83,6 +83,8 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0009_worker_registration_retirement_event",
             "0010_grace_autonomy_experiment_grant",
             "0011_exact_grace_luna_escalation_check",
+            "0012_grace_supervisory_authority",
+            "0013_grace_capability_registry_read",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         if os.geteuid() != 0:

@@ -110,12 +110,18 @@ BEGIN
         $function$
     $ddl$,authority_schema,authority_schema,authority_schema,authority_schema);
 
-    EXECUTE format('ALTER FUNCTION %I.list_capability_registry() SET search_path=%I,pg_catalog,pg_temp',
-                   authority_schema,authority_schema);
-    EXECUTE format('ALTER FUNCTION %I.list_capability_grants(BYTEA) SET search_path=%I,pg_catalog,pg_temp',
-                   authority_schema,authority_schema);
+    -- Every relation/function reference inside these SECURITY DEFINER bodies is
+    -- schema-qualified, so keep untrusted application schemas off search_path.
+    EXECUTE format('ALTER FUNCTION %I.list_capability_registry() SET search_path=pg_catalog,pg_temp',
+                   authority_schema);
+    EXECUTE format('ALTER FUNCTION %I.list_capability_grants(BYTEA) SET search_path=pg_catalog,pg_temp',
+                   authority_schema);
     EXECUTE format('REVOKE ALL ON FUNCTION %I.list_capability_registry() FROM PUBLIC',authority_schema);
     EXECUTE format('REVOKE ALL ON FUNCTION %I.list_capability_grants(BYTEA) FROM PUBLIC',authority_schema);
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='riverview_authority_owner') THEN
+        EXECUTE format('ALTER FUNCTION %I.list_capability_registry() OWNER TO riverview_authority_owner',authority_schema);
+        EXECUTE format('ALTER FUNCTION %I.list_capability_grants(BYTEA) OWNER TO riverview_authority_owner',authority_schema);
+    END IF;
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='riverview_core') THEN
         EXECUTE format('GRANT EXECUTE ON FUNCTION %I.list_capability_registry() TO riverview_core',authority_schema);
         EXECUTE format('GRANT EXECUTE ON FUNCTION %I.list_capability_grants(BYTEA) TO riverview_core',authority_schema);

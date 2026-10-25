@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.18
+# Revision: 1.0.23
+# Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-SEARCHPATH-COMPAT-20261024 | Validate SECURITY DEFINER functions against their exact pinned search-path policy.
+# Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BOUNDARY-ALLOWLIST-20261024 | Preserve the existing narrowly granted Luna and autonomy authority functions during boundary preflight.
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Include the narrow catalog and caller-grant projections in the runtime function allowlist.
 # Purpose: Separate authority relation ownership from the shared runtime role
 # Execution Model: Explicit PostgreSQL DBA operation; dry-run by default
@@ -86,10 +88,32 @@ RUNTIME_PERMISSION_SIGNATURES = {
     "evaluate_resident_permission": "(text,text,text,text,text,boolean)",
 }
 RUNTIME_PERMISSION_FUNCTIONS.update({
+    "active_grace_luna_escalation_grant": "",
+    "active_grace_autonomy_experiment_grant": "p_grant_id text, p_scope_ref text",
+    "issue_grace_autonomy_experiment_grant": "p_actor_id text, p_grant_id text, p_scope_ref text, p_valid_until timestamp with time zone",
+    "active_grace_supervisory_luna_grant": "p_grant_id text",
+    "issue_grace_supervisory_luna_grant": "p_actor_id text, p_grant_id text, p_valid_until timestamp with time zone",
+    "revoke_grace_supervisory_luna_grant": "p_actor_id text, p_grant_id text",
     "list_capability_registry": "",
     "list_capability_grants": "p_credential_sha256 bytea",
 })
+RUNTIME_PERMISSION_SEARCH_PATHS = {
+    "active_grace_luna_escalation_grant": "search_path=pg_catalog, pg_temp",
+    "active_grace_autonomy_experiment_grant": "search_path=pg_catalog, pg_temp",
+    "issue_grace_autonomy_experiment_grant": "search_path=pg_catalog, pg_temp",
+    "active_grace_supervisory_luna_grant": "search_path=pg_catalog, pg_temp",
+    "issue_grace_supervisory_luna_grant": "search_path=pg_catalog, pg_temp",
+    "revoke_grace_supervisory_luna_grant": "search_path=pg_catalog, pg_temp",
+    "list_capability_registry": "search_path=pg_catalog, pg_temp",
+    "list_capability_grants": "search_path=pg_catalog, pg_temp",
+}
 RUNTIME_PERMISSION_SIGNATURES.update({
+    "active_grace_luna_escalation_grant": "()",
+    "active_grace_autonomy_experiment_grant": "(text,text)",
+    "issue_grace_autonomy_experiment_grant": "(text,text,text,timestamp with time zone)",
+    "active_grace_supervisory_luna_grant": "(text)",
+    "issue_grace_supervisory_luna_grant": "(text,text,timestamp with time zone)",
+    "revoke_grace_supervisory_luna_grant": "(text,text)",
     "list_capability_registry": "()",
     "list_capability_grants": "(bytea)",
 })
@@ -314,11 +338,13 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                                  AND pg_get_function_identity_arguments(p.oid)=%s""",
                             (runtime_role, manager_role, schema, function_name, arguments))
                 function_row = cur.fetchone()
-                expected_path = f"search_path={schema}, pg_catalog, pg_temp"
+                expected_path = RUNTIME_PERMISSION_SEARCH_PATHS.get(
+                    function_name, f"search_path={schema}, pg_catalog, pg_temp")
                 if (function_row is None or not function_row["security_definer"]
                         or not function_row["proconfig"] or expected_path not in function_row["proconfig"]
                         or function_row["function_owner"] not in acceptable_owners):
-                    raise BoundaryPreflightError("resident permission function security configuration is unsafe")
+                    raise BoundaryPreflightError(
+                        "resident permission function security configuration is unsafe: " + function_name)
                 runtime_permission_functions.append(function_row)
 
             cur.execute("""SELECT has_schema_privilege(%s::name,%s,'USAGE') AS runtime_usage,
@@ -513,6 +539,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 function_row = cur.fetchone()
                 if function_row is None:
                     raise BoundaryPreflightError("resident permission function post-apply verification failed")
+                function_row["function_name"] = function_name
                 runtime_permission_functions.append(function_row)
             if (len(verification) != len(AUTHORITY_TABLES)
                     or any(row["owner"] != owner_role for row in verification)
@@ -535,7 +562,9 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                            for function in runtime_office_functions)
                     or any(function["function_owner"] != owner_role
                            or not function["security_definer"] or not function["proconfig"]
-                           or f"search_path={schema}, pg_catalog, pg_temp" not in function["proconfig"]
+                           or RUNTIME_PERMISSION_SEARCH_PATHS.get(
+                               function["function_name"],
+                               f"search_path={schema}, pg_catalog, pg_temp") not in function["proconfig"]
                            or not function["runtime_execute"] or function["manager_execute"]
                            for function in runtime_permission_functions)):
                 raise BoundaryPreflightError("post-apply privilege verification failed; transaction rolled back")

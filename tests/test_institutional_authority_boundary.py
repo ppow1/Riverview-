@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.24
+# Revision: 1.0.29
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -78,18 +78,26 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
         self.sql = sql
         self.make_conninfo = make_conninfo
         self.schema = "rvtest_" + uuid4().hex
-        self.owner_role = "rvtest_owner_" + uuid4().hex[:20]
+        self.owner_role = "riverview_authority_owner"
         self.runtime_role = "rvtest_runtime_" + uuid4().hex[:20]
         self.manager_role = "rvtest_manager_" + uuid4().hex[:20]
         self.runtime_password = secrets.token_urlsafe(32)
         self.manager_password = secrets.token_urlsafe(32)
         self.admin = psycopg.connect(DSN, autocommit=True, row_factory=dict_row)
         self.registry = None
+        self.created_core_role = False
+        self.created_authority_owner_role = False
         try:
             identity = self.admin.execute(
                 "SELECT r.rolsuper FROM pg_roles r WHERE r.rolname=current_user").fetchone()
             if not identity or not identity["rolsuper"]:
                 self.skipTest("isolated test DSN needs CREATE ROLE authority for role-boundary test")
+            if not self.admin.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", ("riverview_core",)).fetchone():
+                self.admin.execute("CREATE ROLE riverview_core NOLOGIN")
+                self.created_core_role = True
+            if not self.admin.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", ("riverview_authority_owner",)).fetchone():
+                self.admin.execute("CREATE ROLE riverview_authority_owner NOLOGIN")
+                self.created_authority_owner_role = True
             self.admin.execute(sql.SQL(
                 "CREATE ROLE {} LOGIN NOINHERIT PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
             ).format(sql.Identifier(self.runtime_role), sql.Literal(self.runtime_password)))
@@ -105,6 +113,22 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             migration_dir = (__import__("pathlib").Path(__file__).resolve().parents[1]
                              / "src/riverview_core/institutional_authority/migrations")
             apply_migrations(DSN, schema=self.schema, migrations_dir=migration_dir)
+            for function_name, signature in (("list_capability_registry", ""),
+                                             ("list_capability_grants", "p_credential_sha256 bytea")):
+                function = self.admin.execute(self.sql.SQL(
+                    "SELECT p.prosecdef, p.proconfig, p.proowner::regrole::text AS proowner, "
+                    "has_function_privilege('riverview_core',p.oid,'EXECUTE') AS runtime_execute, "
+                    "EXISTS (SELECT 1 FROM aclexplode(COALESCE(p.proacl, acldefault('f',p.proowner))) a "
+                    "WHERE a.grantee=0 AND a.privilege_type='EXECUTE') AS public_execute "
+                    "FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+                    "WHERE n.nspname=%s AND p.proname=%s AND pg_get_function_identity_arguments(p.oid)=%s"
+                ), (self.schema, function_name, signature)).fetchone()
+                self.assertIsNotNone(function)
+                self.assertTrue(function["prosecdef"])
+                self.assertIn("search_path=pg_catalog, pg_temp", function["proconfig"])
+                self.assertEqual(function["proowner"], "riverview_authority_owner")
+                self.assertTrue(function["runtime_execute"])
+                self.assertFalse(function["public_execute"])
             self.steward_token = secrets.token_urlsafe(32)
             self.worker_token = secrets.token_urlsafe(32)
             self.resident_token = secrets.token_urlsafe(32)
@@ -164,6 +188,10 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                 if name:
                     self.admin.execute(self.sql.SQL("DROP ROLE IF EXISTS {}").format(
                         self.sql.Identifier(name)))
+            if getattr(self, "created_core_role", False):
+                self.admin.execute("DROP ROLE IF EXISTS riverview_core")
+            if getattr(self, "created_authority_owner_role", False):
+                self.admin.execute("DROP ROLE IF EXISTS riverview_authority_owner")
             self.admin.close()
 
     def test_runtime_cannot_read_or_mutate_authority_tables_and_schema_owner_is_distinct(self):
@@ -246,6 +274,30 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             self.admin, schema=self.schema, runtime_role=self.runtime_role,
             manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
         self.assertEqual(repeated["status"], "APPLIED")
+
+        catalog = self.admin.execute(self.sql.SQL(
+            "SELECT {}.list_capability_registry() AS result"
+        ).format(self.sql.Identifier(self.schema))).fetchone()["result"]
+        enabled_count = self.admin.execute(self.sql.SQL(
+            "SELECT count(*) FROM {}.capability_catalog WHERE enabled"
+        ).format(self.sql.Identifier(self.schema))).fetchone()["count"]
+        self.assertEqual(len(catalog), enabled_count)
+        office_state = next(item for item in catalog
+                            if item["capability_id"] == "resident.office.state.write")
+        self.assertEqual(office_state["input_schema"]["required"],
+                         ["expected_revision", "state"])
+        grants = self.admin.execute(self.sql.SQL(
+            "SELECT principal_id,action,scope_ref FROM {}.list_capability_grants(%s)"
+        ).format(self.sql.Identifier(self.schema)),
+            (hashlib.sha256(self.resident_token.encode()).digest(),)).fetchall()
+        self.assertEqual([(row["principal_id"], row["action"], row["scope_ref"])
+                          for row in grants], [("resident:boundary-test", "office.state.write",
+                                                "office:office:boundary-test")])
+        worker_grants = self.admin.execute(self.sql.SQL(
+            "SELECT principal_id,action,scope_ref FROM {}.list_capability_grants(%s)"
+        ).format(self.sql.Identifier(self.schema)),
+            (hashlib.sha256(self.worker_token.encode()).digest(),)).fetchall()
+        self.assertEqual(worker_grants, [])
 
         with self.admin.cursor() as cur:
             cur.execute("""SELECT pg_has_role(%s,%s,'MEMBER') AS manager_is_owner,
