@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.7
+# Revision: 1.1.8
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify concurrent monthly Luna actual-plus-reserved admission across existing grants.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Verify Steward approval persists against the live parent/child S3 assignment linkage.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Include exact objective assignment and S3 identity in retry fixtures.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Prove exact-event retry admission is single-use under concurrent providers.
@@ -44,6 +45,7 @@ import socket
 import threading
 import unittest
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from uuid import uuid4
 
 from riverview_core.postgres_ledger import PostgresLedger
@@ -234,6 +236,7 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         from psycopg import sql
 
         self.psycopg, self.sql = psycopg, sql
+        self.real_authority_fixture = None
         self.schema = "rvtest_" + uuid4().hex
         self.admin = psycopg.connect(DSN, autocommit=True)
         self.admin.execute(sql.SQL("CREATE SCHEMA {} ").format(sql.Identifier(self.schema)))
@@ -284,14 +287,94 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.reasoning_state = _ReasoningState()
         self.grace_provider = _GraceReasoningProvider()
         self.real_authority_fixture = None
-        self.admin.execute(sql.SQL("""INSERT INTO {}.grace_objective_events
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_objective_events
             (objective_id,event_type,idempotency_key,actor_id,payload)
             VALUES (%s,'objective.received',%s,'steward:test',%s::jsonb)""").format(
-                sql.Identifier(self.schema)),
+                self.sql.Identifier(self.schema)),
             (self.objective, "test-origin:" + self.objective,
              json.dumps({"origin": {"conversation_id": self.conversation_id,
                                     "source_sequence": 4}})))
 
+    def test_monthly_luna_usage_includes_actual_estimated_open_and_prior_grant_spend(self):
+        from riverview_core.resident_execution.external_reasoning import monthly_luna_usage
+        month = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        sid, xid = uuid4(), uuid4()
+        scope = json.dumps({"functions":["cme_diagnostic_recovery","performance_evaluation"],
+                            "provider_id":"gpt-6-luna"})
+        self.admin.execute(f'''INSERT INTO "{self.schema}".grace_supervisory_authorizations
+            (authorization_id,authority_grant_id,authorized_by,idempotency_key,total_budget_usd,
+             per_request_limit_usd,scope,status,activated_at)
+            VALUES (%s,%s,'steward:test',%s,5,.05,%s::jsonb,'active',%s)''',
+            (sid,"grant:"+str(sid),"idem:"+str(sid),scope,month))
+        self.admin.execute(f'''INSERT INTO "{self.schema}".grace_experiment_authorizations
+            (authorization_id,experiment_key,objective_id,objective_revision,source_event_id,authority_grant_id,
+             luna_authority_grant_id,authorized_by,authority_reference,idempotency_key,
+             total_budget_usd,prior_spend_usd,max_recovery_attempts,max_luna_requests,
+             activated_at,expires_at,status)
+            VALUES (%s,'grace-autonomy-luna-r2',
+             'objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2',2,%s,%s,%s,
+             'steward:test','test-policy',%s,5,.04104010,5,2,%s,%s,'active')''',
+            (xid,uuid4(),"grant:exp:"+str(xid),"grant:luna:"+str(xid),"idem:"+str(xid),
+             month,month+timedelta(hours=1)))
+        def add_event(table, auth, kind, payload, objective=None):
+            self.admin.execute(f'''INSERT INTO "{self.schema}".{table}
+                (authorization_id,event_type,idempotency_key,objective_id,request_id,payload,occurred_at)
+                VALUES (%s,%s,%s,%s,%s,%s::jsonb,%s)''',
+                (auth,kind,"event:"+uuid4().hex,objective,uuid4(),json.dumps(payload),
+                 month+timedelta(days=1)))
+        add_event("grace_supervisory_authorization_events",sid,"luna_settled",
+                  {"cost_usd":"0.60","cost_is_reserved_estimate":False})
+        add_event("grace_supervisory_authorization_events",sid,"luna_settled",
+                  {"cost_usd":"0.20","cost_is_reserved_estimate":True})
+        add_event("grace_supervisory_authorization_events",sid,"luna_reserved",
+                  {"reserved_cost_usd":"0.30"})
+        add_event("grace_experiment_authorization_events",xid,"luna_settled",
+                  {"cost_usd":"0.40","cost_is_reserved_estimate":False},
+                  "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            usage = monthly_luna_usage(cur,month)
+        self.assertEqual(usage["actual"],Decimal("1.04104010"))
+        self.assertEqual(usage["estimated"],Decimal("0.20"))
+        self.assertEqual(usage["open"],Decimal("0.30"))
+
+    def test_monthly_luna_admission_serializes_concurrent_reservations(self):
+        import psycopg
+        from psycopg.rows import dict_row
+        from concurrent.futures import ThreadPoolExecutor
+        from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
+        month = datetime.now(timezone.utc).replace(day=1,hour=0,minute=0,second=0,microsecond=0)
+        auth = uuid4()
+        self.admin.execute(f'''INSERT INTO "{self.schema}".grace_supervisory_authorizations
+            (authorization_id,authority_grant_id,authorized_by,idempotency_key,total_budget_usd,
+             per_request_limit_usd,scope,status,activated_at)
+            VALUES (%s,%s,'steward:test',%s,5,.05,
+             '{{"functions":["cme_diagnostic_recovery","performance_evaluation"],"provider_id":"gpt-6-luna"}}'::jsonb,
+             'active',%s)''',(auth,"grant:"+str(auth),"idem:"+str(auth),month))
+        self.admin.execute(f'''INSERT INTO "{self.schema}".grace_supervisory_authorization_events
+            (authorization_id,event_type,idempotency_key,request_id,payload,occurred_at)
+            VALUES (%s,'luna_settled',%s,%s,
+             '{{"cost_usd":"4.95","cost_is_reserved_estimate":false}}'::jsonb,%s)''',
+            (auth,"settled:"+uuid4().hex,uuid4(),month+timedelta(days=1)))
+        barrier=threading.Barrier(2)
+        def reserve(_):
+            conn=psycopg.connect(DSN,row_factory=dict_row)
+            try:
+                with conn.transaction(),conn.cursor() as cur:
+                    cur.execute(f'SET LOCAL search_path TO "{self.schema}"')
+                    barrier.wait(timeout=5)
+                    allowed=DurableExternalReasoningExchange._reserve_global_monthly_luna_budget(
+                        cur,Decimal(".05"))
+                    if allowed:
+                        cur.execute(f'''INSERT INTO "{self.schema}".grace_supervisory_authorization_events
+                            (authorization_id,event_type,idempotency_key,request_id,payload)
+                            VALUES (%s,'luna_reserved',%s,%s,'{{"reserved_cost_usd":"0.05"}}'::jsonb)''',
+                            (auth,"reserve:"+uuid4().hex,uuid4()))
+                    return allowed
+            finally: conn.close()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            result=list(pool.map(reserve,range(2)))
+        self.assertEqual(sorted(result),[False,True])
     def _service(self, clock=None):
         return DurableExternalReasoningExchange(self.ledger, self.router,
             actor_id=RESIDENT, clock=clock or (lambda: self.clock_value))
@@ -512,6 +595,9 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         status = controller.status()
         self.assertEqual(status["authorization_id"],active["authorization_id"])
         self.assertEqual(status["available_usd"],"5.00000000")
+        self.assertEqual(status["monthly_luna_budget_usd"],"5.00000000")
+        self.assertEqual(status["monthly_luna_actual_spend_usd"],"0.00000000")
+        self.assertEqual(status["monthly_luna_reserved_usd"],"0.00000000")
         self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorization_events
             (authorization_id,event_type,idempotency_key,request_id,payload)
             VALUES (%s,'luna_settled',%s,%s,%s::jsonb)""").format(

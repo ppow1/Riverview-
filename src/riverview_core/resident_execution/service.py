@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.58
+# Revision: 1.0.59
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Permit one audited local criteria-binding recovery and supersede its exact stale Steward retry request.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Use the durable exchange consumption duplicate flag in consumed performance-evaluation replay.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Queue S4 evaluation from current exhausted rejection evidence without reusing S3 evidence.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Replay consumed Luna evaluations idempotently and retain sanitized correlated consumer diagnostics.
@@ -167,6 +168,7 @@ class GraceExecutionService:
         "PROPOSAL_CRITERIA_BINDING_REJECTED",
         "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
     })
+    AUTONOMOUS_LOCAL_RECOVERY_CODE = "PROPOSAL_CRITERIA_BINDING_REJECTED"
 
     def __init__(self, pipeline, adapter, worker, *, dispatch_credential,
                  authority_ref, verifier_id, verifier_credential, artifact_root,
@@ -328,31 +330,44 @@ class GraceExecutionService:
                 continue
             recovery_request_id = None
             experiment_authorization = None
+            autonomous_recovery = None
             if (type(candidate_revision) is int and
                     self._proposal_rejection_blocked(candidate_id, candidate_revision)):
-                recovery_request_id = self._claim_approved_recovery(candidate_id,
-                                                                    candidate_revision)
+                autonomous_recovery = self._claim_autonomous_local_recovery(
+                    candidate_id, candidate_revision)
+                if autonomous_recovery is None:
+                    recovery_request_id = self._claim_approved_recovery(candidate_id,
+                                                                        candidate_revision)
                 if recovery_request_id is None:
-                    experiment_authorization = self._claim_experiment_recovery(
-                        candidate_id, candidate_revision)
-                    if experiment_authorization is None:
+                    if autonomous_recovery is None:
+                        experiment_authorization = self._claim_experiment_recovery(
+                            candidate_id, candidate_revision)
+                    if experiment_authorization is None and autonomous_recovery is None:
                         continue
             if (recovery_request_id is None and
                     self._reasoning_failure_count(candidate_id) >= self.MAX_REASONING_FAILURES):
                 continue
             candidate = {**row, "recovery_request_id": recovery_request_id,
-                "experiment_authorization": experiment_authorization}
+                "experiment_authorization": experiment_authorization,
+                "autonomous_recovery": autonomous_recovery}
             break
         if candidate is None:
             return False
         objective_id = candidate["objective_id"]
         self._current_objective_id = objective_id
+        criteria_diagnostic = None
         try:
-            self._record_reasoning_attempt(objective_id,
-                recovery_request_id=candidate.get("recovery_request_id"),
-                experiment_authorization=candidate.get("experiment_authorization"))
+            if not candidate.get("autonomous_recovery"):
+                self._record_reasoning_attempt(objective_id,
+                    recovery_request_id=candidate.get("recovery_request_id"),
+                    experiment_authorization=candidate.get("experiment_authorization"))
+            trigger = "persistent_resident_cycle"
+            if candidate.get("autonomous_recovery"):
+                indexes = candidate["autonomous_recovery"].get("missing_criterion_indices", [])
+                suffix = ":" + ",".join(str(i) for i in indexes) if indexes else ""
+                trigger = "criteria_binding_recovery" + suffix
             result = self.resident_reasoner.propose(
-                objective_id, trigger="persistent_resident_cycle",
+                objective_id, trigger=trigger,
                 token_budget=self.resident_token_budget)
             if result.status is ReasoningStatus.PROPOSED and result.proposal is not None:
                 if result.proposal.external_escalation is not None:
@@ -495,6 +510,8 @@ class GraceExecutionService:
             failure_count = self._record_reasoning_failure(objective_id,
                 failure_type=type(exc).__name__, detail_code=detail_code,
                 blocked_revision=blocked_revision,
+                diagnostic_context=(criteria_diagnostic if detail_code ==
+                    "PROPOSAL_CRITERIA_BINDING_REJECTED" else None),
                 experiment_authorization=candidate.get("experiment_authorization"))
             LOG.warning(json.dumps({"event": "resident_reasoning_cycle_failed",
                 "objective_id": objective_id,
@@ -662,7 +679,7 @@ class GraceExecutionService:
             return int(cur.fetchone()["failures"])
 
     def _record_reasoning_attempt(self, objective_id, *, recovery_request_id=None,
-                                  experiment_authorization=None):
+                                  experiment_authorization=None, autonomous_recovery=None):
         request_id = str(uuid4())
         key = f"grace-reasoning-attempt:{objective_id}:{request_id}"
         payload = {}
@@ -673,6 +690,10 @@ class GraceExecutionService:
             payload.update({"experiment_authorization_id": experiment_authorization["authorization_id"],
                 "experiment_recovery_attempt": experiment_authorization["attempt_number"],
                 "experiment_recovery_limit": 5})
+        if autonomous_recovery:
+            payload.update({"autonomous_recovery_event_id": autonomous_recovery["event_id"],
+                "autonomous_recovery_limit": 1,
+                "autonomous_recovery_code": self.AUTONOMOUS_LOCAL_RECOVERY_CODE})
         with self.pipeline.ledger.db.transaction():
             with self.pipeline.ledger.db.cursor() as cur:
                 self.pipeline.ledger._set_search_path(cur)
@@ -683,6 +704,129 @@ class GraceExecutionService:
                     ON CONFLICT (idempotency_key) DO NOTHING""",
                     (objective_id, key, json.dumps(payload, sort_keys=True,
                         separators=(",", ":"))))
+
+    def _claim_autonomous_local_recovery(self, objective_id, objective_revision):
+        """Claim one low-risk local replan for an exact criteria-binding failure."""
+        if type(objective_revision) is not int:
+            return None
+        try:
+            with self.pipeline.ledger.db.transaction(), self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""SELECT status,revision,assignment_id FROM grace_objectives
+                    WHERE objective_id=%s FOR UPDATE""", (objective_id,))
+                objective = cur.fetchone()
+                if (objective is None or objective["status"] != "GROUNDED" or
+                        objective["revision"] != objective_revision or
+                        objective["assignment_id"] is not None):
+                    return None
+                cur.execute("""SELECT sequence,payload FROM grace_objective_events
+                    WHERE objective_id=%s AND event_type='execution.reasoning_failed'
+                      AND payload->>'status'='BLOCKED'
+                      AND payload->>'detail_code'=%s
+                      AND payload->>'objective_revision'=%s
+                    ORDER BY sequence DESC LIMIT 1""",
+                    (objective_id, self.AUTONOMOUS_LOCAL_RECOVERY_CODE,
+                     str(objective_revision)))
+                failure = cur.fetchone()
+                if failure is None:
+                    return None
+                cur.execute("""SELECT count(*) AS failure_count FROM grace_objective_events
+                    WHERE objective_id=%s AND event_type='execution.reasoning_failed'
+                      AND payload->>'objective_revision'=%s
+                      AND sequence > COALESCE((SELECT max(sequence)
+                        FROM grace_objective_events WHERE objective_id=%s
+                          AND event_type='work_order.proposed'),0)""",
+                    (objective_id, str(objective_revision), objective_id))
+                if int(cur.fetchone()["failure_count"]) != 1:
+                    return None
+                key = f"grace-auto-local-recovery:{objective_id}:r{objective_revision}"
+                cur.execute("""SELECT event_id,payload,sequence FROM grace_objective_events
+                    WHERE idempotency_key=%s""",(key,))
+                prior_recovery=cur.fetchone()
+                if prior_recovery is not None:
+                    attempt_key=f"grace-reasoning-autonomous-attempt:{objective_id}:r{objective_revision}"
+                    cur.execute("""SELECT sequence FROM grace_objective_events
+                        WHERE idempotency_key=%s""",(attempt_key,))
+                    prior_attempt=cur.fetchone()
+                    if prior_attempt is None:
+                        return None
+                    cur.execute("""SELECT 1 FROM grace_objective_events
+                        WHERE objective_id=%s AND sequence>%s
+                          AND event_type IN ('execution.reasoning_failed','work_order.proposed')
+                        LIMIT 1""",(objective_id,prior_attempt["sequence"]))
+                    if cur.fetchone() is not None:
+                        return None
+                    prior_payload=prior_recovery["payload"]
+                    prior_indexes=prior_payload.get("missing_criterion_indices",[])
+                    return {"event_id":str(prior_recovery["event_id"]),
+                        "missing_criterion_indices":prior_indexes,
+                        "source_failure_sequence":prior_payload["source_failure_sequence"],
+                        "resumed":True}
+                diagnostic = failure["payload"].get("criteria_binding_diagnostic", {})
+                indexes = diagnostic.get("missing_approved_criterion_indices", [])
+                if (not isinstance(indexes, list) or len(indexes) > 20 or
+                        any(type(i) is not int or i < 1 for i in indexes)):
+                    indexes = []
+                payload = {"schema": "rv.grace.autonomous-local-recovery.v1",
+                    "objective_id": objective_id, "objective_revision": objective_revision,
+                    "source_failure_sequence": failure["sequence"],
+                    "source_detail_code": self.AUTONOMOUS_LOCAL_RECOVERY_CODE,
+                    "action": "local_reasoning_retry_once",
+                    "attempt_limit": 1, "acceptance_criteria_changed": False,
+                    "external_provider_authorized": False,
+                    "authority_source": "existing_objective_and_office_reasoning_grants",
+                    "missing_criterion_indices": indexes}
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.autonomous_recovery_authorized',%s,
+                      'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING RETURNING event_id""",
+                    (objective_id, key, json.dumps(payload, sort_keys=True,
+                        separators=(",", ":"))))
+                claimed = cur.fetchone()
+                if claimed is None:
+                    return None
+                attempt_key=f"grace-reasoning-autonomous-attempt:{objective_id}:r{objective_revision}"
+                attempt_payload={"autonomous_recovery_event_id":str(claimed["event_id"]),
+                    "autonomous_recovery_limit":1,
+                    "autonomous_recovery_code":self.AUTONOMOUS_LOCAL_RECOVERY_CODE}
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.reasoning_attempted',%s,'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (objective_id,attempt_key,json.dumps(attempt_payload,sort_keys=True,
+                        separators=(",",":"))))
+
+                cur.execute("""SELECT r.request_id,r.source_event_id FROM grace_recovery_decision_requests r
+                    WHERE r.objective_id=%s AND r.objective_revision=%s AND r.status='pending'
+                    ORDER BY r.created_at,r.request_id FOR UPDATE""",
+                    (objective_id, objective_revision))
+                pending = cur.fetchall()
+                for request in pending:
+                    cur.execute("""UPDATE grace_recovery_decision_requests
+                        SET status='superseded',decided_at=clock_timestamp()
+                        WHERE request_id=%s AND status='pending'""", (request["request_id"],))
+                    if cur.rowcount != 1:
+                        raise RuntimeError("pending_recovery_supersession_lost_race")
+                    cur.execute("""INSERT INTO grace_recovery_decision_events
+                        (request_id,source_event_id,objective_id,objective_revision,
+                         recovery_action,decision,actor_principal_id,authority_reference,
+                         reason,idempotency_key)
+                        VALUES (%s,%s,%s,%s,'retry_reasoning_once','supersede',
+                          'service:grace-execution',
+                          'policy:grace-autonomous-local-recovery.v1',%s,%s)
+                        ON CONFLICT (idempotency_key) DO NOTHING""",
+                        (request["request_id"], request["source_event_id"], objective_id,
+                         objective_revision,
+                         "Superseded by one exact-scope local criteria-binding recovery.",
+                         f"grace-auto-recovery-supersede:{request['request_id']}"))
+                return {"event_id": str(claimed["event_id"]),
+                    "missing_criterion_indices": indexes,
+                    "source_failure_sequence": failure["sequence"],"resumed":False}
+        except Exception as exc:
+            LOG.warning(json.dumps({"event":"grace_autonomous_recovery_claim_failed",
+                "objective_id":objective_id,"failure_type":type(exc).__name__},sort_keys=True))
+            return None
 
     def _claim_experiment_recovery(self, objective_id, objective_revision):
         """Atomically consume one exact, non-repeating use of the standing grant."""
@@ -827,7 +971,7 @@ class GraceExecutionService:
 
     def _record_reasoning_failure(self, objective_id, *, result=None, failure_type=None,
                                   detail_code=None, blocked_revision=None,
-                                  experiment_authorization=None):
+                                  experiment_authorization=None, diagnostic_context=None):
         status = getattr(getattr(result, "status", None), "value", None)
         detail_code = detail_code or getattr(result, "detail_code", None)
         request_id = getattr(result, "request_id", None)
@@ -845,6 +989,16 @@ class GraceExecutionService:
                    "runtime_revision": self._runtime_revision()}
         if type(blocked_revision) is int:
             payload["objective_revision"] = blocked_revision
+        if (detail_code == self.AUTONOMOUS_LOCAL_RECOVERY_CODE and
+                isinstance(diagnostic_context, Mapping)):
+            allowed = {"requested_count", "step_count", "step_criterion_count",
+                "unique_step_criterion_count", "system_owned_criterion_count",
+                "missing_approved_criterion_indices", "invalid_system_owned_criterion_indices",
+                "supplemental_step_criterion_count", "unapproved_supplemental_criterion_count",
+                "reason_codes"}
+            safe_diagnostic = {key: value for key, value in diagnostic_context.items()
+                if key in allowed and isinstance(value, (str, int, list))}
+            payload["criteria_binding_diagnostic"] = safe_diagnostic
         with self.pipeline.ledger.db.transaction():
             with self.pipeline.ledger.db.cursor() as cur:
                 self.pipeline.ledger._set_search_path(cur)

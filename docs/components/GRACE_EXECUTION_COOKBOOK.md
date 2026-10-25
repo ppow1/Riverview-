@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.35
+File Revision: 1.1.36
+Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document the exact one-shot local proposal recovery and shared monthly Luna reservation ceiling.
 Changed: 2026-10-25 UTC | RV-LOCAL-RELEASE-GATE-20261025 | Record local exact-commit qualification and Grace-only immutable release activation/rollback.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Require exact replayed grade and feedback evidence before S4 exception issuance.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Add read-only diagnostics and recovery steps for consumed-evaluation replay, bounded evidence handoff, and exhausted-rework CME suppression.
@@ -143,6 +144,37 @@ the persisted advisory-consumption event and retain the ordinary independent
 verifier gate on the same assignment. Treat unknown provider errors and
 unresolved API cost conservatively; do not infer zero spend from a failed
 response without usage data.
+
+## Bounded local proposal recovery and authority limits
+
+For one current \`GROUNDED\` objective revision with no assignment, the owner
+session may perform one local reasoning retry only after the persisted failure
+code \`PROPOSAL_CRITERIA_BINDING_REJECTED\`. The retry prompt uses the original
+criteria and only sanitized criterion-index diagnostics. An append-only
+\`execution.autonomous_recovery_authorized\` event binds the retry to the exact
+failure sequence and revision; the pending Steward retry request is marked
+\`superseded\` with an append-only service decision. The attempt and grant are
+committed together. A resumed owner session reuses that single recorded attempt;
+other failure codes, revisions, assignments, and repeated failures do not get
+another automatic reasoning retry. Nothing in this path approves a proposal,
+creates an assignment, changes criteria, spends provider budget, or authorizes
+deployment. Existing exact \`assignment.create\`, execution, and verification
+checks remain in force.
+
+The $5.00 UTC-calendar-month actual-plus-reserved ceiling is enforced across
+the existing Luna supervision and experiment grants under a PostgreSQL
+transaction advisory lock. Provider-specific per-request and grant limits
+remain narrower. The current accounting records Luna API costs and estimates;
+it is not a universal meter for subscription-based ChatGPT/Codex use or for
+local inference. Do not report those sources as globally spend-enforced until
+their actual cost and reservation data are present in an existing authoritative
+ledger.
+
+Grace has no registered production-deployment or repository-publication
+capability in this release. Existing institutional grants continue to block
+unapproved assignment creation, destructive data changes, publication, and
+hardware actions. A policy statement does not create a credential or grant;
+newly scoped authority must use the authenticated Steward mechanism.
 
 ## Request one verified-result rereview generation
 

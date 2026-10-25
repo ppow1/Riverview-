@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/cme/monitor.py
 # Component: CME
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Give a new blocked failure sequence a fresh idempotent CME attention key after bounded recovery.
 # Changed: 2026-10-24 UTC | RV-CME-GRACE-BLOCKED-OBJECTIVE-ESCALATION-20261024 | Detect durable Grace revision fences and append idempotent Steward escalation decisions.
 # Purpose: Observe durable assignment progress, deadlines, workers, and CME health
 # Execution Model: Continuous scheduled PostgreSQL polling with durable re-scan
@@ -238,7 +239,7 @@ class CMEPostgresMonitor:
             for blocked in cur.fetchall():
                 runtime_revision = blocked["runtime_revision"] or "unknown"
                 event_key = (f"grace-objective-blocked:{blocked['objective_id']}:"
-                    f"r{blocked['revision']}:{runtime_revision}")
+                    f"r{blocked['revision']}:{runtime_revision}:f{blocked['blocked_sequence']}")
                 details = {
                     "objective_id": blocked["objective_id"],
                     "objective_revision": blocked["revision"],

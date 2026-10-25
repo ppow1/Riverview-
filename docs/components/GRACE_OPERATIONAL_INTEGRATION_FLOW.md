@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.74
+**Document Revision:** 1.0.75
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Show lifecycle criteria separately, prioritize ready work, and gate conversation-origin completion on Grace review.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -102,7 +102,7 @@ flowchart LR
     g_rv_grace_operational_integration_proposal_validation_90e4c0ca["STRICT PROPOSAL VALIDATION — persist only a typed proposal after complete VERIFIED grounding and exact coverage of every original criterion; an omission leaves objective GROUNDED and records PROPOSAL_OMITS_ACCEPTANCE_CRITERIA"]
     g_rv_grace_operational_integration_work_order_authorization_829196dd["IMPLEMENTED — assignment.create exact grant precedes durable CME handoff"]
     g_rv_grace_operational_integration_independent_artifact_check_2502f001["Independent artifact verification checks assignment-bound integrity, scope, provenance, required structure, explicit deliverable literals, and rejects negative JSON decisions without treating envelope validity as substantive completion"]
-    g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — evidence failures remain pending; incomplete typed proposals remain GROUNDED with a sanitized detail code and resume through the persistent reasoning cycle after the prior plan is explicitly corrected; never bypass proposal or assignment authorization"]]
+    g_rv_grace_operational_integration_waiting_and_failure_0a7985d4[["IMPLEMENTED — one current unassigned GROUNDED revision with PROPOSAL_CRITERIA_BINDING_REJECTED may receive one audited local retry using unchanged criteria; its pending duplicate Steward retry is superseded with append-only history; other failures remain gated, and the proposal still cannot authorize assignment or execution"]]
     g_rv_grace_operational_integration_governed_objective_api_39b3aa23["Authenticated exact-grant request persists one receipt; VERIFIED grounding advances RECEIVED or WAITING_FOR_EVIDENCE to GROUNDED atomically, while incomplete evidence stays pending"]
     g_rv_grace_operational_integration_grounded_objective_cancellation_141266af["Authorized assignment.cancel may transition GROUNDED to CANCELLED only with an explicit reason and no objective assignment, ledger assignment, dispatch event, or active step; actor, reason, resulting revision, timestamp, and append-only event are retained. Existing WORK_ORDER_CREATED cancellation remains queued/ready-only."]
     g_rv_grace_operational_integration_typed_proposal_api_9e97178a["Typed PlanProposal is persisted only after verified grounding and complete acceptance criteria; proposal does not grant authority"]

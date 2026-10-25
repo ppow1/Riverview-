@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.9
+# Revision: 1.2.0
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Enforce a serialized UTC-month Luna actual-plus-reserved ceiling across existing grants.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Bind atomic retry consumption to root assignment and S3 step identity.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Consume the exact S3 retry exception atomically with provider admission.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025-HOTFIX | Avoid row locking on append-only grant events; unique consumption remains the concurrency fence.
@@ -77,6 +78,58 @@ class ExchangeUnauthorized(ExchangeError):
 
 class ExchangeExpired(ExchangeError):
     """The finite exchange deadline has passed."""
+
+
+def monthly_luna_usage(cur, month_start=None):
+    """Return actual, conservatively reserved, and UTC period totals across Luna grants."""
+    if month_start is None:
+        cur.execute("""SELECT date_trunc('month',clock_timestamp() AT TIME ZONE 'UTC')
+                                AT TIME ZONE 'UTC' AS month_start""")
+        month_start = cur.fetchone()["month_start"]
+    cur.execute("""WITH supervisory AS (
+            SELECT
+              COALESCE(sum((e.payload->>'cost_usd')::numeric) FILTER
+                (WHERE e.event_type='luna_settled'
+                  AND COALESCE((e.payload->>'cost_is_reserved_estimate')::boolean,false)=false
+                  AND e.occurred_at >= %s),0) AS actual,
+              COALESCE(sum((e.payload->>'cost_usd')::numeric) FILTER
+                (WHERE e.event_type='luna_settled'
+                  AND COALESCE((e.payload->>'cost_is_reserved_estimate')::boolean,false)=true
+                  AND e.occurred_at >= %s),0) AS estimated,
+              COALESCE(sum((e.payload->>'reserved_cost_usd')::numeric) FILTER
+                (WHERE e.event_type='luna_reserved' AND e.occurred_at >= %s
+                  AND NOT EXISTS (SELECT 1 FROM grace_supervisory_authorization_events s
+                    WHERE s.authorization_id=e.authorization_id
+                      AND s.event_type='luna_settled' AND s.request_id=e.request_id)),0) AS open
+            FROM grace_supervisory_authorization_events e
+          ), experiment AS (
+            SELECT
+              COALESCE(sum((e.payload->>'cost_usd')::numeric) FILTER
+                (WHERE e.event_type='luna_settled'
+                  AND COALESCE((e.payload->>'cost_is_reserved_estimate')::boolean,false)=false
+                  AND e.occurred_at >= %s),0) AS actual,
+              COALESCE(sum((e.payload->>'cost_usd')::numeric) FILTER
+                (WHERE e.event_type='luna_settled'
+                  AND COALESCE((e.payload->>'cost_is_reserved_estimate')::boolean,false)=true
+                  AND e.occurred_at >= %s),0) AS estimated,
+              COALESCE(sum((e.payload->>'reserved_cost_usd')::numeric) FILTER
+                (WHERE e.event_type='luna_reserved' AND e.occurred_at >= %s
+                  AND NOT EXISTS (SELECT 1 FROM grace_experiment_authorization_events s
+                    WHERE s.authorization_id=e.authorization_id
+                      AND s.event_type='luna_settled' AND s.request_id=e.request_id)),0) AS open
+            FROM grace_experiment_authorization_events e
+          ), prior_experiment AS (
+            SELECT COALESCE(sum(a.prior_spend_usd),0) AS actual
+            FROM grace_experiment_authorizations a WHERE a.activated_at >= %s
+          )
+          SELECT %s::timestamptz AS month_start,
+                 su.actual + ex.actual + pe.actual AS actual,
+                 su.estimated + ex.estimated AS estimated,
+                 su.open + ex.open AS open
+          FROM supervisory su CROSS JOIN experiment ex CROSS JOIN prior_experiment pe""",
+        (month_start, month_start, month_start, month_start, month_start,
+         month_start, month_start, month_start))
+    return cur.fetchone()
 
 
 @dataclass(frozen=True)
@@ -276,6 +329,8 @@ class DurableExternalReasoningExchange:
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self._set_path(cur)
+                if not self._reserve_global_monthly_luna_budget(cur, reserved_cost):
+                    return False
                 row = self._lock(cur, request_id, correlation_id)
                 if row["provider_id"] != "gpt-6-luna" or row["claim_owner"] != principal_id:
                     raise ExchangeUnauthorized("provider_attempt_route_mismatch")
@@ -297,6 +352,23 @@ class DurableExternalReasoningExchange:
                         "authorization_kind": authorization[0],
                         "authorization_id": authorization[1]})
                 return True
+
+    @staticmethod
+    def _reserve_global_monthly_luna_budget(cur, reserved_cost):
+        """Serialize all existing Luna grant paths under one UTC-month ceiling."""
+        if (not isinstance(reserved_cost, (int, float, Decimal)) or
+                Decimal(str(reserved_cost)) <= 0):
+            return False
+        cur.execute("""SELECT date_trunc('month',clock_timestamp() AT TIME ZONE 'UTC')
+                                AT TIME ZONE 'UTC' AS month_start""")
+        month_start = cur.fetchone()["month_start"]
+        month_key = month_start.strftime("%Y-%m")
+        cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
+                    ("riverview:ai-monthly-spend:" + month_key,))
+        usage = monthly_luna_usage(cur, month_start)
+        actual = usage["actual"]
+        reserved = usage["estimated"] + usage["open"]
+        return actual + reserved + Decimal(str(reserved_cost)) <= Decimal("5.00000000")
 
     @staticmethod
     def _is_supervisory_request(row):
