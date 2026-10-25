@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.71",
+      "graph_revision": "1.0.72",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3916,11 +3916,13 @@
         },
         {
           "id": "rv:grace:operational-integration:codex-persisted-criteria-verification",
-          "node_revision": "1.0.2",
+          "node_revision": "1.0.3",
           "type": "verification",
-          "label": "Verify Codex artifacts against the durable dispatch contract; reject authoritative negative JSON outcomes and check explicit content literals while excluding echoed acceptance metadata; missing contract fields fail closed",
+          "label": "Verify Codex artifacts against the durable dispatch contract; check both step and per-artifact criteria separately from integrity; reject unsupported criteria and authoritative negative JSON; explicit GitHub/repository publication requirements fail closed without an authorized publisher and independent remote-content proof",
           "source_references": [
             "src/riverview_core/resident_execution/codex_workflow.py",
+            "src/riverview_core/resident_execution/codex_cli.py",
+            "src/riverview_core/resident_execution/verifier.py",
             "src/riverview_core/resident_execution/pipeline.py",
             "scripts/run_grace_execution_service.py"
           ],

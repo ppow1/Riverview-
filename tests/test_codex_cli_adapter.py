@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.15
+# Revision: 1.2.16
+# Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Cover fail-closed unsupported criteria and repository publication evidence.
 # Changed: 2026-10-25 UTC | RV-GRACE-ASSIGNMENT-EVIDENCE-HANDOFF-20261025 | Cover requirement-selected S3/S4/S5 evidence and pre-attempt evidence gating.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Prove non-S3 rework avoids the S3-only CME recovery evidence reader and still attaches its exact performance evaluation.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-HANDOFF-20261025 | Verify only bounded server-derived Luna evaluation facts are attached to S4 rework.
@@ -513,9 +514,9 @@ class CodexCLIAdapterTests(unittest.TestCase):
     def test_multiple_assignment_artifacts_support_json_and_csv_without_markdown_assumptions(self):
         requirements = (
             ArtifactRequirement("summary", "results/summary.json", "application/json",
-                ("The summary has a boolean ok field.",)),
+                ("The summary contains exact phrase 'ready'.",)),
             ArtifactRequirement("rows", "results/rows.csv", "text/csv",
-                ("The rows include a header and one result.",)),
+                ("The rows contain exact phrase 'id,value'.",)),
         )
         requirement_data = [{"name": item.name, "path": item.path,
             "media_type": item.media_type, "acceptance_criteria": list(item.acceptance_criteria),
@@ -529,7 +530,9 @@ class CodexCLIAdapterTests(unittest.TestCase):
                         "source_sha256": "a" * 64}, "proposal": {"steps": [{
                             "objective": "Create report files", "acceptance_criteria": ["Complete" ]}]}}
             def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
-                return {"objective": "Create report files", "acceptance_criteria": ["Complete"],
+                return {"objective": "Create report files", "acceptance_criteria": [
+                    "The summary contains exact phrase 'ready'.",
+                    "The rows contain exact phrase 'id,value'."],
                     "artifact_requirements": requirement_data}
         pipeline = Pipeline()
         assignment = {"id": "assignment:test-1", "objective_ref": "objective:test-1"}
@@ -537,6 +540,15 @@ class CodexCLIAdapterTests(unittest.TestCase):
             source_references=("repo://docs/example.md",), source_revision=self.revision,
             source_sha256="b" * 64, retrieval_complete=True)
         result = CodexWorkAction(pipeline, self.adapter(), "repo://example/test", 5)(assignment, grounded)
+        summary_entry = result["artifacts"][0]
+        summary_bytes = b'{"ok":true,"summary":"ready"}'
+        summary_path = self.artifacts / summary_entry["storage_name"]
+        summary_path.write_bytes(summary_bytes)
+        summary_path.chmod(0o600)
+        summary_entry["bytes"] = len(summary_bytes)
+        summary_entry["sha256"] = hashlib.sha256(summary_bytes).hexdigest()
+        result["artifact_bytes"] = len(summary_bytes)
+        result["artifact_sha256"] = summary_entry["sha256"]
         self.assertEqual([item["path"] for item in result["artifacts"]],
             ["results/summary.json", "results/rows.csv"])
         self.assertEqual([item["media_type"] for item in result["artifacts"]],
@@ -547,7 +559,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
         verification = CodexArtifactVerifier(self.artifacts, pipeline).verify(assignment,
             {"status": "succeeded", "capability": CAPABILITY,
              "attempt_id": "attempt:multi-artifact"}, result)
-        self.assertEqual(verification.status.value, "ACCEPTED")
+        self.assertEqual(verification.status.value, "ACCEPTED", dict(verification.criteria))
         changed = dict(result)
         changed["artifact_contract"] = [dict(item) for item in result["artifact_contract"]]
         changed["artifact_contract"][0]["acceptance_criteria"] = ["unauthorized criterion"]
@@ -568,7 +580,8 @@ class CodexCLIAdapterTests(unittest.TestCase):
             "max_bytes": 32768}
         class Pipeline:
             def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
-                return {"artifact_requirements": [requirement]}
+                return {"acceptance_criteria": requirement["acceptance_criteria"],
+                    "artifact_requirements": [requirement]}
 
         storage_dir = "codex-" + sha256(assignment_id.encode()).hexdigest()
         basename = sha256(requirement["name"].encode()).hexdigest()[:12]
@@ -620,6 +633,54 @@ class CodexCLIAdapterTests(unittest.TestCase):
         accepted = verifier.verify(assignment, attempt,
             result_for('{"decision":"ACCEPTED","report":"verified delivery"}'))
         self.assertEqual(accepted.status.value, "ACCEPTED", dict(accepted.criteria))
+        self.assertTrue(accepted.criteria["all_acceptance_criteria_supported"])
+        self.assertTrue(accepted.criteria["explicit_artifact_acceptance_clauses_satisfied"])
+
+        requirement["acceptance_criteria"] = [
+            "Explain that production deployment was independently verified."]
+        unsupported = verifier.verify(assignment, attempt,
+            result_for('{"report":"Production deployment was independently verified."}'))
+        self.assertEqual(unsupported.status.value, "REJECTED")
+        self.assertFalse(unsupported.criteria["all_acceptance_criteria_supported"])
+
+        requirement["acceptance_criteria"] = [
+            "Cite `reports/decision.json` and state that production deployment was independently verified."]
+        citation_only = verifier.verify(assignment, attempt,
+            result_for('{"report":"reports/decision.json was independently checked."}'))
+        self.assertEqual(citation_only.status.value, "REJECTED")
+        self.assertFalse(citation_only.criteria["all_acceptance_criteria_supported"])
+
+        requirement["acceptance_criteria"] = [
+            "Commit the deliverable to GitHub with commit SHA, exact repository path, and "
+            "confirmation that remote content matches the delivered artifact."]
+        missing_publication = verifier.verify(assignment, attempt,
+            result_for('{"report":"verified delivery"}'))
+        self.assertEqual(missing_publication.status.value, "REJECTED")
+        self.assertFalse(missing_publication.criteria[
+            "required_repository_publication_independently_verified"])
+        self.assertFalse(missing_publication.criteria[
+            "repository_publication_receipt_consistent"])
+        mismatched_publication = result_for('{"report":"verified delivery"}')
+        mismatched_publication["publication_evidence"] = {
+            "commit_sha": "d" * 40, "repository_path": "reports/decision.json",
+            "remote_sha256": "0" * 64,
+            "delivered_sha256": mismatched_publication["artifact_sha256"]}
+        mismatched = verifier.verify(assignment, attempt, mismatched_publication)
+        self.assertEqual(mismatched.status.value, "REJECTED")
+        self.assertFalse(mismatched.criteria[
+            "required_repository_publication_independently_verified"])
+        self.assertFalse(mismatched.criteria["repository_publication_receipt_consistent"])
+
+        worker_claimed_match = result_for('{"report":"verified delivery"}')
+        worker_claimed_match["publication_evidence"] = {
+            "commit_sha": "d" * 40, "repository_path": "reports/decision.json",
+            "remote_sha256": worker_claimed_match["artifact_sha256"],
+            "delivered_sha256": worker_claimed_match["artifact_sha256"]}
+        unverified = verifier.verify(assignment, attempt, worker_claimed_match)
+        self.assertEqual(unverified.status.value, "REJECTED")
+        self.assertTrue(unverified.criteria["repository_publication_receipt_consistent"])
+        self.assertFalse(unverified.criteria[
+            "required_repository_publication_independently_verified"])
 
     def test_recovery_finds_assignment_bound_extensionless_multi_artifact_set(self):
         assignment_id = "assignment:recovery-dynamic-artifacts"
@@ -763,12 +824,12 @@ class CodexCLIAdapterTests(unittest.TestCase):
             def proposal_step_for_assignment(self, objective_id, assignment_id):
                 self.assertion = (objective_id, assignment_id)
                 return {"objective": "Create bounded Markdown.",
-                        "acceptance_criteria": ["The report contains a verified summary."],
+                        "acceptance_criteria": ["The report contains exact phrase 'Verified fixture'."],
                         "depends_on": [], "execution_capability": CAPABILITY,
                         "authorized_paths": [], "test_targets": [],
                         "artifact_requirements": [{"name":"report", "path":"reports/summary.txt",
                             "media_type":"text/plain", "acceptance_criteria":[
-                                "The report contains a verified summary."], "max_bytes":32768}]}
+                                "The report contains exact phrase 'Verified fixture'."], "max_bytes":32768}]}
         adapter = self.adapter()
         pipeline = Pipeline()
         action = CodexWorkAction(pipeline, adapter, "repo://example/test", 5)
@@ -806,13 +867,13 @@ class CodexCLIAdapterTests(unittest.TestCase):
                     "source_sha256": "a" * 64, "evidence": {"status": "VERIFIED",
                         "source_revision": revision, "source_sha256": "a" * 64},
                     "proposal": {"steps": [{"objective": "Create bounded Markdown.",
-                        "acceptance_criteria": ["The report contains a verified summary."]}]}}
+                    "acceptance_criteria": ["The report contains exact phrase 'Verified fixture'."]}]}}
             def proposal_step_for_assignment(self, _objective_id, _assignment_id):
                 return {"objective": "Create bounded report",
-                    "acceptance_criteria": ["The report contains a verified summary."],
+                    "acceptance_criteria": ["The report contains exact phrase 'Verified fixture'."],
                     "artifact_requirements": [{"name":"report", "path":"reports/summary.txt",
                     "media_type":"text/plain", "acceptance_criteria":[
-                        "The report contains a verified summary."], "max_bytes":32768}]}
+                        "The report contains exact phrase 'Verified fixture'."], "max_bytes":32768}]}
         revision = self.revision
         adapter = self.adapter()
         action = CodexWorkAction(Pipeline(), adapter, "repo://example/test", 5)
@@ -867,8 +928,9 @@ class CodexCLIAdapterTests(unittest.TestCase):
         verification = verifier.verify({"id": "assignment:test-1",
             "objective_ref": "objective:test-1"}, {"status": "succeeded",
             "capability": CAPABILITY, "attempt_id": "attempt:substantive"}, result)
-        self.assertEqual(verification.status.value, "ACCEPTED")
+        self.assertEqual(verification.status.value, "REJECTED")
         self.assertTrue(verification.criteria["authorized_acceptance_criteria_bound"])
+        self.assertFalse(verification.criteria["all_acceptance_criteria_supported"])
         self.assertNotIn("acceptance_criteria_are_present", verification.criteria)
 
         review = verifier.read_artifact_for_grace_review("assignment:test-1", result)
