@@ -1,0 +1,22 @@
+/* Revision: 1.0.0 */
+.overview-live{margin:20px 0 30px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.overview-live-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+.overview-live-heading h2{margin:2px 0 6px;font-size:22px}
+.overview-live-heading p{margin:0;color:var(--muted)}
+.overview-live-heading button,.overview-live-link{min-height:40px;padding:9px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-weight:650;cursor:pointer}
+.overview-live-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:12px}
+.overview-live-card{min-width:0;padding:15px;border:1px solid var(--line);border-radius:13px;background:var(--surface-2,var(--surface));display:flex;flex-direction:column;gap:9px}
+.overview-live-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.overview-live-card h3{margin:0;font-size:15px}
+.overview-live-badge{flex:none;padding:4px 8px;border-radius:999px;background:var(--line);font-size:10px;font-weight:750;text-transform:uppercase}
+.overview-live-card[data-state="healthy"],.overview-live-card[data-state="available"],.overview-live-card[data-state="current"]{border-color:#74b998}
+.overview-live-card[data-state="stale"],.overview-live-card[data-state="degraded"]{border-color:#d4a442}
+.overview-live-card[data-state="denied"],.overview-live-card[data-state="unavailable"],.overview-live-card[data-state="unauthenticated"]{border-color:#c87979}
+.overview-live-summary{font-size:18px;line-height:1.35;overflow-wrap:anywhere}
+.overview-live-detail{margin:0;color:var(--muted);font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.overview-live-source,.overview-live-time{color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+.overview-live-link{align-self:flex-start;margin-top:2px;font-size:12px}
+.overview-live-link:hover,.overview-live-heading button:hover{border-color:var(--accent);color:var(--accent)}
+.overview-live-footnote{margin:13px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+.overview-live-label{align-self:center;color:var(--muted);font-size:12px}
+@media(max-width:600px){.overview-live{padding:13px}.overview-live-heading{align-items:flex-start}.overview-live-heading h2{font-size:19px}.overview-live-grid{grid-template-columns:1fr}.overview-live-label{display:none}}

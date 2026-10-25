@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/workspace.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.3.0
+Revision: 1.4.0
 Purpose: Render workspace navigation, resident selection, and V2 monitor views
 Execution Model: Interactive browser event handlers; page lifecycle is browser-owned
 Observability: Selected view and resident state in DOM; Snapshot reports the active view
@@ -16,6 +16,7 @@ Changed: 2026-10-25 UTC | RV-V2-INSTITUTIONAL-PROPOSALS-20261025 | Route the rea
 Changed: 2026-10-25 UTC | RV-V2-RESIDENT-PERMISSIONS-20261025 | Add V2 navigation to the existing resident permission profile API.
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Route the bounded account administration view through the existing account APIs.
 Changed: 2026-10-25 UTC | RV-V2-BATCH1-20261025 | Add the live authority-backed Residents view and tabbed central Settings workspace.
+Changed: 2026-10-26 UTC | RV-V2-LIVE-OVERVIEW-20261026 | Route Overview to live operational projections and suppress obsolete workspace fixture summaries.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -23,7 +24,7 @@ History: Git and revision/backup manifest
 (() => {
   "use strict";
   const fixtures = window.RIVERVIEW_V2_FIXTURES;
-  const labels = { overview: "Workspace overview", residents: "Residents", settings: "Settings", work: "Work", "institutional-proposals": "Institutional proposals", "resident-permissions": "Resident permissions", "account-administration": "Account administration", "process-workflows": "Process workflows", documentation: "Documentation and diagnostics", roadmap: "Living Roadmap", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
+  const labels = { overview: "Operational overview", residents: "Residents", settings: "Settings", work: "Work and Engineering Progress", "institutional-proposals": "Institutional proposals", "resident-permissions": "Resident permissions", "account-administration": "Account administration", "process-workflows": "Process workflows", documentation: "Documentation and diagnostics", roadmap: "Living Roadmap", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
   const nav = document.getElementById("primary-nav");
   const area = document.getElementById("view-content");
   const title = document.getElementById("page-title");
@@ -120,6 +121,9 @@ History: Git and revision/backup manifest
     document.querySelector(".welcome-row").hidden = isRoadmap || isResidents || isSettings;
     document.getElementById("snapshot-status").hidden = isRoadmap || isResidents || isSettings;
     document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isRoadmap || isProposals || isResidentPermissions || isAccountAdministration || isProcessWorkflows || isDocumentation || isResidents || isSettings;
+    document.getElementById("website-verification").hidden = view !== "overview";
+    document.getElementById("overview-live").hidden = view !== "overview";
+    document.getElementById("operational-drilldown-heading").hidden = view === "overview";
     document.getElementById("manual-image-workspace").hidden = !isImageGeneration;
     document.getElementById("grace-workspace").hidden = !isGrace;
     document.getElementById("communications-workspace").hidden = !isCommunications;
@@ -135,7 +139,8 @@ History: Git and revision/backup manifest
     document.getElementById("resident-directory-workspace").hidden = !isResidents;
     document.getElementById("capability-registry-workspace").hidden = true;
     document.getElementById("settings-workspace").hidden = !isSettings;
-    heading.textContent = view === "overview" ? "Workspace examples" : isWork ? "Workspace examples" : labels[view] || labels.residents;
+    area.hidden = view === "overview" || isWork;
+    heading.textContent = labels[view] || labels.residents;
     if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isRoadmap && !isProposals && !isResidentPermissions && !isAccountAdministration && !isProcessWorkflows && !isDocumentation && !isResidents && !isSettings) {
       area.replaceChildren();
       if (view === "overview") {
@@ -165,6 +170,7 @@ History: Git and revision/backup manifest
         area.append(list);
       }
     }
+    if (view === "overview") window.RiverviewV2Overview?.render();
     if (isResources) window.RiverviewV2ResourceMonitor?.render();
     if (isWork) window.RiverviewV2WorkMonitor?.render();
     if (isRoadmap) window.RiverviewV2LivingRoadmap?.render();
