@@ -1,0 +1,23 @@
+{
+  "capability_id": "resident.status.read",
+  "description": "Read bounded institutional status projections",
+  "operation": "resident.status.read",
+  "owner_office": "office:grace",
+  "implementation_ref": "dashboard.projection.v1",
+  "dependencies": ["riverview.status-dashboard"],
+  "approval_default": false,
+  "enabled": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [],
+    "properties": {}
+  },
+  "authorization_contract": {
+    "mode": "exact_grant",
+    "action": "resident.status.read",
+    "scope_policy": "exact_scope"
+  },
+  "availability_policy": "executor_and_worker_health",
+  "registration_blocker": null
+}

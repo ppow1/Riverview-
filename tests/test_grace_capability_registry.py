@@ -63,11 +63,13 @@ class _Authorizer:
         if (action, scope) not in {
                 ("office.state.write", "office:office:grace"),
                 ("objective.submit", "work-order:engineering"),
-                ("resident.status.read", "institution:riverview")}:
+                ("resident.status.read", "institution:riverview"),
+                ("pending.website.account.session.read", "institution:riverview")}:
             raise GrantDenied("exact grant missing")
         grant = {"office.state.write": "grant:office-state",
                  "objective.submit": "grant:objective-submit",
-                 "resident.status.read": "grant:status-read"}[action]
+                 "resident.status.read": "grant:status-read",
+                 "pending.website.account.session.read": "grant:test-session-boundary"}[action]
         return {"principal_id": "resident:grace", "grant_id": grant}
 
 
@@ -101,6 +103,8 @@ class _State:
             "owner_office": "office:grace",
             "implementation_ref": "AuthorityRegistry.set_office_state.v1",
             "dependencies": [], "resources": [], "enabled": True,
+            "authorization_contract": {"mode": "exact_grant",
+                "action": "office.state.write", "scope_policy": "exact_scope"},
             "input_schema": {"type": "object", "additionalProperties": False,
                 "required": ["expected_revision", "state"],
                 "properties": {"expected_revision": {"type": "integer", "minimum": 1},
@@ -168,6 +172,8 @@ class GraceCapabilityRegistryTests(unittest.TestCase):
             "authority_action": "resident.status.read", "owner_office": "office:grace",
             "implementation_ref": "dashboard.projection.v1", "dependencies": [],
             "resources": [{"resource_id": "institution:riverview"}], "enabled": True,
+            "authorization_contract": {"mode": "exact_grant",
+                "action": "resident.status.read", "scope_policy": "exact_scope"},
             "input_schema": {"type": "object", "additionalProperties": False,
                               "required": [], "properties": {}},
         })
@@ -199,6 +205,8 @@ class GraceCapabilityRegistryTests(unittest.TestCase):
             "authority_action": "objective.submit", "owner_office": "office:grace",
             "implementation_ref": "grace.execution-pipeline.v1",
             "dependencies": [], "resources": [], "enabled": True,
+            "authorization_contract": {"mode": "exact_grant",
+                "action": "objective.submit", "scope_policy": "exact_scope"},
             "input_schema": {"type": "object", "additionalProperties": False,
                 "required": ["objective_id", "request", "acceptance_criteria"],
                 "properties": {"objective_id": {"type": "string"},
@@ -226,6 +234,9 @@ class GraceCapabilityRegistryTests(unittest.TestCase):
             "authority_action": "example.use", "owner_office": "office:grace",
             "implementation_ref": "uninstalled.adapter.v1", "dependencies": [],
             "resources": [], "enabled": True, "input_schema": None,
+            "authorization_contract": {"mode": "exact_grant",
+                "action": "example.use", "scope_policy": "exact_scope"},
+            "registration_blocker": "executor_not_installed",
         })
         result = tools.call("riverview_capability_discover", {})
         self.assertEqual(result["status"], "ok")
@@ -237,6 +248,35 @@ class GraceCapabilityRegistryTests(unittest.TestCase):
                          if item["capability_id"] == "example.new.v1")
         self.assertEqual(new_entry["authorization_status"], "not_authorized")
         self.assertFalse(new_entry["invocable"])
+        self.assertEqual(new_entry["registration_blocker"], "executor_not_installed")
+
+    def test_unsupported_authorization_contract_is_visible_and_never_selectable(self):
+        self.state.catalog.append({
+            "capability_id": "website.account.session.read",
+            "description": "Read an authenticated Steward account session",
+            "authority_action": "pending.website.account.session.read",
+            "owner_office": "office:steward",
+            "implementation_ref": "dashboard.account-session.v1",
+            "dependencies": [], "resources": [], "enabled": False,
+            "input_schema": {"type": "object", "properties": {}, "required": []},
+            "authorization_contract": {"mode": "authenticated_account_session",
+                "reason": "requires caller browser session"},
+            "registration_blocker": "executor_and_session_authorization_not_supported",
+        })
+        snapshot = self.registry.snapshot()
+        item = next(row for row in snapshot["capabilities"]
+                    if row["capability_id"] == "website.account.session.read")
+        self.assertEqual(item["authorization_contract"]["mode"],
+                         "authenticated_account_session")
+        self.assertEqual(item["invocation_blocker"],
+                         "executor_and_session_authorization_not_supported")
+        self.assertNotIn(item["capability_id"],
+                         {tool["name"] for tool in self.registry.tool_specs()})
+        self.state.grants.append(("resident:grace",
+            "pending.website.account.session.read", "institution:riverview"))
+        result = self.registry.invoke(item["capability_id"], {
+            "scope_ref": "institution:riverview", "input": {}})
+        self.assertEqual(result["error"]["code"], "capability_registration_blocked")
 
     def test_dynamic_capability_name_is_selected_from_current_registry(self):
         selected = GraceModelRouter._required_internal_tool(

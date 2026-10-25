@@ -359,6 +359,8 @@ class RuntimeBaselineTests(unittest.TestCase):
             "src/riverview_core/resident_execution/external_reasoning.py",
             "src/riverview_core/resident_execution/migrations/0011_external_reasoning_exchange.sql",
             "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql",
+            "src/riverview_core/institutional_authority/migrations/0015_deployed_capability_declarations.sql",
+            "src/riverview_core/institutional_authority/capability_declarations/resident_status_read.json",
         )
         with tempfile.TemporaryDirectory() as folder:
             isolated = Path(folder) / "repo"

@@ -868,3 +868,27 @@ recovery authorization and post-snapshot write reconciliation.
 Production authority migration 0009 is applied and verified. The ledger contains 0000–0009 with expected checksums, including `0009_worker_registration_retirement_event` SHA-256 `0b5aa767a0209b22ec476721da02c47618443ee1b06e752aa1e416f6dbccaef6`. It only extends the authority event type constraint. It does not retire registrations or change grants.
 
 The separately authorized guarded helper failed closed with `InsufficientPrivilege`. The manager role has no `USAGE` on `riverview_dev`, no `SELECT` on `worker_registry`, and no table or column `UPDATE`. No fallback role or ad hoc grant was used, so the worker registry and authority event history were unchanged. The active-release pointer was not changed. Before resuming retirement, establish and review a narrow authorized execution boundary; do not grant these broad schema/table privileges merely to satisfy the helper.
+
+### Automatic executable-capability registration
+
+Each release that adds or changes an executable operation ships one JSON
+declaration under
+`src/riverview_core/institutional_authority/capability_declarations/`. The
+declaration identifies the operation, existing executor, typed input schema,
+exact authorization contract, and any registration blocker. The ordinary
+checksum-pinned authority migration procedure calls the existing catalog
+reconciler after schema migrations, including on no-op migration runs. It
+upserts these metadata fields in `capability_catalog`; it does not touch
+`authority_grants` or resident profiles. The reconciler is invoker-security,
+has no PUBLIC/runtime EXECUTE grant, and is called by the privileged migration
+caller. Grace's existing registry bridge reads the updated catalog on its next
+discovery/tool-selection pass.
+
+For a capability with no compatible executor or authorization contract, ship
+an explicit disabled declaration with a `registration_blocker`; the record
+stays visible and Grace does not receive it as a selectable tool. Website
+releases declare underlying operations only, never screens. Add the declaration
+to the release package and run the standard authority migration application
+for that release before activating it. Package validation checks that the
+reconciler migration and declarations are included. No grant is created by
+registration.

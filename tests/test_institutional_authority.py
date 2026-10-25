@@ -24,7 +24,10 @@
 
 import os
 import hashlib
+import json
 import secrets
+import shutil
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -86,6 +89,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0012_grace_supervisory_authority",
             "0013_grace_capability_registry_read",
             "0014_resident_status_read_schema",
+            "0015_deployed_capability_declarations",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         with self.admin.cursor() as cur:
@@ -96,12 +100,131 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "type": "object", "additionalProperties": False,
             "required": [], "properties": {},
         })
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT authority_action,implementation_ref,authorization_contract,"
+                        f"registration_blocker,declaration_source "
+                        f"FROM {self.schema}.capability_catalog "
+                        "WHERE capability_id='resident.status.read'")
+            declaration = cur.fetchone()
+        self.assertEqual(declaration[0], "resident.status.read")
+        self.assertEqual(declaration[1], "dashboard.projection.v1")
+        self.assertEqual(declaration[2]["mode"], "exact_grant")
+        self.assertIsNone(declaration[3])
+        self.assertEqual(declaration[4], "resident_status_read.json")
         if os.geteuid() != 0:
             with self.assertRaises(AuthorityDenied):
                 self.registry.bootstrap_steward("steward:second")
         else:
             with self.assertRaises(IdentityConflict):
                 self.registry.bootstrap_steward("steward:second")
+
+    def test_deployed_declarations_register_update_and_record_blockers(self):
+        import psycopg
+        from psycopg import sql
+        from riverview_core.postgres_migrations import apply_migrations
+
+        source_migrations = (Path(__file__).resolve().parents[1]
+                             / "src/riverview_core/institutional_authority/migrations")
+        with tempfile.TemporaryDirectory(prefix="rv-capability-declaration-test-") as temp:
+            component = Path(temp) / "institutional_authority"
+            migrations = component / "migrations"
+            declarations = component / "capability_declarations"
+            migrations.mkdir(parents=True)
+            declarations.mkdir()
+            for source in source_migrations.glob("*.sql"):
+                shutil.copyfile(source, migrations / source.name)
+            registered = {
+                "capability_id": "estate.proposal.read.v1",
+                "description": "Read a proposal through the existing authorized API",
+                "operation": "proposal.read",
+                "owner_office": "office:steward",
+                "implementation_ref": "unavailable:website-proposal-api",
+                "dependencies": ["institutional-proposals-api"],
+                "approval_default": False,
+                "input_schema": {"type": "object", "additionalProperties": False,
+                    "required": ["proposal_id"], "properties": {
+                        "proposal_id": {"type": "string", "minLength": 1,
+                                         "maxLength": 128}}},
+                "authorization_contract": {"mode": "authenticated_account_session",
+                    "reason": "existing Steward-account session boundary"},
+                "availability_policy": "executor_and_worker_health",
+                "registration_blocker": "no_session_compatible_registry_executor",
+                "enabled": False,
+            }
+            declaration_file = declarations / "estate_proposal_read.json"
+            declaration_file.write_text(json.dumps(registered), encoding="utf-8")
+            schema = "rvtest_capdecl_" + uuid4().hex
+            self.admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
+            try:
+                self.assertEqual(len(apply_migrations(
+                    DSN, schema=schema, migrations_dir=migrations)), len(list(migrations.glob("*.sql"))))
+                with self.admin.cursor() as cur:
+                    cur.execute(sql.SQL("SELECT input_schema,authorization_contract,"
+                                        "declaration_source,declaration_source_commit,"
+                                        "enabled,registration_blocker "
+                                        "FROM {}.capability_catalog WHERE capability_id=%s").format(
+                                            sql.Identifier(schema)), (registered["capability_id"],))
+                    row = cur.fetchone()
+                self.assertEqual(row[0], registered["input_schema"])
+                self.assertEqual(row[1], registered["authorization_contract"])
+                self.assertEqual(row[2], declaration_file.name)
+                self.assertFalse(row[4])
+                self.assertEqual(row[5], registered["registration_blocker"])
+                with self.admin.cursor() as cur:
+                    cur.execute(sql.SQL("SELECT {}.list_capability_registry()").format(
+                        sql.Identifier(schema)))
+                    live_catalog = cur.fetchone()[0]
+                    cur.execute(sql.SQL("SELECT p.prosecdef, EXISTS ("
+                                        "SELECT 1 FROM pg_catalog.aclexplode(p.proacl) acl "
+                                        "WHERE acl.grantee=0 AND acl.privilege_type='EXECUTE') "
+                                        "FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n "
+                                        "ON n.oid=p.pronamespace WHERE n.nspname=%s "
+                                        "AND p.proname='reconcile_capability_declarations'"),
+                                (schema,))
+                    reconciliation_acl = cur.fetchone()
+                self.assertIn(registered["capability_id"],
+                              {item["capability_id"] for item in live_catalog})
+                self.assertEqual(reconciliation_acl, (False, False))
+                with self.admin.cursor() as cur:
+                    cur.execute(sql.SQL("SELECT count(*) FROM {}.authority_grants").format(
+                        sql.Identifier(schema)))
+                    self.assertEqual(cur.fetchone()[0], 0)
+
+                # Reconciliation runs on a no-op migration pass and picks up a
+                # changed declaration shipped by the next feature release.
+                registered["description"] = "Updated proposal read contract"
+                declaration_file.write_text(json.dumps(registered), encoding="utf-8")
+                self.assertEqual(apply_migrations(
+                    DSN, schema=schema, migrations_dir=migrations), [])
+                with self.admin.cursor() as cur:
+                    cur.execute(sql.SQL("SELECT description FROM {}.capability_catalog "
+                                        "WHERE capability_id=%s").format(sql.Identifier(schema)),
+                                (registered["capability_id"],))
+                    self.assertEqual(cur.fetchone()[0], registered["description"])
+
+                blocked = dict(registered, capability_id="website.account.session.admin",
+                    description="Account administration requiring a Steward session",
+                    operation="pending.website.account.session.admin",
+                    implementation_ref="unavailable:account-session-api",
+                    authorization_contract={"mode": "authenticated_account_session",
+                                            "reason": "preserve caller session"},
+                    enabled=False,
+                    registration_blocker="executor_and_session_authorization_not_supported")
+                (declarations / "website_account_session.json").write_text(
+                    json.dumps(blocked), encoding="utf-8")
+                self.assertEqual(apply_migrations(
+                    DSN, schema=schema, migrations_dir=migrations), [])
+                with self.admin.cursor() as cur:
+                    cur.execute(sql.SQL("SELECT enabled,registration_blocker,authorization_contract "
+                                        "FROM {}.capability_catalog WHERE capability_id=%s").format(
+                                            sql.Identifier(schema)), (blocked["capability_id"],))
+                    row = cur.fetchone()
+                self.assertFalse(row[0])
+                self.assertEqual(row[1], blocked["registration_blocker"])
+                self.assertEqual(row[2]["mode"], "authenticated_account_session")
+            finally:
+                self.admin.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                    sql.Identifier(schema)))
 
     def test_experiment_grant_requires_authenticated_exact_grant_and_is_idempotent(self):
         from datetime import datetime, timedelta, timezone
