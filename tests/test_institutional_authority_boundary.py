@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.30
+# Revision: 1.0.31
+# Changed: 2026-10-25 UTC | C3-PR302-MIGRATION-COMPATIBILITY | Verify the legacy capability trigger is allowlisted only after migration 0015.
 # Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Verify migration 0015 adds only its private boundary function after application
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
@@ -51,7 +52,9 @@ class PreflightDiagnosticTests(unittest.TestCase):
     def test_deployment_reconciler_is_allowlisted_only_after_migration_0015(self):
         from riverview_core.institutional_authority.db_boundary import (
             DEPLOYMENT_REGISTRATION_FUNCTIONS,
+            DEPLOYMENT_TRIGGER_FUNCTIONS,
             _deployment_registration_functions_for_migration,
+            _deployment_trigger_functions_for_migration,
         )
 
         class Cursor:
@@ -66,6 +69,10 @@ class PreflightDiagnosticTests(unittest.TestCase):
             Cursor(False), "rvtest_authority"), {})
         self.assertEqual(_deployment_registration_functions_for_migration(
             Cursor(True), "rvtest_authority"), DEPLOYMENT_REGISTRATION_FUNCTIONS)
+        self.assertEqual(_deployment_trigger_functions_for_migration(
+            Cursor(False), "rvtest_authority"), {})
+        self.assertEqual(_deployment_trigger_functions_for_migration(
+            Cursor(True), "rvtest_authority"), DEPLOYMENT_TRIGGER_FUNCTIONS)
 
     def test_boundary_preflight_reports_safe_static_reason(self):
         from scripts.provision_authority_boundary import _safe_error_detail

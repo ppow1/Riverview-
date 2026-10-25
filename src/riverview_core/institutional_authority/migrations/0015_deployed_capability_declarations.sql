@@ -2,10 +2,11 @@
 -- RIVERVIEW~ CONTROLLED SQL MIGRATION
 -- File: src/riverview_core/institutional_authority/migrations/0015_deployed_capability_declarations.sql
 -- Component: INSTITUTIONAL-AUTHORITY
--- Revision: 1.0.0
+-- Revision: 1.0.1
 -- Purpose: Reconcile release-shipped executable capability declarations into the existing catalog
 -- Execution Model: Privileged deployment caller invokes a bounded SECURITY INVOKER function
 -- Authority: Does not create, alter, or revoke AuthorityRegistry grants
+-- Compatibility: Preserve the legacy Steward criteria-reconciliation registration with its exact-grant contract
 -- =============================================================================
 DO $migration$
 DECLARE authority_schema text := current_schema();
@@ -20,6 +21,39 @@ BEGIN
           ADD COLUMN IF NOT EXISTS availability_policy TEXT NOT NULL
             DEFAULT 'executor_and_worker_health'
     $ddl$, authority_schema);
+    -- Resident-execution migration 0015 is already checksum-pinned and inserts
+    -- this one legacy capability without the columns introduced here. Preserve
+    -- its exact-grant semantics at the table boundary; all other insertions
+    -- must provide an authorization contract explicitly.
+    EXECUTE format($ddl$
+        CREATE FUNCTION %I.fill_legacy_criteria_reconcile_authorization_contract()
+        RETURNS trigger LANGUAGE plpgsql
+        SET search_path=pg_catalog,pg_temp
+        AS $function$
+        BEGIN
+          IF NEW.authorization_contract IS NULL THEN
+            IF NEW.capability_id IS DISTINCT FROM 'steward.objective.criteria.reconcile'
+               OR NEW.authority_action IS DISTINCT FROM 'objective.criteria.reconcile' THEN
+              RAISE EXCEPTION 'capability_authorization_contract_required';
+            END IF;
+            NEW.authorization_contract := pg_catalog.jsonb_build_object(
+              'mode','exact_grant',
+              'action',NEW.authority_action,
+              'scope_policy','exact_scope');
+          END IF;
+          RETURN NEW;
+        END
+        $function$
+    $ddl$, authority_schema);
+    EXECUTE format($ddl$
+        CREATE TRIGGER fill_legacy_criteria_reconcile_authorization_contract
+        BEFORE INSERT ON %I.capability_catalog
+        FOR EACH ROW
+        EXECUTE FUNCTION %I.fill_legacy_criteria_reconcile_authorization_contract()
+    $ddl$, authority_schema, authority_schema);
+    EXECUTE format(
+        'REVOKE ALL ON FUNCTION %I.fill_legacy_criteria_reconcile_authorization_contract() FROM PUBLIC',
+        authority_schema);
     EXECUTE format($ddl$
         UPDATE %I.capability_catalog
            SET authorization_contract=jsonb_build_object(

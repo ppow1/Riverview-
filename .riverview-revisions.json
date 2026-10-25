@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.34",
-      "sha256": "8548ffc37cff5d4711c71c3a62ba1b078135f9be49f405670b9c851507a16949",
-      "size_bytes": 1582926
+      "revision": "1.0.35",
+      "sha256": "12350301908fcc30093cd7351fb184924a6d9869090d21935cfb728ffb5c5b22",
+      "size_bytes": 1584723
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.335"
+      "revision": "1.1.336"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -8447,9 +8447,9 @@
     },
     "src/riverview_core/institutional_authority/db_boundary.py": {
       "path": "src/riverview_core/institutional_authority/db_boundary.py",
-      "revision": "1.0.17",
-      "sha256": "247ed320f6eee342c59094755e111cd9f0e9d4c86155047f553e890105ea4a79",
-      "size_bytes": 38045
+      "revision": "1.0.27",
+      "sha256": "8266e7237a53f044197738a20a274c5db45243e5a826d3a171c9204671516bed",
+      "size_bytes": 48750
     },
     "src/riverview_core/institutional_authority/grants.py": {
       "path": "src/riverview_core/institutional_authority/grants.py",
@@ -8540,6 +8540,12 @@
       "revision": "1.0.0",
       "sha256": "cabe26852ba4ab7119bba1cc43b63d7bb5a5803e3974cafe2023c361df443ac1",
       "size_bytes": 7124
+    },
+    "src/riverview_core/institutional_authority/migrations/0015_deployed_capability_declarations.sql": {
+      "path": "src/riverview_core/institutional_authority/migrations/0015_deployed_capability_declarations.sql",
+      "revision": "1.0.1",
+      "sha256": "438e17ce9024df66e2d484835977ff32b1b9c87674c4d11c9c733c2bf6d78a9d",
+      "size_bytes": 12511
     },
     "src/riverview_core/institutional_authority/permission_profiles.py": {
       "path": "src/riverview_core/institutional_authority/permission_profiles.py",
@@ -9413,9 +9419,9 @@
     },
     "tests/test_institutional_authority_boundary.py": {
       "path": "tests/test_institutional_authority_boundary.py",
-      "revision": "1.0.24",
-      "sha256": "8e3bf1d26bbdb1b23390031890f5ff13192743ffe0a59a328471f11158d321dd",
-      "size_bytes": 34293
+      "revision": "1.0.31",
+      "sha256": "dcc4526a16a217d9de7b835cc4a2d33878c47d9e015755f2572f083f2cd8bd25",
+      "size_bytes": 39453
     },
     "tests/test_institutional_proposals.py": {
       "path": "tests/test_institutional_proposals.py",
@@ -9599,9 +9605,9 @@
     },
     "tests/test_worker_adapter.py": {
       "path": "tests/test_worker_adapter.py",
-      "revision": "1.2.17",
-      "sha256": "aa75ebae15c32e7871e07d6c6223ad29c56de39ce1e1d17d9592f526389cc239",
-      "size_bytes": 109900
+      "revision": "1.2.18",
+      "sha256": "5f55564d3d8f6b83a967828420b67c9f88c6c3acd5f188bda92fbfb6bb8ed33b",
+      "size_bytes": 111131
     },
     "tests/test_worker_registration_retirement.py": {
       "path": "tests/test_worker_registration_retirement.py",
@@ -9646,6 +9652,6 @@
       "size_bytes": 2008940
     }
   },
-  "manifest_revision": "1.1.333",
-  "updated_at": "2026-10-25T15:03:10Z"
+  "manifest_revision": "1.1.334",
+  "updated_at": "2026-10-25T16:15:48Z"
 }
