@@ -467,6 +467,7 @@ class PostgresWorkerAdapter:
         if not isinstance(result, KnowledgeResult):
             raise TypeError("result must be a KnowledgeResult")
         if operation not in {"ground_assignment", "preflight_action",
+                             "preflight_assignment_evidence",
                              "reground_assignment", "record_learning"}:
             raise ValueError("unknown knowledge operation")
         with self.ledger.db.transaction():
