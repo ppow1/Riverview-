@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: website/v2/deployed/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.32
+File Revision: 1.0.33
+Changed: 2026-10-25 UTC | RV-V2-BATCH1-20261025 | Add central Settings tabs, live residents, and the searchable canonical capability/resource registry.
 Changed: 2026-10-25 UTC | RV-DYNAMIC-PERMISSIONS-20261025 | Add a dynamic authority-catalog adapter before the resident permissions client.
 Changed: 2026-10-25 UTC | RV-V2-V1-FUNCTIONAL-PARITY-20261025 | Restore proposal drafting/edit/promotion and canonical process workflow/documentation views in V2.
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Add account enrollment review, approved account roster, and session revocation through existing authenticated APIs.
@@ -54,6 +55,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposal-lifecycle-20261025">
   <link rel="stylesheet" href="assets/process-workflows.css?rev=v1-parity-20261025">
   <link rel="stylesheet" href="assets/resident-permissions.css?rev=resident-permissions-20261025">
+  <link rel="stylesheet" href="assets/authority-explorer.css?rev=batch1-20261025">
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
@@ -70,11 +72,12 @@ History: Git and revision/backup manifest
   <script defer src="assets/institutional-proposals.js?rev=proposal-lifecycle-20261025"></script>
   <script defer src="assets/process-workflows.js?rev=v1-parity-20261025"></script>
   <script defer src="assets/documentation-catalog.js?rev=v1-parity-20261025"></script>
-  <script defer src="assets/resident-permissions-model.js?rev=dynamic-authority-catalog-20261025"></script>
-  <script defer src="assets/resident-permissions.js?rev=dynamic-authority-catalog-20261025"></script>
+  <script defer src="assets/resident-permissions-model.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
+  <script defer src="assets/resident-permissions.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
+  <script defer src="assets/authority-explorer.js?rev=batch1-20261025"></script>
   <script defer src="assets/account-administration.js?rev=account-email-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
-  <script defer src="assets/workspace.js?rev=v1-parity-20261025"></script>
+  <script defer src="assets/workspace.js?rev=settings-directory-registry-20261025"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
   <script defer src="assets/grace-chat.js?rev=proposal-draft-20261025"></script>
@@ -92,6 +95,7 @@ History: Git and revision/backup manifest
       <nav id="primary-nav">
         <button class="nav-item active" data-view="overview" aria-label="Overview" data-tooltip="Show workspace overview"><span aria-hidden="true">⌂</span><span class="nav-label">Overview</span></button>
         <button class="nav-item" data-view="residents" aria-label="Residents" data-tooltip="Browse resident directory"><span aria-hidden="true">◉</span><span class="nav-label">Residents</span></button>
+        <button class="nav-item" data-view="settings" aria-label="Settings" data-tooltip="Open central settings and registries"><span aria-hidden="true">⚙</span><span class="nav-label">Settings</span></button>
         <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show institutional work status and workspace examples"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
         <button class="nav-item" data-view="institutional-proposals" aria-label="Institutional proposals" data-tooltip="Review existing institutional proposal records"><span aria-hidden="true">▱</span><span class="nav-label">Proposals</span></button>
         <button class="nav-item" data-view="process-workflows" aria-label="Process workflows" data-tooltip="Browse canonical process graphs and live recorded positions"><span aria-hidden="true">⌘</span><span class="nav-label">Workflows</span></button>
@@ -136,6 +140,32 @@ History: Git and revision/backup manifest
           </section>
           <div id="view-content"></div>
           </div>
+          <section class="resident-directory-workspace authority-explorer" id="resident-directory-workspace" aria-labelledby="resident-directory-title" hidden>
+            <header><p class="eyebrow">CANONICAL CURRENT RECORDS · HISTORICAL REFERENCES SEPARATE</p><h2 id="resident-directory-title">Resident directory</h2><p>Current Riverview identities and effective access come from the authenticated Authority API. Historical Estate records and uncommissioned candidates are shown separately with source and date; they do not imply current Riverview status or permissions.</p></header>
+            <div class="authority-tools"><label for="resident-directory-search">Search residents<input id="resident-directory-search" type="search" maxlength="120" placeholder="Name, role, status, capability"></label><button type="button" id="resident-directory-refresh">Refresh</button></div>
+            <p id="resident-directory-status" role="status" aria-live="polite">Directory has not been loaded.</p><div id="resident-directory-live" class="authority-card-grid"></div>
+            <details class="authority-history"><summary>Historical residents and uncommissioned candidates</summary><p id="resident-history-notice"></p><div id="resident-directory-history" class="authority-card-grid"></div></details>
+          </section>
+          <section class="settings-workspace" id="settings-workspace" aria-labelledby="settings-title" hidden>
+            <header><p class="eyebrow">CENTRAL SETTINGS · EXISTING AUTHORITY AND STORES</p><h2 id="settings-title">Settings</h2><p>These tabs reuse existing Riverview settings and authenticated services. Registry discovery is informational; permissions and execution remain server-authorized.</p></header>
+            <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+              <button type="button" role="tab" data-settings-tab="preferences" aria-selected="true">Preferences</button>
+              <button type="button" role="tab" data-settings-tab="notifications" aria-selected="false">Notifications</button>
+              <button type="button" role="tab" data-settings-tab="accounts" aria-selected="false">Accounts &amp; security</button>
+              <button type="button" role="tab" data-settings-tab="residents" aria-selected="false">Residents</button>
+              <button type="button" role="tab" data-settings-tab="permissions" aria-selected="false">Permissions</button>
+              <button type="button" role="tab" data-settings-tab="capabilities" aria-selected="false">Capabilities &amp; resources</button>
+              <button type="button" role="tab" data-settings-tab="hardware" aria-selected="false">Hardware &amp; AI</button>
+            </div>
+            <div id="settings-tab-content" class="settings-tab-content" role="tabpanel"><section id="settings-preferences-panel"><h3>Workspace preferences</h3><p>Appearance and panel controls use the existing browser-local preferences.</p><label for="settings-theme-select">Appearance<select id="settings-theme-select"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label for="settings-left-sidebar">Navigation panel<select id="settings-left-sidebar"><option value="expanded">Expanded</option><option value="compact">Icons</option><option value="hidden">Hidden</option></select></label><label for="settings-right-sidebar">Context panel<select id="settings-right-sidebar"><option value="expanded">Expanded</option><option value="compact">Compact</option><option value="hidden">Hidden</option></select></label><p class="muted">Notification, account, session, resident-permission, and hardware/AI controls reuse their existing workspaces and server APIs.</p></section></div>
+            <p class="settings-boundary">Model/provider assignment and hardware control settings are not exposed here. Hardware &amp; AI is a read-only telemetry view. Existing authenticated forms retain their own authorization, CSRF, confirmation, and audit controls.</p>
+          </section>
+          <section class="capability-registry-workspace authority-explorer" id="capability-registry-workspace" aria-labelledby="capability-registry-title" hidden>
+            <header><p class="eyebrow">CANONICAL CAPABILITY AND RESOURCE REGISTRY</p><h2 id="capability-registry-title">Capabilities &amp; resources</h2><p>Live registry declarations and resident effective access from the same authenticated Authority API used by Permissions. Discovery is not a grant, executor health check, or successful-execution guarantee.</p></header>
+            <div class="authority-tools"><label for="capability-registry-search">Search capabilities, schemas, resources, or residents<input id="capability-registry-search" type="search" maxlength="160" placeholder="Operation, resource, access, owner"></label><button type="button" id="capability-registry-refresh">Refresh</button></div>
+            <p id="capability-registry-status" role="status" aria-live="polite">Registry has not been loaded.</p><div id="capability-registry-results" class="authority-registry-list"></div>
+            <p class="settings-boundary">The active API supplies declarations and policy evaluations but not live executor identity or health. Unavailable historical references remain distinct. An operation is executable only when its existing server-side authority and executor checks pass.</p>
+          </section>
           <section class="living-roadmap" id="living-roadmap-workspace" aria-labelledby="living-roadmap-title" hidden>
             <header class="roadmap-header"><div><p class="eyebrow">STEWARD WORKSPACE · PLANNING AND OPERATIONAL EVIDENCE</p><h2 id="living-roadmap-title">Living Roadmap</h2><p>Explore the Grace Autonomy and Website Visualization workstreams, then drill from planning stage into source evidence or authorized current work.</p></div><span id="roadmap-source-state" class="roadmap-source-state" role="status">Current work not checked</span></header>
             <div class="roadmap-tools"><label>Search roadmap<input id="roadmap-search" type="search" maxlength="120" placeholder="Search workstreams, milestones, tags, or evidence"></label><label>Tag<select id="roadmap-tag"><option value="">All tags</option></select></label><label>Priority<select id="roadmap-priority"><option value="">All priorities</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option><option value="unassigned">Unassigned</option></select></label></div><p class="roadmap-priority-note">P0–P3 are roadmap display priorities derived from current mission/Now/Next/Later order. They are not operational objective fields or execution authority; where the source board uses another scale, its original priority is shown.</p>
