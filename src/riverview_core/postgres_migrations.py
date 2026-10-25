@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/postgres_migrations.py
 # Component: POSTGRES-LEDGER
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Reconcile bounded release declarations after authority migration runs, including no-op runs
 # Purpose: Apply ordered, checksum-pinned PostgreSQL schema migrations
 # Execution Model: Request-driven migration CLI/library
 # Observability: Applied versions and checksums in schema_migrations
@@ -16,6 +17,7 @@
 """Checksum-verified runner for the PostgreSQL ledger's versioned SQL."""
 
 import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -82,4 +84,58 @@ def apply_migrations(dsn, *, schema="public", migrations_dir=None):
                         "INSERT INTO schema_migrations(version,checksum) VALUES(%s,%s)",
                         (version, digest))
                     applied.append(version)
+    # The institutional capability declaration files are part of the same
+    # immutable release as their executors. Reconcile them after schema
+    # migrations on every authority deployment, even when the migration ledger
+    # is already current, so newly shipped declarations do not require a
+    # separate Steward/C3 follow-up.
+    declarations_dir = directory.parent / "capability_declarations"
+    declaration_paths = []
+    if declarations_dir.is_symlink():
+        raise MigrationError("capability declaration path is not a regular directory")
+    if declarations_dir.exists():
+        if not declarations_dir.is_dir():
+            raise MigrationError("capability declaration path is not a regular directory")
+        entries = sorted(declarations_dir.iterdir())
+        if any(path.suffix != ".json" or path.is_symlink() or not path.is_file()
+               for path in entries):
+            raise MigrationError("capability declaration directory contains an unsupported entry")
+        declaration_paths = entries
+    if declaration_paths:
+        if len(declaration_paths) > 512:
+            raise MigrationError("too many capability declaration files")
+        declarations = []
+        total_bytes = 0
+        for path in declaration_paths:
+            size = path.stat(follow_symlinks=False).st_size
+            total_bytes += size
+            if size > 65536 or total_bytes > 8 * 1024 * 1024:
+                raise MigrationError("capability declaration batch exceeds size limits")
+            try:
+                item = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise MigrationError(f"invalid capability declaration: {path.name}") from exc
+            if not isinstance(item, dict):
+                raise MigrationError(f"invalid capability declaration: {path.name}")
+            item["declaration_source"] = path.name
+            declarations.append(item)
+        source_commit = _source_commit(directory)
+        with psycopg.connect(dsn, autocommit=True, row_factory=dict_row) as db:
+            with db.transaction():
+                with db.cursor() as cur:
+                    cur.execute("SELECT set_config('search_path', %s, false)", (schema,))
+                    cur.execute(
+                        "SELECT reconcile_capability_declarations(%s::jsonb,%s)",
+                        (json.dumps(declarations, sort_keys=True), source_commit))
     return applied
+
+
+def _source_commit(migrations_dir):
+    """Return package/source identity without making it an authorization input."""
+    root = Path(migrations_dir).resolve().parents[3]
+    packaged = root / "SOURCE_COMMIT"
+    if packaged.is_file() and not packaged.is_symlink():
+        value = packaged.read_text(encoding="ascii").strip()
+        if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", value):
+            return value
+    return "unpackaged"

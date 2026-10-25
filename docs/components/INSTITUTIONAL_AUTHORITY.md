@@ -2,9 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.29
+File Revision: 1.0.30
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
+Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Document release declarations and dynamic Grace discovery through the existing catalog
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
 Changed: 2026-10-11 UTC | RV-M4.1-DB-BOUNDARY | Specify separate schema, runtime, manager, and authority-owner identities
 Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Verify local dashboard documentation route for the expanded authority procedures
@@ -32,6 +33,7 @@ Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Document Steward-only
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Add audited resident profiles as an additional policy gate to exact grants
 Changed: 2026-10-14 UTC | RV-RESIDENT-PERMISSIONS-001 | Fail closed for revoked/stale profiles and unregistered capability resources
 Changed: 2026-10-15 UTC | RV-AUTH-LEGACY-PROFILE-COMPAT | Preserve deployed exact grants until profile migration 0008 is installed; keep partial states fail closed
+Changed: 2026-10-25 UTC | RV-C3-AUTOMATIC-CAPABILITY-DECLARATION | Reconcile release-shipped executable capability contracts through the existing authority catalog
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Institutional identity and authority registry
@@ -39,8 +41,32 @@ History: Git and .riverview-backups/manifest.jsonl
 **Milestone:** M4.1 — Office, occupant, implementation and state separation
 **Status:** Additive live authority schema, privilege boundary, and root-local Steward bootstrap verified; service integration remains unverified
 **Implementation:** `src/riverview_core/institutional_authority/registry.py`
-**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime credential exact-grant function; `0003_resident_office_state_api.sql` adds resident snapshot and compare-and-swap state functions; `0004_exact_principal_grant_authorization.sql` adds an exact-grant check for a principal established by a separately authenticated, linked Riverview account session; `0008_resident_permission_profiles.sql` adds resident policy profiles and capability/resource metadata.
+**Migrations:** `0000_authority_migration_ledger.sql` bootstraps the checksum ledger if absent; `0001_institutional_authority.sql` creates registry tables and trigger; `0002_exact_grant_authorization.sql` creates the protected runtime credential exact-grant function; `0003_resident_office_state_api.sql` adds resident snapshot and compare-and-swap state functions; `0004_exact_principal_grant_authorization.sql` adds an exact-grant check for a principal established by a separately authenticated, linked Riverview account session; `0008_resident_permission_profiles.sql` adds resident policy profiles and capability/resource metadata; `0015_deployed_capability_declarations.sql` adds deployment reconciliation metadata/API without changing grants.
 **Process graph:** `rv:institutional-authority:identity-and-grants`
+
+## Release-shipped capability declarations
+
+Executable operation declarations live beside this component's migration
+directory in `capability_declarations/*.json`. They name the operation and
+existing executor, provide its typed input schema, and state the authorization
+contract. The existing `apply_migrations()` deployment path reconciles these
+files into `capability_catalog` after authority migrations, including on a
+release where the migration ledger is already current. Reconciliation
+upserts only declared capability metadata; it never creates or changes
+AuthorityRegistry grants. A declaration with no compatible executor or
+authorization mode remains visible with `enabled=false` and a
+`registration_blocker`, so Grace can report why it is not selectable.
+
+Grace reads the live catalog on each discovery/tool-selection pass. A new
+declaration is therefore available to discovery as soon as the deployment
+migration/reconciliation stage has completed. It becomes invocable only when
+the existing typed executor is wired, the operation is enabled, and the
+calling principal has the exact required grant and scope. Website releases
+must declare underlying API operations, never screens or navigation controls.
+Steward browser-session operations remain session-bound and must carry an
+explicit supported session authorization contract before they can be invoked
+through a website adapter; a browser session is never converted into a Grace
+grant.
 
 ## Identity model
 

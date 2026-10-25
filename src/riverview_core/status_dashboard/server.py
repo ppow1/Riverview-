@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.41
+# Revision: 1.3.42
+# Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Bind the status API operation to its catalog declaration
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Wire the authenticated resident credential and existing objective pipeline into Grace's registry bridge.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify artifact ownership and group-read layout at the authorized download boundary.
@@ -1100,7 +1101,7 @@ def make_handler():
                     self._json(200, {"schema_version":"rv.resident.conversation-session.v1",
                                      "status":"disconnected"}, request_id,
                                extra_headers=(("Set-Cookie", self._conversation_cookie("", clear=True)),))
-                elif parsed.path == "/api/v1/status":
+                elif parsed.path == "/api/v1/status":  # capability-operation: resident.status.read
                     status = self.server._projection.status()
                     if self.server._account_auth_service is not None:
                         status["account_auth"] = self.server._account_auth_service.status()
