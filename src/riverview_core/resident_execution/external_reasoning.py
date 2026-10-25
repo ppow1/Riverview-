@@ -2,9 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.8
+# Revision: 1.1.9
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Bind atomic retry consumption to root assignment and S3 step identity.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Consume the exact S3 retry exception atomically with provider admission.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025-HOTFIX | Avoid row locking on append-only grant events; unique consumption remains the concurrency fence.
 # Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-INPUT-RETRY-20261024 | Expose only the last provider error status and input parameter for bounded retry selection.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Terminalize a fenced provider request when authorization blocks it before any paid attempt.
 # Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Expose durable request payload metadata to the bounded evaluation retry gate.
@@ -355,6 +356,9 @@ class DurableExternalReasoningExchange:
             if cur.fetchone():
                 if not isinstance(stall_event_id, str) or type(progress_seq) is not int:
                     return None
+                # Authorization events are append-only and the runtime role has no
+                # UPDATE privilege. The unique consumption idempotency key below
+                # atomically arbitrates concurrent use without locking this row.
                 cur.execute("""SELECT event_id,payload FROM grace_supervisory_authorization_events g
                     WHERE g.authorization_id=%s AND g.event_type='cme_retry_authorized'
                       AND g.objective_id=%s AND g.payload->>'request_type'=%s
@@ -370,7 +374,7 @@ class DurableExternalReasoningExchange:
                         WHERE c.authorization_id=g.authorization_id
                           AND c.event_type='cme_retry_consumed'
                           AND c.payload->>'grant_event_id'=g.event_id::text)
-                    FOR UPDATE""", (auth["authorization_id"], row.get("objective_id"),
+                    """, (auth["authorization_id"], row.get("objective_id"),
                         request_type, str(assignment_id),
                         str(assignment.get("objective_assignment_id")),
                         str(assignment.get("step_id")), stall_event_id, progress_seq,

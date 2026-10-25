@@ -2,10 +2,11 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.6
+# Revision: 1.1.7
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Verify Steward approval persists against the live parent/child S3 assignment linkage.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Include exact objective assignment and S3 identity in retry fixtures.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Prove exact-event retry admission is single-use under concurrent providers.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025-HOTFIX | Exercise concurrent admission under the restricted riverview_core role.
 # Changed: 2026-10-25 UTC | RV-GRACE-LUNA-CME-JSON-DIAGNOSTICS-20261025 | Verify sanitized HTTP failure metadata is durable in provider attempt events.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Preserve and digest-bind lifecycle criteria in externally reviewed proposals
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify sanitized C2 exception receipts terminate without duplicate wake retries.
@@ -1427,6 +1428,7 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
                     row = candidate(uuid4())
                     barrier.wait(timeout=5)
                     with connection.transaction(), connection.cursor() as cur:
+                        cur.execute("SET LOCAL ROLE riverview_core")
                         cur.execute("SELECT set_config('search_path',%s,false)", (self.schema,))
                         result = self.exchange._reserve_supervisory_luna_call(cur, row, 0.05)
                     with outcome_lock:
