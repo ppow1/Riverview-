@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.2
+# Revision: 1.1.3
+# Changed: 2026-10-25 UTC | RV-GRACE-LUNA-CME-JSON-DIAGNOSTICS-20261025 | Verify sanitized HTTP failure metadata is durable in provider attempt events.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Preserve and digest-bind lifecycle criteria in externally reviewed proposals
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify sanitized C2 exception receipts terminate without duplicate wake retries.
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify duplicate receipt replay remains bound to the original lease token.
@@ -1319,6 +1320,25 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.assertEqual(failed[0]["payload"]["failure_detail"], detail)
         self.assertEqual(self.exchange.status(receipt.request_id,
             receipt.correlation_id)["delivery_state"], "failed")
+
+    def test_failed_provider_http_diagnostics_are_durable(self):
+        receipt = self._submit(idem="failed-provider-http-diagnostics")
+        self._deliver_and_claim(receipt)
+        safe_usage = {"http_status": 400,
+            "provider_request_id": "req_fixture_cme_400",
+            "provider_error_type": "invalid_request_error",
+            "provider_error_code": "invalid_value",
+            "provider_error_param": "input",
+            "provider_error_message": "Invalid JSON input: [REDACTED]"}
+        self.exchange.finish_provider_attempt(receipt.request_id, receipt.correlation_id,
+            status="failed", failure_type="HTTPError", usage=safe_usage)
+        attempts = [event for event in self.exchange.events(
+            receipt.request_id, receipt.correlation_id)
+            if event["event_type"] == "provider_attempt_settled"]
+        self.assertEqual(len(attempts), 1)
+        self.assertEqual(attempts[0]["payload"]["status"], "failed")
+        self.assertEqual(attempts[0]["payload"]["failure_type"], "HTTPError")
+        self.assertEqual(attempts[0]["payload"]["usage"], safe_usage)
 
     def test_expired_claim_is_fenced_and_late_response_expires_once(self):
         receipt = self._submit(idem="lease-expiry")

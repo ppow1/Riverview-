@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_direct_luna_adapter_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.4
+# Revision: 1.0.5
+# Changed: 2026-10-25 UTC | RV-GRACE-LUNA-CME-JSON-DIAGNOSTICS-20261025 | Cover CME JSON-mode user input and durable sanitized HTTP diagnostics.
 # Changed: 2026-10-25 UTC | RV-GRACE-LUNA-JSON-MODE-INPUT-20261024 | Assert evaluation JSON-mode requests explicitly instruct JSON in user input.
 # Changed: 2026-10-25 UTC | RV-GRACE-LUNA-EVAL-INPUT-20261024 | Cover evaluation message shape and retained sanitized input validation errors.
 # Purpose: Verify bounded Luna adapter requests and sanitized exchange outcomes
@@ -189,6 +190,35 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
         self.assertEqual(exchange.finished[-1]["usage"]["provider_error_message"],
             outcome["provider_error_message"])
 
+    def test_cme_http_failure_persists_sanitized_provider_diagnostics(self):
+        exchange = _Exchange(request_type="cme_diagnostic_recovery", max_tokens=512)
+        error_body = json.dumps({"error": {"type": "invalid_request_error",
+            "code": "invalid_value", "param": "input",
+            "message": "Invalid JSON input: 'private evidence'; token=secret-value"}}).encode()
+        error = direct_luna.urllib.error.HTTPError("https://api.openai.com/v1/responses",
+            400, "bad request", {"x-request-id": "req_fixture_cme_400"},
+            io.BytesIO(error_body))
+        with patch.object(direct_luna, "_api_key", return_value="synthetic-key"), \
+             patch.object(direct_luna.urllib.request, "urlopen", side_effect=error):
+            outcome = direct_luna.process_one(exchange)
+        self.assertEqual(outcome["status"], "API_FAILED")
+        self.assertEqual(outcome["http_status"], 400)
+        self.assertEqual(outcome["provider_request_id"], "req_fixture_cme_400")
+        self.assertEqual(outcome["provider_error_type"], "invalid_request_error")
+        self.assertEqual(outcome["provider_error_code"], "invalid_value")
+        self.assertEqual(outcome["provider_error_param"], "input")
+        self.assertEqual(outcome["provider_error_message"],
+            "Invalid JSON input: [REDACTED]; token=[REDACTED]")
+        self.assertEqual(exchange.finished[-1]["failure_type"], "HTTPError")
+        self.assertEqual(exchange.finished[-1]["usage"], {
+            "http_status": 400, "provider_request_id": "req_fixture_cme_400",
+            "provider_error_type": "invalid_request_error",
+            "provider_error_code": "invalid_value", "provider_error_param": "input",
+            "provider_error_message": "Invalid JSON input: [REDACTED]; token=[REDACTED]"})
+        self.assertNotIn("private evidence", json.dumps(outcome))
+        self.assertNotIn("secret-value", json.dumps(outcome))
+        self.assertEqual(exchange.submitted, [])
+
     def test_output_allowances_are_per_request_type_and_sent_to_responses(self):
         for request_type, limit in (("cme_diagnostic_recovery", 512),
                                     ("performance_evaluation", 512)):
@@ -202,12 +232,13 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
                 body = json.loads(captured["request"].data)
                 self.assertEqual(body["max_output_tokens"], limit)
                 self.assertEqual(body["text"]["format"]["type"], "json_object")
-                if request_type == "performance_evaluation":
-                    self.assertEqual(body["input"], [{"role": "user", "content": [{
-                        "type": "input_text", "text": (
-                            "Return the performance evaluation as a valid JSON object.\n\n" +
-                            json.dumps(exchange.row["request_payload"], ensure_ascii=False,
-                                separators=(",", ":")))}]}])
+                instruction = ("Return the CME diagnostic as a valid JSON object."
+                    if request_type == "cme_diagnostic_recovery" else
+                    "Return the performance evaluation as a valid JSON object.")
+                self.assertEqual(body["input"], [{"role": "user", "content": [{
+                    "type": "input_text", "text": (instruction + "\n\n" +
+                        json.dumps(exchange.row["request_payload"], ensure_ascii=False,
+                            separators=(",", ":")))}]}])
                 self.assertEqual(exchange.begin_args["reserved_cost"], 0.05)
 
     def test_performance_evaluation_json_mode_contains_explicit_user_instruction(self):
@@ -223,6 +254,23 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
             "Return the performance evaluation as a valid JSON object.\n\n"))
         self.assertIn(json.dumps(exchange.row["request_payload"], ensure_ascii=False,
             separators=(",", ":")), user_text)
+        self.assertEqual(exchange.begin_args["reserved_cost"], 0.05)
+
+    def test_cme_diagnostic_json_mode_contains_explicit_user_instruction(self):
+        exchange = _Exchange(request_type="cme_diagnostic_recovery", max_tokens=512)
+        outcome, captured = self._call(exchange, {"id": "resp_fixture_cme_json_instruction",
+            "model": "gpt-6-luna", "status": "completed", "incomplete_details": None,
+            "output_text": "{}", "usage": {"input_tokens": 12, "output_tokens": 4}})
+        self.assertEqual(outcome["status"], "RESPONSE_SUBMITTED")
+        body = json.loads(captured["request"].data)
+        self.assertEqual(body["text"]["format"], {"type": "json_object"})
+        user_text = body["input"][0]["content"][0]["text"]
+        self.assertTrue(user_text.startswith(
+            "Return the CME diagnostic as a valid JSON object.\n\n"))
+        self.assertIn(json.dumps(exchange.row["request_payload"], ensure_ascii=False,
+            separators=(",", ":")), user_text)
+        self.assertEqual(body["instructions"].split(".")[0],
+            "Diagnose this CME-reported Grace stall from the supplied evidence")
         self.assertEqual(exchange.begin_args["reserved_cost"], 0.05)
 
     def test_evaluation_input_validation_error_is_retained_safely(self):

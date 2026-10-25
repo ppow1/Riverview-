@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/direct_luna.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.4
+# Revision: 1.0.5
+# Changed: 2026-10-25 UTC | RV-GRACE-LUNA-CME-JSON-DIAGNOSTICS-20261025 | Send CME diagnostic JSON-mode evidence as an explicit user input message.
 # Changed: 2026-10-25 UTC | RV-GRACE-LUNA-JSON-MODE-INPUT-20261024 | Add the required JSON-mode instruction to evaluation input text.
 # Changed: 2026-10-25 UTC | RV-GRACE-LUNA-EVAL-INPUT-20261024 | Send evaluation evidence as a user input_text message in the Responses request.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Close provider-denied requests with a fenced zero-charge exchange event.
@@ -168,13 +169,15 @@ def process_one(exchange):
             "Use at most one short item in each array and keep all text concise so JSON fits the output limit. "
             "No markdown, no extra fields, and no authority change. Grade only evidenced behavior.")
     serialized_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-    # Keep evaluation evidence as user text inside a Responses input message. The
-    # serialized payload is content, not the top-level input value.
+    # JSON-mode evidence is a user message, with an explicit request-type
+    # instruction. Keep the serialized evidence unchanged within that message.
+    json_instruction = {
+        "cme_diagnostic_recovery": "Return the CME diagnostic as a valid JSON object.",
+        "performance_evaluation": "Return the performance evaluation as a valid JSON object.",
+    }.get(request_type)
     provider_input = ([{"role": "user", "content": [{
-        "type": "input_text", "text": (
-            "Return the performance evaluation as a valid JSON object.\n\n"
-            + serialized_payload)}]}]
-        if request_type == "performance_evaluation" else serialized_payload)
+        "type": "input_text", "text": json_instruction + "\n\n" + serialized_payload}]}]
+        if json_instruction else serialized_payload)
     body_data = {"model": MODEL_ID, "store": False, "max_output_tokens": max_output_tokens,
         "reasoning": {"effort": "low"}, "instructions": (
             instructions if request_type in {"cme_diagnostic_recovery", "performance_evaluation"}

@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.31
+File Revision: 1.1.32
+Changed: 2026-10-25 UTC | RV-GRACE-LUNA-CME-JSON-DIAGNOSTICS-20261025 | Document JSON-mode input shape and persisted sanitized Luna HTTP failure fields.
 Changed: 2026-10-24 UTC | RV-GRACE-LUNA-SUPERVISORY-RETRY-20261024 | Document observed Luna output limits, same-scope retry bounds, and spend verification
 Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001-DOC-CORRECTION | Make persisted accepted verification, not conversational output, the objective completion authority.
 Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Document durable terminal completion recovery and distinguish post-completion conversation feedback.
@@ -84,6 +85,15 @@ recovery may get one 512-token fallback after its bounded provider retries fail.
 objective/correlation and active exact grant, with existing per-request and
 total-budget checks. No retry is allowed after a valid result, if an equivalent
 retry exists, after scope changes, or when authority/budget checks reject it.
+
+Both JSON-mode request types use `text.format.type=json_object` and send their
+unchanged serialized evidence in a user `input_text` message preceded by a
+request-specific JSON instruction. For an HTTP error, the adapter records the
+status, validated provider request ID, allowlisted provider error identifiers,
+and a bounded sanitized message in the durable `provider_attempt_settled`
+event. Raw response bodies and headers are not retained. A locally rejected
+request has a distinct local failure type and does not represent a provider
+response.
 
 Verify successful evaluation through durable
 `resident.performance.evaluation_recorded` and
