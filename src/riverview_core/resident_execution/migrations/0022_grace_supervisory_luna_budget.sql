@@ -1,4 +1,3 @@
--- File Revision: 1.0.0
 -- Durable financial authorization paired with the existing AuthorityRegistry grant.
 CREATE TABLE grace_supervisory_authorizations (
     authorization_id UUID PRIMARY KEY,

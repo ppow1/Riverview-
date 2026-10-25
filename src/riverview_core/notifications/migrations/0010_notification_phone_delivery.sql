@@ -1,4 +1,3 @@
--- File Revision: 1.0.0
 -- RIVERVIEW~ CONTROLLED MIGRATION
 -- File: src/riverview_core/notifications/migrations/0010_notification_phone_delivery.sql
 -- Component: NOTIFICATION-DELIVERY

@@ -1,4 +1,3 @@
--- File Revision: 1.0.0
 -- Allow one append-audited, Steward-gated increase to the exact r2 Luna cap.
 ALTER TABLE grace_experiment_authorizations
     DROP CONSTRAINT grace_experiment_authorizations_max_luna_requests_check;

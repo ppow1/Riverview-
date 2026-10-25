@@ -1,4 +1,3 @@
--- File Revision: 1.0.0
 -- Expose only Grace's exact active Luna escalation grant to the bounded experiment path.
 DO $migration$
 DECLARE authority_schema text := current_schema();

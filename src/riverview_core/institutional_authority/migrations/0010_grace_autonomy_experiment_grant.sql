@@ -1,4 +1,3 @@
--- File Revision: 1.0.0
 -- Issue one narrowly scoped Grace experiment grant for the exact approved r2 test.
 -- The caller identity comes from authenticated Comms5 ingress, never tool arguments.
 DO $migration$

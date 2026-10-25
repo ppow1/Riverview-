@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.25",
-      "sha256": "dac1f2d9366f62fa5425d87583a216e53af10a1fab3de249c1f16ada31a65178",
-      "size_bytes": 1564023
+      "revision": "1.0.31",
+      "sha256": "8329cc05bc503e56caf79f6fa49ac5f67c37488263871720c778bcc54520372b",
+      "size_bytes": 1571629
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.325"
+      "revision": "1.1.331"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -8111,9 +8111,9 @@
     },
     "scripts/revision_control.py": {
       "path": "scripts/revision_control.py",
-      "revision": "1.2.3",
-      "sha256": "f0f913573f7a7178fa9bcce904dd6b7dad9471d1968c661cf8dde10f56d6887f",
-      "size_bytes": 8101
+      "revision": "1.2.6",
+      "sha256": "46cd7ef0706666b380e5f0fb2b07dd295960ffd1093a8453fb854c978e5d4741",
+      "size_bytes": 8914
     },
     "scripts/rotate_comms5_steward_credential.py": {
       "path": "scripts/rotate_comms5_steward_credential.py",
@@ -9473,9 +9473,9 @@
     },
     "tests/test_revision_control.py": {
       "path": "tests/test_revision_control.py",
-      "revision": "1.2.3",
-      "sha256": "088c0ed126b60a51f50b468e3eded41e16b74a2f9a60b7a4680647ce20a4ca6c",
-      "size_bytes": 6403
+      "revision": "1.2.6",
+      "sha256": "eab596d947894e7d1acd175636a4ebcaf590bd4915f0c26890b91cb91349de17",
+      "size_bytes": 7406
     },
     "tests/test_riverview_doorbell_bridge_node.cjs": {
       "path": "tests/test_riverview_doorbell_bridge_node.cjs",
@@ -9578,6 +9578,66 @@
       "revision": "1.0.0",
       "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
       "size_bytes": 2008940
+    },
+    "src/riverview_core/institutional_authority/migrations/0010_grace_autonomy_experiment_grant.sql": {
+      "path": "src/riverview_core/institutional_authority/migrations/0010_grace_autonomy_experiment_grant.sql",
+      "revision": "1.0.0",
+      "sha256": "cc40b9a1e77f15e6a0a2f11660c524737af24fb08ebd745ae9bfafd8264d4133",
+      "size_bytes": 3713
+    },
+    "src/riverview_core/institutional_authority/migrations/0011_exact_grace_luna_escalation_check.sql": {
+      "path": "src/riverview_core/institutional_authority/migrations/0011_exact_grace_luna_escalation_check.sql",
+      "revision": "1.0.0",
+      "sha256": "a27f04574c336d947942a19c8949cb6db0243a958fb9d97e376dff1dfbb33fef",
+      "size_bytes": 7363
+    },
+    "src/riverview_core/institutional_authority/migrations/0012_grace_supervisory_authority.sql": {
+      "path": "src/riverview_core/institutional_authority/migrations/0012_grace_supervisory_authority.sql",
+      "revision": "1.0.0",
+      "sha256": "cabe26852ba4ab7119bba1cc43b63d7bb5a5803e3974cafe2023c361df443ac1",
+      "size_bytes": 7124
+    },
+    "src/riverview_core/notifications/migrations/0008_grace_recovery_decisions.sql": {
+      "path": "src/riverview_core/notifications/migrations/0008_grace_recovery_decisions.sql",
+      "revision": "1.0.0",
+      "sha256": "f39bcd54a55f99b051af4a61a887b255e037013ac4da44fa19872a7b970d92ee",
+      "size_bytes": 3258
+    },
+    "src/riverview_core/notifications/migrations/0009_notification_settings.sql": {
+      "path": "src/riverview_core/notifications/migrations/0009_notification_settings.sql",
+      "revision": "1.0.0",
+      "sha256": "ec39314aef896987d91d2c4dc279bf958dcb0083a5c393d1c4f15d8b7a7c238f",
+      "size_bytes": 1444
+    },
+    "src/riverview_core/notifications/migrations/0010_notification_phone_delivery.sql": {
+      "path": "src/riverview_core/notifications/migrations/0010_notification_phone_delivery.sql",
+      "revision": "1.0.0",
+      "sha256": "73c9d0e85bf670f7ff2a701acdd48506c56b193a3b374cf6ffe12107713dead1",
+      "size_bytes": 1394
+    },
+    "src/riverview_core/resident_execution/migrations/0019_grace_autonomy_experiment_authorization.sql": {
+      "path": "src/riverview_core/resident_execution/migrations/0019_grace_autonomy_experiment_authorization.sql",
+      "revision": "1.0.0",
+      "sha256": "0c9aa74e3d9e55441dbeabf8e7ea8321ab303c097641d50f494f40aae2f9db5a",
+      "size_bytes": 2836
+    },
+    "src/riverview_core/resident_execution/migrations/0021_grace_experiment_authorization_amendment.sql": {
+      "path": "src/riverview_core/resident_execution/migrations/0021_grace_experiment_authorization_amendment.sql",
+      "revision": "1.0.0",
+      "sha256": "fdf8d8b3f992944fd55ab9e20c58e7a924c8b1cf3fac8090762610c8685e7ddc",
+      "size_bytes": 1004
+    },
+    "src/riverview_core/resident_execution/migrations/0022_grace_supervisory_luna_budget.sql": {
+      "path": "src/riverview_core/resident_execution/migrations/0022_grace_supervisory_luna_budget.sql",
+      "revision": "1.0.0",
+      "sha256": "3b38664b21ebb1c87a599db81ccce31ffa2f600bc02d0d4148412832846a49b4",
+      "size_bytes": 2490
+    },
+    "docs/development/RV-ENG-REV-004-METADATA_DISPOSITION.md": {
+      "path": "docs/development/RV-ENG-REV-004-METADATA_DISPOSITION.md",
+      "revision": "1.0.1",
+      "sha256": "d8b2d648b67fb9c6133a47857d979e9e84fddaa671a3e3a4bbb53a208f24a93d",
+      "size_bytes": 7460
     }
   },
   "manifest_revision": "1.1.324",

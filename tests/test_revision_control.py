@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.3
+# Revision: 1.2.6
+# Changed: 2026-10-25 UTC | RV-S4-MIGRATION-CHECKSUM-METADATA-20261025 | Verify SQL file revisions use checksum-bound sidecar metadata, reject byte drift, and fall back to native headers.
 # Purpose: Regression tests for revision validation and predecessor preservation
 # Execution Model: Request-driven tests
 # Observability: unittest results and exit code
@@ -102,6 +103,20 @@ class RevisionTests(unittest.TestCase):
         (directory/'artifacts.json').write_text(json.dumps({'manifest_revision':'1.0.0','files':{
             'result.log':{'revision':'1.0.0','sha256':rev.sha(data),'size_bytes':len(data)}}}))
         self.assertEqual(rev.revision(self.root,'evidence/checkouts/TASK-1/result.log'),'1.0.0')
+
+    def test_sql_migration_revision_sidecar_preserves_bytes(self):
+        migration=self.root/'migration.sql';data=b'CREATE TABLE example (id integer);\n';migration.write_bytes(data)
+        manifest=self.root/'.riverview-revisions.json'
+        manifest.write_text(json.dumps({'files':{'migration.sql':{
+            'revision':'1.0.0','sha256':rev.sha(data),'size_bytes':len(data)}}}))
+        self.assertEqual(rev.revision(self.root,'migration.sql'),'1.0.0')
+        migration.write_bytes(data+b'-- changed\n')
+        self.assertIsNone(rev.revision(self.root,'migration.sql'))
+
+    def test_sql_native_revision_header_fallback(self):
+        migration=self.root/'native.sql'
+        migration.write_text('-- Revision: 1.0.7\nSELECT 1;\n')
+        self.assertEqual(rev.revision(self.root,'native.sql'),'1.0.7')
 
     def test_legacy_revision_initialization_requires_preserved_predecessor(self):
         old=self.file.read_bytes()

@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.3
+# Revision: 1.2.6
+# Changed: 2026-10-25 UTC | RV-S4-MIGRATION-CHECKSUM-METADATA-20261025 | Support checksum-bound sidecar revisions for SQL migrations without changing applied migration bytes.
+# Changed: 2026-10-25 UTC | RV-S4-MIGRATION-CHECKSUM-METADATA-20261025 | Preserve native SQL revision headers when a SQL sidecar entry is absent.
 # Purpose: Inventory file revisions and verify preserved predecessor backups
 # Execution Model: Request-driven CLI; suitable for unattended CI and Camrui
 # Observability: JSON stdout and exit codes
@@ -72,6 +74,15 @@ def tracked(root):
 
 def revision(root, rel, content=None):
     data = (root / rel).read_bytes() if content is None else content
+    if Path(rel).suffix.lower() == '.sql':
+        manifest = root / '.riverview-revisions.json'
+        if manifest.exists():
+            record = json.loads(manifest.read_text()).get('files', {}).get(rel)
+            if record is not None:
+                if record.get('sha256') != sha(data) or record.get('size_bytes') != len(data):
+                    return None
+                candidate = record.get('revision')
+                return candidate if valid_revision(candidate) else None
     if Path(rel).suffix.lower() in SIDE_EXT:
         manifest = root / '.riverview-revisions.json'
         if manifest.exists():
