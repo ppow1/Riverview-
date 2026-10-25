@@ -1,6 +1,6 @@
 """Focused acceptance-system tests.
 
-Revision: 1.0.2
+Revision: 1.0.3
 """
 import importlib.util
 from pathlib import Path
@@ -43,6 +43,8 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn('"account_admin_anonymous_denied"',source)
         self.assertIn('"account_admin_steward_read"',source)
         self.assertIn('"account_admin_viewer_denied"',source)
+        self.assertIn("ACCOUNT_ADMIN_PRE_FEATURE_COMMIT",source)
+        self.assertIn('"pre_feature_baseline_release"',source)
         self.assertIn("/api/v1/account/enrollments?limit=50",source)
         self.assertIn("/api/v1/account/users?limit=100",source)
         self.assertNotIn("/api/v1/account/enrollments/",source)
