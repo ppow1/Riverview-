@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const {mergeFeeds, filterRows} = require("../website/v2/deployed/assets/operational-inbox-adapter.js");
+const {mergeFeeds, mergeEventPage, filterRows} = require("../website/v2/deployed/assets/operational-inbox-adapter.js");
 
 test("adapter joins notification, attention, and event history by authoritative event ID", () => {
   const rows = mergeFeeds({
@@ -34,6 +34,19 @@ test("event adapter preserves the V1 ledger's redacted identity and causal metad
   assert.equal(row.correlationId,"corr-5");
   assert.equal(row.causationId,"e-parent");
   assert.equal(row.payloadSchema,"rv.assignment.updated.v1");
+});
+
+test("event paging merges older and newer cursor pages without duplicates", () => {
+  const latest = mergeEventPage({}, {items:[{event_id:"e2",seq:2},{event_id:"e3",seq:3}],older_cursor:2}, "latest");
+  assert.equal(latest.canLoadOlder,true);
+  assert.equal(latest.newerCursor,3);
+  const older = mergeEventPage(latest, {items:[{event_id:"e1",seq:1},{event_id:"e2",seq:2}],older_cursor:null}, "older");
+  assert.deepEqual(older.items.map((item)=>item.event_id),["e1","e2","e3"]);
+  assert.equal(older.canLoadOlder,false);
+  assert.equal(older.olderCursor,null);
+  const newer = mergeEventPage(older, {items:[{event_id:"e4",seq:4}],next_cursor:null}, "newer");
+  assert.deepEqual(newer.items.map((item)=>item.seq),[1,2,3,4]);
+  assert.equal(newer.canLoadNewer,false);
 });
 
 test("filters search, source, supplied severity, delivery state, and sort without mutating", () => {

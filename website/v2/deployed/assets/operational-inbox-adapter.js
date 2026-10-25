@@ -58,6 +58,20 @@
       .sort((a, b) => (isoTime(b.timestamp) ?? -Infinity) - (isoTime(a.timestamp) ?? -Infinity));
   }
 
+  function mergeEventPage(current = {}, page = {}, direction = "latest") {
+    const byId = new Map((current.items || []).map((item) => [item.event_id, item]));
+    for (const item of page.items || []) byId.set(item.event_id, item);
+    const items = [...byId.values()].sort((a, b) => Number(a.seq) - Number(b.seq));
+    const seqs = items.map((item) => Number(item.seq)).filter(Number.isFinite);
+    return {
+      items,
+      olderCursor: direction === "older" ? (page.older_cursor ?? null) : (page.older_cursor ?? current.olderCursor ?? null),
+      newerCursor: seqs.length ? Math.max(...seqs) : (current.newerCursor ?? null),
+      canLoadOlder: direction === "older" ? Boolean(page.older_cursor) : direction === "latest" ? Boolean(page.older_cursor) : Boolean(current.canLoadOlder),
+      canLoadNewer: direction === "newer" ? Boolean(page.next_cursor) : seqs.length > 0
+    };
+  }
+
   function filterRows(rows, {query = "", source = "all", severity = "all", status = "all", sort = "newest"} = {}) {
     const needle = query.trim().toLocaleLowerCase();
     return rows.filter((row) => {
@@ -74,7 +88,7 @@
     });
   }
 
-  const api = Object.freeze({mergeFeeds, filterRows});
+  const api = Object.freeze({mergeFeeds, mergeEventPage, filterRows});
   if (typeof window !== "undefined") window.RiverviewV2OperationalInboxAdapter = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

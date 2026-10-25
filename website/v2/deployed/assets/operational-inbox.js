@@ -125,11 +125,8 @@
         feed.items = page.items;
         feed.lastSuccess = page.observed_at || new Date().toISOString();
         if (name === "events") {
-          feed.olderCursor = page.older_cursor ?? null;
-          const seqs = feed.items.map((item) => Number(item.seq)).filter(Number.isFinite);
-          feed.newerCursor = seqs.length ? Math.max(...seqs) : null;
-          feed.canLoadOlder = Boolean(page.older_cursor);
-          feed.canLoadNewer = seqs.length > 0;
+          const merged = adapter.mergeEventPage({}, page, "latest");
+          Object.assign(feed, merged);
         }
       } else {
         feed.items = [];
@@ -158,14 +155,7 @@
         if (!Array.isArray(page.items)) throw new Error("invalid_projection");
         if (page.status !== "available") { feed.status = page.status || "unavailable"; feed.items = []; feed.canLoadOlder = false; feed.canLoadNewer = false; }
         else {
-          const byId = new Map(feed.items.map((item) => [item.event_id, item]));
-          for (const item of page.items) byId.set(item.event_id, item);
-          feed.items = [...byId.values()].sort((a, b) => Number(a.seq) - Number(b.seq));
-          const seqs = feed.items.map((item) => Number(item.seq)).filter(Number.isFinite);
-          feed.olderCursor = page.older_cursor ?? feed.olderCursor;
-          feed.newerCursor = seqs.length ? Math.max(...seqs) : feed.newerCursor;
-          feed.canLoadOlder = direction === "older" ? Boolean(page.older_cursor) : feed.canLoadOlder;
-          feed.canLoadNewer = direction === "newer" ? Boolean(page.next_cursor) : seqs.length > 0;
+          Object.assign(feed, adapter.mergeEventPage(feed, page, direction));
           feed.lastSuccess = page.observed_at || new Date().toISOString();
         }
       }
