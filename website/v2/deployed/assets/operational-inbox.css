@@ -8,6 +8,10 @@ Revision: 1.0.0
 .operational-inbox-heading button,.inbox-work-link{padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
 .operational-inbox-heading button:disabled{opacity:.55;cursor:wait}
 .inbox-freshness{margin:12px 0;color:var(--muted);font-size:10px;line-height:1.5}
+.inbox-action-status{margin:8px 0;color:var(--muted);font-size:10px;line-height:1.5}
+.inbox-receipt-action{margin-top:6px;padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px;cursor:pointer}
+.inbox-receipt-action:disabled{opacity:.55;cursor:wait}
+.inbox-receipt-note{display:block;margin-top:6px;color:var(--muted);font-size:9px}
 .inbox-source-status{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 14px}
 .inbox-event-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:10px}
 .inbox-table-wrap details{margin-top:6px;font-size:10px}
