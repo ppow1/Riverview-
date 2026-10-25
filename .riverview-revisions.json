@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.37",
-      "sha256": "e2cdb13b1a90fd34ac2f647bbc4a0393ae74e1c8c91fca6fb8eebe9cf28040b6",
-      "size_bytes": 1600431
+      "revision": "1.0.38",
+      "sha256": "f4d3dd3da57dfba52e00fe942bc6f565f6f1ab2ee8f679950102920682848a8d",
+      "size_bytes": 1601082
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.338"
+      "revision": "1.1.339"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -491,9 +491,9 @@
     },
     "docs/components/GRACE_EXECUTION_COOKBOOK.md": {
       "path": "docs/components/GRACE_EXECUTION_COOKBOOK.md",
-      "revision": "1.1.29",
-      "sha256": "e5bf7da1f81df58544400b3340498869f6345c5cf632a3c336a7232f3859dddb",
-      "size_bytes": 51703
+      "revision": "1.1.35",
+      "sha256": "53dd6b9e0655a0501fa5ccf91ff8237e1468a37d0cf52bc0d5725086f697607d",
+      "size_bytes": 60081
     },
     "docs/components/GRACE_EXECUTION_PIPELINE.md": {
       "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
@@ -9658,6 +9658,6 @@
       "size_bytes": 2008940
     }
   },
-  "manifest_revision": "1.1.338",
-  "updated_at": "2026-10-25T20:41:53.256424Z"
+  "manifest_revision": "1.1.339",
+  "updated_at": "2026-10-25T20:45:45.161095Z"
 }

@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.34
+File Revision: 1.1.35
+Changed: 2026-10-25 UTC | RV-LOCAL-RELEASE-GATE-20261025 | Record local exact-commit qualification and Grace-only immutable release activation/rollback.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Require exact replayed grade and feedback evidence before S4 exception issuance.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Add read-only diagnostics and recovery steps for consumed-evaluation replay, bounded evidence handoff, and exhausted-rework CME suppression.
 Changed: 2026-10-25 UTC | RV-GRACE-LUNA-CME-JSON-DIAGNOSTICS-20261025 | Document JSON-mode input shape and persisted sanitized Luna HTTP failure fields.
@@ -53,6 +54,42 @@ Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Diagnose latest rejecti
 Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Diagnose repeated incomplete resident proposals and resume through the existing persistent reasoning loop
 -->
 # Grace Execution Service — Troubleshooting and Recovery
+
+## Local qualification and Grace release activation
+
+GitHub remains the repository, PR, and issue record. GitHub Actions is
+informational and is not a release prerequisite. Before merge, run the full
+locally controlled checkout and applicable PostgreSQL regressions on the exact
+PR head, record its full commit/tree SHA, commands, versions, results and logs,
+and obtain independent review of that same commit. Keep all existing
+acceptance, security, authorization, and deployment checks. The general local
+qualification evidence contract is in
+[`DEVELOPMENT_LIFECYCLE_STANDARD.md`](../standards/DEVELOPMENT_LIFECYCLE_STANDARD.md).
+
+After merge, build and verify the package from the exact merged commit using
+`scripts/build_camrui_package.py` and `scripts/verify_camrui_package.py`. Stage
+only a new immutable root-owned release under
+`/opt/riverview-grace-execution/releases/<full-commit>`. Before activation,
+record the current `readlink -f /opt/riverview-grace-execution/current`, verify
+that predecessor directory remains present, and preserve the predecessor
+pointer plus candidate archive/checksum in a root-only timestamped backup under
+`/var/backups/riverview/`. Do not overwrite a release directory or change the
+Dashboard release.
+
+Switch only the Grace `current` symlink atomically to the verified release,
+then restart only `riverview-grace-execution-owner-session.service` so its
+imported code matches the new pointer. Do not restart the Dashboard, CME, event
+processor, model services, or workers for a source-only Grace change. This
+change has no database migration; leave all objective and event records alone.
+Verify the active release SHA, owner-session health/heartbeat, and the relevant
+authenticated Dashboard projection. Run the change's verifier regression
+against the deployed source to confirm unsupported factual criteria and
+unproven repository-publication claims fail closed.
+
+If activation or health verification fails, atomically restore the recorded
+predecessor pointer and restart only the owner-session service. Confirm the
+predecessor is active and healthy. Keep both immutable release directories,
+the rollback record, and all objective, artifact, and event history.
 
 ## Read-only health check
 
