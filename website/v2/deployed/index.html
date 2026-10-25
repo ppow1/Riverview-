@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: website/v2/deployed/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.27
+File Revision: 1.0.28
+Changed: 2026-10-25 UTC | RV-V2-INSTITUTIONAL-PROPOSALS-20261025 | Add the read-only proposal registry, review evidence, and linked work records to V2.
 Changed: 2026-10-24 UTC | RV-WEB-LIVING-ROADMAP-PLANNING-20261024 | Group milestones under primary workstreams and collapse execution history.
 Changed: 2026-10-24 UTC | RV-V2-ROADMAP-AUTH-STATUS-20261024 | Distinguish live operational evidence from documented planning and expose recorded status details.
 Changed: 2026-10-24 UTC | RV-V2-OCTO-GPU-BAY-ASSIGNMENT | Display the separately maintained Steward-reported GPU bay inventory without associating live device identifiers.
@@ -46,6 +47,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=roadmap-integrated-20261024">
+  <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposals-readonly-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
   <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
@@ -57,8 +59,10 @@ History: Git and revision/backup manifest
   <script defer src="assets/living-roadmap-data.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/living-roadmap-adapter.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/living-roadmap.js?rev=roadmap-integrated-20261024"></script>
+  <script defer src="assets/institutional-proposals-adapter.js?rev=proposals-readonly-20261025"></script>
+  <script defer src="assets/institutional-proposals.js?rev=proposals-readonly-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
-  <script defer src="assets/workspace.js?rev=living-roadmap-20261024"></script>
+  <script defer src="assets/workspace.js?rev=proposals-navigation-20261025"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
   <script defer src="assets/grace-chat.js?rev=blocker-20261024"></script>
@@ -77,6 +81,7 @@ History: Git and revision/backup manifest
         <button class="nav-item active" data-view="overview" aria-label="Overview" data-tooltip="Show workspace overview"><span aria-hidden="true">⌂</span><span class="nav-label">Overview</span></button>
         <button class="nav-item" data-view="residents" aria-label="Residents" data-tooltip="Browse resident directory"><span aria-hidden="true">◉</span><span class="nav-label">Residents</span></button>
         <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show institutional work status and workspace examples"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
+        <button class="nav-item" data-view="institutional-proposals" aria-label="Institutional proposals" data-tooltip="Review existing institutional proposal records"><span aria-hidden="true">▱</span><span class="nav-label">Proposals</span></button>
         <button class="nav-item" data-view="roadmap" aria-label="Living Roadmap" data-tooltip="Explore workstreams, planning stages, milestones, and current work"><span aria-hidden="true">⌖</span><span class="nav-label">Living Roadmap</span></button>
         <button class="nav-item" data-view="image-generation" aria-label="Manual image generation" data-tooltip="Generate and review images through the registered ComfyUI worker"><span aria-hidden="true">▧</span><span class="nav-label">Image generation</span></button>
         <button class="nav-item" data-view="resources" aria-label="Hardware and AI resources" data-tooltip="Inspect hardware and AI resource telemetry"><span aria-hidden="true">◇</span><span class="nav-label">Hardware &amp; AI</span></button>
@@ -123,6 +128,13 @@ History: Git and revision/backup manifest
             <section aria-labelledby="roadmap-lifecycle-title"><h3 id="roadmap-lifecycle-title">Planning and execution lifecycle</h3><p class="roadmap-lifecycle-note">Parking Lot preserves an idea. Steward-approved elaboration authorizes discussion and specification only. Design/Specification is not Ready Bench. Ready Bench records committed, sufficiently specified future intent; it does not start execution. Active Work comes from authorized operational records.</p><div id="roadmap-lifecycle" class="roadmap-lifecycle"></div></section>
             <details id="roadmap-live-details" class="roadmap-execution-history"><summary><span>Execution History / Live Objectives</span><small>Authenticated operational records · expand to load or refresh</small></summary><section aria-labelledby="roadmap-live-title"><div class="roadmap-section-heading"><div><h3 id="roadmap-live-title">Current Riverview objectives</h3><p>Read-only authenticated projection. Workstream assignment and priority are not inferred. Objective text is preserved in each expanded record.</p></div><button id="roadmap-refresh" type="button">Refresh</button></div><p id="roadmap-live-status" role="status" aria-live="polite">Expand this section to load current objective records.</p><div id="roadmap-live-items" class="roadmap-live-items"></div></section></details>
             <p class="roadmap-provenance">Documented roadmap intent is distinguished from verified live objective projections. The canonical master-roadmap PostgreSQL tables and API are not present in this Dashboard's configured schema, so its Git snapshot is not treated as live status. Dependencies are not exposed by the objective API; they are shown as unavailable, never inferred. Planning-source conflicts, including RB-0001, remain Unknown.</p>
+          </section>
+          <section class="institutional-proposals" id="institutional-proposals-workspace" aria-labelledby="institutional-proposals-title" hidden>
+            <header class="proposal-heading"><div><p class="eyebrow">EXISTING INSTITUTIONAL REGISTRY · READ ONLY IN V2</p><h2 id="institutional-proposals-title">Institutional Proposals</h2><p>Browse persisted proposal revisions, review evidence, lifecycle status, and linked work. Decisions and promotion continue through existing authorized operations.</p></div><button id="proposal-refresh" type="button">Refresh</button></header>
+            <div class="proposal-tools"><label for="proposal-search">Search proposals<input id="proposal-search" type="search" maxlength="256" placeholder="Title, summary, scope, or tag"></label><label for="proposal-status-filter">Lifecycle status<select id="proposal-status-filter"><option value="">All available statuses</option><option>DRAFT</option><option>READY_FOR_REVIEW</option><option>UNDER_REVIEW</option><option>CHANGES_REQUIRED</option><option>READY_FOR_STEWARD_DECISION</option><option>APPROVED</option><option>DEFERRED</option><option>REJECTED</option><option>SUPERSEDED</option></select></label><button id="proposal-search-submit" type="button">Search</button></div>
+            <p id="proposal-status" class="proposal-status" role="status" aria-live="polite">Sign in with a Steward account and institutional authority to read proposal records.</p>
+            <div class="proposal-columns"><section class="proposal-list-panel" aria-labelledby="proposal-list-heading"><h3 id="proposal-list-heading">Proposal records</h3><div id="proposal-list" class="proposal-list" aria-live="polite"></div></section><section class="proposal-detail-panel" aria-labelledby="proposal-detail-heading"><h3 id="proposal-detail-heading">Selected proposal</h3><p id="proposal-detail-status" role="status" aria-live="polite">Select an authorized proposal record to inspect its revision and evidence.</p><div id="proposal-detail" class="proposal-detail"></div></section></div>
+            <p class="proposal-boundary">This view uses the existing authenticated GET endpoints. It does not create, revise, decide, or promote proposals.</p>
           </section>
           <section class="manual-image" id="manual-image-workspace" aria-labelledby="manual-image-heading" hidden>
             <div class="manual-image-heading"><div><p class="eyebrow">OPERATOR MANUAL MODE</p><h2 id="manual-image-heading">Image generation</h2><p class="muted">Uses the registered ComfyUI worker. Requests are recorded to your authenticated account and are separate from Grace and Engineering work.</p></div><button id="manual-image-refresh" type="button">Refresh history</button></div>
