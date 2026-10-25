@@ -1,8 +1,8 @@
 # Riverview~ Development Lifecycle Standard
 
-**Document Revision:** 1.0.0  
-**Status:** Proposed — pending Steward acceptance  
-**Date:** 2026-10-09  
+**Document Revision:** 1.0.1
+**Status:** Accepted by Steward — local controlled checkout and independent review are the release gates
+**Date:** 2026-10-25
 **Purpose:** Govern intake, design, creation, verification, deployment, maintenance, revisioning and recovery for all Riverview engineering work.  
 **Related standards:** `docs/standards/COMPONENT_DEFINITION_OF_DONE.md` Rev 1.3; `docs/standards/ENGINEERING_RECORDS_STANDARD.md` Rev 1.0.
 
@@ -64,9 +64,51 @@ Classify every engineering assignment as design, new component, enhancement, def
 6. **Deployment / acceptance:** identify deployed revisions, preserve deployed predecessor, verify restart and rollback paths, run environment-specific checks, evaluate applicable DoD gates and record Steward acceptance where required. Routine already-authorized operations must not be held for repeated manual approval.
 7. **Operations / maintenance:** monitor events, health, regressions and incidents; changes re-enter the lifecycle at appropriate scope. Corrections to earlier records are appended and linked, not silently overwritten.
 
+## Release qualification and source of authority
+
+GitHub is the authoritative source for repository content, commits, branches,
+pull requests, and issue history. GitHub Actions is supplemental and is not a
+required release gate. A missing, queued, or failed hosted Actions run does not
+replace or invalidate a passing local qualification record. No external CI
+service or paid Actions capacity is required by this standard.
+
+Before merge or deployment, run the complete test suite and every applicable
+repository checkout gate on a Riverview-controlled machine, against the exact
+candidate commit. This includes PostgreSQL-backed tests on a disposable
+PostgreSQL instance, capability-declaration checks against the actual PR base,
+canonical process-graph validation, controlled-file revision/predecessor
+validation, and package integrity checks when a deployment package is used.
+Keep acceptance criteria, test scope, authorization checks, security checks,
+and environment-specific deployment checks unchanged. A skipped required test,
+unresolved regression, missing predecessor, or failed local gate remains a
+blocker.
+
+Persist a machine-readable checkout report and relevant logs under
+`evidence/checkouts/<task-or-component>/<UTC timestamp>-<short commit>/` (or an
+equivalent durable repository artifact). Bind the report to the full commit and
+tree SHA. Include host, OS, Python/PostgreSQL/test-tool versions, exact commands,
+start/end timestamps, exit codes, test/pass/failure/error/skip counts, hashes of
+logs and packages, and all limitations. Retain failures as well as passes; do
+not overwrite earlier evidence. Never place credentials, raw conversation
+content, provider secrets, or sensitive database values in the report.
+
+An independent technical reviewer, separate from the author, reviews the exact
+candidate commit and its evidence before merge. The review records the reviewed
+SHA, findings, disposition, and reviewer identity in the PR or linked durable
+review record. A review of another commit does not satisfy this gate. GitHub
+branch protections, when available and already configured, remain in force;
+remove or change only an Actions-specific required status when authorized.
+Do not weaken unrelated protections. This accepted policy does not create a
+waiver for a failed local gate or missing independent review.
+
 ## Enforcement and migration
 
 Implement a repository pre-commit/CI validator and controlled-file update tooling. Validator rejects changed controlled files with unchanged/missing revisions, missing required header fields or sidecars, or absent predecessor backup references. Detect untracked rename/delete changes and unsupported file formats. A task can still execute continuously at runtime; development governance must not become a runtime approval bottleneck.
+
+The existing `controlled-checkout` GitHub Actions workflow may continue to run
+as a convenience signal when hosted runners are available. Its result is
+informational and is not a merge, deployment, or release dependency; the
+recorded local checkout above is the required automated qualification.
 
 **Bootstrap existing repository:** inventory all files; preserve baseline copies/hashes; add revision headers/sidecars; commit baseline as a dedicated migration with a checkout report. Do not falsely claim legacy revisions or retroactively fabricate backups. Existing Git history remains available as supplementary evidence. Until migration and enforcement exist, mark file-revision compliance **NOT YET VERIFIED**, not PASS.
 
@@ -76,4 +118,5 @@ Engineering journal = why; Git/CHANGELOG = what changed; checkout evidence = wha
 
 ## Revision history
 
+- **1.0.1 — 2026-10-25:** Steward accepts the standard and replaces hosted Actions dependency with exact-commit local qualification and separate independent review. Predecessor: `.riverview-backups/20261025T203827006278Z/docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md`.
 - **1.0.0 — 2026-10-09:** Initial lifecycle standard, mandatory file-level revision and pre-change backups, standard code headers, checkout enforcement, and legacy migration plan.

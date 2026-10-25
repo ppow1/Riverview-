@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.36",
-      "sha256": "29eb488b01011201bf8e81e0c2b2c4b276004ca4e61192c34bce476949c6413f",
-      "size_bytes": 1598067
+      "revision": "1.0.37",
+      "sha256": "e2cdb13b1a90fd34ac2f647bbc4a0393ae74e1c8c91fca6fb8eebe9cf28040b6",
+      "size_bytes": 1600431
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.337"
+      "revision": "1.1.338"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -659,15 +659,15 @@
     },
     "docs/components/RUNTIME_BASELINE.md": {
       "path": "docs/components/RUNTIME_BASELINE.md",
-      "revision": "1.0.12",
-      "sha256": "ba269e753973701282bbfb112951014269d65b14e2fea68485b403b933c86243",
-      "size_bytes": 20686
+      "revision": "1.0.13",
+      "sha256": "66944e5a713c60a5e4736d82185f2c752eb9ba1e14e98afead67bb2ba2197f26",
+      "size_bytes": 23000
     },
     "docs/components/RUNTIME_BASELINE_COOKBOOK.md": {
       "path": "docs/components/RUNTIME_BASELINE_COOKBOOK.md",
-      "revision": "1.0.10",
-      "sha256": "c6f526a262adf0b9eb1b0ed31254a220cfa090925767f5dde04feec6fa7e5d36",
-      "size_bytes": 14737
+      "revision": "1.0.11",
+      "sha256": "a7a4efcada58501497ccb84bd319cf832746c0c4e18a4cd917ee257cdbf8ebe5",
+      "size_bytes": 16611
     },
     "docs/components/RUNTIME_BASELINE_FLOW.md": {
       "path": "docs/components/RUNTIME_BASELINE_FLOW.md",
@@ -1199,9 +1199,9 @@
     },
     "docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md": {
       "path": "docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md",
-      "revision": "1.0.0",
-      "sha256": "5ff9d092d9f2de0562c0633650f37a23825dc5b5da00a3f3c9c89066204943e5",
-      "size_bytes": 8092
+      "revision": "1.0.1",
+      "sha256": "8c09366c246a4cccdd5c4b3eee45962da6053cc8e0f0b158ea74650fc14fc210",
+      "size_bytes": 11051
     },
     "docs/standards/ENGINEERING_RECORDS_STANDARD.md": {
       "path": "docs/standards/ENGINEERING_RECORDS_STANDARD.md",
@@ -2909,7 +2909,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2927,7 +2927,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -9658,6 +9658,6 @@
       "size_bytes": 2008940
     }
   },
-  "manifest_revision": "1.1.337",
-  "updated_at": "2026-10-25T19:42:00Z"
+  "manifest_revision": "1.1.338",
+  "updated_at": "2026-10-25T20:41:53.256424Z"
 }
