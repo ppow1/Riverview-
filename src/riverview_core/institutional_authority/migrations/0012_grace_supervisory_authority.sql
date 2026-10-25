@@ -1,4 +1,3 @@
--- File Revision: 1.0.0
 -- Steward-gated Luna grant for the two bounded Grace supervisory functions.
 DO $migration$
 DECLARE authority_schema text := current_schema();

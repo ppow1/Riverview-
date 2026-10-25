@@ -1,6 +1,7 @@
 # Riverview~ RV-ENG-REV-004 metadata disposition
 
-**Document Revision:** 1.0.0
+**Document Revision:** 1.0.1
+Changed: 2026-10-25 UTC | RV-S4-MIGRATION-CHECKSUM-METADATA-20261025 | Record SQL migration revision metadata without changing applied migration bytes.
 **Task:** RV-ENG-REV-004-BASELINE-METADATA
 **Date:** 2026-10-25 UTC
 **Status:** Metadata-only baseline migration
@@ -8,7 +9,11 @@
 
 The controlled checkout found 19 files without recognized revisions. All 19 were byte-for-byte present in deployed source `07e0ab008796dc2dd75b12d84204261627c25fde`, and none changed between that source and the pre-migration PR head. No historical revision is claimed: text files start at 1.0.0; the three PNG assets are registered at 1.0.0 with exact size and SHA-256 in `.riverview-revisions.json`.
 
-Exact predecessor bytes for all 19 targets, `.riverview-revisions.json`, and `.riverview-backups/manifest.jsonl` were preserved and verified. The append-only backup manifest records predecessor revision, SHA-256, backup path, and task. Binary assets were not modified; other file contents are unchanged apart from the added revision comment.
+Exact predecessor bytes for all 19 targets, `.riverview-revisions.json`, and `.riverview-backups/manifest.jsonl` were preserved and verified. The append-only backup manifest records predecessor revision, SHA-256, backup path, and task. Binary assets were not modified. At initial disposition, text files received revision comments and SQL migration files received comments as well.
+
+## Applied migration checksum preservation
+
+Before release packaging, production ledger inspection showed that several SQL migrations in this baseline were already applied and their checksums are byte-sensitive. The SQL revision comments were therefore removed from those files, restoring their exact deployed bytes. Their initial `1.0.0` revisions are recorded in `.riverview-revisions.json` with SHA-256 and size; `scripts/revision_control.py` validates those sidecar values while retaining native SQL headers for files without sidecar records. This metadata correction does not change migration behavior or database state. The live migration ledger hashes for the affected resident-execution, authority, and notification migrations match the restored source bytes.
 
 | Path | Predecessor SHA-256 | Backup |
 | `deploy/systemd-user/riverview-chatgpt-doorbell-browser.service` | `a886f4d773eed0dba1150ef9fab5ceeef56186f896697a1f97a6aacc53bdc351` | `.riverview-backups/20261025T125101224835Z/deploy/systemd-user/riverview-chatgpt-doorbell-browser.service` |
