@@ -72,6 +72,11 @@
     };
   }
 
+  function notificationReceiptAction(row, canWrite) {
+    return canWrite && row?.notificationId && row.deliveryState === "delivered"
+      ? "acknowledge" : null;
+  }
+
   function filterRows(rows, {query = "", source = "all", severity = "all", status = "all", sort = "newest"} = {}) {
     const needle = query.trim().toLocaleLowerCase();
     return rows.filter((row) => {
@@ -88,7 +93,7 @@
     });
   }
 
-  const api = Object.freeze({mergeFeeds, mergeEventPage, filterRows});
+  const api = Object.freeze({mergeFeeds, mergeEventPage, notificationReceiptAction, filterRows});
   if (typeof window !== "undefined") window.RiverviewV2OperationalInboxAdapter = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

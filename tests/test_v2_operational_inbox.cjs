@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const {mergeFeeds, mergeEventPage, filterRows} = require("../website/v2/deployed/assets/operational-inbox-adapter.js");
+const {mergeFeeds, mergeEventPage, notificationReceiptAction, filterRows} = require("../website/v2/deployed/assets/operational-inbox-adapter.js");
 
 test("adapter joins notification, attention, and event history by authoritative event ID", () => {
   const rows = mergeFeeds({
@@ -49,6 +49,15 @@ test("event paging merges older and newer cursor pages without duplicates", () =
   assert.equal(newer.canLoadNewer,false);
 });
 
+test("notification acknowledgment is offered only for delivered notices to writable roles", () => {
+  const notice={notificationId:"n-1",deliveryState:"delivered"};
+  assert.equal(notificationReceiptAction(notice,true),"acknowledge");
+  assert.equal(notificationReceiptAction(notice,false),null);
+  assert.equal(notificationReceiptAction({...notice,deliveryState:"queued"},true),null);
+  assert.equal(notificationReceiptAction({...notice,deliveryState:"acknowledged"},true),null);
+  assert.equal(notificationReceiptAction({deliveryState:"delivered"},true),null);
+});
+
 test("filters search, source, supplied severity, delivery state, and sort without mutating", () => {
   const rows = mergeFeeds({
     notifications: [
@@ -62,7 +71,7 @@ test("filters search, source, supplied severity, delivery state, and sort withou
   assert.deepEqual(rows.map((row)=>row.eventId),["e-new","e-old"]);
 });
 
-test("inbox is wired only to the authenticated GET projections and performs no writes", () => {
+test("inbox reads only the existing authenticated projections and pages them with GET", () => {
   const root = path.resolve(__dirname, "../website/v2/deployed");
   const html = fs.readFileSync(path.join(root,"index.html"),"utf8");
   const js = fs.readFileSync(path.join(root,"assets/operational-inbox.js"),"utf8");
@@ -72,6 +81,23 @@ test("inbox is wired only to the authenticated GET projections and performs no w
   assert.match(js,/after_seq=\$\{encodeURIComponent\(cursor\)\}/);
   assert.match(js,/credentials:\s*"same-origin"/);
   assert.match(js,/method:\s*"GET"/);
-  assert.doesNotMatch(js,/method:\s*"(POST|PUT|PATCH|DELETE)"/);
+});
+
+test("receipt controls reuse the existing authenticated receipt endpoints and preserve the Comms5 unavailable state", () => {
+  const root=path.resolve(__dirname,"../website/v2/deployed");
+  const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
+  const js=fs.readFileSync(path.join(root,"assets/operational-inbox.js"),"utf8");
+  const adapter=fs.readFileSync(path.join(root,"assets/operational-inbox-adapter.js"),"utf8");
+  const comms=fs.readFileSync(path.join(root,"assets/communications.js"),"utf8");
+  assert.match(html,/id="inbox-action-status"/);
+  assert.match(html,/NTFY phone delivery/i);
+  assert.match(js,/\/api\/v1\/notifications\/\$\{encodeURIComponent\(notificationId\)\}\/\$\{action\}/);
+  assert.match(js,/X-Riverview-CSRF/);
   assert.match(js,/credentials:\s*"same-origin"/);
+  assert.match(js,/roles\.includes\("operator"\).*roles\.includes\("steward"\)/);
+  assert.match(js,/document\.visibilityState !== "visible"/);
+  assert.match(js,/row\.deliveryState === "queued"/);
+  assert.match(adapter,/row\.deliveryState === "delivered"/);
+  assert.match(js,/No decision or recovery authorization was made/);
+  assert.match(html,/No authorized read-only Comms5 activity feed is connected/);
 });
