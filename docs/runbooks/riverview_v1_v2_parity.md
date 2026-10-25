@@ -1,9 +1,9 @@
-<!-- Document Revision: 1.0.2 -->
+<!-- Document Revision: 1.0.3 -->
 # Riverview deployed V1/V2 parity inventory
 
-Updated 2026-10-25 UTC | RV-V2-RESIDENT-PERMISSIONS-20261025: record the V2 Resident Permissions interface and remaining reserved-test-principal limitation.
+Updated 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025: record the V2 enrollment review, account roster, session revocation, and remaining account controls.
 
-Observed 2026-10-25 against the live LAN website. V1 is the root operations portal (`/`); V2 is `/v2/`, whose latest deployed manifest identifies `RV-WEB-V2-ACCEPTANCE-1f33df9933ff` at commit `1f33df9933feff99679b17bab5f2a536d8fcc504`. This is a UI and route inventory, not a claim that every protected operation was exercised. Unauthenticated probes of protected `/api/v1/...` paths returned 401, confirming the authentication boundary. Each endpoint continues to enforce its own authorization.
+Observed 2026-10-25 against the live LAN website. V1 is the root operations portal (`/`); V2 is `/v2/`, whose latest deployed manifest identifies `RV-WEB-V2-ACCEPTANCE-f737eb90537d` at commit `f737eb90537ddbc82d2a166b640b7e9f846bc16c`. This is a UI and route inventory, not a claim that every protected operation was exercised. Unauthenticated probes of protected `/api/v1/...` paths returned 401, confirming the authentication boundary. Each endpoint continues to enforce its own authorization.
 
 | V1 feature/function | V2 counterpart | Status | Backend/API availability and authorization | Suggested migration priority |
 |---|---|---|---|---|
@@ -17,7 +17,7 @@ Observed 2026-10-25 against the live LAN website. V1 is the root operations port
 | Notification inbox/attention delivery | Notification Settings page | Partial | V1 references `/api/v1/notifications` and `/api/v1/attention`; V2 settings uses authenticated `/api/v1/notification-settings`. Settings persist; V2 navigation has no equivalent notification inbox/history. | P1: decide on inbox/history parity |
 | Registered workflows and cross-workflow destinations | Image Generation workflow selector | Partial | V2 workflow UI covers image generation, not the full V1 workflow/destination view. Authenticated operations. | P2: retain general workflow discoverability |
 | Documentation and diagnostics | Knowledge, Resources, Hardware & AI, Snapshot views | Partial | V2 exposes these views, but not all V1 documentation/diagnostic links. Protected APIs require authentication. | P2: add operational docs links where needed |
-| Account/session administration and enrollment | No V2 account administration view; normal V2 login remains | Missing | V1 bundle references account users/enrollments, auth/session, and email settings APIs; V2 enforces login and role checks. | P1: high, Steward administration |
+| Account/session administration and enrollment | Account Administration: verified enrollment queue, approved-account roster, per-account session revocation | Partial | Uses existing `GET /api/v1/account/enrollments`, `GET /api/v1/account/users`, enrollment decision, and session-revoke operations. Existing backend requires Steward role; mutations retain same-origin/CSRF, audit, and current account service validation. The V2 interface does not bind institutional identities or create grants. Role changes, account disable/access-grant controls, and email settings remain available only through V1 APIs/UI. | P1: assess role/grant and account-state parity separately, with isolated test records |
 | Hardware & AI monitoring | No dedicated V1 counterpart | V2-only | Dedicated V2 hardware/resource panels backed by protected server APIs. | Maintain |
 | Snapshot capture/archive | No dedicated V1 counterpart | V2-only | V2 uses `/api/v1/snapshot`, `/api/v1/snapshot/workflow-index`, and `/api/v1/snapshot/archive`; archive write was skipped to avoid durable production data. | Maintain |
 | Website acceptance status | No V1 counterpart | V2-only | `/v2/verification/latest.json` is live and read-only; V2 panel displays categorized results. | Maintain |

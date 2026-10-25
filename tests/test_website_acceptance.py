@@ -1,6 +1,6 @@
 """Focused acceptance-system tests.
 
-Revision: 1.0.1
+Revision: 1.0.2
 """
 import importlib.util
 from pathlib import Path
@@ -37,6 +37,16 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn('"grace_natural_language_query","status":"SKIPPED"',source)
         self.assertIn('"production_cancellation_mutation","status":"SKIPPED"',source)
         self.assertNotIn("/api/v1/resident/conversations/stream",source)
+
+    def test_account_administration_acceptance_is_role_checked_and_read_only(self):
+        source=(ROOT/"scripts/run_website_acceptance.py").read_text()
+        self.assertIn('"account_admin_anonymous_denied"',source)
+        self.assertIn('"account_admin_steward_read"',source)
+        self.assertIn('"account_admin_viewer_denied"',source)
+        self.assertIn("/api/v1/account/enrollments?limit=50",source)
+        self.assertIn("/api/v1/account/users?limit=100",source)
+        self.assertNotIn("/api/v1/account/enrollments/",source)
+        self.assertNotIn("/api/v1/account/users/",source)
 
     def test_verification_report_view_is_same_origin_and_redacted(self):
         page=(ROOT/"website/v2/deployed/index.html").read_text()
