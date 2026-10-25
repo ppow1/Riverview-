@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.72
+# Revision: 1.0.73
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Exercise exact consumed Luna exchange provenance and evaluation lifecycle evidence through PostgreSQL.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Fix the integration fixture's explicit service import for concurrent admission coverage.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Exercise exact S4 single-use exception issuance and concurrent atomic consumption without resetting prior rework attempts.
 # Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Prove persisted authorization stops are checked against the active exact grant without another re-review.
@@ -2366,6 +2367,66 @@ class GraceExecutionTests(unittest.TestCase):
                 event["payload"].get("decision")=="REWORK_PROPOSED"]
             self.assertEqual(len(consumed),1)
             self.assertEqual(len(decisions),4)
+
+    def test_s4_performance_evidence_reader_validates_durable_exchange_and_grade(self):
+        objective_id, assignment_id, _criteria, _action, _worker, _verifier = \
+            self._create_rework_fixture("s4-evaluation-evidence", step_id="s4")
+        request_id, correlation_id = str(uuid4()), str(uuid4())
+        response_sha256 = "a" * 64
+        usage = {"input_tokens":2572,"output_tokens":280,
+            "reasoning_tokens":130,"cached_input_tokens":0,"cost_usd":"0.00039720"}
+        original = {"trigger":"performance_evaluation","assignment_id":objective_id,
+            "assignment":{"assignment_id":assignment_id,
+                "evaluation_trigger_event_id":"event:evaluation-trigger"}}
+        request = {"request_type":"performance_evaluation","original_request":original}
+        response = {"advisory":json.dumps({"schema":"rv.grace.performance-evaluation.v1",
+            "grade":2})}
+        provenance = {"response_id":"resp_s4_fixture","provider_model":"gpt-6-luna",
+            "usage":usage}
+        self.admin.execute("""INSERT INTO """ + self.schema + """.external_reasoning_exchanges
+            (request_id,correlation_id,original_request_id,originating_resident_id,
+             objective_id,conversation_id,message_sequence,request_schema,response_schema,
+             reason,context_sha256,classification,provider_id,idempotency_key,
+             request_sha256,request_payload,delivery_state,deadline_at,response_payload,
+             response_sha256,response_provenance,response_idempotency_key,response_received_at,
+             consumption_key,consumed_at,consumption_result)
+            VALUES (%s,%s,%s,%s,%s,%s,1,'rv.external-reasoning.request.v1',
+             'rv.external-reasoning.response.v1','task_complexity',%s,'institutional',
+             'gpt-6-luna',%s,%s,%s::jsonb,'grace_consumed',clock_timestamp()+interval '1 hour',
+             %s::jsonb,%s,%s::jsonb,%s,clock_timestamp(),%s,clock_timestamp(),%s::jsonb)""",
+            (request_id,correlation_id,"request:s4-fixture","resident:grace",objective_id,
+             str(uuid4()),"b"*64,"exchange:s4-fixture", "c"*64,
+             json.dumps(request),json.dumps(response),response_sha256,json.dumps(provenance),
+             "response:s4-fixture",f"external-reasoning-consumed:{request_id}",
+             json.dumps({"advisory_sha256":response_sha256})))
+        for seq,(event_type,payload) in enumerate((
+                ("provider_attempt_started",{"provider_id":"gpt-6-luna",
+                    "provider_model":"gpt-6-luna","attempt":1}),
+                ("provider_attempt_settled",{"status":"settled","usage":usage}),
+                ("response_received",{"response_sha256":response_sha256}),
+                ("grace_consumed",{"state":"grace_consumed"})),1):
+            self.admin.execute("""INSERT INTO """ + self.schema +
+                """.external_reasoning_exchange_events
+                (request_id,correlation_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,%s,%s,%s,'service:test',%s::jsonb)""",
+                (request_id,correlation_id,event_type,f"event:s4-fixture:{seq}",
+                 json.dumps(payload)))
+        evaluation = {"grade":2,"rubric":{"reasoning":1,"authorization":3,
+            "execution":2,"verification":2},"response_sha256":response_sha256}
+        for event_type,suffix in (("resident.performance.evaluation_recorded","grade"),
+                ("resident.performance.feedback_consumed","feedback")):
+            self.pipeline.record_supervisory_event(objective_id,assignment_id,
+                event_type=event_type,request_id=request_id,correlation_id=correlation_id,
+                idempotency_key=f"s4-eval:{suffix}:{request_id}",payload=evaluation)
+
+        evidence=self.pipeline.performance_evaluation_runtime_evidence_for_assignment(
+            objective_id,assignment_id)
+        self.assertEqual(evidence["exchange"]["request_id"],request_id)
+        self.assertEqual(evidence["exchange"]["usage"],usage)
+        self.assertEqual(evidence["evaluation"]["grade"],2)
+        self.assertTrue(evidence["evaluation"]["feedback_consumed"])
+        self.assertFalse(evidence["evaluation"]["authority_granted"])
+        self.assertNotIn("advisory",json.dumps(evidence))
 
     def test_uncommissioned_rejection_review_provider_records_pending_without_requeue(self):
         from riverview_core.resident_execution.service import GraceExecutionService
