@@ -73,8 +73,10 @@
   }
 
   function notificationReceiptAction(row, canWrite) {
-    return canWrite && row?.notificationId && row.deliveryState === "delivered"
-      ? "acknowledge" : null;
+    if (!canWrite || !row?.notificationId) return null;
+    if (row.deliveryState === "queued") return "delivered";
+    if (row.deliveryState === "delivered") return "acknowledge";
+    return null;
   }
 
   function filterRows(rows, {query = "", source = "all", severity = "all", status = "all", sort = "newest"} = {}) {
