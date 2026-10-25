@@ -34,6 +34,8 @@ class _AccountService:
     def __init__(self):
         self.identity = {"account_id":"account-1", "email":"viewer@example.org", "roles":["viewer"]}
         self.account_state_calls = []
+        self.role_calls = []
+        self.grant_revocations = []
 
     def status(self):
         return {"component_id":"WEBSITE-ACCOUNT-AUTH", "status":"degraded",
@@ -97,7 +99,13 @@ class _AccountService:
 
     def change_role(self, actor, account_id, role, *, grant):
         self.require_role(actor, "steward")
+        self.role_calls.append((account_id, role, grant, actor["account_id"]))
         return {"status":"updated"}
+
+    def revoke_access_grant(self, actor, account_id):
+        self.require_role(actor, "steward")
+        self.grant_revocations.append((account_id, actor["account_id"]))
+        return {"status":"grant_revoked"}
 
     def revoke_sessions(self, actor, account_id):
         self.require_role(actor, "steward")
@@ -218,6 +226,21 @@ class AccountAuthHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(self.accounts.account_state_calls,
                          [(account_id, True, "account-1")])
+
+    def test_role_and_grant_endpoints_reject_viewer_without_mutation(self):
+        cookie = "rv_account_session=" + "S"*43
+        account_id = "12345678-1234-4234-8234-123456789abc"
+        headers = {"role":(f"/api/v1/account/users/{account_id}/roles",
+                            {"role":"steward","grant":True}),
+                   "grant":(f"/api/v1/account/users/{account_id}/grant",
+                            {"revoked":True})}
+        for _name, (path, body) in headers.items():
+            status, _, response = self.request("POST", path, cookie=cookie,
+                csrf="C"*43, body=body, origin="https://192.168.1.155")
+            self.assertEqual(status, 403)
+            self.assertEqual(json.loads(response)["error"], "not_authorized")
+        self.assertEqual(self.accounts.role_calls, [])
+        self.assertEqual(self.accounts.grant_revocations, [])
 
 
 if __name__ == "__main__":

@@ -263,6 +263,45 @@ class AccountAuthPostgresTests(unittest.TestCase):
             "disposable test password", source_key="127.0.0.9")
         self.assertEqual(restored.account_id, applicant_id)
 
+    def test_disposable_account_role_and_grant_changes_are_audited(self):
+        self.service.request_access("role-test@example.org", source_key="127.0.0.10")
+        enrollment = self.mail.messages[-1]
+        self.service.verify_enrollment(enrollment["challenge_id"], enrollment["token"])
+        item = self.service.review_enrollments(self.steward)[0]
+        self.service.decide_enrollment(self.steward, item["enrollment_id"],
+            "approve", role="operator", grant_type="permanent")
+        setup = self.mail.messages[-1]
+        self.service.set_password(setup["challenge_id"], setup["token"], "disposable role password")
+        session = self.service.authenticate_password("role-test@example.org",
+            "disposable role password", source_key="127.0.0.10")
+        account_id = session.account_id
+        applicant = {"account_id":account_id, "roles":["operator"]}
+
+        with self.assertRaises(AuthDenied):
+            self.service.change_role(applicant, account_id, "viewer", grant=True)
+        with self.assertRaises(AuthDenied):
+            self.service.revoke_access_grant(applicant, account_id)
+        with self.assertRaises(AuthDenied):
+            self.service.change_role(self.steward, self.steward_id, "steward", grant=False)
+
+        self.assertEqual(self.service.change_role(self.steward, account_id,
+            "viewer", grant=True), {"status":"updated"})
+        self.assertEqual(self.service.change_role(self.steward, account_id,
+            "viewer", grant=False), {"status":"updated"})
+        self.assertEqual(self.service.revoke_access_grant(self.steward, account_id),
+            {"status":"grant_revoked"})
+        self.assertIsNone(self.service.authenticate(session.session_token))
+        with self.psycopg.connect(DSN) as conn:
+            events = conn.execute(f'SELECT event_type FROM "{self.schema}".account_audit '
+                "WHERE account_id=%s ORDER BY recorded_at", (account_id,)).fetchall()
+            revoked = conn.execute(f'SELECT grant_revoked_at IS NOT NULL FROM "{self.schema}".accounts '
+                "WHERE account_id=%s", (account_id,)).fetchone()[0]
+        event_types = [event[0] for event in events]
+        self.assertIn("role_granted", event_types)
+        self.assertIn("role_revoked", event_types)
+        self.assertIn("access_grant_revoked", event_types)
+        self.assertTrue(revoked)
+
     def test_unverified_and_unknown_email_do_not_login_and_rate_limit(self):
         self.service.request_access("new@example.org", source_key="127.0.0.1")
         for _ in range(4):

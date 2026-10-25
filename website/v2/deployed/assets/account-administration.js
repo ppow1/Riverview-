@@ -2,7 +2,7 @@
 Revision: 1.0.0
 Purpose: V2 view over existing account enrollment, roster, and session APIs.
 Authority: Dashboard account service remains authoritative for Steward role, CSRF, and audit checks.
-Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Reuse V1 account review and session-revocation operations.
+Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-ROLE-GRANT-20261025 | Reuse the existing audited role and access-grant operations.
 */
 (() => {
   "use strict";
@@ -73,13 +73,28 @@ Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Reuse V1 accoun
         const metadata = [roles.length ? roles.join(", ") : "no roles", account.disabled ? "disabled" : "active",
           account.grant_type || "grant type unavailable", account.grant_expires_at ? `expires ${formatTime(account.grant_expires_at)}` : "no expiry recorded",
           account.grant_revoked ? "grant revoked" : "grant active", account.one_time_used ? "one-time session used" : "one-time session not used"];
+        const roleControls = self
+          ? `<span class="account-admin-control-note">Role changes are unavailable for your current account.</span>`
+          : account.disabled
+            ? `<span class="account-admin-control-note">Enable this account before changing roles.</span>`
+          : ["viewer", "operator", "steward"].map((role) => {
+            const grant = !roles.includes(role);
+            return `<button type="button" class="account-admin-secondary" data-account-role="${escape(account.account_id)}" data-role="${role}" data-grant="${grant}" data-account-email="${escape(account.email)}">${grant ? "Grant " : "Remove "}${role}</button>`;
+          }).join("");
+        const grantControl = account.grant_revoked
+          ? `<span class="account-admin-control-note">Access grant revoked</span>`
+          : self
+            ? `<button type="button" class="account-admin-secondary" disabled title="Stewards cannot revoke their own access grant">Cannot revoke own grant</button>`
+            : `<button type="button" class="account-admin-secondary" data-revoke-grant="${escape(account.account_id)}" data-account-email="${escape(account.email)}">Revoke access grant</button>`;
         const stateControl = self && !disabled
           ? `<button type="button" class="account-admin-secondary" disabled title="Stewards cannot disable their own account">Cannot disable own account</button>`
           : `<button type="button" class="${disabled ? "account-admin-secondary" : "account-admin-danger"}" data-account-state="${escape(account.account_id)}" data-disabled="${disabled}" data-account-email="${escape(account.email)}">${disabled ? "Enable account" : "Disable account"}</button>`;
-        return `<article class="account-admin-row"><div class="account-admin-record"><strong>${escape(account.email)}</strong><span>${escape(metadata.join(" · "))}</span></div><div class="account-admin-actions"><button type="button" class="account-admin-secondary" data-revoke-sessions="${escape(account.account_id)}" data-account-email="${escape(account.email)}">Revoke sessions</button>${stateControl}</div></article>`;
+        return `<article class="account-admin-row"><div class="account-admin-record"><strong>${escape(account.email)}</strong><span>${escape(metadata.join(" · "))}</span></div><div class="account-admin-actions"><button type="button" class="account-admin-secondary" data-revoke-sessions="${escape(account.account_id)}" data-account-email="${escape(account.email)}">Revoke sessions</button>${stateControl}${grantControl}${roleControls}</div></article>`;
       }).join("") : `<p class="account-admin-empty">No approved accounts were returned.</p>`;
       host.querySelectorAll("[data-revoke-sessions]").forEach((button) => button.addEventListener("click", () => revokeSessions(button)));
       host.querySelectorAll("[data-account-state]").forEach((button) => button.addEventListener("click", () => setAccountState(button)));
+      host.querySelectorAll("[data-account-role]").forEach((button) => button.addEventListener("click", () => changeAccountRole(button)));
+      host.querySelectorAll("[data-revoke-grant]").forEach((button) => button.addEventListener("click", () => revokeAccessGrant(button)));
       return {ok:true,count:items.length};
     } catch (error) {
       $("account-roster-count").textContent = "Unavailable";
@@ -143,6 +158,42 @@ Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Reuse V1 accoun
     } catch (error) {
       button.disabled = false;
       setStatus(`Account state change failed. ${explain(error)}`);
+    } finally { busy = false; }
+  }
+
+  async function changeAccountRole(button) {
+    if (busy) return;
+    const role = button.dataset.role;
+    const grant = button.dataset.grant === "true";
+    const email = button.dataset.accountEmail || "this account";
+    const action = grant ? `Grant ${role}` : `Remove ${role} from`;
+    const prompt = `${action} ${email}? The account service will record the role change${grant ? "." : " and revoke active sessions."}`;
+    if (!window.confirm(prompt)) return;
+    busy = true; button.disabled = true;
+    try {
+      await request(`/api/v1/account/users/${encodeURIComponent(button.dataset.accountRole)}/roles`,
+        "POST", {role, grant});
+      setStatus(`Role ${grant ? "granted" : "removed"}; the existing account service recorded the change.`);
+      await loadAccounts();
+    } catch (error) {
+      button.disabled = false;
+      setStatus(`Role change failed. ${explain(error)}`);
+    } finally { busy = false; }
+  }
+
+  async function revokeAccessGrant(button) {
+    if (busy) return;
+    const email = button.dataset.accountEmail || "this account";
+    if (!window.confirm(`Revoke the access grant for ${email}? This blocks future sign-ins, revokes active sessions, and records the change in account audit history.`)) return;
+    busy = true; button.disabled = true;
+    try {
+      await request(`/api/v1/account/users/${encodeURIComponent(button.dataset.revokeGrant)}/grant`,
+        "POST", {revoked:true});
+      setStatus("Access grant revoked; the existing account service recorded the change and invalidated sessions.");
+      await loadAccounts();
+    } catch (error) {
+      button.disabled = false;
+      setStatus(`Access-grant change failed. ${explain(error)}`);
     } finally { busy = false; }
   }
 
