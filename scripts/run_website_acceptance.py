@@ -17,7 +17,8 @@ ACCOUNT_ADMIN_PRE_FEATURE_COMMIT = "f737eb90537ddbc82d2a166b640b7e9f846bc16c"
 ACCOUNT_STATE_PRE_FEATURE_COMMIT = "8c59b5bfcdde0b08efc8b4807c16f37a8595f8a2"
 
 
-def browser_acceptance(credentials: dict, *, account_admin_required: bool) -> list[dict]:
+def browser_acceptance(credentials: dict, *, account_admin_required: bool,
+                       live_source_commit: str | None) -> list[dict]:
     port = socket.socket(); port.bind(("127.0.0.1", 0)); driver_port = port.getsockname()[1]; port.close()
     chrome_driver=shutil.which("chromedriver")
     chrome_binary=shutil.which("google-chrome") or shutil.which("google-chrome-stable")
@@ -203,7 +204,9 @@ def main() -> int:
         if mode == "full" and cred_path.is_file():
             data=json.loads(cred_path.read_text())
             creds={**data,**{name+"_email":f"codex-test-{name}@riverview.invalid" for name in PERSONAS}}
-            checks.extend(browser_acceptance(creds,account_admin_required=live_source_commit!=ACCOUNT_ADMIN_PRE_FEATURE_COMMIT))
+            checks.extend(browser_acceptance(creds,
+                account_admin_required=live_source_commit!=ACCOUNT_ADMIN_PRE_FEATURE_COMMIT,
+                live_source_commit=live_source_commit))
         elif mode == "full":
             checks.append({"check":"authenticated_browser","status":"SKIPPED","reason":"persona credential unavailable"})
     except Exception as exc:
