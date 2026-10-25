@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.87
+# Revision: 1.0.88
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Assert interrupted one-shot recovery is terminalized and never replayed.
 # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Prove local recovery cannot spend externally and interrupted one-shot reasoning is never replayed.
 # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify one exact local criteria-binding recovery supersedes, but preserves, the pending Steward request.
 # Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Use a supported exact-literal criterion in late-artifact verifier recovery and record verifier 1.0.5.
@@ -771,11 +772,17 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertIsNotNone(claim)
         self.assertEqual(claim["missing_criterion_indices"],[1])
         resumed=service._claim_autonomous_local_recovery(objective_id,grounded["revision"])
-        self.assertEqual(resumed["event_id"],claim["event_id"])
-        self.assertTrue(resumed["resumed"])
+        self.assertIsNone(resumed)
         attempt_events=[event for event in self.pipeline.objective_events(objective_id)
             if event["event_type"]=="execution.reasoning_attempted"]
         self.assertEqual(len(attempt_events),1)
+        interrupted=[event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"]=="execution.reasoning_failed" and
+            event["payload"].get("detail_code")=="AUTONOMOUS_RECOVERY_INTERRUPTED"]
+        self.assertEqual(len(interrupted),1)
+        self.assertEqual(interrupted[0]["payload"]["recovery_event_id"],claim["event_id"])
+        self.assertEqual(interrupted[0]["payload"]["action"],
+                         "request_steward_review_without_replaying_reasoning")
         self.assertEqual(self.pipeline.get_objective(objective_id)["status"],"GROUNDED")
         self.assertEqual(self.pipeline.get_objective(objective_id)["acceptance_criteria"],
                          grounded["acceptance_criteria"])
