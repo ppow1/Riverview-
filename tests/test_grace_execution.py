@@ -2,7 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.83
+# Revision: 1.0.88
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Assert interrupted one-shot recovery is terminalized and never replayed.
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Prove local recovery cannot spend externally and interrupted one-shot reasoning is never replayed.
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify one exact local criteria-binding recovery supersedes, but preserves, the pending Steward request.
 # Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Use a supported exact-literal criterion in late-artifact verifier recovery and record verifier 1.0.5.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Cover a legitimately consumed S5 CME-recovery evaluation as runtime evidence for same-assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Exercise S4 rejection-trigger evaluation provenance and remove the historical S3 request pin from the one-use exception path.
@@ -640,8 +643,8 @@ class GraceExecutionTests(unittest.TestCase):
         self.admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
         apply_migrations(DSN, schema=self.schema)
         root = Path(__file__).resolve().parents[1] / "src/riverview_core"
-        for component in ("assignment_scheduler", "worker_adapter",
-                          "institutional_authority", "resident_execution"):
+        for component in ("assignment_scheduler", "worker_adapter", "cme",
+                          "notifications", "institutional_authority", "resident_execution"):
             apply_migrations(DSN, schema=self.schema,
                              migrations_dir=root / component / "migrations")
         self.ledger = PostgresLedger(DSN, schema=self.schema)
@@ -734,6 +737,175 @@ class GraceExecutionTests(unittest.TestCase):
             ["artifact contains the task and verified repository provenance"],
             credential=self.credentials["steward"], scope_ref=self.scope)
         return self.pipeline.ground_objective(row["objective_id"])
+
+    def test_criteria_binding_failure_gets_one_local_recovery_and_supersedes_pending_request(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        objective_id = "objective:auto-local-recovery:" + uuid4().hex
+        grounded = self._create_grounded_reasoning_objective(objective_id)
+        service = GraceExecutionService(self.pipeline,self.adapter,object(),
+            dispatch_credential=self.credentials["steward"],authority_ref=self.scope,
+            verifier_id=self.verifier_id,verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root/"auto-recovery",resident_reasoner=object())
+        service._record_reasoning_failure(objective_id,failure_type="ObjectiveStateError",
+            detail_code="PROPOSAL_CRITERIA_BINDING_REJECTED",
+            blocked_revision=grounded["revision"],diagnostic_context={
+                "missing_approved_criterion_indices":[1],"reason_codes":["criterion_unbound"]})
+
+        source_event, notification_id = uuid4(), uuid4()
+        self.admin.execute(f'''INSERT INTO "{self.schema}".cme_monitor_events
+            (event_id,event_key,service_id,event_type,details)
+            VALUES (%s,%s,'cme.monitor.v1','grace_objective_blocked',
+             %s::jsonb)''',(source_event,"cme:"+str(source_event),json.dumps({
+                "objective_id":objective_id,"objective_revision":grounded["revision"]})))
+        self.admin.execute(f'''INSERT INTO "{self.schema}".attention_notifications
+            (notification_id,source_event_id,event_type,summary_code,source_recorded_at)
+            VALUES (%s,%s,'grace_objective_blocked','grace_objective_blocked',clock_timestamp())''',
+            (notification_id,source_event))
+        request_id=uuid4()
+        self.admin.execute(f'''INSERT INTO "{self.schema}".grace_recovery_decision_requests
+            (request_id,source_event_id,notification_id,objective_id,objective_revision,
+             recovery_action,attempt_limit,expires_at)
+            VALUES (%s,%s,%s,%s,%s,'retry_reasoning_once',1,clock_timestamp()+interval '1 hour')''',
+            (request_id,source_event,notification_id,objective_id,grounded["revision"]))
+
+        claim=service._claim_autonomous_local_recovery(objective_id,grounded["revision"])
+        self.assertIsNotNone(claim)
+        self.assertEqual(claim["missing_criterion_indices"],[1])
+        resumed=service._claim_autonomous_local_recovery(objective_id,grounded["revision"])
+        self.assertIsNone(resumed)
+        attempt_events=[event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"]=="execution.reasoning_attempted"]
+        self.assertEqual(len(attempt_events),1)
+        interrupted=[event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"]=="execution.reasoning_failed" and
+            event["payload"].get("detail_code")=="AUTONOMOUS_RECOVERY_INTERRUPTED"]
+        self.assertEqual(len(interrupted),1)
+        self.assertEqual(interrupted[0]["payload"]["recovery_event_id"],claim["event_id"])
+        self.assertEqual(interrupted[0]["payload"]["action"],
+                         "request_steward_review_without_replaying_reasoning")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"],"GROUNDED")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["acceptance_criteria"],
+                         grounded["acceptance_criteria"])
+        request=self.admin.execute(f'''SELECT status FROM "{self.schema}".grace_recovery_decision_requests
+            WHERE request_id=%s''',(request_id,)).fetchone()
+        self.assertEqual(request[0],"superseded")
+        decision=self.admin.execute(f'''SELECT decision,actor_principal_id,reason
+            FROM "{self.schema}".grace_recovery_decision_events WHERE request_id=%s''',
+            (request_id,)).fetchone()
+        self.assertEqual(decision[0],"supersede")
+        self.assertEqual(decision[1],"service:grace-execution")
+        self.assertIn("one exact-scope local",decision[2])
+        recovery=[event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"]=="execution.autonomous_recovery_authorized"]
+        self.assertEqual(len(recovery),1)
+        self.assertFalse(recovery[0]["payload"]["acceptance_criteria_changed"])
+        self.assertFalse(recovery[0]["payload"]["external_provider_authorized"])
+
+    def test_autonomous_local_recovery_rejects_other_failure_codes(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        objective_id="objective:auto-local-recovery-denied:"+uuid4().hex
+        grounded=self._create_grounded_reasoning_objective(objective_id)
+        service=GraceExecutionService(self.pipeline,self.adapter,object(),
+            dispatch_credential=self.credentials["steward"],authority_ref=self.scope,
+            verifier_id=self.verifier_id,verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root/"auto-recovery-denied",resident_reasoner=object())
+        service._record_reasoning_failure(objective_id,failure_type="ProviderError",
+            detail_code="PROVIDER_UNAVAILABLE",blocked_revision=grounded["revision"])
+        self.assertIsNone(service._claim_autonomous_local_recovery(objective_id,grounded["revision"]))
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"],"GROUNDED")
+
+    def test_owner_session_automatically_recovers_criteria_binding_failure_once(self):
+        from types import SimpleNamespace
+        from riverview_core.resident_reasoning import (ExternalEscalationIntent,
+            PlanProposal, PlanStep, ReasoningResult, ReasoningStatus)
+        objective_id="objective:auto-local-recovery-cycle:"+uuid4().hex
+        grounded=self._create_grounded_reasoning_objective(objective_id)
+        criterion=grounded["acceptance_criteria"][0]
+        corrected=PlanProposal("Bind the approved criterion exactly",(
+            PlanStep("document","Produce a bounded engineering record",(criterion,)),),0,
+            external_escalation=ExternalEscalationIntent("task_complexity","provider.test"))
+
+        class SequenceReasoner:
+            office_id="office:grace-test"
+            providers={"provider.test":object()}
+            def __init__(inner_self):
+                inner_self.requests=[]
+            def propose(inner_self, requested_objective, **kwargs):
+                self.assertEqual(requested_objective,objective_id)
+                trigger=kwargs["trigger"]
+                inner_self.requests.append(trigger)
+                proposal=(PlanProposal("Omit the required criterion",(
+                    PlanStep("document","Produce a bounded engineering record",
+                        ("unsupported extra criterion",)),),0)
+                    if len(inner_self.requests)==1 else corrected)
+                return ReasoningResult(status=ReasoningStatus.PROPOSED,
+                    request_id="criteria-request-"+str(len(inner_self.requests)),
+                    detail_code="PROPOSAL_READY",provider_id="provider.test",
+                    proposal=proposal,reasoning_request=SimpleNamespace(
+                        request_id="criteria-request-"+str(len(inner_self.requests)),
+                        assignment={"acceptance_criteria":grounded["acceptance_criteria"]}))
+
+        reasoner=SequenceReasoner()
+        service=self._reasoning_service(reasoner)
+        service.request_external_reasoning=lambda *_args,**_kwargs: self.fail(
+            "one-shot local recovery must not queue a paid provider request")
+        self.assertFalse(service.reason_one_grounded_objective())
+        failures=[event for event in self.pipeline.objective_events(objective_id)
+            if event["event_type"]=="execution.reasoning_failed"]
+        self.assertEqual(len(failures),1)
+        self.assertEqual(failures[0]["payload"]["detail_code"],
+                         "PROPOSAL_CRITERIA_BINDING_REJECTED")
+        self.assertTrue(service.reason_one_grounded_objective())
+        self.assertEqual(reasoner.requests,["persistent_resident_cycle",
+            "criteria_binding_recovery:1"])
+        current=self.pipeline.get_objective(objective_id)
+        self.assertEqual(current["status"],"PROPOSED")
+        self.assertEqual(current["proposal"]["steps"][0]["acceptance_criteria"],[criterion])
+        events=self.pipeline.objective_events(objective_id)
+        self.assertEqual(sum(event["event_type"]=="execution.autonomous_recovery_authorized"
+                             for event in events),1)
+        self.assertEqual(sum(event["event_type"]=="execution.reasoning_attempted"
+                             for event in events),2)
+        self.assertEqual(sum(event["event_type"]=="work_order.proposed"
+                             for event in events),1)
+        suppressed=[event for event in events
+            if event["event_type"]=="execution.external_escalation_suppressed"]
+        self.assertEqual(len(suppressed),1)
+        self.assertEqual(suppressed[0]["payload"]["reason_code"],
+            "LOCAL_RECOVERY_HAS_NO_EXTERNAL_PROVIDER_AUTHORITY")
+
+    def test_interrupted_one_shot_recovery_is_not_replayed_after_restart(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+        objective_id="objective:auto-local-recovery-interrupted:"+uuid4().hex
+        grounded=self._create_grounded_reasoning_objective(objective_id)
+        first=self._reasoning_service(object())
+        first._record_reasoning_failure(objective_id,failure_type="ObjectiveStateError",
+            detail_code="PROPOSAL_CRITERIA_BINDING_REJECTED",
+            blocked_revision=grounded["revision"],diagnostic_context={
+                "missing_approved_criterion_indices":[1],"reason_codes":["criterion_unbound"]})
+        admitted=first._claim_autonomous_local_recovery(objective_id,grounded["revision"])
+        self.assertIsNotNone(admitted)
+
+        class MustNotRun:
+            office_id="office:grace-test"
+            providers={"provider.test":object()}
+            calls=0
+            def propose(inner_self,*_args,**_kwargs):
+                inner_self.calls+=1
+                raise AssertionError("persisted one-shot attempt must not be replayed")
+
+        reasoner=MustNotRun()
+        restarted=self._reasoning_service(reasoner)
+        restarted._claim_approved_recovery=lambda *_args: None
+        restarted._claim_experiment_recovery=lambda *_args: None
+        self.assertFalse(restarted.reason_one_grounded_objective())
+        self.assertEqual(reasoner.calls,0)
+        events=self.pipeline.objective_events(objective_id)
+        attempts=[event for event in events if event["event_type"]=="execution.reasoning_attempted"]
+        holds=[event for event in events if event["event_type"]=="execution.reasoning_failed"
+            and event["payload"].get("detail_code")=="AUTONOMOUS_RECOVERY_INTERRUPTED"]
+        self.assertEqual(len(attempts),1)
+        self.assertEqual(len(holds),1)
 
     def test_luna_acceptance_fixture_reproduces_and_repairs_only_index_one(self):
         from riverview_core.resident_reasoning import PlanProposal, PlanStep

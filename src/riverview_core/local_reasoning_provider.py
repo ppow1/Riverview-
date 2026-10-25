@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.31
+# Revision: 1.3.32
+# Changed: 2026-10-25 UTC | RV-GRACE-AUTONOMOUS-CRITERIA-RECOVERY-20261025 | Give the single authorized local replan the exact safe criterion-binding diagnostic.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Validate typed registered-workflow requests in Grace Engineering proposals.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Support optional bounded JSON-Schema chat output for strict verified-result review.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Keep artifact-specific criteria in their artifact contract, not formal step binding.
@@ -343,6 +344,19 @@ class LocalReasoningProvider:
                 "compare it against assignment.acceptance_criteria and correct omissions or duplication only in that "
                 "formal list. Do not copy prior-plan criteria absent from assignment.acceptance_criteria. Preserve "
                 "other original request instructions as execution constraints, not formal acceptance criteria.")
+        recovery = re.fullmatch(r"criteria_binding_recovery(?::([1-9][0-9]?(?:,[1-9][0-9]?)*)?)?",
+                                request.trigger)
+        if recovery:
+            indexes = recovery.group(1)
+            system_instruction += (
+                " This is the one controller-authorized local recovery after a prior proposal was rejected "
+                "because approved acceptance criteria were not completely bound to the plan. Re-read the "
+                "original assignment.acceptance_criteria. Copy every criterion exactly once to an Engineering "
+                "step or to system_owned_criteria only when an existing Riverview lifecycle event proves it. "
+                "Do not alter the objective, acceptance criteria, artifact requirements, or authority."
+                + (f" The controller's prior diagnostic identified missing 1-based criterion positions: {indexes}."
+                   if indexes else " The prior diagnostic did not retain safe criterion positions; inspect the full list.")
+            )
         if request.external_reasoning_targets:
             system_instruction += (
                 " You may additionally set external_escalation only when a specific second opinion is needed "

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_notifications.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.4
+# Revision: 1.0.5
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Keep local service supersession unavailable through the authenticated Steward decision API.
 # Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify idempotent Grace block projection and non-authoritative receipt.
 # Purpose: Verify durable visual notice projection, recovery, privacy, and receipt authority
 # Execution Model: Isolated PostgreSQL integration tests against unique rvtest_* schemas
@@ -359,6 +360,8 @@ class NotificationPostgresTests(unittest.TestCase):
                 "authority_reference": "account-auth-session:test:steward",
                 "reason": "Approve exactly one bounded diagnostic retry.",
                 "idempotency_key": "recovery-approve-approve"}
+        with self.assertRaisesRegex(ValueError, "invalid recovery decision"):
+            self.service.decide_grace_recovery(request_id, decision="supersede", **args)
         result = self.service.decide_grace_recovery(request_id, decision="approve", **args)
         self.assertEqual(result["objective_id"], objective_id)
         self.assertEqual(result["objective_revision"], 2)

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.34
+# Revision: 1.1.35
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify the exact one-time criteria-binding recovery instruction preserves original scope.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Check the ComfyUI typed plan schema alongside existing artifact and source-change variants.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional JSON-schema chat mode is sent only when requested and bounded.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ARTIFACT-CRITERION-BINDING-20261022 | Verify artifact checks stay in the artifact contract without becoming extra formal criteria.
@@ -236,6 +237,18 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("Director of Operations", sent["messages"][0]["content"])
         self.assertIn("Alfred", sent["messages"][0]["content"])
         self.assertIn("grants no permission", sent["messages"][0]["content"])
+
+    def test_exact_criteria_binding_recovery_adds_bounded_instruction_without_changing_criteria(self):
+        criterion="The report cites the deployed worker-preflight correction."
+        request=replace(self.request,trigger="criteria_binding_recovery:1",
+            assignment={**self.request.assignment,"acceptance_criteria":[criterion]})
+        proposal=self.provider.propose(request)
+        self.assertIsInstance(proposal,PlanProposal)
+        system=self.requests[0]["messages"][0]["content"]
+        self.assertIn("one controller-authorized local recovery",system)
+        self.assertIn("missing 1-based criterion positions: 1",system)
+        self.assertIn(criterion,self.requests[0]["messages"][1]["content"])
+        self.assertNotIn("authorized to execute",system)
 
     def test_missing_formal_criteria_are_derived_from_the_full_objective_request(self):
         self.request = replace(self.request, assignment={

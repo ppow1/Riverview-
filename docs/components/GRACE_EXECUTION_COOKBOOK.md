@@ -2,7 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.35
+File Revision: 1.1.40
+Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document no-replay behavior for interrupted recovery and month-rollover spend serialization.
+Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document the exact one-shot local proposal recovery and shared monthly Luna reservation ceiling.
 Changed: 2026-10-25 UTC | RV-LOCAL-RELEASE-GATE-20261025 | Record local exact-commit qualification and Grace-only immutable release activation/rollback.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Require exact replayed grade and feedback evidence before S4 exception issuance.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Add read-only diagnostics and recovery steps for consumed-evaluation replay, bounded evidence handoff, and exhausted-rework CME suppression.
@@ -76,11 +78,19 @@ pointer plus candidate archive/checksum in a root-only timestamped backup under
 `/var/backups/riverview/`. Do not overwrite a release directory or change the
 Dashboard release.
 
+Before activation, apply notification migration
+`0011_grace_recovery_supersession.sql` with the existing PostgreSQL migration
+runner after verifying the notification migration ledger and current
+constraint definitions. It only expands the existing recovery-request and
+decision vocabularies; it does not edit objective, assignment, authorization,
+or event-history rows. The predecessor binary remains compatible with the
+added values and can be restored without reverting the additive constraint
+migration. Leave all objective and event records alone.
+
 Switch only the Grace `current` symlink atomically to the verified release,
 then restart only `riverview-grace-execution-owner-session.service` so its
 imported code matches the new pointer. Do not restart the Dashboard, CME, event
-processor, model services, or workers for a source-only Grace change. This
-change has no database migration; leave all objective and event records alone.
+processor, model services, or workers for this Grace change.
 Verify the active release SHA, owner-session health/heartbeat, and the relevant
 authenticated Dashboard projection. Run the change's verifier regression
 against the deployed source to confirm unsupported factual criteria and
@@ -143,6 +153,41 @@ the persisted advisory-consumption event and retain the ordinary independent
 verifier gate on the same assignment. Treat unknown provider errors and
 unresolved API cost conservatively; do not infer zero spend from a failed
 response without usage data.
+
+## Bounded local proposal recovery and authority limits
+
+For one current \`GROUNDED\` objective revision with no assignment, the owner
+session may perform one local reasoning retry only after the persisted failure
+code \`PROPOSAL_CRITERIA_BINDING_REJECTED\`. The retry prompt uses the original
+criteria and only sanitized criterion-index diagnostics. An append-only
+\`execution.autonomous_recovery_authorized\` event binds the retry to the exact
+failure sequence and revision; the pending Steward retry request is marked
+\`superseded\` with an append-only service decision. The attempt and grant are
+committed together. If the owner process stops after recording the attempt but
+before recording its outcome, the next cycle does not call a model again. It
+records an interrupted-recovery failure and lets CME create a fresh Steward
+attention request; the ambiguous attempt is never replayed. Other failure
+codes, revisions, assignments, and repeated failures do not get another
+automatic reasoning retry. Nothing in this path approves a proposal,
+creates an assignment, changes criteria, spends provider budget, or authorizes
+deployment. Existing exact \`assignment.create\`, execution, and verification
+checks remain in force.
+
+The $5.00 UTC-calendar-month actual-plus-reserved ceiling is enforced across
+the existing Luna supervision and experiment grants under one PostgreSQL
+transaction advisory lock acquired before reading the UTC month, including at
+month rollover. Provider-specific per-request and grant limits remain narrower.
+The current accounting records Luna API costs and estimates;
+it is not a universal meter for subscription-based ChatGPT/Codex use or for
+local inference. Do not report those sources as globally spend-enforced until
+their actual cost and reservation data are present in an existing authoritative
+ledger.
+
+Grace has no registered production-deployment or repository-publication
+capability in this release. Existing institutional grants continue to block
+unapproved assignment creation, destructive data changes, publication, and
+hardware actions. A policy statement does not create a credential or grant;
+newly scoped authority must use the authenticated Steward mechanism.
 
 ## Request one verified-result rereview generation
 
