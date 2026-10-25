@@ -1,6 +1,7 @@
 """Focused acceptance-system tests.
 
-Revision: 1.1.2
+Revision: 1.1.3
+Changed: 2026-10-26 UTC | RV-V2-LIVE-OVERVIEW-ACCEPTANCE-20261026 | Assert the authenticated production runner compares Overview cards to existing source reads.
 """
 import importlib.util
 from pathlib import Path
@@ -68,6 +69,16 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn('"grace_natural_language_query","status":"SKIPPED"',source)
         self.assertIn('"production_cancellation_mutation","status":"SKIPPED"',source)
         self.assertNotIn("/api/v1/resident/conversations/stream",source)
+
+    def test_authenticated_overview_acceptance_compares_cards_to_existing_read_apis(self):
+        source=(ROOT/"scripts/run_website_acceptance.py").read_text()
+        self.assertIn('overview_cards_match_authenticated_operational_sources',source)
+        self.assertIn("/api/v1/status",source)
+        self.assertIn("/api/v1/attention?limit=50",source)
+        self.assertIn("/api/v1/resources/telemetry",source)
+        self.assertIn("overview-live-grid .overview-live-card",source)
+        scenario=source[source.index('stage = "live_overview_projection_acceptance"'):source.index('if role == "steward" and proposal_decisions_available:')]
+        self.assertNotIn("method:'POST'",scenario)
 
     def test_account_administration_acceptance_is_role_checked_and_mutation_free(self):
         source=(ROOT/"scripts/run_website_acceptance.py").read_text()
