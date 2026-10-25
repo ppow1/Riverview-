@@ -404,7 +404,8 @@ class PostgresRecoveryCoordinator:
                 prior_observation = cur.fetchone()
                 if (prior_observation is None or
                         prior_observation["operation"] not in
-                            {"ground_assignment", "reground_assignment", "preflight_action"} or
+                            {"ground_assignment", "reground_assignment", "preflight_action",
+                             "preflight_assignment_evidence"} or
                         prior_observation["status"] == KnowledgeStatus.VERIFIED.value):
                     return False
                 cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
