@@ -14,6 +14,7 @@ BASE = os.environ.get("RIVERVIEW_ACCEPTANCE_ORIGIN", "https://192.168.1.155")
 REPORT_DIR = Path(os.environ.get("RIVERVIEW_ACCEPTANCE_REPORT_DIR", "/var/lib/riverview-website-acceptance"))
 PERSONAS = {"steward":"steward", "operator":"operator", "engineering":"operator", "viewer":"viewer"}
 ACCOUNT_ADMIN_PRE_FEATURE_COMMIT = "f737eb90537ddbc82d2a166b640b7e9f846bc16c"
+ACCOUNT_STATE_PRE_FEATURE_COMMIT = "8c59b5bfcdde0b08efc8b4807c16f37a8595f8a2"
 
 
 def browser_acceptance(credentials: dict, *, account_admin_required: bool) -> list[dict]:
@@ -115,9 +116,13 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool) -> li
                                 and account_read.get("visible") and "loaded" in account_read.get("status", "").lower())
                     results.append({"check":"account_admin_steward_read","status":"PASS" if account_ok else "FAIL",
                                     "http":[x.get("status") for x in account_read.get("out",[])]})
-                    state_controls_ok=account_read.get("stateControls",0)>0
-                    results.append({"check":"account_state_controls_visible","status":"PASS" if state_controls_ok else "FAIL",
-                                    "controls":account_read.get("stateControls",0)})
+                    if live_source_commit != ACCOUNT_STATE_PRE_FEATURE_COMMIT:
+                        state_controls_ok=account_read.get("stateControls",0)>0
+                        results.append({"check":"account_state_controls_visible","status":"PASS" if state_controls_ok else "FAIL",
+                                        "controls":account_read.get("stateControls",0)})
+                    else:
+                        results.append({"check":"account_state_controls_visible","status":"SKIPPED",
+                                        "reason":"pre_feature_baseline_release"})
                 else:
                     results.append({"check":"account_admin_steward_read","status":"FAIL" if account_admin_required else "SKIPPED",
                                     "reason":"account_admin_view_missing" if account_admin_required else "pre_feature_baseline_release"})

@@ -50,6 +50,7 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertNotIn("/api/v1/account/enrollments/",source)
         self.assertIn("/api/v1/account/users/12345678-1234-4234-8234-123456789abc/disable",source)
         self.assertIn('"account_state_controls_visible"',source)
+        self.assertIn('ACCOUNT_STATE_PRE_FEATURE_COMMIT',source)
 
     def test_predeploy_account_denial_and_nginx_snippet_rollback_are_safe(self):
         runner=(ROOT/"scripts/run_website_acceptance.py").read_text()
