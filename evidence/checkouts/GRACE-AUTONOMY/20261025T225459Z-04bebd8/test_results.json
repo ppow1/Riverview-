@@ -1,0 +1,54 @@
+{
+  "result_revision": "1.0.0",
+  "task_id": "RV-AGREED-AUTONOMY-POLICY-20261025",
+  "source_commit": "04bebd887d754e4bc20b8088b746d348ced0ef06",
+  "source_tree_sha": "ed865d09b35acb282ce44bd9dcc88541af8e52b8",
+  "environment": "Camrui Linux x86_64; Ubuntu 24.04; Python 3.12.3; PostgreSQL 16.15 isolated pg_virtualenv cluster",
+  "command": "pg_virtualenv -t sh -c 'RIVERVIEW_TEST_PG_DSN=\"host=$PGHOST port=$PGPORT dbname=$PGDATABASE user=$PGUSER\" PYTHONPATH=src python3 -m unittest discover -s tests -v'",
+  "started_at_utc": "2026-10-25T22:42:48.878524Z",
+  "finished_at_utc": "2026-10-25T22:54:59.578896Z",
+  "duration_seconds": 723.407,
+  "result": "PASS",
+  "tests_run": 1021,
+  "passed": 1020,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 1,
+  "skip": "test_restricted_riverview_core_role_can_read_only_grace_health_after_migration: isolated PostgreSQL instance does not define the dashboard runtime role",
+  "output": "full-suite.log",
+  "output_sha256": "92798fc04fa6b558cf7fee6dd43c009ff9296b52864e9189ac403abd08a3155c",
+  "focused_grace_suite": {
+    "source_commit": "04bebd887d754e4bc20b8088b746d348ced0ef06",
+    "tests_run": 71,
+    "passed": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "output": "focused-grace.log",
+    "output_sha256": "c9441abe06d1cadf2407389733374f88b4070427a2855a1a868cd4f2f2713784"
+  },
+  "prior_failure_preserved": {
+    "source_commit": "6137094a04fe65c5a51432b2cafb0375de29fb54",
+    "tests_run": 1021,
+    "failures": 0,
+    "errors": 1,
+    "skipped": 1,
+    "root_cause": "stale test expected interrupted one-shot recovery to replay; corrected test now asserts fail-closed behavior",
+    "output": "initial-full-suite-failure.log",
+    "output_sha256": "caca1574a6dcf239cdfebb78fb20e59b36536cb6d289271b5894a6139f3f4379"
+  },
+  "independent_review": {
+    "result": "PASS",
+    "reviewed_commit": "04bebd887d754e4bc20b8088b746d348ced0ef06",
+    "reviewer": "Noether (separate Codex reviewer)",
+    "review_scope": "read-only review of interrupted one-shot recovery regression and controlled predecessor backup"
+  },
+  "local_gates": {
+    "process_graph": "PASS; 24 graphs, 675 nodes",
+    "revision_control": "PASS; issues=[] against production-base revision inventory",
+    "capability_declaration": "PASS; 0 new API dispatch lines"
+  },
+  "package_integrity": "NOT RUN; release package is built from the merged commit under the established procedure",
+  "deployment": "NOT RUN; candidate has no reconciled GitHub merge path from deployed source line",
+  "production_state": "UNCHANGED"
+}

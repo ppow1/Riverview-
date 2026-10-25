@@ -1,0 +1,35 @@
+{
+  "manifest_revision": "1.0.0",
+  "artifacts": {
+    "checkout.md": {
+      "path": "evidence/checkouts/GRACE-AUTONOMY/20261025T225459Z-04bebd8/checkout.md",
+      "revision": "1.0.0",
+      "size_bytes": 1042,
+      "sha256": "8432e118219bdcc14bd7e18453ead11eb8fb369e3a4c2e1a15a402d7aa687c0c"
+    },
+    "test_results.json": {
+      "path": "evidence/checkouts/GRACE-AUTONOMY/20261025T225459Z-04bebd8/test_results.json",
+      "revision": "1.0.0",
+      "size_bytes": 2555,
+      "sha256": "c167ac735183a037b33a16121faf8388898abee724bce07ea7a6ac97361019b4"
+    },
+    "full-suite.log": {
+      "path": "evidence/checkouts/GRACE-AUTONOMY/20261025T225459Z-04bebd8/full-suite.log",
+      "revision": "1.0.0",
+      "size_bytes": 212397,
+      "sha256": "92798fc04fa6b558cf7fee6dd43c009ff9296b52864e9189ac403abd08a3155c"
+    },
+    "focused-grace.log": {
+      "path": "evidence/checkouts/GRACE-AUTONOMY/20261025T225459Z-04bebd8/focused-grace.log",
+      "revision": "1.0.0",
+      "size_bytes": 17328,
+      "sha256": "c9441abe06d1cadf2407389733374f88b4070427a2855a1a868cd4f2f2713784"
+    },
+    "initial-full-suite-failure.log": {
+      "path": "evidence/checkouts/GRACE-AUTONOMY/20261025T225459Z-04bebd8/initial-full-suite-failure.log",
+      "revision": "1.0.0",
+      "size_bytes": 226654,
+      "sha256": "caca1574a6dcf239cdfebb78fb20e59b36536cb6d289271b5894a6139f3f4379"
+    }
+  }
+}
