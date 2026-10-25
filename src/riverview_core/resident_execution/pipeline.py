@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.41
+# Revision: 1.1.42
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Validate the evaluation source against the exact current S4 exhausted-rejection event.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Bind consumed evaluation replay to the immutable exchange assignment and allow historically associated child assignments in objective events.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Consume one exact S4 retry exception atomically with same-assignment rework and preserve normal three-attempt bound.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Read back and validate exact consumed CME exchange and one-use authorization evidence for same-assignment rework.
@@ -951,6 +952,11 @@ class GraceExecutionPipeline:
                 ORDER BY sequence""", (request_id, ["provider_attempt_started",
                     "provider_attempt_settled", "response_received", "grace_consumed"]))
             exchange_events = cur.fetchall()
+            trigger_event_id = event_payload.get("evaluation_trigger_event_id")
+            cur.execute("""SELECT event_id::text AS event_id,event_type,payload
+                FROM grace_objective_events WHERE objective_id=%s AND event_id=%s""",
+                (objective_id, trigger_event_id))
+            trigger_event = cur.fetchone()
         if not exchange:
             raise ObjectiveStateError("performance evaluation exchange is unavailable")
         request = exchange["request_payload"] or {}
@@ -972,6 +978,15 @@ class GraceExecutionPipeline:
                 original.get("trigger") != "performance_evaluation" or
                 not isinstance(source_assignment, Mapping) or
                 source_assignment.get("assignment_id") != assignment_id or
+                source_assignment.get("evaluation_trigger_event_id") != trigger_event_id or
+                not trigger_event or trigger_event["event_id"] != trigger_event_id or
+                trigger_event["event_type"] != "engineering.rework_escalation_pending" or
+                (trigger_event["payload"] or {}).get("assignment_id") != assignment_id or
+                (trigger_event["payload"] or {}).get("step_id") != "s4" or
+                (trigger_event["payload"] or {}).get("reason_code") != "retry_limit_exhausted" or
+                (trigger_event["payload"] or {}).get("decision") != "ESCALATION_PENDING" or
+                (trigger_event["payload"] or {}).get("verification_id") !=
+                    "54d1fb2f-411e-4771-a137-785d2b620de7" or
                 event_payload.get("response_sha256") != exchange["response_sha256"]):
             raise ObjectiveStateError("performance evaluation evidence correlation is invalid")
         by_type = {}
@@ -984,6 +999,8 @@ class GraceExecutionPipeline:
         feedback = dict(by_type["resident.performance.feedback_consumed"][0]["payload"])
         if (recorded != feedback or recorded.get("request_id") != request_id or
                 recorded.get("correlation_id") != correlation_id or
+                recorded.get("assignment_id") != assignment_id or
+                recorded.get("evaluation_trigger_event_id") != trigger_event_id or
                 recorded.get("response_sha256") != exchange["response_sha256"] or
                 type(recorded.get("grade")) is not int or
                 not isinstance(usage, Mapping) or
@@ -1018,6 +1035,7 @@ class GraceExecutionPipeline:
             "evaluation": {"event_id": str(by_type[
                     "resident.performance.evaluation_recorded"][0]["event_id"]),
                 "grade": recorded["grade"], "rubric": recorded["rubric"],
+                "trigger_event_id": trigger_event_id,
                 "feedback_consumed_event_id": str(by_type[
                     "resident.performance.feedback_consumed"][0]["event_id"]),
                 "feedback_consumed": True, "authority_granted": False}}
@@ -2524,6 +2542,12 @@ class GraceExecutionPipeline:
             "verification_id": verification_id, "additional_attempts": 1,
             "authorized_by": "steward:camrui"}
         if (any(payload.get(key) != value for key, value in expected.items()) or
+                not isinstance(payload.get("evaluation_request_id"), str) or
+                not re.fullmatch(r"[0-9a-f-]{36}", payload.get("evaluation_request_id", "")) or
+                not isinstance(payload.get("evaluation_trigger_event_id"), str) or
+                not re.fullmatch(r"[0-9a-f-]{36}", payload.get("evaluation_trigger_event_id", "")) or
+                not isinstance(payload.get("evaluation_response_sha256"), str) or
+                not re.fullmatch(r"[0-9a-f]{64}", payload.get("evaluation_response_sha256", "")) or
                 payload.get("schema") != "rv.grace.rework-retry-exception.v1" or
                 grant.get("actor_id") != "steward:camrui" or
                 expires_at <= datetime.now(timezone.utc) or consumed):
@@ -2592,6 +2616,16 @@ class GraceExecutionPipeline:
                         datetime.fromisoformat(grant_payload.get("expires_at", "")) <=
                             datetime.now(timezone.utc)):
                     raise ObjectiveStateError("S4 retry authorization no longer matches current work")
+                evaluation_request_id = grant_payload.get("evaluation_request_id")
+                evaluation_trigger_event_id = grant_payload.get("evaluation_trigger_event_id")
+                evaluation_response_sha256 = grant_payload.get("evaluation_response_sha256")
+                if (not isinstance(evaluation_request_id, str) or
+                        not re.fullmatch(r"[0-9a-f-]{36}", evaluation_request_id) or
+                        not isinstance(evaluation_trigger_event_id, str) or
+                        not re.fullmatch(r"[0-9a-f-]{36}", evaluation_trigger_event_id) or
+                        not isinstance(evaluation_response_sha256, str) or
+                        not re.fullmatch(r"[0-9a-f]{64}", evaluation_response_sha256)):
+                    raise ObjectiveStateError("S4 retry authorization lacks exact evaluation provenance")
                 cur.execute("""SELECT verification_id::text AS verification_id,decision
                     FROM verification_records WHERE assignment_id=%s
                     ORDER BY recorded_at DESC,verification_id DESC LIMIT 1 FOR UPDATE""",

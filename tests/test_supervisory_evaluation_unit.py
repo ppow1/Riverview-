@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.14
+# Revision: 1.0.15
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Distinguish S4 exhausted-rejection evaluation triggers from already-evaluated S3 verification evidence.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Cover source-assignment replay, durable child membership, and revision-10 single-use admission.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Require exact durable evaluation evidence before issuing an S4 exception.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Cover response alias normalization, consumed-response replay, diagnostics, and exhausted-rework CME suppression.
@@ -227,6 +228,25 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             [completed, recovery])
         self.assertEqual(selected, [completed, recovery])
 
+    def test_s4_retry_limit_rejection_is_a_distinct_grade_trigger(self):
+        s3 = {"event_id":"s3-verified","event_type":"execution.step_verified",
+            "payload":{"assignment_id":"assignment:s3","step_id":"s3"}}
+        s4_hold = {"event_id":"s4-rejection-hold",
+            "event_type":"engineering.rework_escalation_pending",
+            "payload":{"assignment_id":"assignment:s4","step_id":"s4",
+                "decision":"ESCALATION_PENDING","reason_code":"retry_limit_exhausted",
+                "verification_id":"54d1fb2f-411e-4771-a137-785d2b620de7"}}
+        unrelated_hold = {"event_id":"other-hold",
+            "event_type":"engineering.rework_escalation_pending",
+            "payload":{"assignment_id":"assignment:other","step_id":"s4",
+                "decision":"ESCALATION_PENDING","reason_code":"review_provider_unavailable"}}
+        selected = GraceExecutionService._performance_evaluation_evidence(
+            [s3, unrelated_hold, s4_hold])
+        self.assertEqual(selected, [s3, s4_hold])
+        self.assertEqual(GraceExecutionService._select_performance_evaluation_request(
+            s4_hold["event_id"], None, None, set()),
+            "performance-evaluation:s4-rejection-hold")
+
     def test_evaluation_retry_is_limited_to_one_proven_truncation(self):
         choose = GraceExecutionService._select_performance_evaluation_request
         trigger = "step-event"
@@ -418,6 +438,9 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
                 "objective_revision":10,"objective_assignment_id":current_assignment,
                 "assignment_id":S4_REWORK_ASSIGNMENT_ID,"step_id":"s4",
                 "verification_id":S4_REWORK_VERIFICATION_ID,"additional_attempts":1,
+                "evaluation_request_id":"a157f40f-03b1-4ea8-8f8e-13fa69a087d2",
+                "evaluation_trigger_event_id":"254cf59d-34cb-4f44-aac3-867cc83f760d",
+                "evaluation_response_sha256":"a"*64,
                 "expires_at":(datetime.now(timezone.utc)+timedelta(minutes=5)).isoformat()}}
         args=(S4_REWORK_OBJECTIVE_ID,S4_REWORK_ASSIGNMENT_ID,S4_REWORK_VERIFICATION_ID)
         self.assertIsNotNone(choose([grant],*args,objective_revision=10,

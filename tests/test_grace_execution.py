@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.80
+# Revision: 1.0.81
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Exercise S4 rejection-trigger evaluation provenance and remove the historical S3 request pin from the one-use exception path.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Verify historical S3 event persistence after pointer advancement and reject cross-objective assignment references.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Exercise exact consumed Luna exchange provenance and evaluation lifecycle evidence through PostgreSQL.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Fix the integration fixture's explicit service import for concurrent admission coverage.
@@ -2316,15 +2317,20 @@ class GraceExecutionTests(unittest.TestCase):
                     "grace-s4-rework-authorized:" + verification_id)):
                 stack.enter_context(patch.object(auth_module,name,value))
             authorization=GraceSupervisoryAuthorization(self.pipeline,self.authorizer)
+            evaluation_request_id=str(uuid4())
+            evaluation_trigger_event_id=str(uuid4())
+            evaluation_response_sha256="d"*64
             with patch.object(self.pipeline,
                     "performance_evaluation_runtime_evidence_for_assignment",
                     return_value={"schema":
                         "rv.grace.performance-evaluation-runtime-evidence.v1",
                         "objective_id":objective_id,"assignment_id":assignment_id,
-                        "exchange":{"request_id":
-                            "98ca464e-23b8-5511-8ca0-cd8c528cdffa",
+                        "exchange":{"request_id":evaluation_request_id,
+                            "response_sha256":evaluation_response_sha256,
+                            "evaluation_trigger_event_id":evaluation_trigger_event_id,
                             "delivery_state":"grace_consumed"},
-                        "evaluation":{"feedback_consumed":True,
+                        "evaluation":{"trigger_event_id":evaluation_trigger_event_id,
+                            "feedback_consumed":True,
                             "authority_granted":False}}):
                 grant=authorization.authorize_one_s4_rework_attempt(
                     actor_id="steward:camrui",objective_id=objective_id,
@@ -2495,12 +2501,14 @@ class GraceExecutionTests(unittest.TestCase):
         objective_id, assignment_id, _criteria, _action, _worker, _verifier = \
             self._create_rework_fixture("s4-evaluation-evidence", step_id="s4")
         request_id, correlation_id = str(uuid4()), str(uuid4())
+        trigger_event_id = str(uuid4())
+        verification_id = "54d1fb2f-411e-4771-a137-785d2b620de7"
         response_sha256 = "a" * 64
         usage = {"input_tokens":2572,"output_tokens":280,
             "reasoning_tokens":130,"cached_input_tokens":0,"cost_usd":"0.00039720"}
         original = {"trigger":"performance_evaluation","assignment_id":objective_id,
             "assignment":{"assignment_id":assignment_id,
-                "evaluation_trigger_event_id":"event:evaluation-trigger"}}
+                "evaluation_trigger_event_id":trigger_event_id}}
         request = {"request_type":"performance_evaluation","original_request":original}
         response = {"advisory":json.dumps({"schema":"rv.grace.performance-evaluation.v1",
             "grade":2})}
@@ -2534,8 +2542,16 @@ class GraceExecutionTests(unittest.TestCase):
                 VALUES (%s,%s,%s,%s,'service:test',%s::jsonb)""",
                 (request_id,correlation_id,event_type,f"event:s4-fixture:{seq}",
                  json.dumps(payload)))
+        self.admin.execute("""INSERT INTO """ + self.schema + """.grace_objective_events
+            (event_id,objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,%s,'engineering.rework_escalation_pending',%s,'office:grace',%s::jsonb)""",
+            (trigger_event_id,objective_id,"s4-trigger:"+trigger_event_id,
+             json.dumps({"assignment_id":assignment_id,"step_id":"s4",
+                 "decision":"ESCALATION_PENDING","reason_code":"retry_limit_exhausted",
+                 "verification_id":verification_id})))
         evaluation = {"grade":2,"rubric":{"reasoning":1,"authorization":3,
-            "execution":2,"verification":2},"response_sha256":response_sha256}
+            "execution":2,"verification":2},"response_sha256":response_sha256,
+            "evaluation_trigger_event_id":trigger_event_id}
         for event_type,suffix in (("resident.performance.evaluation_recorded","grade"),
                 ("resident.performance.feedback_consumed","feedback")):
             self.pipeline.record_supervisory_event(objective_id,assignment_id,
@@ -2547,6 +2563,7 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(evidence["exchange"]["request_id"],request_id)
         self.assertEqual(evidence["exchange"]["usage"],usage)
         self.assertEqual(evidence["evaluation"]["grade"],2)
+        self.assertEqual(evidence["evaluation"]["trigger_event_id"],trigger_event_id)
         self.assertTrue(evidence["evaluation"]["feedback_consumed"])
         self.assertFalse(evidence["evaluation"]["authority_granted"])
         self.assertNotIn("advisory",json.dumps(evidence))

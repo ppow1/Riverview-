@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/grace_supervisory_authorization.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.6
+# Revision: 1.0.7
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Bind the one-use S4 exception to a consumed evaluation for the exact S4 rejection, not the historical S3 request.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Bind the one-use S4 exception to the locked live revision and current assignment pointer instead of historical constants.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Require the exact replayed S4 evaluation and durable feedback consumption before issuing the one-use attempt.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Add one expiring exact-verification S4 rework exception using append-only single-use objective events.
@@ -48,7 +49,6 @@ S4_REWORK_ROOT_ASSIGNMENT_ID = S3_RETRY_OBJECTIVE_ASSIGNMENT_ID
 S4_REWORK_ASSIGNMENT_ID = (
     S4_REWORK_ROOT_ASSIGNMENT_ID + ":step:5b840157e7e86aef")
 S4_REWORK_VERIFICATION_ID = "54d1fb2f-411e-4771-a137-785d2b620de7"
-S4_REWORK_EVALUATION_REQUEST_ID = "98ca464e-23b8-5511-8ca0-cd8c528cdffa"
 S4_REWORK_EXCEPTION_IDEMPOTENCY_KEY = (
     "grace-s4-rework-authorized:" + S4_REWORK_VERIFICATION_ID)
 
@@ -189,10 +189,14 @@ class GraceSupervisoryAuthorization:
                 evidence.get("objective_id") != objective_id or
                 evidence.get("assignment_id") != assignment_id or
                 not isinstance(evidence.get("exchange"), dict) or
-                evidence["exchange"].get("request_id") !=
-                    S4_REWORK_EVALUATION_REQUEST_ID or
-                evidence["exchange"].get("delivery_state") != "grace_consumed" or
+                not isinstance(evidence["exchange"].get("request_id"), str) or
+                not re.fullmatch(r"[0-9a-f-]{36}", evidence["exchange"].get("request_id", "")) or
                 not isinstance(evidence.get("evaluation"), dict) or
+                not isinstance(evidence["evaluation"].get("trigger_event_id"), str) or
+                not re.fullmatch(r"[0-9a-f-]{36}", evidence["evaluation"].get("trigger_event_id", "")) or
+                not isinstance(evidence["exchange"].get("response_sha256"), str) or
+                not re.fullmatch(r"[0-9a-f]{64}", evidence["exchange"].get("response_sha256", "")) or
+                evidence["exchange"].get("delivery_state") != "grace_consumed" or
                 evidence["evaluation"].get("feedback_consumed") is not True or
                 evidence["evaluation"].get("authority_granted") is not False):
             raise PermissionError("s4_durable_performance_evaluation_required")
@@ -256,6 +260,9 @@ class GraceSupervisoryAuthorization:
                 "objective_assignment_id": objective_assignment_id,
                 "assignment_id": assignment_id, "step_id": "s4",
                 "verification_id": verification_id,
+                "evaluation_request_id": evidence["exchange"]["request_id"],
+                "evaluation_trigger_event_id": evidence["evaluation"]["trigger_event_id"],
+                "evaluation_response_sha256": evidence["exchange"].get("response_sha256"),
                 "prior_rework_attempts": attempt_count,
                 "additional_attempts": 1,
                 "expires_at": expires_at.isoformat(),
