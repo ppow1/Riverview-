@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: website/v2/deployed/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.22
+File Revision: 1.0.23
 Changed: 2026-10-24 UTC | RV-V2-GRACE-CANCELLATION-INTEGRATION | Add confirmation-bound cancellation from Objectives, Engineering Progress, and exact-ID Grace chat commands.
 Purpose: Render the V2 workspace, authenticated Grace conversation, and operational monitors
 Execution Model: Interactive browser presentation; request-driven Dashboard API calls
@@ -20,8 +20,9 @@ Changed: 2026-10-22 UTC | RV-V2-LIVE-HARDWARE-GRAPHS-001 | Clarify independently
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Connect existing Work view to authenticated read-only objective and assignment status
 Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Add authenticated manual image generation view using dynamic registered workflows.
 Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deployed V2 source under its explicit production bundle path.
+Changed: 2026-10-25 UTC | RV-V2-INSTITUTIONAL-ACTIVITY-LEDGER-295 | Add read-only operational event history with bounded cursor paging.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
-Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
+Tests: tests/test_v2_workspace_shell.py, tests/test_v2_operational_inbox.cjs, scripts/verify_v2_workspace_browser.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
 -->
 <!doctype html>
@@ -38,6 +39,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/work-monitor.css">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
+  <link rel="stylesheet" href="assets/operational-inbox.css?rev=event-ledger-20261025">
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/resource-monitor.js"></script>
   <script defer src="assets/work-monitor.js"></script>
@@ -47,6 +49,8 @@ History: Git and revision/backup manifest
   <script defer src="assets/grace-chat.js"></script>
   <script defer src="assets/manual-image-generation.js"></script>
   <script defer src="assets/notification-settings.js"></script>
+  <script defer src="assets/operational-inbox-adapter.js?rev=event-ledger-20261025"></script>
+  <script defer src="assets/operational-inbox.js?rev=event-ledger-20261025"></script>
 <meta name="rv-v2-snapshot-mode" content="authenticated-dashboard"></head>
 <body>
   <div class="preview-banner"><span class="dot"></span> V2 preview <b>Fixture workspace · Grace uses secure Dashboard authentication</b></div>
@@ -224,6 +228,25 @@ History: Git and revision/backup manifest
               <div class="activity-table-wrap"><table><caption class="visually-hidden">Timestamped communications lifecycle events</caption><thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Direction</th><th scope="col">Destination</th><th scope="col">Status</th><th scope="col">Correlation</th></tr></thead><tbody id="communications-ledger-body"></tbody></table></div>
               <p id="communications-ledger-empty" class="activity-empty">No ledger records are available because the authoritative source is not connected. This is not evidence of zero traffic.</p>
               <details class="activity-detail" id="communications-detail"><summary>Selected event details</summary><p>Select a ledger event to inspect its redacted details. Payload content is not exposed.</p></details>
+            </section>
+            <section class="operational-inbox" id="operational-inbox" aria-labelledby="operational-inbox-heading">
+              <div class="operational-inbox-heading"><div><p class="eyebrow">READ-ONLY OPERATIONAL RECORD</p><h3 id="operational-inbox-heading">Notifications and operational events</h3><p class="muted">A consolidated view of existing notification, attention, and institution event records. A missing severity or delivery receipt is shown as unavailable when the source does not provide it.</p></div><button id="operational-inbox-refresh" type="button">Refresh inbox</button></div>
+              <p id="operational-inbox-freshness" class="inbox-freshness" role="status" aria-live="polite">Inbox has not been refreshed in this session.</p>
+              <div class="inbox-source-status" id="operational-inbox-sources" aria-label="Source status"></div>
+              <div class="inbox-event-pagination" aria-label="Institution event ledger paging">
+                <button id="inbox-events-older" type="button" hidden>Load older events</button>
+                <span id="inbox-events-page-status" role="status">Institution event history has not been loaded.</span>
+                <button id="inbox-events-newer" type="button" hidden>Load newer events</button>
+              </div>
+              <div class="inbox-filters">
+                <label>Search<input id="inbox-search" type="search" maxlength="120" placeholder="Event, description, work order, or evidence ID"></label>
+                <label>Source<select id="inbox-source"><option value="all">All sources</option><option value="notification">Notifications</option><option value="attention">Attention</option><option value="event">Operational events</option></select></label>
+                <label>Severity<select id="inbox-severity"><option value="all">All severity states</option><option value="specified">Severity supplied</option><option value="unknown">Not supplied</option></select></label>
+                <label>State<select id="inbox-status"><option value="all">All states</option><option value="queued">Queued</option><option value="delivered">Delivered</option><option value="acknowledged">Acknowledged</option><option value="recorded">Recorded</option></select></label>
+                <label>Sort<select id="inbox-sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
+              </div>
+              <div class="inbox-table-wrap"><table><caption class="visually-hidden">Read-only notification and operational event records</caption><thead><tr><th scope="col">Time</th><th scope="col">Severity</th><th scope="col">State</th><th scope="col">Event and description</th><th scope="col">Related work</th><th scope="col">Evidence</th></tr></thead><tbody id="inbox-rows"></tbody></table></div>
+              <p id="inbox-empty" class="inbox-empty">No source records have been loaded.</p>
             </section>
           </section>
         </section>

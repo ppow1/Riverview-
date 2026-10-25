@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/capability_registry.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.1
+# Revision: 1.0.2
+# Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Expose declaration metadata and keep unsupported capabilities non-invocable
 # Purpose: Project the existing institutional capability catalog into Grace's typed tool route
 # Execution Model: Read-only catalog projection; exact-grant-checked typed invocation
 # Observability: Structured discovery, authorization, execution and result envelopes
@@ -242,7 +243,12 @@ class GraceCapabilityRegistry:
             else:
                 availability, health_status = "unknown", "unknown"
             schema = row.get("input_schema")
-            invocable = bool(row.get("enabled") and authorized_for_scope and schema
+            authorization_contract = row.get("authorization_contract")
+            registration_blocker = row.get("registration_blocker")
+            auth_mode = (authorization_contract.get("mode")
+                         if isinstance(authorization_contract, dict) else None)
+            invocable = bool(row.get("enabled") and not registration_blocker
+                             and auth_mode == "exact_grant" and authorized_for_scope and schema
                              and row.get("implementation_ref") in self.executors)
             output.append({
                 "capability_id": cap_id,
@@ -255,6 +261,11 @@ class GraceCapabilityRegistry:
                 "dependencies": row.get("dependencies", []),
                 "resources": row.get("resources", []),
                 "input_schema": schema,
+                "authorization_contract": authorization_contract,
+                "availability_policy": row.get("availability_policy"),
+                "registration_blocker": registration_blocker,
+                "declaration_source": row.get("declaration_source"),
+                "declaration_source_commit": row.get("declaration_source_commit"),
                 "availability": availability,
                 "health": health_status,
                 "health_observed_at": observed_at.isoformat() if observed_at else None,
@@ -264,6 +275,8 @@ class GraceCapabilityRegistry:
                 "scope_ref_checked": scope_ref,
                 "invocable": invocable,
                 "invocation_blocker": (None if invocable else
+                    registration_blocker if registration_blocker else
+                    "authorization_contract_missing_or_unsupported" if auth_mode != "exact_grant" else
                     "disabled" if not row.get("enabled") else
                     "input_schema_not_registered" if not schema else
                     "no_exact_grant_for_scope" if not authorized else
@@ -281,6 +294,9 @@ class GraceCapabilityRegistry:
             schema = capability["input_schema"]
             scopes = capability["authorized_scopes"]
             if (not capability["enabled"] or not scopes or not schema
+                    or capability["registration_blocker"]
+                    or not isinstance(capability["authorization_contract"], dict)
+                    or capability["authorization_contract"].get("mode") != "exact_grant"
                     or capability["implementation_ref"] not in self.executors):
                 continue
             if len(json.dumps(schema, separators=(",", ":")).encode()) > _MAX_SCHEMA_BYTES:
@@ -323,6 +339,12 @@ class GraceCapabilityRegistry:
             return self._error(capability_id, "capability_not_registered", call=call_record)
         if cap["authorization_status"] != "authorized":
             return self._error(capability_id, "capability_not_authorized", call=call_record)
+        if cap.get("registration_blocker"):
+            return self._error(capability_id, "capability_registration_blocked", call=call_record)
+        contract = cap.get("authorization_contract")
+        if not isinstance(contract, dict) or contract.get("mode") != "exact_grant":
+            return self._error(capability_id, "capability_authorization_contract_unsupported",
+                               call=call_record)
         if not cap["enabled"]:
             return self._error(capability_id, "capability_disabled", call=call_record)
         schema = cap["input_schema"]
