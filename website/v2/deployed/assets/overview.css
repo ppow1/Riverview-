@@ -1,4 +1,6 @@
-/* Revision: 1.0.0 */
+/*
+Revision: 1.0.0
+*/
 .overview-live{margin:20px 0 30px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
 .overview-live-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
 .overview-live-heading h2{margin:2px 0 6px;font-size:22px}
