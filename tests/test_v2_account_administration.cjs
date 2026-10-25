@@ -17,23 +17,31 @@ test('V2 exposes account administration as a distinct view and loads its version
   assert.match(workspace, /account-administration-workspace/);
 });
 
-test('account view reuses only existing enrollment, account-list and session-revocation APIs', () => {
+test('account view reuses existing enrollment, account-list, session and account-state APIs', () => {
   const client = read('assets/account-administration.js');
   assert.match(client, /\/api\/v1\/account\/enrollments\?limit=50/);
   assert.match(client, /\/api\/v1\/account\/users\?limit=100/);
   assert.match(client, /\/api\/v1\/account\/users\/.*\/sessions/);
+  assert.match(client, /\/api\/v1\/account\/users\/.*\/disable/);
   assert.match(client, /\/api\/v1\/account\/enrollments\/.*\/decision/);
+  assert.match(client, /\{disabled\}/);
+  assert.match(client, /currentAccountId/);
+  assert.match(client, /Cannot disable own account/);
   assert.match(client, /credentials:"same-origin"/);
   assert.match(client, /cache:"no-store"/);
   assert.match(client, /X-Riverview-CSRF/);
-  assert.doesNotMatch(client, /\/roles|\/disable|\/grant/);
+  assert.doesNotMatch(client, /\/roles|\/grant/);
 });
 
 test('mutating account operations require explicit confirmation and preserve backend-owned authority', () => {
   const client = read('assets/account-administration.js');
   assert.match(client, /window\.confirm\(summary\)/);
   assert.match(client, /window\.confirm\(`Revoke all active sessions/);
+  assert.match(client, /window\.confirm\(prompt\)/);
+  assert.match(client, /blocks new sign-ins, revokes active sessions/);
+  assert.match(client, /await loadAccounts\(\)/);
   assert.match(read('index.html'), /cannot change identity bindings/);
+  assert.match(read('index.html'), /Steward cannot disable their own account/i);
   assert.match(client, /Steward role, CSRF, and audit checks/);
   assert.match(client, /data-decision="approve"/);
   assert.match(client, /data-decision="deny"/);

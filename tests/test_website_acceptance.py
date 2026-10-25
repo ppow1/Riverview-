@@ -1,6 +1,6 @@
 """Focused acceptance-system tests.
 
-Revision: 1.0.4
+Revision: 1.1.0
 """
 import importlib.util
 from pathlib import Path
@@ -38,7 +38,7 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn('"production_cancellation_mutation","status":"SKIPPED"',source)
         self.assertNotIn("/api/v1/resident/conversations/stream",source)
 
-    def test_account_administration_acceptance_is_role_checked_and_read_only(self):
+    def test_account_administration_acceptance_is_role_checked_and_mutation_free(self):
         source=(ROOT/"scripts/run_website_acceptance.py").read_text()
         self.assertIn('"account_admin_anonymous_denied"',source)
         self.assertIn('"account_admin_steward_read"',source)
@@ -48,7 +48,8 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn("/api/v1/account/enrollments?limit=50",source)
         self.assertIn("/api/v1/account/users?limit=100",source)
         self.assertNotIn("/api/v1/account/enrollments/",source)
-        self.assertNotIn("/api/v1/account/users/",source)
+        self.assertIn("/api/v1/account/users/12345678-1234-4234-8234-123456789abc/disable",source)
+        self.assertIn('"account_state_controls_visible"',source)
 
     def test_predeploy_account_denial_and_nginx_snippet_rollback_are_safe(self):
         runner=(ROOT/"scripts/run_website_acceptance.py").read_text()

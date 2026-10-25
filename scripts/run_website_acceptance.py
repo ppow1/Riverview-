@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run authenticated acceptance against the currently served Riverview V2 release.
 
-Revision: 1.0.4
-Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Verify Steward account reads and anonymous/viewer denials without changing account data.
+Revision: 1.1.0
+Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-STATE-20261025 | Verify account-state controls and preserve read-only production acceptance.
 """
 from __future__ import annotations
 
@@ -110,11 +110,14 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool) -> li
             if role == "steward":
                 if account_admin_available:
                     stage = "account_administration_steward_read"
-                    account_read=js("let paths=['/api/v1/account/enrollments?limit=50','/api/v1/account/users?limit=100'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push({status:r.status,body:r.ok?await r.json():null})}await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s}")
+                    account_read=js("let paths=['/api/v1/account/enrollments?limit=50','/api/v1/account/users?limit=100'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push({status:r.status,body:r.ok?await r.json():null})}await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';let controls=document.querySelectorAll('[data-account-state]').length+document.querySelectorAll('button[title*=\"cannot disable their own account\" i]').length;return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s,stateControls:controls}")
                     account_ok=(len(account_read.get("out",[]))==2 and all(x.get("status")==200 for x in account_read.get("out",[]))
                                 and account_read.get("visible") and "loaded" in account_read.get("status", "").lower())
                     results.append({"check":"account_admin_steward_read","status":"PASS" if account_ok else "FAIL",
                                     "http":[x.get("status") for x in account_read.get("out",[])]})
+                    state_controls_ok=account_read.get("stateControls",0)>0
+                    results.append({"check":"account_state_controls_visible","status":"PASS" if state_controls_ok else "FAIL",
+                                    "controls":account_read.get("stateControls",0)})
                 else:
                     results.append({"check":"account_admin_steward_read","status":"FAIL" if account_admin_required else "SKIPPED",
                                     "reason":"account_admin_view_missing" if account_admin_required else "pre_feature_baseline_release"})
@@ -146,8 +149,8 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool) -> li
                 results.append({"check":f"settings_denied_{persona}","status":"PASS" if denied==403 else "FAIL","http":denied})
                 if role == "viewer" and account_admin_available:
                     stage = "account_administration_viewer_denied"
-                    account_denied=js("let paths=['/api/v1/account/enrollments?limit=1','/api/v1/account/users?limit=1'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push(r.status)}document.querySelector('[data-view=account-administration]')?.click();await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s}")
-                    denied_ok=(account_denied.get("out")==[403,403] and account_denied.get("visible")
+                    account_denied=js("let paths=['/api/v1/account/enrollments?limit=1','/api/v1/account/users?limit=1'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push(r.status)}let csrf=decodeURIComponent(document.cookie.split('; ').find(x=>x.startsWith('rv_account_csrf='))?.split('=').slice(1).join('=')||'');let denied=await fetch('/api/v1/account/users/12345678-1234-4234-8234-123456789abc/disable',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Riverview-CSRF':csrf},body:JSON.stringify({disabled:true})});out.push(denied.status);document.querySelector('[data-view=account-administration]')?.click();await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s}")
+                    denied_ok=(account_denied.get("out")==[403,403,403] and account_denied.get("visible")
                                and "does not have the steward role" in account_denied.get("status", "").lower())
                     results.append({"check":"account_admin_viewer_denied","status":"PASS" if denied_ok else "FAIL",
                                     "http":account_denied.get("out")})

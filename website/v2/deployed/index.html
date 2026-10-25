@@ -51,7 +51,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=roadmap-integrated-20261024">
   <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposals-readonly-20261025">
   <link rel="stylesheet" href="assets/resident-permissions.css?rev=resident-permissions-20261025">
-  <link rel="stylesheet" href="assets/account-administration.css?rev=account-admin-20261025">
+  <link rel="stylesheet" href="assets/account-administration.css?rev=account-state-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
   <link rel="stylesheet" href="assets/operational-inbox.css?rev=1">
@@ -66,7 +66,7 @@ History: Git and revision/backup manifest
   <script defer src="assets/institutional-proposals-adapter.js?rev=proposals-readonly-20261025"></script>
   <script defer src="assets/institutional-proposals.js?rev=proposals-readonly-20261025"></script>
   <script defer src="assets/resident-permissions.js?rev=resident-permissions-20261025"></script>
-  <script defer src="assets/account-administration.js?rev=account-admin-20261025"></script>
+  <script defer src="assets/account-administration.js?rev=account-state-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
   <script defer src="assets/workspace.js?rev=account-admin-20261025"></script>
   <script defer src="assets/communications.js"></script>
@@ -89,7 +89,7 @@ History: Git and revision/backup manifest
         <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show institutional work status and workspace examples"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
         <button class="nav-item" data-view="institutional-proposals" aria-label="Institutional proposals" data-tooltip="Review existing institutional proposal records"><span aria-hidden="true">▱</span><span class="nav-label">Proposals</span></button>
         <button class="nav-item" data-view="resident-permissions" aria-label="Resident permissions" data-tooltip="View and manage resident permission profiles through Steward authorization"><span aria-hidden="true">⚿</span><span class="nav-label">Resident permissions</span></button>
-        <button class="nav-item" data-view="account-administration" aria-label="Account administration" data-tooltip="Review pending account requests and revoke account sessions"><span aria-hidden="true">♙</span><span class="nav-label">Account administration</span></button>
+        <button class="nav-item" data-view="account-administration" aria-label="Account administration" data-tooltip="Review enrollments and manage approved account access"><span aria-hidden="true">♙</span><span class="nav-label">Account administration</span></button>
         <button class="nav-item" data-view="roadmap" aria-label="Living Roadmap" data-tooltip="Explore workstreams, planning stages, milestones, and current work"><span aria-hidden="true">⌖</span><span class="nav-label">Living Roadmap</span></button>
         <button class="nav-item" data-view="image-generation" aria-label="Manual image generation" data-tooltip="Generate and review images through the registered ComfyUI worker"><span aria-hidden="true">▧</span><span class="nav-label">Image generation</span></button>
         <button class="nav-item" data-view="resources" aria-label="Hardware and AI resources" data-tooltip="Inspect hardware and AI resource telemetry"><span aria-hidden="true">◇</span><span class="nav-label">Hardware &amp; AI</span></button>
@@ -151,11 +151,11 @@ History: Git and revision/backup manifest
             <aside class="resident-permission-notice"><strong>Authorization boundary</strong><p>Access requires an authenticated Steward account with an institutional identity and the exact <code>office.manage</code> grant. Missing identity or registry access is reported here. This page cannot create grants or bypass server checks. Saving a profile creates a pending revision; activation and revocation are separate audited operations.</p></aside>
           </section>
           <section class="account-administration-workspace" id="account-administration-workspace" aria-labelledby="account-administration-title" hidden>
-            <div class="account-admin-heading"><div><p class="eyebrow">AUTHENTICATED ACCOUNT CONTROL</p><h2 id="account-administration-title">Account administration</h2><p class="muted">Review verified enrollment requests, inspect approved account access, and revoke sessions through existing Steward-authorized operations.</p></div><button id="account-admin-refresh" type="button">Refresh</button></div>
+            <div class="account-admin-heading"><div><p class="eyebrow">AUTHENTICATED ACCOUNT CONTROL</p><h2 id="account-administration-title">Account administration</h2><p class="muted">Review verified enrollment requests, inspect approved account access, manage account state, and revoke sessions through existing Steward-authorized operations.</p></div><button id="account-admin-refresh" type="button">Refresh</button></div>
             <p id="account-admin-status" class="account-admin-status" role="status" aria-live="polite">Account administration has not been checked.</p>
             <section class="account-admin-section" aria-labelledby="account-enrollments-title"><div class="account-admin-section-heading"><div><h3 id="account-enrollments-title">Verified enrollment requests</h3><p>Approval creates an account with the selected existing role and grant duration. It does not bind an institutional identity.</p></div><span id="account-enrollment-count" class="account-admin-count">Not loaded</span></div><div id="account-enrollment-list" class="account-admin-list">Enrollment queue has not been loaded.</div></section>
-            <section class="account-admin-section" aria-labelledby="account-roster-title"><div class="account-admin-section-heading"><div><h3 id="account-roster-title">Approved accounts</h3><p>Review current role, account state, and access-grant metadata. Session revocation is a separate, confirmed audited operation.</p></div><span id="account-roster-count" class="account-admin-count">Not loaded</span></div><div id="account-roster-list" class="account-admin-list">Account list has not been loaded.</div></section>
-            <aside class="account-admin-boundary"><strong>Security boundary</strong><p>These controls use the existing account APIs and Steward role checks. The page cannot change identity bindings, create institutional authority, or modify authorization rules. Session revocation invalidates active sessions for the selected account and writes the existing audit event.</p></aside>
+            <section class="account-admin-section" aria-labelledby="account-roster-title"><div class="account-admin-section-heading"><div><h3 id="account-roster-title">Approved accounts</h3><p>Review current role, account state, and access-grant metadata. Disabling blocks sign-in and revokes active sessions; enable/disable and session revocation are separate, confirmed audited operations.</p></div><span id="account-roster-count" class="account-admin-count">Not loaded</span></div><div id="account-roster-list" class="account-admin-list">Account list has not been loaded.</div></section>
+            <aside class="account-admin-boundary"><strong>Security boundary</strong><p>These controls use the existing account APIs and Steward role checks. The page cannot change identity bindings, create institutional authority, or modify authorization rules. Disabling an account invalidates its active sessions and records the state change in the existing account audit history. A Steward cannot disable their own account.</p></aside>
           </section>
           <section class="manual-image" id="manual-image-workspace" aria-labelledby="manual-image-heading" hidden>
             <div class="manual-image-heading"><div><p class="eyebrow">OPERATOR MANUAL MODE</p><h2 id="manual-image-heading">Image generation</h2><p class="muted">Uses the registered ComfyUI worker. Requests are recorded to your authenticated account and are separate from Grace and Engineering work.</p></div><button id="manual-image-refresh" type="button">Refresh history</button></div>
