@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Run authenticated acceptance against the currently served Riverview V2 release.
 
-Revision: 1.3.2
+Revision: 1.3.3
+Changed: 2026-10-26 UTC | RV-V2-LIVE-OVERVIEW-ACCEPTANCE-20261026 | Compare authenticated Overview cards to existing operational API projections without production mutations.
 Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Skip the new assertion on pre-feature assets without changing the selected view.
 Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Verify unlinked Steward sees no decision controls in authenticated browser acceptance.
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-EMAIL-20261025 | Verify shared email settings read and role denial without changing production configuration.
@@ -122,6 +123,44 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
                 stage = "navigation_" + persona + "_" + view
                 shown=js("let b=document.querySelector('[data-view='+JSON.stringify(params[0])+']');if(!b)return false;b.click();return b.getAttribute('aria-current')==='page'",[view])
                 results.append({"check":f"navigation_{persona}_{view}","status":"PASS" if shown else "FAIL"})
+            if role == "steward":
+                stage = "live_overview_projection_acceptance"
+                overview=js("""
+                    let nav=document.querySelector('[data-view=overview]');nav?.click();
+                    document.querySelector('#overview-live-refresh')?.click();
+                    for(let i=0;i<80;i++){
+                      let state=document.querySelector('#overview-live-state')?.textContent||'';
+                      if(document.querySelectorAll('#overview-live-grid .overview-live-card').length>=5 && !state.startsWith('Refreshing'))break;
+                      await new Promise(r=>setTimeout(r,100));
+                    }
+                    const cards=[...document.querySelectorAll('#overview-live-grid .overview-live-card')];
+                    const card=(title)=>cards.find(x=>x.querySelector('h3')?.textContent===title);
+                    const read=async(path)=>{try{let r=await fetch(path,{credentials:'same-origin',cache:'no-store'});return {http:r.status,payload:r.ok?await r.json():null};}catch(_){return {http:0,payload:null};}};
+                    const [s,a,t]=await Promise.all([read('/api/v1/status'),read('/api/v1/attention?limit=50'),read('/api/v1/resources/telemetry')]);
+                    const adapter=window.RiverviewV2OverviewAdapter;
+                    const d=s.http===200?adapter.dashboard(s.payload):adapter.statusError({status:s.http});
+                    const am=a.http===200?adapter.attention(a.payload,null):adapter.statusError({status:a.http});
+                    const tm=t.http===200?adapter.telemetry(t.payload):adapter.statusError({status:t.http});
+                    const assignment=card('Engineering assignments'),worker=card('Worker health'),service=card('Grace and CME'),attention=card('Operational attention'),telemetry=card('Host telemetry');
+                    const text=(item,selector)=>item?.querySelector(selector)?.textContent||'';
+                    const serviceSummary=d?.services?.map(x=>`${x.name}: ${x.state.replaceAll('_',' ')}`).join(' · ')||'';
+                    const dashboardMatches=d?.work ? text(assignment,'.overview-live-summary')===d.work.summary && assignment?.dataset.state===d.work.state && text(worker,'.overview-live-summary')===d.workers.summary && worker?.dataset.state===d.workers.state && text(service,'.overview-live-summary')===serviceSummary && service?.dataset.state===d.serviceState :
+                      !!assignment&&!!worker&&!!service&&assignment.dataset.state===d?.state&&worker.dataset.state===d?.state&&service.dataset.state===d?.state&&text(assignment,'.overview-live-summary')===d?.summary&&text(service,'.overview-live-summary')===d?.summary;
+                    const attentionMatches=am?.summary ? text(attention,'.overview-live-summary')===am.summary&&attention?.dataset.state===am.state : false;
+                    let telemetrySummary='';
+                    if(tm?.status==='available'||tm?.status==='partial')telemetrySummary=`${tm.hostCount} host record${tm.hostCount===1?'':'s'} reported`;
+                    else if(tm?.status)telemetrySummary=`Telemetry ${tm.status.replaceAll('_',' ')}`;
+                    else telemetrySummary=tm?.summary||'';
+                    const telemetryMatches=!!telemetry&&text(telemetry,'.overview-live-summary')===telemetrySummary&&telemetry.dataset.state===tm?.state;
+                    const sourceMatches=[assignment,worker,service,attention,telemetry].every(x=>!!x&&text(x,'.overview-live-source').startsWith('Source: /api/v1/'));
+                    return {visible:!!nav&&!!document.querySelector('#overview-live')&&!document.querySelector('#overview-live').hidden,
+                      card_count:cards.length,dashboard_http:s.http,attention_http:a.http,telemetry_http:t.http,
+                      dashboard_matches:dashboardMatches,attention_matches:attentionMatches,telemetry_matches:telemetryMatches,source_matches:sourceMatches};
+                """)
+                overview_ok=overview.get('visible') and overview.get('card_count')==5 and all(overview.get(k) for k in ('dashboard_matches','attention_matches','telemetry_matches','source_matches'))
+                results.append({"check":"overview_cards_match_authenticated_operational_sources","status":"PASS" if overview_ok else "FAIL",
+                    "cards":overview.get("card_count"),"dashboard_http":overview.get("dashboard_http"),
+                    "attention_http":overview.get("attention_http"),"telemetry_http":overview.get("telemetry_http")})
             if role == "steward" and proposal_decisions_available:
                 stage = "proposal_decision_unbound_steward"
                 proposal_access=js("let nav=document.querySelector('[data-view=institutional-proposals]');nav?.click();let r=await fetch('/api/v1/institutional-proposals?limit=1',{cache:'no-store'});await new Promise(resolve=>setTimeout(resolve,400));let status=document.querySelector('#proposal-status')?.textContent||'';return {http:r.status,controls:document.querySelectorAll('.proposal-decision-panel').length,status,visible:!document.querySelector('#institutional-proposals-workspace')?.hidden}")
