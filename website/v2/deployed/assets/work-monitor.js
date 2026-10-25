@@ -186,7 +186,7 @@ History: Git and .riverview-backups/manifest.jsonl
       const outputLabel = primary
         ? `${primary.name}${outputs.length > 1 ? ` · +${outputs.length - 1} outputs` : ""}${model.outputsTruncated ? " · older outputs omitted" : ""}`
         : (!model.outputsAvailable ? "Output status unavailable"
-          : item.status === "COMPLETED" ? "No output record supplied"
+          : item.status === "COMPLETED" || item.assignment_state === "completed" ? "Completed work has no output record supplied"
           : ["WORK_ORDER_CREATED", "GROUNDED", "PROPOSED"].includes(item.status)
             ? "No deliverable recorded yet" : "Deliverable status unavailable");
       const deliverable = linkButton(outputLabel, () => {
