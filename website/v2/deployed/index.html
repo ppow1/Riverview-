@@ -49,7 +49,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=roadmap-integrated-20261024">
-  <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposals-readonly-20261025">
+  <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposal-decisions-20261025">
   <link rel="stylesheet" href="assets/resident-permissions.css?rev=resident-permissions-20261025">
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
@@ -64,7 +64,7 @@ History: Git and revision/backup manifest
   <script defer src="assets/living-roadmap-adapter.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/living-roadmap.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/institutional-proposals-adapter.js?rev=proposals-readonly-20261025"></script>
-  <script defer src="assets/institutional-proposals.js?rev=proposals-readonly-20261025"></script>
+  <script defer src="assets/institutional-proposals.js?rev=proposal-decisions-20261025"></script>
   <script defer src="assets/resident-permissions.js?rev=resident-permissions-20261025"></script>
   <script defer src="assets/account-administration.js?rev=account-email-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
@@ -138,11 +138,11 @@ History: Git and revision/backup manifest
             <p class="roadmap-provenance">Documented roadmap intent is distinguished from verified live objective projections. The canonical master-roadmap PostgreSQL tables and API are not present in this Dashboard's configured schema, so its Git snapshot is not treated as live status. Dependencies are not exposed by the objective API; they are shown as unavailable, never inferred. Planning-source conflicts, including RB-0001, remain Unknown.</p>
           </section>
           <section class="institutional-proposals" id="institutional-proposals-workspace" aria-labelledby="institutional-proposals-title" hidden>
-            <header class="proposal-heading"><div><p class="eyebrow">EXISTING INSTITUTIONAL REGISTRY · READ ONLY IN V2</p><h2 id="institutional-proposals-title">Institutional Proposals</h2><p>Browse persisted proposal revisions, review evidence, lifecycle status, and linked work. Decisions and promotion continue through existing authorized operations.</p></div><button id="proposal-refresh" type="button">Refresh</button></header>
+            <header class="proposal-heading"><div><p class="eyebrow">EXISTING INSTITUTIONAL REGISTRY · AUTHORIZED STEWARD DECISIONS</p><h2 id="institutional-proposals-title">Institutional Proposals</h2><p>Browse persisted proposal revisions, review evidence, lifecycle status, and linked work. Record an audited decision on an eligible exact revision through the existing authenticated API. Revision editing and promotion remain available through existing V1 operations.</p></div><button id="proposal-refresh" type="button">Refresh</button></header>
             <div class="proposal-tools"><label for="proposal-search">Search proposals<input id="proposal-search" type="search" maxlength="256" placeholder="Title, summary, scope, or tag"></label><label for="proposal-status-filter">Lifecycle status<select id="proposal-status-filter"><option value="">All available statuses</option><option>DRAFT</option><option>READY_FOR_REVIEW</option><option>UNDER_REVIEW</option><option>CHANGES_REQUIRED</option><option>READY_FOR_STEWARD_DECISION</option><option>APPROVED</option><option>DEFERRED</option><option>REJECTED</option><option>SUPERSEDED</option></select></label><button id="proposal-search-submit" type="button">Search</button></div>
             <p id="proposal-status" class="proposal-status" role="status" aria-live="polite">Sign in with a Steward account and institutional authority to read proposal records.</p>
             <div class="proposal-columns"><section class="proposal-list-panel" aria-labelledby="proposal-list-heading"><h3 id="proposal-list-heading">Proposal records</h3><div id="proposal-list" class="proposal-list" aria-live="polite"></div></section><section class="proposal-detail-panel" aria-labelledby="proposal-detail-heading"><h3 id="proposal-detail-heading">Selected proposal</h3><p id="proposal-detail-status" role="status" aria-live="polite">Select an authorized proposal record to inspect its revision and evidence.</p><div id="proposal-detail" class="proposal-detail"></div></section></div>
-            <p class="proposal-boundary">This view uses the existing authenticated GET endpoints. It does not create, revise, decide, or promote proposals.</p>
+            <p class="proposal-boundary">Decision controls appear only after the authorized detail request succeeds and the exact revision is eligible. The server still enforces Steward role, institutional identity, lifecycle, digest, idempotency, and CSRF. Approval records proposal status only; it does not create or dispatch work.</p>
           </section>
           <section class="resident-permissions-workspace" id="resident-permissions-workspace" aria-labelledby="resident-permissions-title" hidden>
             <div class="resident-permissions-heading"><div><p class="eyebrow">EXISTING AUTHORITY REGISTRY</p><h2 id="resident-permissions-title">Resident permissions</h2><p class="muted">Profiles are a policy gate over existing exact grants. A tier never grants authority by itself. Every change uses the existing Steward authorization and audited revision API.</p></div><button id="resident-permission-refresh" type="button">Refresh</button></div>

@@ -28,7 +28,8 @@ def main():
     text=page.read_text()
     for marker in ('data-view="notification-settings"','id="engineering-progress-panel"',
                    'id="resource-monitor-workspace"','id="communications-workspace"',
-                   'id="snapshot-action"','verification-status.js'):
+                   'id="snapshot-action"','data-view="institutional-proposals"',
+                   'proposal-decisions-20261025','verification-status.js'):
         if marker not in text: raise SystemExit("FAIL: candidate_contract_missing:"+marker)
     print(f"PASS candidate bundle: {len(parser.paths)} referenced assets present")
 

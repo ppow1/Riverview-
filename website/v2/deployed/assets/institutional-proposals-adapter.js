@@ -1,5 +1,5 @@
-// Revision: 1.0.0
-/* Read-only view models for the existing authorized institutional proposal API. */
+// Revision: 1.1.0
+/* View models for the existing authenticated institutional proposal API. */
 (() => {
   "use strict";
   const value = (input) => typeof input === "string" && input.trim() ? input.trim() : null;
@@ -20,6 +20,7 @@
       proposalId: value(proposal.proposal_id),
       status: value(revision.lifecycle_status) || value(proposal.lifecycle_status),
       revision: Number.isInteger(revision.revision) ? revision.revision : null,
+      contentSha256: value(revision.content_sha256),
       title: value(revision.title) || "Proposal revision unavailable",
       summary: value(revision.summary),
       objective: value(revision.objective),

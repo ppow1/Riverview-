@@ -30,5 +30,12 @@ Revision: 1.0.0
 .proposal-evidence-card p{margin:5px 0;color:var(--muted);font-size:12px}
 .proposal-evidence-card small{color:var(--muted)}
 .proposal-empty{margin:0;padding:12px;color:var(--muted);font-size:12px}
+.proposal-decision-panel{margin-top:18px;padding:14px;border:1px solid var(--line);border-radius:9px;background:var(--soft)}
+.proposal-decision-panel h4{margin:0 0 8px;font-size:14px}
+.proposal-decision-panel p{max-width:75ch;color:var(--muted);font-size:12px;line-height:1.5}
+.proposal-decision-panel label{display:grid;gap:5px;margin:10px 0;color:var(--muted);font-size:11px;font-weight:650}
+.proposal-decision-panel select,.proposal-decision-panel input,.proposal-decision-panel textarea{width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);font:inherit}
+.proposal-decision-submit{min-height:38px;padding:8px 13px;border:0;border-radius:7px;background:var(--teal);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.proposal-decision-submit:disabled{opacity:.55;cursor:wait}
 @media(max-width:760px){.proposal-columns{grid-template-columns:1fr}.proposal-list{max-height:40vh}.proposal-heading{display:block}.proposal-heading button{margin-top:8px}}
 @media(max-width:440px){.proposal-tools label{width:100%;min-width:0}.proposal-tools button{width:100%}.proposal-fields{grid-template-columns:1fr;gap:4px}.proposal-fields dd{margin-bottom:8px}}
