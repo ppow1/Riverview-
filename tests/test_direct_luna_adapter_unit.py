@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_direct_luna_adapter_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-25 UTC | RV-GRACE-LUNA-EVAL-INPUT-20261024 | Cover evaluation message shape and retained sanitized input validation errors.
 # Purpose: Verify bounded Luna adapter requests and sanitized exchange outcomes
 # Execution Model: Offline unit tests; provider calls are mocked
 # Observability: unittest assertions and exit status
@@ -200,7 +201,31 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
                 body = json.loads(captured["request"].data)
                 self.assertEqual(body["max_output_tokens"], limit)
                 self.assertEqual(body["text"]["format"]["type"], "json_object")
+                if request_type == "performance_evaluation":
+                    self.assertEqual(body["input"], [{"role": "user", "content": [{
+                        "type": "input_text", "text": json.dumps(exchange.row["request_payload"],
+                            ensure_ascii=False, separators=(",", ":"))}]}])
                 self.assertEqual(exchange.begin_args["reserved_cost"], 0.05)
+
+    def test_evaluation_input_validation_error_is_retained_safely(self):
+        exchange = _Exchange(request_type="performance_evaluation", max_tokens=512)
+        error_body = json.dumps({"error": {"type": "invalid_request_error",
+            "code": "invalid_type", "param": "input",
+            "message": "Invalid type for input: expected an array of message objects"}}).encode()
+        error = direct_luna.urllib.error.HTTPError("https://api.openai.com/v1/responses",
+            400, "bad request", {"x-request-id": "req_fixture_input_400"},
+            io.BytesIO(error_body))
+        with patch.object(direct_luna, "_api_key", return_value="synthetic-key"), \
+             patch.object(direct_luna.urllib.request, "urlopen", side_effect=error):
+            outcome = direct_luna.process_one(exchange)
+        self.assertEqual(outcome["status"], "API_FAILED")
+        self.assertEqual(outcome["provider_error_param"], "input")
+        self.assertEqual(outcome["provider_error_message"],
+            "Invalid type for input: expected an array of message objects")
+        self.assertEqual(outcome["provider_request_id"], "req_fixture_input_400")
+        self.assertEqual(exchange.finished[-1]["usage"]["provider_error_message"],
+            outcome["provider_error_message"])
+        self.assertEqual(exchange.submitted, [])
 
     def test_over_limit_or_incomplete_response_is_never_submitted(self):
         oversized = _Exchange(request_type="performance_evaluation", max_tokens=513)

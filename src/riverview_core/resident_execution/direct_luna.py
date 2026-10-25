@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/direct_luna.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-25 UTC | RV-GRACE-LUNA-EVAL-INPUT-20261024 | Send evaluation evidence as a user input_text message in the Responses request.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Close provider-denied requests with a fenced zero-charge exchange event.
 # Purpose: Submit authorized bounded Luna requests through Grace's durable exchange
 # Execution Model: Request-driven adapter
@@ -165,12 +166,18 @@ def process_one(exchange):
             "actionable_feedback, and authority_promotion_recommendation='Steward_decision_required'. "
             "Use at most one short item in each array and keep all text concise so JSON fits the output limit. "
             "No markdown, no extra fields, and no authority change. Grade only evidenced behavior.")
+    serialized_payload = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    # Keep evaluation evidence as user text inside a Responses input message. The
+    # serialized payload is content, not the top-level input value.
+    provider_input = ([{"role": "user", "content": [{
+        "type": "input_text", "text": serialized_payload}]}]
+        if request_type == "performance_evaluation" else serialized_payload)
     body_data = {"model": MODEL_ID, "store": False, "max_output_tokens": max_output_tokens,
         "reasoning": {"effort": "low"}, "instructions": (
             instructions if request_type in {"cme_diagnostic_recovery", "performance_evaluation"}
             else "Give concise advisory reasoning to Grace. Identify missing evidence and safe next "
             "steps. Do not claim approval, authorize execution, or dispatch Engineering work."),
-        "input": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))}
+        "input": provider_input}
     if request_type in {"cme_diagnostic_recovery", "performance_evaluation"}:
         body_data["text"] = {"format": {"type": "json_object"}}
     body = json.dumps(body_data, separators=(",", ":")).encode()
