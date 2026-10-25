@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.39
+# Revision: 1.1.40
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Bind consumed evaluation replay to the immutable exchange assignment and allow historically associated child assignments in objective events.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Consume one exact S4 retry exception atomically with same-assignment rework and preserve normal three-attempt bound.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Read back and validate exact consumed CME exchange and one-use authorization evidence for same-assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTH-UUID-20261025 | Serialize the registered authorization UUID as text in append-only controller evidence.
@@ -782,13 +783,19 @@ class GraceExecutionPipeline:
         with self.ledger.db.transaction():
             with self.ledger.db.cursor() as cur:
                 self.ledger._set_search_path(cur)
-                cur.execute("SELECT status,assignment_id FROM grace_objectives "
-                    "WHERE objective_id=%s FOR UPDATE", (objective_id,))
+                cur.execute("""SELECT o.assignment_id,
+                        a.objective_ref,
+                        (a.id=o.assignment_id OR EXISTS (
+                            SELECT 1 FROM grace_objective_steps s
+                            WHERE s.objective_id=o.objective_id AND s.assignment_id=a.id
+                        )) AS durably_linked
+                    FROM grace_objectives o
+                    JOIN assignments a ON a.id=%s
+                    WHERE o.objective_id=%s FOR UPDATE OF o,a""",
+                    (assignment_id, objective_id))
                 objective = cur.fetchone()
-                cur.execute("SELECT objective_ref FROM assignments WHERE id=%s", (assignment_id,))
-                assignment = cur.fetchone()
-                if (not objective or objective["assignment_id"] != assignment_id or
-                        not assignment or assignment["objective_ref"] != objective_id):
+                if (not objective or objective["objective_ref"] != objective_id or
+                        not objective["durably_linked"]):
                     raise ObjectiveStateError("supervisory event correlation changed")
                 event_payload = {"assignment_id": assignment_id,
                     "request_id": request_id, "correlation_id": correlation_id, **payload}
@@ -875,15 +882,20 @@ class GraceExecutionPipeline:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT DISTINCT ON (x.request_id)
                     x.request_id::text AS request_id,
-                    x.correlation_id::text AS correlation_id,e.objective_id,
-                    e.payload->>'assignment_id' AS assignment_id
+                    x.correlation_id::text AS correlation_id,x.objective_id,
+                    x.request_payload->'original_request'->'assignment'->>'assignment_id'
+                        AS assignment_id
                 FROM grace_objective_events e
                 JOIN external_reasoning_exchanges x
                   ON x.request_id::text=e.payload->>'request_id'
                  AND x.correlation_id::text=e.payload->>'correlation_id'
+                 AND x.objective_id=e.objective_id
                 WHERE e.event_type='resident.performance.evaluation_blocked'
                   AND x.delivery_state='grace_consumed' AND x.provider_id='gpt-6-luna'
                   AND x.request_payload->>'request_type'='performance_evaluation'
+                  AND x.request_payload->'original_request'->>'assignment_id'=x.objective_id
+                  AND x.request_payload->'original_request'->>'trigger'='performance_evaluation'
+                  AND NULLIF(x.request_payload->'original_request'->'assignment'->>'assignment_id','') IS NOT NULL
                   AND (NOT EXISTS (SELECT 1 FROM grace_objective_events recorded
                     WHERE recorded.objective_id=e.objective_id
                       AND recorded.event_type='resident.performance.evaluation_recorded'
@@ -2299,7 +2311,7 @@ class GraceExecutionPipeline:
             raise ValueError("rejected work-order review limit must be between 1 and 100")
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
-            cur.execute("""SELECT o.objective_id,o.assignment_id,o.request,
+            cur.execute("""SELECT o.objective_id,o.assignment_id,o.revision,o.request,
                     o.acceptance_criteria,o.proposal,o.status,
                     received.payload AS received_payload,received.actor_id AS submitter_id
                 FROM grace_objectives o
@@ -2386,7 +2398,9 @@ class GraceExecutionPipeline:
                 event["payload"].get("runtime_release_id") == self.runtime_release_id()
                 for event in events)
             retry_exception = self._available_s4_rework_exception(
-                events, objective_id, assignment_id, verification_id)
+                events, objective_id, assignment_id, verification_id,
+                objective_revision=row["revision"],
+                objective_assignment_id=row["assignment_id"])
             if same_release_hold and not retry_exception:
                 continue
             matching_decisions = [event for event in events if event["event_type"] in {
@@ -2426,6 +2440,8 @@ class GraceExecutionPipeline:
                 "artifact": result if isinstance(result, dict) else {},
                 "artifact_sha256": verification["result_sha256"]}
             item = {"objective_id": objective_id, "assignment_id": assignment_id,
+                "objective_assignment_id": row["assignment_id"],
+                "objective_revision": row["revision"],
                 "request": row["request"], "acceptance_criteria": list(row["acceptance_criteria"]),
                 "proposal": row["proposal"], "objective_status": row["status"],
                 "step_id": step["step_id"], "step_objective": step["objective"],
@@ -2471,15 +2487,17 @@ class GraceExecutionPipeline:
 
     @staticmethod
     def _available_s4_rework_exception(events, objective_id, assignment_id,
-                                        verification_id):
+            verification_id, *, objective_revision, objective_assignment_id):
         """Return the exact unexpired, unconsumed S4 exception for its rejection."""
         from .grace_supervisory_authorization import (
             S4_REWORK_ASSIGNMENT_ID, S4_REWORK_OBJECTIVE_ID,
-            S4_REWORK_OBJECTIVE_REVISION, S4_REWORK_VERIFICATION_ID,
+            S4_REWORK_VERIFICATION_ID,
         )
         if (objective_id != S4_REWORK_OBJECTIVE_ID or
                 assignment_id != S4_REWORK_ASSIGNMENT_ID or
-                verification_id != S4_REWORK_VERIFICATION_ID):
+                verification_id != S4_REWORK_VERIFICATION_ID or
+                type(objective_revision) is not int or objective_revision < 1 or
+                not isinstance(objective_assignment_id, str) or not objective_assignment_id):
             return None
         grant = next((event for event in events if
             event["event_type"] == "engineering.rework_retry_authorized" and
@@ -2496,7 +2514,8 @@ class GraceExecutionPipeline:
             event["payload"].get("grant_event_id") == str(grant["event_id"])
             for event in events)
         expected = {"objective_id": objective_id,
-            "objective_revision": S4_REWORK_OBJECTIVE_REVISION,
+            "objective_revision": objective_revision,
+            "objective_assignment_id": objective_assignment_id,
             "assignment_id": assignment_id, "step_id": "s4",
             "verification_id": verification_id, "additional_attempts": 1,
             "authorized_by": "steward:camrui"}
@@ -2512,12 +2531,14 @@ class GraceExecutionPipeline:
         """Atomically consume the approved exception and queue one bounded S4 correction."""
         from .grace_supervisory_authorization import (
             S4_REWORK_ASSIGNMENT_ID, S4_REWORK_OBJECTIVE_ID,
-            S4_REWORK_OBJECTIVE_REVISION, S4_REWORK_ROOT_ASSIGNMENT_ID,
             S4_REWORK_VERIFICATION_ID,
         )
         if (not isinstance(context, dict) or
                 context.get("objective_id") != S4_REWORK_OBJECTIVE_ID or
                 context.get("assignment_id") != S4_REWORK_ASSIGNMENT_ID or
+                type(context.get("objective_revision")) is not int or
+                not isinstance(context.get("objective_assignment_id"), str) or
+                not context.get("objective_assignment_id") or
                 context.get("completion", {}).get("verification_id") !=
                     S4_REWORK_VERIFICATION_ID or
                 context.get("step_id") != "s4"):
@@ -2544,8 +2565,12 @@ class GraceExecutionPipeline:
                     raise ObjectiveStateError("S4 retry authorization is unavailable")
                 grant_payload = dict(grant["payload"])
                 if (state["status"] != "WORK_ORDER_CREATED" or
-                        state["revision"] != S4_REWORK_OBJECTIVE_REVISION or
-                        state["objective_assignment_id"] != S4_REWORK_ROOT_ASSIGNMENT_ID or
+                        state["revision"] != context["objective_revision"] or
+                        grant_payload.get("objective_revision") != state["revision"] or
+                        state["objective_assignment_id"] !=
+                            context["objective_assignment_id"] or
+                        grant_payload.get("objective_assignment_id") !=
+                            state["objective_assignment_id"] or
                         state["assignment_id"] != assignment_id or
                         state["objective_ref"] != objective_id or
                         state["assignment_state"] != "rework_required" or
@@ -2553,10 +2578,6 @@ class GraceExecutionPipeline:
                         grant_payload.get("schema") !=
                             "rv.grace.rework-retry-exception.v1" or
                         grant_payload.get("objective_id") != objective_id or
-                        grant_payload.get("objective_revision") !=
-                            S4_REWORK_OBJECTIVE_REVISION or
-                        grant_payload.get("objective_assignment_id") !=
-                            S4_REWORK_ROOT_ASSIGNMENT_ID or
                         grant_payload.get("assignment_id") != assignment_id or
                         grant_payload.get("step_id") != "s4" or
                         grant_payload.get("verification_id") != verification_id or

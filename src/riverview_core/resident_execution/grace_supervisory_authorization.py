@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/grace_supervisory_authorization.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.5
+# Revision: 1.0.6
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Bind the one-use S4 exception to the locked live revision and current assignment pointer instead of historical constants.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Require the exact replayed S4 evaluation and durable feedback consumption before issuing the one-use attempt.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Add one expiring exact-verification S4 rework exception using append-only single-use objective events.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Require all authorization tuple fields to match on idempotent replay.
@@ -43,7 +44,6 @@ S3_RETRY_GRANT_KEY = "grace-supervision:cme-retry-authorized:" + S3_RETRY_STALL_
 S3_RETRY_GRANT_LIFETIME = timedelta(minutes=30)
 
 S4_REWORK_OBJECTIVE_ID = S3_RETRY_OBJECTIVE_ID
-S4_REWORK_OBJECTIVE_REVISION = 8
 S4_REWORK_ROOT_ASSIGNMENT_ID = S3_RETRY_OBJECTIVE_ASSIGNMENT_ID
 S4_REWORK_ASSIGNMENT_ID = (
     S4_REWORK_ROOT_ASSIGNMENT_ID + ":step:5b840157e7e86aef")
@@ -175,8 +175,8 @@ class GraceSupervisoryAuthorization:
         """Record one exact S4 rework authorization without changing normal retry limits."""
         if (actor_id != "steward:camrui" or explicit_steward_confirmation is not True or
                 objective_id != S4_REWORK_OBJECTIVE_ID or
-                objective_revision != S4_REWORK_OBJECTIVE_REVISION or
-                objective_assignment_id != S4_REWORK_ROOT_ASSIGNMENT_ID or
+                type(objective_revision) is not int or objective_revision < 1 or
+                not isinstance(objective_assignment_id, str) or not objective_assignment_id or
                 assignment_id != S4_REWORK_ASSIGNMENT_ID or
                 verification_id != S4_REWORK_VERIFICATION_ID):
             raise PermissionError("s4_rework_exception_scope_mismatch")
