@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/continuous.py
 # Component: WORKER-ADAPTER
-# Revision: 1.1.5
+# Revision: 1.1.6
+# Changed: 2026-10-25 UTC | RV-GRACE-ASSIGNMENT-EVIDENCE-HANDOFF-20261025 | Gate action execution and evidence-wait recovery on the action's bounded evidence preflight.
 # Purpose: Execute bounded capability work with pinned source-digest provenance
 # Execution Model: Repeatable poll cycle; durable claims and outcomes in PostgreSQL
 # Observability: Assignment state, knowledge observations, attempts, and results
@@ -174,6 +175,16 @@ class ContinuousWorker:
         if (preflight.status is not KnowledgeStatus.VERIFIED or
                 preflight.retrieval_complete is not True):
             return False
+        action_preflight = getattr(self.action, "preflight_assignment", None)
+        if callable(action_preflight):
+            try:
+                evidence_preflight = action_preflight(assignment)
+            except Exception:
+                return False
+            if (not isinstance(evidence_preflight, KnowledgeResult) or
+                    evidence_preflight.status is not KnowledgeStatus.VERIFIED or
+                    evidence_preflight.retrieval_complete is not True):
+                return False
         return recovery.resume_verified_waiting_for_evidence(
             assignment["id"], grounded, preflight, worker_id=self.worker_id,
             worker_scope=assignment["authority_ref"], artifact_root=artifact_root)
@@ -220,6 +231,23 @@ class ContinuousWorker:
                                            action=self.action_capability)
         self._record(assignment, "preflight_action", preflight,
                      action=self.action_capability)
+
+        action_preflight = getattr(self.action, "preflight_assignment", None)
+        if callable(action_preflight):
+            try:
+                evidence_preflight = action_preflight(assignment)
+            except Exception:
+                evidence_preflight = KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
+            if (not isinstance(evidence_preflight, KnowledgeResult) or
+                    evidence_preflight.status is not KnowledgeStatus.VERIFIED or
+                    evidence_preflight.retrieval_complete is not True):
+                if not isinstance(evidence_preflight, KnowledgeResult):
+                    evidence_preflight = KnowledgeResult(KnowledgeStatus.UNVERIFIED)
+                return self._wait_for_evidence(assignment, lease,
+                    "preflight_assignment_evidence", evidence_preflight,
+                    action=self.action_capability)
+            self._record(assignment, "preflight_assignment_evidence",
+                         evidence_preflight, action=self.action_capability)
 
         self.adapter.start_assignment(assignment["id"], self.worker_id,
                                       self.credential, lease["generation"],

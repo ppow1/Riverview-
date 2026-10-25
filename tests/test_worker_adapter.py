@@ -1209,6 +1209,72 @@ class WorkerAdapterTests(unittest.TestCase):
                                          (assignment_id,)).fetchone()[0]
             self.assertEqual(intents, 3)
 
+    def test_verified_runtime_evidence_resumes_without_engineering_attempt(self):
+        import tempfile
+        from types import SimpleNamespace
+        from riverview_core.worker_adapter import (ContinuousWorker, KnowledgeResult,
+                                                    KnowledgeStatus, PostgresRecoveryCoordinator)
+
+        objective_id = "objective:runtime-evidence-resume:" + uuid4().hex
+        assignment_id = self.ready_assignment(scope="work-order:engineering",
+                                               objective=objective_id)
+        worker_id = "worker-runtime-evidence-resume-" + uuid4().hex
+        credential = self.register_as(worker_id,
+            ["engineering.codex-cli-artifact.v1"], "work-order:engineering")
+        source_revision, source_digest = "d" * 40, "e" * 64
+        self.admin.execute("""INSERT INTO grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+             evidence,assignment_id,source_revision,source_sha256)
+            VALUES (%s,'bounded fixture','work-order:engineering','steward:test','[]'::jsonb,
+                    'WORK_ORDER_CREATED',%s::jsonb,%s,%s,%s)""",
+            (objective_id,
+             json.dumps({"status": "VERIFIED", "source_revision": source_revision,
+                         "source_sha256": source_digest}), assignment_id,
+             source_revision, source_digest))
+        self.ledger.transition(assignment_id, "blocked", "WAITING_FOR_EVIDENCE",
+            f"wait-runtime-evidence:{assignment_id}", actor_id=worker_id)
+        self.admin.execute("""INSERT INTO knowledge_observations
+            (assignment_id,worker_id,operation,status,source_references,
+             source_revision,source_sha256,retrieval_complete,action)
+            VALUES (%s,%s,'preflight_assignment_evidence','UNAVAILABLE','[]'::jsonb,
+                    NULL,NULL,false,'engineering.codex-cli-artifact.v1')""",
+            (assignment_id, worker_id))
+
+        class Provider(self.VerifiedProvider):
+            def _verified(self):
+                return KnowledgeResult(KnowledgeStatus.VERIFIED, value="fresh source",
+                    source_references=("repo://docs/components/WORKER_ADAPTER.md",),
+                    source_revision="f" * 40, source_sha256="a" * 64,
+                    retrieval_complete=True)
+
+        class Action:
+            def __init__(self, artifact_root):
+                self.adapter = SimpleNamespace(artifact_root=artifact_root)
+            @staticmethod
+            def preflight_assignment(_assignment):
+                return KnowledgeResult(KnowledgeStatus.VERIFIED,
+                    source_references=("urn:rv:assignment-runtime-evidence",),
+                    retrieval_complete=True)
+
+        with tempfile.TemporaryDirectory(prefix="rv-runtime-evidence-resume-") as directory:
+            root = Path(directory) / "artifacts"
+            root.mkdir(mode=0o700)
+            worker = ContinuousWorker(self.worker, worker_id, credential,
+                knowledge=Provider(), action=Action(root),
+                action_effect_class="external_uncertain",
+                action_capability="engineering.codex-cli-artifact.v1")
+            recovery = PostgresRecoveryCoordinator(DSN, schema=self.schema)
+            try:
+                self.assertTrue(worker._resume_verified_waiting_assignment(recovery))
+            finally:
+                recovery.close()
+
+        self.assertEqual(self.ledger.get(assignment_id)["state"], "ready")
+        attempts = self.admin.execute(
+            "SELECT count(*) FROM worker_attempts WHERE assignment_id=%s",
+            (assignment_id,)).fetchone()[0]
+        self.assertEqual(attempts, 0)
+
     def test_waiting_evidence_candidate_selection_revalidates_worker_grant(self):
         from riverview_core.worker_adapter import WorkerAuthorizationError
 
