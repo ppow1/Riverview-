@@ -1,4 +1,6 @@
-/* Revision: 1.0.0 | RV-V2-RESIDENT-PERMISSIONS-20261025 */
+/*
+Revision: 1.0.0
+*/
 .resident-permissions-workspace{max-width:1100px;margin:0 auto;padding:4px 0 28px}
 .resident-permissions-heading{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:16px}
 .resident-permissions-heading h2{margin:2px 0 8px;font-size:24px;font-weight:560}
