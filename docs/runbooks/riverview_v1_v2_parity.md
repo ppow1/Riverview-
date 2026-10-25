@@ -1,7 +1,9 @@
-<!-- Document Revision: 1.0.1 -->
+<!-- Document Revision: 1.0.2 -->
 # Riverview deployed V1/V2 parity inventory
 
-Observed 2026-10-25 against the live LAN website. V1 is the root operations portal (`/`); V2 is `/v2/`, whose current deployed manifest identifies `RV-WEB-V2-ACCEPTANCE-75faec3329be` at commit `75faec3329be47aedec7130f200c9e9f285d9775`. This is a UI and route inventory, not a claim that every protected operation was exercised. Unauthenticated probes of protected `/api/v1/...` paths returned 401, confirming the authentication boundary. Each endpoint continues to enforce its own authorization.
+Updated 2026-10-25 UTC | RV-V2-RESIDENT-PERMISSIONS-20261025: record the V2 Resident Permissions interface and remaining reserved-test-principal limitation.
+
+Observed 2026-10-25 against the live LAN website. V1 is the root operations portal (`/`); V2 is `/v2/`, whose latest deployed manifest identifies `RV-WEB-V2-ACCEPTANCE-1f33df9933ff` at commit `1f33df9933feff99679b17bab5f2a536d8fcc504`. This is a UI and route inventory, not a claim that every protected operation was exercised. Unauthenticated probes of protected `/api/v1/...` paths returned 401, confirming the authentication boundary. Each endpoint continues to enforce its own authorization.
 
 | V1 feature/function | V2 counterpart | Status | Backend/API availability and authorization | Suggested migration priority |
 |---|---|---|---|---|
@@ -10,7 +12,7 @@ Observed 2026-10-25 against the live LAN website. V1 is the root operations port
 | Institutional proposal registry/details | Read-only proposal list, lifecycle filter, and expandable revision/review/work-order evidence | Partial | V2 uses the existing Steward account and institutional-principal-gated `GET /api/v1/institutional-proposals` and `GET /api/v1/institutional-proposals/{proposal_id}`. Decisions, revisions, and promotion remain with the existing authorized V1/API operations. | P1: next: assess Resident Permissions parity |
 | Grace conversation | Grace chat in V2 | Working for authorized sessions; test persona blocked | V2 uses conversation-session, conversation, and stream APIs. Requires authenticated identity plus institutional conversation grants. | Maintain; enable isolated test authority separately |
 | Resident directory | Residents view | Working for directory | V2 view is present; protected server APIs remain authenticated. | Maintain |
-| Resident permission/profile administration | No V2 permission administration view | Missing | V1 bundle references `/api/v1/resident-permissions`; existing API authorization applies. | P1: high for operator administration |
+| Resident permission/profile administration | Resident Permissions view: profile, exact grant, rule, audit, and resource registry; pending edits, explicit activation, and revoke | Partial | V2 reuses `/api/v1/resident-permissions` and existing profile PUT/approve/revoke operations. All reads and mutations remain server-authorized to a Steward institutional identity and exact `office.manage` grant; profile revisions use compare-and-swap and append-only audit. V2 does not create grants or alter account identity. | P1: next assess Account Administration parity; authorized live read remains unavailable to the reserved test Steward because it has no institutional principal |
 | Activity/event ledger | Communications activity ledger | Partial | V1 references `/api/v1/events`; V2 Communications presents scoped activity, not the full V1 activity view. Authenticated backend. | P2: compare event coverage |
 | Notification inbox/attention delivery | Notification Settings page | Partial | V1 references `/api/v1/notifications` and `/api/v1/attention`; V2 settings uses authenticated `/api/v1/notification-settings`. Settings persist; V2 navigation has no equivalent notification inbox/history. | P1: decide on inbox/history parity |
 | Registered workflows and cross-workflow destinations | Image Generation workflow selector | Partial | V2 workflow UI covers image generation, not the full V1 workflow/destination view. Authenticated operations. | P2: retain general workflow discoverability |

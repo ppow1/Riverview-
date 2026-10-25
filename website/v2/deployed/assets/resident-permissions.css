@@ -1,0 +1,27 @@
+/* Revision: 1.0.0 | RV-V2-RESIDENT-PERMISSIONS-20261025 */
+.resident-permissions-workspace{max-width:1100px;margin:0 auto;padding:4px 0 28px}
+.resident-permissions-heading{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:16px}
+.resident-permissions-heading h2{margin:2px 0 8px;font-size:24px;font-weight:560}
+.resident-permissions-heading p{max-width:760px;line-height:1.55}
+.resident-permission-state{min-height:24px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-soft);color:var(--muted)}
+.resident-permission-list{display:grid;gap:12px;min-width:0}
+.permission-card{min-width:0;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow-wrap:anywhere}
+.permission-card h3{margin:0 0 6px;font-size:16px;overflow-wrap:anywhere}
+.permission-card h4{margin:15px 0 7px;font-size:13px}
+.permission-card .panel-head{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:10px}
+.permission-card .row-meta{display:block;color:var(--muted);font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.permission-card .row{display:grid;gap:4px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11px}
+.permission-card .row-main{font-weight:650;overflow-wrap:anywhere}
+.permission-card .account-actions{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end}
+.permission-card details{margin-top:12px}
+.permission-card summary{cursor:pointer;color:var(--teal)}
+.permission-edit-row{display:grid;grid-template-columns:minmax(170px,1.35fr) minmax(160px,1fr) minmax(88px,.6fr) minmax(100px,.6fr) minmax(130px,.7fr);gap:9px;align-items:center;padding:10px 2px;border-top:1px solid var(--line)}
+.permission-edit-row label,#permission-editor>label{font-size:12px;color:var(--muted)}
+.permission-edit-row small{display:block;color:var(--muted);margin:4px 0 0 21px}
+.permission-edit-row select,#permission-editor select{width:100%;min-width:0;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px;font:inherit;font-size:12px}
+#permission-editor>label{display:inline-grid;gap:5px;margin:7px 12px 12px 0}
+#permission-editor h4{margin:14px 0 6px}
+.resident-permission-notice{margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-soft);font-size:12px}
+.resident-permission-notice p{margin:6px 0 0;color:var(--muted);line-height:1.55}
+@media(max-width:900px){.permission-edit-row{grid-template-columns:1fr 1fr}.permission-edit-row label:first-child{grid-column:1/-1}}
+@media(max-width:600px){.resident-permissions-heading{display:block}.resident-permissions-heading button{margin-top:8px;min-height:40px}.permission-card .panel-head{display:block}.permission-card .account-actions{justify-content:flex-start;margin-top:10px}.permission-edit-row{grid-template-columns:1fr}.permission-edit-row label:first-child{grid-column:auto}}
