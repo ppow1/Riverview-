@@ -49,13 +49,42 @@ test("objective relationships are joined only by exact recorded assignment IDs",
   assert.deepEqual(adapter.assignmentModel({assignment_id:"assign-1"},objectives).linkedObjectiveIds,["objective:one"]);
 });
 
+test("operational status remains separate from canonical lifecycle and carries evidence", () => {
+  const model = adapter.objectiveModel({
+    objective_id:"objective:active", status:"GROUNDED", lifecycle_status:"waiting",
+    operational_status:{code:"recovery_approval_pending",label:"Recovery approval pending",
+      source:"grace_recovery_decision_requests",occurred_at:"2026-10-25T09:15:00Z",
+      event_type:"recovery_request",event_id:"request-7"}
+  });
+  assert.equal(model.status,"waiting");
+  assert.equal(model.operationalStatus,"Recovery approval pending");
+  assert.equal(model.operationalSource,"grace_recovery_decision_requests");
+  assert.equal(model.operationalAt,"2026-10-25T09:15:00Z");
+  assert.equal(model.operationalEventId,"request-7");
+  assert.equal(adapter.objectiveModel({status:"GROUNDED"}).operationalStatus,"Status unavailable");
+});
+
+test("related output model uses recorded metadata and does not assert publication", () => {
+  const item = {objective_id:"objective:outputs",status:"COMPLETED",
+    related_outputs:[{name:"summary.md",summary:"Recorded summary"},{name:"bundle.zip"}]};
+  const model = adapter.objectiveModel(item);
+  assert.equal(model.primaryDeliverable,"summary.md");
+  assert.equal(model.outputSummary,"Recorded summary");
+  const evidence = fs.readFileSync(path.join(ROOT,"assets/work-evidence.js"),"utf8");
+  assert.match(evidence,/no authorized download route is available/);
+  assert.match(evidence,/publication not independently verified/);
+  assert.match(evidence,/Verified downloadable images/);
+});
+
 test("work evidence uses existing protected read APIs and keeps access denial visible", () => {
   const html=fs.readFileSync(path.join(ROOT,"index.html"),"utf8");
   const work=fs.readFileSync(path.join(ROOT,"assets/work-monitor.js"),"utf8");
   const evidence=fs.readFileSync(path.join(ROOT,"assets/work-evidence.js"),"utf8");
   const grace=fs.readFileSync(path.join(ROOT,"assets/grace-chat.js"),"utf8");
-  assert.match(html,/work-evidence-adapter\.js\?rev=blocker-20261024/);
-  assert.match(html,/work-evidence\.js\?rev=blocker-20261024/);
+  assert.match(html,/work-evidence-adapter\.js\?rev=objective-status-outputs-20261026/);
+  assert.match(html,/work-evidence\.js\?rev=objective-status-outputs-20261026/);
+  assert.match(html,/<th scope="col">Operational status<\/th>/);
+  assert.match(html,/<th scope="col">Related work \/ deliverable<\/th>/);
   assert.match(html,/id="work-sort"/);
   assert.match(work,/\/api\/v1\/objectives\?limit=25/);
   assert.match(work,/\/api\/v1\/assignments\?limit=25/);
@@ -63,6 +92,8 @@ test("work evidence uses existing protected read APIs and keeps access denial vi
   assert.match(work,/\[401, 403\]\.includes\(result\.reason\?\.status\)/);
   assert.match(work,/state\[target\] = \[\]/);
   assert.match(work,/function sortRows\(/);
+  assert.match(work,/item\.operational_status\?\.label/);
+  assert.match(work,/item\.related_outputs/);
   assert.match(grace,/RiverviewV2WorkEvidence\.createDetails\(item\)/);
   assert.doesNotMatch(evidence,/method:\s*"(POST|PUT|PATCH|DELETE)"/);
 });

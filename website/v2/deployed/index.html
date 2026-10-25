@@ -49,8 +49,8 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/workspace.css">
   <link rel="stylesheet" href="assets/communications.css">
   <link rel="stylesheet" href="assets/resource-monitor.css?rev=octo-bay-assignment-20261024">
-  <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
-  <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
+  <link rel="stylesheet" href="assets/work-monitor.css?rev=objective-status-outputs-20261026">
+  <link rel="stylesheet" href="assets/work-evidence.css?rev=objective-status-outputs-20261026">
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=roadmap-integrated-20261024">
   <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposal-lifecycle-20261025">
   <link rel="stylesheet" href="assets/process-workflows.css?rev=v1-parity-20261025">
@@ -63,8 +63,8 @@ History: Git and revision/backup manifest
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/octominer-bay-assignments.js?rev=steward-reported-20261024"></script>
   <script defer src="assets/resource-monitor.js?rev=octo-bay-assignment-20261024"></script>
-  <script defer src="assets/work-evidence-adapter.js?rev=blocker-20261024"></script>
-  <script defer src="assets/work-evidence.js?rev=blocker-20261024"></script>
+  <script defer src="assets/work-evidence-adapter.js?rev=objective-status-outputs-20261026"></script>
+  <script defer src="assets/work-evidence.js?rev=objective-status-outputs-20261026"></script>
   <script defer src="assets/living-roadmap-data.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/living-roadmap-adapter.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/living-roadmap.js?rev=roadmap-integrated-20261024"></script>
@@ -76,7 +76,7 @@ History: Git and revision/backup manifest
   <script defer src="assets/resident-permissions.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
   <script defer src="assets/authority-explorer.js?rev=batch1-20261025"></script>
   <script defer src="assets/account-administration.js?rev=account-email-20261025"></script>
-  <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
+  <script defer src="assets/work-monitor.js?rev=objective-status-outputs-20261026"></script>
   <script defer src="assets/workspace.js?rev=settings-directory-registry-20261025"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
@@ -135,7 +135,7 @@ History: Git and revision/backup manifest
             <div class="work-monitor-toolbar"><p id="work-refresh-status" role="status" aria-live="polite">Open Work on LAN HTTPS to check the existing Dashboard account session and read current objective and assignment summaries.</p><button id="work-refresh" type="button" aria-describedby="work-refresh-status">Refresh</button></div>
             <label class="work-search">Filter visible records<input id="work-search" type="search" maxlength="100" placeholder="Objective, assignment, state, owner, or progress event"></label>
             <label class="work-sort">Sort records<select id="work-sort"><option value="recent">Most recent progress</option><option value="oldest">Oldest progress</option><option value="status">Status</option><option value="id">Record ID</option></select></label>
-            <section class="work-records" aria-labelledby="work-objectives-heading"><h3 id="work-objectives-heading">Objectives</h3><p class="work-source-note">Source: <code>GET /api/v1/objectives?limit=25</code> · details and event evidence load on demand through existing authenticated APIs. Missing dependency relationships are labelled unavailable.</p><div class="work-table-wrap"><table class="work-objectives-table"><caption class="visually-hidden">Persisted objective lifecycle, stage, blocker, linked work order, owner, progress age, evidence, and eligible Steward action</caption><thead><tr><th scope="col">Objective</th><th scope="col">Status</th><th scope="col">Current stage</th><th scope="col">Blocker / waiting reason</th><th scope="col">Related work</th><th scope="col">Owner</th><th scope="col">Last progress</th><th scope="col">Context &amp; evidence</th><th scope="col">Action</th></tr></thead><tbody id="work-objectives-body"></tbody></table></div><p id="work-objectives-empty" class="work-empty">Objective status has not been checked.</p></section>
+            <section class="work-records" aria-labelledby="work-objectives-heading"><h3 id="work-objectives-heading">Objectives</h3><p class="work-source-note">Source: <code>GET /api/v1/objectives?limit=25</code> · operational status is a separate read-only projection from persisted events, live requests, recovery, and assignment state. Deliverable details load on demand through existing authenticated APIs.</p><div class="work-table-wrap"><table class="work-objectives-table"><caption class="visually-hidden">Canonical objective lifecycle and separate operational status, deliverables, blocker, assignment, progress, evidence, and eligible Steward action</caption><thead><tr><th scope="col">Objective</th><th scope="col">Lifecycle</th><th scope="col">Operational status</th><th scope="col">Current stage</th><th scope="col">Blocker / waiting reason</th><th scope="col">Related work / deliverable</th><th scope="col">Owner</th><th scope="col">Last progress</th><th scope="col">Context &amp; evidence</th><th scope="col">Action</th></tr></thead><tbody id="work-objectives-body"></tbody></table></div><p id="work-objectives-empty" class="work-empty">Objective status has not been checked.</p></section>
             <section class="work-records" aria-labelledby="work-assignments-heading"><h3 id="work-assignments-heading">Assignment progress</h3><p class="work-source-note">Source: <code>GET /api/v1/assignments?limit=25</code> · progress time uses persisted event timestamps; opening context loads the exact assignment's event and worker-attempt history.</p><div class="work-table-wrap"><table class="work-assignments-table"><caption class="visually-hidden">Persisted assignment state, stage, blocker availability, owner, progress age, linked objective and evidence</caption><thead><tr><th scope="col">Work order</th><th scope="col">Status · stage</th><th scope="col">Owner</th><th scope="col">Last progress</th><th scope="col">Related objectives</th><th scope="col">Context &amp; evidence</th></tr></thead><tbody id="work-assignments-body"></tbody></table></div><p id="work-assignments-empty" class="work-empty">Assignment progress has not been checked.</p></section>
           </section>
           <div id="view-content"></div>

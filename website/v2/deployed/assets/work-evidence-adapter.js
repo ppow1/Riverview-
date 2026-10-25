@@ -1,4 +1,4 @@
-// Revision: 1.0.0
+// Revision: 1.0.1
 /* Pure view models over Riverview's authoritative objective and assignment projections. */
 (() => {
   "use strict";
@@ -43,10 +43,26 @@
   function objectiveModel(objective = {}, assignment = null, now = Date.now()) {
     const progress = assignment?.last_meaningful_progress || null;
     const timestamp = progress?.recorded_at || objective?.latest_event?.occurred_at || null;
+    const operational = objective?.operational_status;
+    const artifact = objective?.artifact;
+    const outputRows = Array.isArray(objective?.related_outputs) ? objective.related_outputs : [];
+    const primaryOutput = outputRows[0] || null;
+    const artifactName = value(primaryOutput?.name) || value(artifact?.reference);
     return Object.freeze({
       kind: "objective",
       id: value(objective.objective_id),
       status: value(objective.lifecycle_status) || value(objective.status) || "Status unavailable",
+      operationalStatus: value(operational?.label) || "Status unavailable",
+      operationalStatusCode: value(operational?.code) || "status_unavailable",
+      operationalSource: value(operational?.source),
+      operationalAt: value(operational?.occurred_at),
+      operationalEventType: value(operational?.event_type),
+      operationalEventId: value(operational?.event_id),
+      primaryDeliverable: artifactName,
+      outputSummary: value(primaryOutput?.summary) || value(artifact?.summary),
+      outputCount: outputRows.length,
+      outputsAvailable: Array.isArray(objective?.related_outputs),
+      outputsTruncated: objective?.related_outputs_truncated === true,
       stage: value(objective.lifecycle_stage) || value(objective.status) || "Stage not supplied",
       blocker: blockerReason(objective, assignment),
       dependencies: null,
