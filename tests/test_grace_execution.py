@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.77
+# Revision: 1.0.78
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Verify historical S3 event persistence after pointer advancement and reject cross-objective assignment references.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Exercise exact consumed Luna exchange provenance and evaluation lifecycle evidence through PostgreSQL.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Fix the integration fixture's explicit service import for concurrent admission coverage.
@@ -2466,6 +2466,12 @@ class GraceExecutionTests(unittest.TestCase):
             "resident.performance.feedback_consumed" and
             event["payload"].get("request_id") == request_id)
         self.assertEqual(feedback["payload"]["assignment_id"],s3_assignment)
+        with self.assertRaisesRegex(ObjectiveStateError,
+                "supervisory event identity override rejected"):
+            self.pipeline.record_supervisory_event(objective_id, s3_assignment,
+                event_type="resident.performance.feedback_consumed", request_id=request_id,
+                correlation_id=correlation_id, idempotency_key="spoofed-feedback:"+request_id,
+                payload={"assignment_id":"assignment:foreign", "grade":2})
         _foreign_objective, foreign_assignment, *_ = self._create_rework_fixture(
             "foreign-supervisory-assignment")
         with self.assertRaisesRegex(ObjectiveStateError,

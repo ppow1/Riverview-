@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.40
+# Revision: 1.1.41
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Bind consumed evaluation replay to the immutable exchange assignment and allow historically associated child assignments in objective events.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Consume one exact S4 retry exception atomically with same-assignment rework and preserve normal three-attempt bound.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Read back and validate exact consumed CME exchange and one-use authorization evidence for same-assignment rework.
@@ -797,8 +797,12 @@ class GraceExecutionPipeline:
                 if (not objective or objective["objective_ref"] != objective_id or
                         not objective["durably_linked"]):
                     raise ObjectiveStateError("supervisory event correlation changed")
-                event_payload = {"assignment_id": assignment_id,
-                    "request_id": request_id, "correlation_id": correlation_id, **payload}
+                reserved_identity = {"assignment_id": assignment_id,
+                    "request_id": request_id, "correlation_id": correlation_id}
+                if any(key in payload and payload[key] != value
+                        for key, value in reserved_identity.items()):
+                    raise ObjectiveStateError("supervisory event identity override rejected")
+                event_payload = {**payload, **reserved_identity}
                 cur.execute("SELECT event_type,payload FROM grace_objective_events "
                     "WHERE objective_id=%s AND idempotency_key=%s",
                     (objective_id, idempotency_key))
