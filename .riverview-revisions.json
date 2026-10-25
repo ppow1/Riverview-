@@ -25,7 +25,7 @@
       "size_bytes": 1584723
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.336"
+      "revision": "1.1.335"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -2909,7 +2909,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2927,7 +2927,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -8921,9 +8921,9 @@
     },
     "src/riverview_core/status_dashboard/server.py": {
       "path": "src/riverview_core/status_dashboard/server.py",
-      "revision": "1.3.39",
-      "sha256": "26a384c6bb0a41d6c8947600ab88241224a47af4b1c56c98ad761a40f4e7958e",
-      "size_bytes": 158041
+      "revision": "1.3.43",
+      "sha256": "f70f0377b8d257b6ed10010418abdd409345d29b46f7dbb6a5cb511727628f7e",
+      "size_bytes": 174003
     },
     "src/riverview_core/status_dashboard/snapshot_archive.py": {
       "path": "src/riverview_core/status_dashboard/snapshot_archive.py",
@@ -9173,9 +9173,9 @@
     },
     "tests/test_account_auth_http.py": {
       "path": "tests/test_account_auth_http.py",
-      "revision": "1.1.0",
-      "sha256": "23cf031784ca7f3a14c7a05b41c7649da9d3173aee81d8469f64a1b37df807cd",
-      "size_bytes": 8998
+      "revision": "1.1.1",
+      "sha256": "d16610161377b5839b19aaec094b86c11450de689ca623e252e8212151aad244",
+      "size_bytes": 10182
     },
     "tests/test_account_commissioning_tty.py": {
       "path": "tests/test_account_commissioning_tty.py",
@@ -9658,6 +9658,6 @@
       "size_bytes": 2008940
     }
   },
-  "manifest_revision": "1.1.334",
-  "updated_at": "2026-10-25T16:15:48Z"
+  "manifest_revision": "1.1.335",
+  "updated_at": "2026-10-25T17:46:11+00:00"
 }
