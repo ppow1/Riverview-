@@ -9751,7 +9751,7 @@
     },
     {
       "graph_id": "rv:resident-reasoning:runtime",
-      "graph_revision": "1.2.14",
+      "graph_revision": "1.2.15",
       "component_id": "RESIDENT-REASONING",
       "workflow_id": "resident.reasoning.v1",
       "diagram_order": 13,
@@ -9779,7 +9779,8 @@
         "src/riverview_core/resident_execution/pipeline.py",
         "src/riverview_core/doorbell/runtime.py",
         "src/riverview_core/doorbell/dispatcher.py",
-        "tests/test_grace_doorbell_runtime_wiring.py"
+        "tests/test_grace_doorbell_runtime_wiring.py",
+        "src/riverview_core/resident_execution/grace_supervisory_authorization.py"
       ],
       "documentation_references": [
         "docs/components/RESIDENT_REASONING.md",
@@ -10910,6 +10911,37 @@
             "tests/test_grace_doorbell_runtime_wiring.py",
             "tests/test_external_reasoning_doorbell_dispatcher.py"
           ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:s3-retry-exception",
+          "node_revision": "1.0.0",
+          "type": "process",
+          "label": "Append one expiring Steward retry grant bound to the exact S3 objective, assignment, stall, and progress sequence",
+          "source_references": [
+            "src/riverview_core/resident_execution/grace_supervisory_authorization.py"
+          ],
+          "documentation_references": [
+            "docs/components/EXTERNAL_REASONING_EXCHANGE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_external_reasoning_exchange.py"
+          ]
+        },
+        {
+          "id": "rv:resident-reasoning:runtime:s3-retry-admission",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Atomically consume the exact one-use event grant with the existing budget reservation before provider submission",
+          "source_references": [
+            "src/riverview_core/resident_execution/external_reasoning.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/EXTERNAL_REASONING_EXCHANGE.md"
+          ],
+          "verification_evidence": [
+            "tests/test_external_reasoning_exchange.py"
+          ]
         }
       ],
       "edges": [
@@ -11388,6 +11420,24 @@
           "to": "rv:resident-reasoning:runtime:exchange-outbox",
           "type": "runtime_transition",
           "label": "Persist the bounded retry in the same exchange"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:supervisory-luna-bounded-retry",
+          "to": "rv:resident-reasoning:runtime:s3-retry-exception",
+          "type": "recovery_route",
+          "label": "The bounded request was denied at admission and a matching Steward-authorized exception is recorded for this stall only"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:s3-retry-exception",
+          "to": "rv:resident-reasoning:runtime:s3-retry-admission",
+          "type": "prerequisite",
+          "label": "Exact objective, root and step assignments, stall event, progress, revision, expiry, and one-use limit match"
+        },
+        {
+          "from": "rv:resident-reasoning:runtime:s3-retry-admission",
+          "to": "rv:resident-reasoning:runtime:exchange-outbox",
+          "type": "runtime_transition",
+          "label": "One reservation and exception consumption commit atomically before the existing durable Luna exchange"
         }
       ]
     },
@@ -17198,6 +17248,8 @@
     "rv:resident-reasoning:runtime:response-normalization",
     "rv:resident-reasoning:runtime:route-gate",
     "rv:resident-reasoning:runtime:route-unavailable",
+    "rv:resident-reasoning:runtime:s3-retry-admission",
+    "rv:resident-reasoning:runtime:s3-retry-exception",
     "rv:resident-reasoning:runtime:select-provider",
     "rv:resident-reasoning:runtime:stale-context",
     "rv:resident-reasoning:runtime:state-conflict",

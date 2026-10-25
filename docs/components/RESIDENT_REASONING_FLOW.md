@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/RESIDENT_REASONING_FLOW.md
 Component: RESIDENT-REASONING
-File Revision: 1.0.21
+File Revision: 1.0.22
 Purpose: Generated focused process view for resident reasoning routing
 Authority: Graph-generated view; canonical source is JSON
 Changed: 2026-10-11 UTC | RV-M4.2-001 | Add graph-generated resident reasoning flow
@@ -81,6 +81,8 @@ flowchart LR
     g_rv_resident_reasoning_runtime_doorbell_durable_receipt_3c9db306["C3 atomically records one fenced receipt and applies existing retry, ambiguity and state-transition rules"]
     g_rv_resident_reasoning_runtime_doorbell_worker_failure_363ede17[["Configuration, exchange, bridge or receipt failure is sanitized and isolated from the remainder of Grace cycle"]]
     g_rv_resident_reasoning_runtime_doorbell_lease_recovery_e2646f65["Keep existing durable request; recover only through lease expiry and exchange retry policy; never infer wake success"]
+    g_rv_resident_reasoning_runtime_s3_retry_exception_3005a431["Append one expiring Steward retry grant bound to the exact S3 objective, assignment, stall, and progress sequence"]
+    g_rv_resident_reasoning_runtime_s3_retry_admission_19d91f09{"Atomically consume the exact one-use event grant with the existing budget reservation before provider submission"}
   end
   g_rv_worker_adapter_deterministic_attempt_ground_c2193741["Registered target<br/>rv:worker-adapter:deterministic-attempt"]
   g_rv_institutional_authority_identity_and_grants_office_state_e5a8ca22["Registered target<br/>rv:institutional-authority:identity-and-grants"]
@@ -165,5 +167,8 @@ flowchart LR
   g_rv_resident_reasoning_runtime_supervisory_luna_exchange_36f44d81 -->|diagnostic_branch: Provider submission fails or bounded structured response is invalid| g_rv_resident_reasoning_runtime_supervisory_luna_response_invalid_94551e48
   g_rv_resident_reasoning_runtime_supervisory_luna_response_invalid_94551e48 -->|recovery_route: One idempotent 512-token fallback may run inside existing authority and budget| g_rv_resident_reasoning_runtime_supervisory_luna_bounded_retry_0bb6dc16
   g_rv_resident_reasoning_runtime_supervisory_luna_bounded_retry_0bb6dc16 -->|Persist the bounded retry in the same exchange| g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762
+  g_rv_resident_reasoning_runtime_supervisory_luna_bounded_retry_0bb6dc16 -->|recovery_route: The bounded request was denied at admission and a matching Steward-authorized exception is recorded for this stall only| g_rv_resident_reasoning_runtime_s3_retry_exception_3005a431
+  g_rv_resident_reasoning_runtime_s3_retry_exception_3005a431 -->|prerequisite: Exact objective, root and step assignments, stall event, progress, revision, expiry, and one-use limit match| g_rv_resident_reasoning_runtime_s3_retry_admission_19d91f09
+  g_rv_resident_reasoning_runtime_s3_retry_admission_19d91f09 -->|One reservation and exception consumption commit atomically before the existing durable Luna exchange| g_rv_resident_reasoning_runtime_exchange_outbox_7bebb762
   classDef failure fill:#fee,stroke:#b00,stroke-width:2px
 ```

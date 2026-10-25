@@ -25,7 +25,7 @@
       "size_bytes": 1296735
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.321"
+      "revision": "1.1.322"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -7847,9 +7847,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.33",
-      "sha256": "eec8971f76b3da4dfdace63aa3a71800f06bdbc784a6a073686fd7c9628b17c8",
-      "size_bytes": 772750
+      "revision": "1.1.34",
+      "sha256": "7801950e1e21bd12e597c89c2aa8174c6b1123ee72e4c1254bd265654b654795",
+      "size_bytes": 775271
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7913,9 +7913,9 @@
     },
     "process_graphs/resident-reasoning/runtime.json": {
       "path": "process_graphs/resident-reasoning/runtime.json",
-      "revision": "1.0.29",
-      "sha256": "cef4170e41efd12dc40ed2c3a99553cd468afd0a368e12c3c83dbb834ee6465e",
-      "size_bytes": 66673
+      "revision": "1.0.30",
+      "sha256": "c89808dd25de52423aab85479d53cf9c3498e91ba2d3c812bd0259d5ff46136f",
+      "size_bytes": 68894
     },
     "process_graphs/riverview-v2/workspace-shell.json": {
       "path": "process_graphs/riverview-v2/workspace-shell.json",
@@ -9562,6 +9562,6 @@
       "size_bytes": 1044
     }
   },
-  "manifest_revision": "1.1.321",
+  "manifest_revision": "1.1.322",
   "updated_at": "2026-10-23T02:19:41Z"
 }

@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.8
+File Revision: 1.1.9
 Purpose: Diagnose durable external reasoning exchange transitions safely
 Authority: Read-only diagnostics first; no production migration or transport operation
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial troubleshooting guide
@@ -14,6 +14,7 @@ Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Record official Tu
 Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Document HTTP 401/403 OAuth challenges from the MCP handler
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Document Grace's live durable response consumer, idempotent acknowledgement and restart diagnostics.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record the owner-session unit name and isolated full-round-trip acceptance boundary.
+Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Document read-only checks and the one-use event-specific retry audit.
 Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Add initiation, active-principal, and exact-grant recovery diagnostics.
 Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Add exact-subject digest, bounded revision, restart, and blocked-review diagnostics.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-EXPIRED-RESPONSE-MCP | Diagnose rejected late provider responses without false success
@@ -251,6 +252,29 @@ correlation_id)` and `events(...)` for the diagnostic projection.
 | `idempotency key was reused for a different request` | Caller supplied a key whose immutable context differs | Preserve the existing request. Use the original request for retry or a new authorized request with a new key. |
 | `active response claim and fencing token required` | Claim is stale, belongs to another provider, or its lease expired | Reclaim through the selected provider identity and use its newest fence. |
 | `response ... schema` / correlation mismatch | Response is malformed or belongs to another exchange | Preserve diagnostics; do not relax response validation. |
+
+## Event-scoped CME retry authorization
+
+For the approved S3 stall, verify the target objective revision, root
+assignment, S3 step assignment, CME event ID/progress sequence, current
+`rework_required` state, and active supervision authorization before recording
+the exception. The authorization event is bound to those exact values, the
+Steward principal, a single attempt, the existing $0.05 ceiling, and its
+30-minute expiry. Do not modify ordinary retry counters, change the progress
+sequence, or create a substitute stall. The resident queue may create one new
+stable exchange only when its existing bounded fallback was denied before
+provider admission. Provider admission atomically appends the matching
+`cme_retry_consumed` and `luna_reserved` events while holding the active
+authorization lock; the event's unique key and one-use limit fence concurrent
+requests. The normal `provider_attempt_started` and `provider_attempt_settled`
+events retain the result and sanitized diagnostics.
+
+Read-only verification is limited to the exact `cme_retry_authorized`,
+`cme_retry_consumed`, `luna_reserved`, `provider_attempt_started`, and
+`provider_attempt_settled` events, plus the correlated external-exchange status.
+If the authorization expired, the event/assignment/progress changed, or a
+consumption event exists, stop. Never insert or update these records directly
+to bypass the authorization method or admission guard.
 
 The exchange service performs no background polling and makes no provider
 network call. It is safe for the existing Grace/CME cycle to keep handling

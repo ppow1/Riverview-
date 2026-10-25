@@ -1,11 +1,27 @@
+# RIVERVIEW~ CONTROLLED SOURCE
+# File: src/riverview_core/resident_execution/grace_supervisory_authorization.py
+# Component: RESIDENT-ORCHESTRATION
+# Revision: 1.0.3
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Require all authorization tuple fields to match on idempotent replay.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Validate the approved parent assignment alongside the current S3 child pointer.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Require exact revision and root-assignment scope in retry availability checks.
+# Purpose: Bind Luna supervisory calls and event-scoped retry exceptions to Steward authority
+# Execution Model: Request-driven PostgreSQL authorization
+# Observability: Append-only supervisory authorization events
+# Dependencies: PostgreSQL ledger; AuthorityRegistry active-grant function
+# Authority: Existing $5/$0.05 Luna grant; a diagnostic exception is exact-event, expiring, and single-use
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Record one approved retry for the exact S3 stall.
+# Contracts: docs/components/EXTERNAL_REASONING_EXCHANGE.md
+# Tests: tests/test_external_reasoning_exchange.py
+# History: Git and .riverview-backups/manifest.jsonl
 """Steward-approved financial envelope for Luna supervisory requests."""
 from __future__ import annotations
 
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import re
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 
 SCOPE = {"functions": ["cme_diagnostic_recovery", "performance_evaluation"],
@@ -13,12 +29,159 @@ SCOPE = {"functions": ["cme_diagnostic_recovery", "performance_evaluation"],
 TOTAL_BUDGET = Decimal("5.00000000")
 PER_REQUEST_LIMIT = Decimal("0.05000000")
 
+S3_RETRY_OBJECTIVE_ID = "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2"
+S3_RETRY_OBJECTIVE_REVISION = 8
+S3_RETRY_OBJECTIVE_ASSIGNMENT_ID = (
+    "assignment:grace:de19cd78b86f1889d32cdf02c6d3fe51d4658834")
+S3_RETRY_STALL_EVENT_ID = "8671a141-da3c-47c5-960d-324e3c51eeef"
+S3_RETRY_PROGRESS_SEQUENCE = 223
+S3_RETRY_EVENT_ASSIGNMENT_ID = (
+    S3_RETRY_OBJECTIVE_ASSIGNMENT_ID + ":step:41242b9fae56fad4")
+S3_RETRY_GRANT_KEY = "grace-supervision:cme-retry-authorized:" + S3_RETRY_STALL_EVENT_ID
+S3_RETRY_GRANT_LIFETIME = timedelta(minutes=30)
+
 
 class GraceSupervisoryAuthorization:
     def __init__(self, pipeline, authority_registry):
         self.pipeline = pipeline
         self.ledger = pipeline.ledger
         self.authority_registry = authority_registry
+
+    def authorize_one_s3_cme_retry(self, *, actor_id, authorization_id,
+            objective_id, objective_revision, objective_assignment_id,
+            stall_event_id, progress_sequence, explicit_steward_confirmation):
+        """Append the approved one-use exception for the fixed S3 stall only."""
+        if (actor_id != "steward:camrui" or explicit_steward_confirmation is not True or
+                objective_id != S3_RETRY_OBJECTIVE_ID or
+                objective_revision != S3_RETRY_OBJECTIVE_REVISION or
+                objective_assignment_id != S3_RETRY_OBJECTIVE_ASSIGNMENT_ID or
+                stall_event_id != S3_RETRY_STALL_EVENT_ID or
+                progress_sequence != S3_RETRY_PROGRESS_SEQUENCE):
+            raise PermissionError("cme_retry_exception_scope_mismatch")
+        try:
+            authorization_uuid = UUID(str(authorization_id))
+        except (ValueError, TypeError, AttributeError):
+            raise ValueError("grace_supervisory_authorization_identity_invalid") from None
+        from psycopg import sql
+
+        with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT * FROM grace_supervisory_authorizations
+                WHERE authorization_id=%s FOR UPDATE""", (authorization_uuid,))
+            auth = cur.fetchone()
+            if (auth is None or auth["status"] != "active" or
+                    auth["total_budget_usd"] != TOTAL_BUDGET or
+                    auth["per_request_limit_usd"] != PER_REQUEST_LIMIT or
+                    auth["scope"] != SCOPE or
+                    (auth["valid_until"] is not None and
+                     auth["valid_until"] <= datetime.now(timezone.utc))):
+                raise PermissionError("active_grace_supervisory_authorization_required")
+            cur.execute(sql.SQL("SELECT {}.active_grace_supervisory_luna_grant(%s) AS grant_id").format(
+                sql.Identifier(self.authority_registry.schema)), (auth["authority_grant_id"],))
+            linked = cur.fetchone()
+            if not linked or linked["grant_id"] != auth["authority_grant_id"]:
+                raise PermissionError("active_grace_supervisory_authority_grant_required")
+            cur.execute("""SELECT e.assignment_id,s.step_id,s.status AS step_status,
+                    a.state AS assignment_state,o.status AS objective_status,
+                    o.revision AS objective_revision,o.assignment_id AS objective_assignment_id
+                FROM cme_monitor_events e
+                JOIN assignments a ON a.id=e.assignment_id
+                JOIN grace_objective_steps s ON s.assignment_id=a.id
+                JOIN grace_objectives o ON o.objective_id=s.objective_id
+                JOIN assignments root ON root.id=%s
+                    AND root.objective_ref=o.objective_id
+                WHERE e.event_id=%s AND e.event_type='assignment_stalled'
+                  AND s.objective_id=%s AND s.step_id='s3'
+                  AND e.assignment_id=%s AND e.details->>'state'='rework_required'
+                  AND (e.details->>'progress_seq')::integer=%s
+                  AND a.objective_ref=o.objective_id
+                  AND o.assignment_id=a.id
+                  AND a.state='rework_required' AND s.status='assigned'
+                  AND o.status='WORK_ORDER_CREATED' AND o.revision=%s
+                """, (objective_assignment_id, UUID(stall_event_id), objective_id,
+                    S3_RETRY_EVENT_ASSIGNMENT_ID, progress_sequence, objective_revision))
+            facts = cur.fetchone()
+            if facts is None:
+                raise PermissionError("current_s3_stall_facts_do_not_match_approval")
+            now = datetime.now(timezone.utc)
+            expires_at = now + S3_RETRY_GRANT_LIFETIME
+            event_payload = {
+                "schema": "rv.grace.cme-retry-exception.v1",
+                "authorized_by": actor_id,
+                "approval_reference": "Steward-directed Codex instruction",
+                "objective_id": objective_id,
+                "objective_revision": objective_revision,
+                "objective_assignment_id": objective_assignment_id,
+                "assignment_id": S3_RETRY_EVENT_ASSIGNMENT_ID,
+                "step_id": "s3",
+                "stall_event_id": stall_event_id,
+                "progress_sequence": progress_sequence,
+                "request_type": "cme_diagnostic_recovery",
+                "max_attempts": 1,
+                "per_request_limit_usd": format(PER_REQUEST_LIMIT, ".8f"),
+                "expires_at": expires_at.isoformat(),
+            }
+            cur.execute("""INSERT INTO grace_supervisory_authorization_events
+                (authorization_id,event_type,idempotency_key,objective_id,payload)
+                VALUES (%s,'cme_retry_authorized',%s,%s,%s::jsonb)
+                ON CONFLICT (idempotency_key) DO NOTHING
+                RETURNING event_id""",
+                (authorization_uuid, S3_RETRY_GRANT_KEY, objective_id,
+                 json.dumps(event_payload, sort_keys=True)))
+            event = cur.fetchone()
+            if event is None:
+                cur.execute("""SELECT event_id,objective_id,payload FROM grace_supervisory_authorization_events
+                    WHERE authorization_id=%s AND event_type='cme_retry_authorized'
+                      AND idempotency_key=%s""", (authorization_uuid, S3_RETRY_GRANT_KEY))
+                existing = cur.fetchone()
+                existing_payload = existing["payload"] if existing else {}
+                if (existing is None or existing["objective_id"] != objective_id or
+                        existing_payload.get("authorized_by") != actor_id or
+                        existing_payload.get("objective_id") != objective_id or
+                        existing_payload.get("objective_revision") != objective_revision or
+                        existing_payload.get("objective_assignment_id") != objective_assignment_id or
+                        existing_payload.get("assignment_id") != S3_RETRY_EVENT_ASSIGNMENT_ID or
+                        existing_payload.get("step_id") != "s3" or
+                        existing_payload.get("stall_event_id") != stall_event_id or
+                        existing_payload.get("progress_sequence") != progress_sequence or
+                        existing_payload.get("request_type") != "cme_diagnostic_recovery" or
+                        existing_payload.get("max_attempts") != 1 or
+                        existing_payload.get("per_request_limit_usd") != format(PER_REQUEST_LIMIT, ".8f")):
+                    raise PermissionError("cme_retry_exception_idempotency_conflict")
+                return {"status": "already_recorded", "event_id": str(existing["event_id"]),
+                    "expires_at": existing_payload.get("expires_at")}
+            return {"status": "authorized", "event_id": str(event["event_id"]),
+                "authorization_id": str(authorization_uuid), "objective_id": objective_id,
+                "assignment_id": S3_RETRY_EVENT_ASSIGNMENT_ID,
+                "stall_event_id": stall_event_id, "progress_sequence": progress_sequence,
+                "max_attempts": 1, "per_request_limit_usd": format(PER_REQUEST_LIMIT, ".8f"),
+                "expires_at": expires_at.isoformat()}
+
+    def cme_retry_exception_available(self, *, authorization_id, objective_id,
+            objective_revision, assignment_id, stall_event_id, progress_sequence):
+        """Read whether the exact one-use event authorization remains unconsumed."""
+        cur = self.ledger.db.cursor()
+        try:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT 1 FROM grace_supervisory_authorization_events g
+                WHERE g.authorization_id=%s AND g.event_type='cme_retry_authorized'
+                  AND g.objective_id=%s AND g.payload->>'assignment_id'=%s
+                  AND g.payload->>'objective_assignment_id'=%s
+                  AND g.payload->>'step_id'='s3'
+                  AND g.payload->>'stall_event_id'=%s
+                  AND (g.payload->>'objective_revision')::integer=%s
+                  AND (g.payload->>'progress_sequence')::integer=%s
+                  AND (g.payload->>'expires_at')::timestamptz>clock_timestamp()
+                  AND NOT EXISTS (SELECT 1 FROM grace_supervisory_authorization_events c
+                    WHERE c.authorization_id=g.authorization_id
+                      AND c.event_type='cme_retry_consumed'
+                      AND c.payload->>'grant_event_id'=g.event_id::text)""",
+                (UUID(str(authorization_id)), objective_id, assignment_id,
+                 S3_RETRY_OBJECTIVE_ASSIGNMENT_ID,
+                 stall_event_id, objective_revision, progress_sequence))
+            return cur.fetchone() is not None
+        finally:
+            cur.close()
 
     def authorize(self, *, actor_id, total_budget_usd, per_request_limit_usd,
                   explicit_steward_confirmation, idempotency_key, expires_at=None):

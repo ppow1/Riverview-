@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.6
+# Revision: 1.1.8
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Bind atomic retry consumption to root assignment and S3 step identity.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Consume the exact S3 retry exception atomically with provider admission.
 # Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-INPUT-RETRY-20261024 | Expose only the last provider error status and input parameter for bounded retry selection.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Terminalize a fenced provider request when authorization blocks it before any paid attempt.
 # Changed: 2026-10-24 UTC | RV-GRACE-EVALUATION-BOUNDED-OUTPUT-RETRY | Expose durable request payload metadata to the bounded evaluation retry gate.
@@ -332,6 +334,8 @@ class DurableExternalReasoningExchange:
         assignment = assignment if isinstance(assignment, dict) else {}
         assignment_id = assignment.get("assignment_id")
         progress_seq = assignment.get("cme_progress_seq")
+        stall_event_id = assignment.get("cme_event_id")
+        retry_grant = None
         if request_type == "cme_diagnostic_recovery" and assignment_id is not None:
             progress = str(progress_seq) if progress_seq is not None else None
             cur.execute("""SELECT 1 FROM grace_supervisory_authorization_events e
@@ -349,7 +353,31 @@ class DurableExternalReasoningExchange:
                 (auth["authorization_id"], row.get("objective_id"), request_type,
                  str(assignment_id), progress, str(assignment_id), progress))
             if cur.fetchone():
-                return None
+                if not isinstance(stall_event_id, str) or type(progress_seq) is not int:
+                    return None
+                cur.execute("""SELECT event_id,payload FROM grace_supervisory_authorization_events g
+                    WHERE g.authorization_id=%s AND g.event_type='cme_retry_authorized'
+                      AND g.objective_id=%s AND g.payload->>'request_type'=%s
+                      AND g.payload->>'assignment_id'=%s
+                      AND g.payload->>'objective_assignment_id'=%s
+                      AND g.payload->>'step_id'=%s
+                      AND g.payload->>'stall_event_id'=%s
+                      AND (g.payload->>'progress_sequence')::integer=%s
+                      AND (g.payload->>'objective_revision')::integer=%s
+                      AND (g.payload->>'expires_at')::timestamptz>clock_timestamp()
+                      AND (g.payload->>'max_attempts')::integer=1
+                      AND NOT EXISTS (SELECT 1 FROM grace_supervisory_authorization_events c
+                        WHERE c.authorization_id=g.authorization_id
+                          AND c.event_type='cme_retry_consumed'
+                          AND c.payload->>'grant_event_id'=g.event_id::text)
+                    FOR UPDATE""", (auth["authorization_id"], row.get("objective_id"),
+                        request_type, str(assignment_id),
+                        str(assignment.get("objective_assignment_id")),
+                        str(assignment.get("step_id")), stall_event_id, progress_seq,
+                        int(assignment.get("objective_revision", -1))))
+                retry_grant = cur.fetchone()
+                if retry_grant is None:
+                    return None
         cur.execute("""SELECT
             COALESCE(sum((payload->>'cost_usd')::numeric)
                 FILTER (WHERE event_type='luna_settled'),0) AS spent,
@@ -374,7 +402,31 @@ class DurableExternalReasoningExchange:
              row.get("objective_id"), row["request_id"], _json({
                 "request_type": request_type, "reserved_cost_usd": reserved_cost,
                 "provider_id": "gpt-6-luna", "assignment_id": assignment_id,
-                "cme_progress_seq": progress_seq})))
+                "cme_progress_seq": progress_seq,
+                **({"cme_retry_grant_event_id": str(retry_grant["event_id"])}
+                    if retry_grant is not None else {})})))
+        if retry_grant is not None:
+            cur.execute("""INSERT INTO grace_supervisory_authorization_events
+                (authorization_id,event_type,idempotency_key,objective_id,request_id,payload)
+                VALUES (%s,'cme_retry_consumed',%s,%s,%s,%s::jsonb)
+                ON CONFLICT (idempotency_key) DO NOTHING
+                RETURNING event_id""",
+                (auth["authorization_id"],
+                 "grace-supervision:cme-retry-consumed:" + stall_event_id,
+                 row.get("objective_id"), row["request_id"], _json({
+                    "schema": "rv.grace.cme-retry-consumption.v1",
+                    "grant_event_id": str(retry_grant["event_id"]),
+                    "objective_id": row.get("objective_id"),
+                    "assignment_id": assignment_id,
+                    "objective_assignment_id": assignment.get("objective_assignment_id"),
+                    "step_id": assignment.get("step_id"),
+                    "stall_event_id": stall_event_id,
+                    "progress_sequence": progress_seq,
+                    "request_id": str(row["request_id"]),
+                    "provider_id": "gpt-6-luna",
+                    "reserved_cost_usd": reserved_cost})))
+            if cur.fetchone() is None:
+                raise RuntimeError("cme_retry_exception_already_consumed")
         return authorization_id
 
     def finish_provider_attempt(self, request_id, correlation_id, *, status,

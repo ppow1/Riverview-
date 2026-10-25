@@ -1,7 +1,9 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.8
+# Revision: 1.0.10
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Reject authorization requests outside the exact Steward-approved tuple.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Cover exact event-authorized retry selection without changing ordinary retries.
 # Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Prove persisted reviewer authorization stops are controller-checked and logged without another 80B call.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Confirm fixed scope-validation codes are operator-visible without model text.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Verify an active pipeline keeps its startup release identity after runtime pointer changes.
@@ -145,12 +147,14 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
     def test_cme_diagnostic_attempts_have_distinct_escalation_identities(self):
         event_id = "c7558b01-8004-4a44-8344-4bf0fe0ae27e"
         identify = GraceExecutionService._cme_diagnostic_escalation_id
-        values = [identify(event_id, attempt) for attempt in range(1, 5)]
-        self.assertEqual(len(set(values)), 4)
+        values = [identify(event_id, attempt) for attempt in range(1, 6)]
+        self.assertEqual(len(set(values)), 5)
         self.assertEqual(values[3], str(uuid5(NAMESPACE_URL,
             "rv-cme-recovery-escalation:" + event_id + ":bounded-output-fallback-1")))
+        self.assertEqual(values[4], str(uuid5(NAMESPACE_URL,
+            "rv-cme-recovery-escalation:" + event_id + ":steward-authorized-retry-1")))
         with self.assertRaisesRegex(ValueError, "unsupported_cme_diagnostic_attempt"):
-            identify(event_id, 5)
+            identify(event_id, 6)
 
     def test_cme_uses_only_one_explicitly_amended_request_after_failed_transport_retries(self):
         event_id = "c7558b01-8004-4a44-8344-4bf0fe0ae27e"
@@ -172,6 +176,42 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             (4, "cme-recovery:" + event_id + ":bounded-output-fallback-1"))
         self.assertEqual(select(event_id, pending, failed, amendment, 0), (None, None))
         self.assertEqual(select(event_id, failed, pending, amendment, 0), (None, None))
+
+    def test_event_scoped_s3_retry_requires_authorization_and_admission_denial(self):
+        from riverview_core.resident_execution.service import GraceExecutionService
+
+        event_id = "8671a141-da3c-47c5-960d-324e3c51eeef"
+        failed = {"delivery_state": "failed",
+                  "last_error_code": "provider_response_submission_failed"}
+        denied_fallback = {"delivery_state": "failed",
+                           "last_error_code": "provider_attempt_admission_blocked"}
+        choose = GraceExecutionService._select_cme_diagnostic_request
+        expected = (5, "cme-recovery:" + event_id + ":steward-authorized-retry-1")
+        self.assertEqual(choose(event_id, failed, failed, None, 0,
+            prior_bounded_fallback=denied_fallback,
+            event_retry_authorized=True), expected)
+        self.assertEqual(choose(event_id, failed, failed, None, 0,
+            prior_bounded_fallback=denied_fallback,
+            event_retry_authorized=False), (None, None))
+        self.assertEqual(choose(event_id, failed, failed, None, 0,
+            prior_bounded_fallback={"delivery_state": "failed",
+                "last_error_code": "provider_response_submission_failed"},
+            event_retry_authorized=True), (None, None))
+
+    def test_s3_retry_authorization_rejects_scope_mismatch_before_database_access(self):
+        from riverview_core.resident_execution.grace_supervisory_authorization import (
+            GraceSupervisoryAuthorization,
+        )
+
+        authority = object.__new__(GraceSupervisoryAuthorization)
+        with self.assertRaisesRegex(PermissionError, "cme_retry_exception_scope_mismatch"):
+            authority.authorize_one_s3_cme_retry(
+                actor_id="steward:camrui",
+                authorization_id="556cfa24-0a55-5000-9b31-c11242d749a4",
+                objective_id="objective:other", objective_revision=8,
+                objective_assignment_id=("assignment:grace:de19cd78b86f1889d32cdf02c6d3fe51d4658834"),
+                stall_event_id="8671a141-da3c-47c5-960d-324e3c51eeef",
+                progress_sequence=223, explicit_steward_confirmation=True)
 
     def test_completed_work_and_recovery_cycle_are_independent_grade_triggers(self):
         completed = {"event_id": "complete-1", "event_type": "objective.completed",

@@ -2,7 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.3
+# Revision: 1.1.6
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Verify Steward approval persists against the live parent/child S3 assignment linkage.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Include exact objective assignment and S3 identity in retry fixtures.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Prove exact-event retry admission is single-use under concurrent providers.
 # Changed: 2026-10-25 UTC | RV-GRACE-LUNA-CME-JSON-DIAGNOSTICS-20261025 | Verify sanitized HTTP failure metadata is durable in provider attempt events.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Preserve and digest-bind lifecycle criteria in externally reviewed proposals
 # Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Verify sanitized C2 exception receipts terminate without duplicate wake retries.
@@ -1339,6 +1342,203 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         self.assertEqual(attempts[0]["payload"]["status"], "failed")
         self.assertEqual(attempts[0]["payload"]["failure_type"], "HTTPError")
         self.assertEqual(attempts[0]["payload"]["usage"], safe_usage)
+
+    def test_s3_event_scoped_retry_is_exact_event_and_single_use_concurrently(self):
+        import threading
+
+        auth_id = uuid4()
+        grant_id = "grant:grace-supervision:" + str(auth_id)
+        scope = {"functions": ["cme_diagnostic_recovery", "performance_evaluation"],
+                 "provider_id": "gpt-6-luna"}
+        event_id = "8671a141-da3c-47c5-960d-324e3c51eeef"
+        assignment_id = "assignment:grace:s3-fixture"
+        progress = 223
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES ('resident:grace','resident'),
+                ('steward:test','steward') ON CONFLICT (principal_id) DO NOTHING""").format(
+                    self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,'resident:grace','resident.reasoning.escalate','provider:gpt-6-luna',
+                'steward:test','rv.policy.grace-supervisory-luna.v1')""").format(
+                    self.sql.Identifier(self.schema)), (grant_id,))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorizations
+            (authorization_id,authority_grant_id,authorized_by,idempotency_key,total_budget_usd,
+             per_request_limit_usd,scope,status,activated_at)
+            VALUES (%s,%s,'steward:test',%s,5.0,0.05,%s::jsonb,'active',clock_timestamp())""").format(
+                    self.sql.Identifier(self.schema)),
+            (auth_id, grant_id, "s3-retry-supervision:" + str(auth_id),
+             json.dumps(scope, sort_keys=True)))
+        for index in range(2):
+            prior_request_id = uuid4()
+            self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorization_events
+                (authorization_id,event_type,idempotency_key,objective_id,request_id,payload)
+                VALUES (%s,'luna_reserved',%s,%s,%s,%s::jsonb),
+                       (%s,'luna_settled',%s,%s,%s,%s::jsonb)""").format(
+                    self.sql.Identifier(self.schema)),
+                (auth_id, f"s3-prior-reserved-{index}", self.objective, prior_request_id,
+                 json.dumps({"request_type": "cme_diagnostic_recovery",
+                     "reserved_cost_usd": 0.05, "assignment_id": assignment_id,
+                     "cme_progress_seq": progress}),
+                 auth_id, f"s3-prior-settled-{index}", self.objective, prior_request_id,
+                 json.dumps({"status": "failed", "cost_usd": "0.05"})))
+        grant_payload = {"schema": "rv.grace.cme-retry-exception.v1",
+            "authorized_by": "steward:test", "objective_id": self.objective,
+            "objective_revision": 8, "assignment_id": assignment_id,
+            "objective_assignment_id": "assignment:grace:root", "step_id": "s3",
+            "stall_event_id": event_id, "progress_sequence": progress,
+            "request_type": "cme_diagnostic_recovery", "max_attempts": 1,
+            "per_request_limit_usd": "0.05000000",
+            "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()}
+        grant_event = self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorization_events
+            (authorization_id,event_type,idempotency_key,objective_id,payload)
+            VALUES (%s,'cme_retry_authorized',%s,%s,%s::jsonb) RETURNING event_id""").format(
+                self.sql.Identifier(self.schema)),
+            (auth_id, "s3-retry-grant:" + event_id, self.objective,
+             json.dumps(grant_payload))).fetchone()[0]
+
+        def candidate(request_id, stall_event_id=event_id):
+            return {"objective_id": self.objective, "proposal_revision": 2,
+                "request_id": request_id,
+                "request_payload": {"request_type": "cme_diagnostic_recovery",
+                    "original_request": {"assignment": {
+                        "assignment_id": assignment_id, "cme_progress_seq": progress,
+                        "cme_event_id": stall_event_id, "objective_revision": 8,
+                        "objective_assignment_id": "assignment:grace:root", "step_id": "s3"}}}}
+
+        with patch.dict(os.environ, {"RIVERVIEW_AUTHORITY_SCHEMA": self.schema}):
+            wrong = candidate(uuid4(), "00000000-0000-0000-0000-000000000001")
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.assertIsNone(self.exchange._reserve_supervisory_luna_call(cur, wrong, 0.05))
+            self.assertEqual(self.admin.execute(self.sql.SQL("""SELECT count(*) FROM {}.grace_supervisory_authorization_events
+                WHERE authorization_id=%s AND event_type='cme_retry_consumed'""").format(
+                    self.sql.Identifier(self.schema)), (auth_id,)).fetchone()[0], 0)
+
+            barrier = threading.Barrier(2)
+            outcomes = []
+            outcome_lock = threading.Lock()
+
+            def reserve_once():
+                import psycopg
+                from psycopg.rows import dict_row
+                connection = psycopg.connect(DSN, autocommit=True, row_factory=dict_row)
+                try:
+                    row = candidate(uuid4())
+                    barrier.wait(timeout=5)
+                    with connection.transaction(), connection.cursor() as cur:
+                        cur.execute("SELECT set_config('search_path',%s,false)", (self.schema,))
+                        result = self.exchange._reserve_supervisory_luna_call(cur, row, 0.05)
+                    with outcome_lock:
+                        outcomes.append(result)
+                finally:
+                    connection.close()
+
+            workers = [threading.Thread(target=reserve_once) for _ in range(2)]
+            for worker in workers:
+                worker.start()
+            for worker in workers:
+                worker.join(timeout=10)
+            self.assertTrue(all(not worker.is_alive() for worker in workers))
+            self.assertCountEqual(outcomes, [str(auth_id), None])
+
+            consumed = self.admin.execute(self.sql.SQL("""SELECT event_id,request_id,payload
+                FROM {}.grace_supervisory_authorization_events
+                WHERE authorization_id=%s AND event_type='cme_retry_consumed'""").format(
+                    self.sql.Identifier(self.schema)), (auth_id,)).fetchall()
+            self.assertEqual(len(consumed), 1)
+            consumed_payload = consumed[0][2]
+            self.assertEqual(str(consumed_payload["grant_event_id"]), str(grant_event))
+            self.assertEqual(consumed_payload["stall_event_id"], event_id)
+            self.assertEqual(consumed_payload["progress_sequence"], progress)
+            self.assertEqual(float(consumed_payload["reserved_cost_usd"]), 0.05)
+
+            duplicate = candidate(uuid4())
+            with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                self.assertIsNone(self.exchange._reserve_supervisory_luna_call(cur, duplicate, 0.05))
+
+    def test_steward_s3_exception_is_durably_granted_for_exact_live_assignment_tuple(self):
+        from types import SimpleNamespace
+        from riverview_core.resident_execution.grace_supervisory_authorization import (
+            GraceSupervisoryAuthorization, S3_RETRY_OBJECTIVE_ID,
+            S3_RETRY_OBJECTIVE_REVISION, S3_RETRY_OBJECTIVE_ASSIGNMENT_ID,
+            S3_RETRY_EVENT_ASSIGNMENT_ID, S3_RETRY_STALL_EVENT_ID,
+            S3_RETRY_PROGRESS_SEQUENCE,
+        )
+
+        auth_id = uuid4()
+        grant_id = "grant:grace-supervision:" + str(auth_id)
+        objective_id = S3_RETRY_OBJECTIVE_ID
+        root_id = S3_RETRY_OBJECTIVE_ASSIGNMENT_ID
+        child_id = S3_RETRY_EVENT_ASSIGNMENT_ID
+        event_id = S3_RETRY_STALL_EVENT_ID
+        scope = {"functions": ["cme_diagnostic_recovery", "performance_evaluation"],
+                 "provider_id": "gpt-6-luna"}
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES ('resident:grace','resident'),
+                ('steward:camrui','steward') ON CONFLICT (principal_id) DO NOTHING""").format(
+                    self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES (%s,'resident:grace','resident.reasoning.escalate','provider:gpt-6-luna',
+                'steward:camrui','rv.policy.grace-supervisory-luna.v1')""").format(
+                    self.sql.Identifier(self.schema)), (grant_id,))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_supervisory_authorizations
+            (authorization_id,authority_grant_id,authorized_by,idempotency_key,total_budget_usd,
+             per_request_limit_usd,scope,status,activated_at)
+            VALUES (%s,%s,'steward:camrui',%s,5.0,0.05,%s::jsonb,'active',clock_timestamp())""").format(
+                    self.sql.Identifier(self.schema)),
+            (auth_id, grant_id, "s3-exception-authorization:" + str(auth_id),
+             json.dumps(scope, sort_keys=True)))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+             assignment_id,revision)
+            VALUES (%s,'S3 retry fixture','work-order:engineering','steward:camrui',
+                '[]'::jsonb,'WORK_ORDER_CREATED',%s,8)""").format(
+                    self.sql.Identifier(self.schema)), (objective_id, child_id))
+        for assignment_id, state in ((root_id, "completed"), (child_id, "rework_required")):
+            self.admin.execute(self.sql.SQL("""INSERT INTO {}.assignments
+                (id,state,owner,authority_ref,objective_ref,workflow_id,workflow_step,
+                 correlation_id,updated_at)
+                VALUES (%s,%s,'service:test','work-order:engineering',%s,
+                    'grace.execution.v1','s3','s3-retry-test',clock_timestamp())""").format(
+                        self.sql.Identifier(self.schema)), (assignment_id, state, objective_id))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.grace_objective_steps
+            (objective_id,step_id,step_order,step_objective,acceptance_criteria,depends_on,
+             status,assignment_id)
+            VALUES (%s,'s3',3,'S3 fixture','[]'::jsonb,'[]'::jsonb,'assigned',%s)""").format(
+                    self.sql.Identifier(self.schema)), (objective_id, child_id))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.cme_monitor_events
+            (event_id,event_key,service_id,assignment_id,event_type,details)
+            VALUES (%s,%s,'cme:test',%s,'assignment_stalled',%s::jsonb)""").format(
+                    self.sql.Identifier(self.schema)),
+            (event_id, "s3-stall:" + event_id, child_id,
+             json.dumps({"state": "rework_required", "progress_seq": S3_RETRY_PROGRESS_SEQUENCE})))
+
+        operation = GraceSupervisoryAuthorization(
+            SimpleNamespace(ledger=self.ledger), SimpleNamespace(schema=self.schema))
+        result = operation.authorize_one_s3_cme_retry(
+            actor_id="steward:camrui", authorization_id=auth_id,
+            objective_id=objective_id, objective_revision=S3_RETRY_OBJECTIVE_REVISION,
+            objective_assignment_id=root_id, stall_event_id=event_id,
+            progress_sequence=S3_RETRY_PROGRESS_SEQUENCE,
+            explicit_steward_confirmation=True)
+        self.assertEqual(result["status"], "authorized")
+        self.assertTrue(operation.cme_retry_exception_available(
+            authorization_id=auth_id, objective_id=objective_id,
+            objective_revision=S3_RETRY_OBJECTIVE_REVISION, assignment_id=child_id,
+            stall_event_id=event_id, progress_sequence=S3_RETRY_PROGRESS_SEQUENCE))
+        row = self.admin.execute(self.sql.SQL("""SELECT event_type,objective_id,payload
+            FROM {}.grace_supervisory_authorization_events
+            WHERE authorization_id=%s AND idempotency_key=%s""").format(
+                self.sql.Identifier(self.schema)), (auth_id,
+                    "grace-supervision:cme-retry-authorized:" + event_id)).fetchone()
+        self.assertEqual(row[0:2], ("cme_retry_authorized", objective_id))
+        self.assertEqual(row[2]["objective_assignment_id"], root_id)
+        self.assertEqual(row[2]["assignment_id"], child_id)
+        self.assertEqual(row[2]["stall_event_id"], event_id)
+        self.assertEqual(row[2]["progress_sequence"], S3_RETRY_PROGRESS_SEQUENCE)
 
     def test_expired_claim_is_fenced_and_late_response_expires_once(self):
         receipt = self._submit(idem="lease-expiry")

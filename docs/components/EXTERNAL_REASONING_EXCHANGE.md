@@ -2,7 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/EXTERNAL_REASONING_EXCHANGE.md
 Component: RESIDENT-REASONING
-File Revision: 1.1.9
+File Revision: 1.1.10
 Purpose: Define the durable transport-neutral external reasoning exchange contract
 Authority: Existing resident.reasoning.escalate exact grant; advisory-only result
 Changed: 2026-10-16 UTC | RV-EXTERNAL-REASONING-EXCHANGE-001 | Initial phase-one contract
@@ -18,6 +18,7 @@ Changed: 2026-10-18 UTC | RV-COMMS5-ESCALATION-INITIATION-001 | Connect the exis
 Changed: 2026-10-18 UTC | RV-C3-EXACT-PROPOSAL-REVIEW-001 | Bind advisory reviews to immutable proposal subjects and record bounded Grace revise-or-finish decisions.
 Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Define the fixed-wake bridge claim and metadata-only durable receipt contract.
 Changed: 2026-10-18 UTC | RV-C3-CHATGPT-EXACT-REVIEW-001 | Accept sanitized C2 bridge exception codes as terminal ambiguous receipts.
+Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Specify a single-use, exact-stall CME retry exception on the existing supervision ledger.
 History: Git and .riverview-backups/manifest.jsonl
 -->
 # Durable external reasoning exchange
@@ -144,6 +145,24 @@ the original typed `ReasoningRequest`, separate advisory payload, and a stable
 durable idempotent continuation, then acknowledge the durable result reference.
 This two-stage boundary permits recovery after response persistence or after a
 consumer crash without claiming that a model response is a verified fact.
+
+### Event-scoped CME retry exception
+
+The ordinary Luna provider-attempt guard rejects a second diagnostic for the
+same assignment and CME progress sequence. A Steward may explicitly authorize
+one narrowly bound exception for a current rejected-work stall. The exception
+is appended to `grace_supervisory_authorization_events` under the existing
+active supervision authorization and binds the objective revision, root and
+step assignment IDs, stall event ID, progress sequence, request type, one-use
+limit, $0.05 request ceiling, authorizing principal, and short expiry. The
+resident service creates a new stable exchange identity only when the previous
+bounded fallback was denied before provider admission. Provider admission locks
+the active authorization row, rechecks the exact event and existing budget,
+then appends the exception-consumed event and normal Luna reservation in the
+same transaction. Competing attempts cannot consume the same exception twice.
+The provider result continues through the existing settled-attempt, exchange,
+Grace consumption, rework, and independent-verification records. No objective
+progress or previous attempt is reset or rewritten.
 
 `DurableExternalReasoningExchange.status()` is a read-only diagnostic
 projection: IDs, state label, provider, context/response digests, timestamps,

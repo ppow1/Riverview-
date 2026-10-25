@@ -2,7 +2,10 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.52
+# Revision: 1.0.55
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Carry the approved parent assignment separately from the current S3 child pointer.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Restrict retry prioritization to the current active supervision authorization.
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Queue only the approved event-scoped S3 diagnostic retry.
 # Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Resolve persisted reviewer authorization stops from authoritative grants and request history before any repeat review.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Retain fixed rework decision validation codes while excluding model-provided text.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-REVIEW-DIAGNOSTICS-20261024 | Record a safe review stage and allowlisted ConversationUnavailable detail for bounded same-release recovery diagnosis.
@@ -1493,7 +1496,22 @@ class GraceExecutionService:
                 FROM cme_monitor_events e JOIN assignments a ON a.id=e.assignment_id
                 WHERE e.event_type='assignment_stalled' AND a.state='rework_required'
                   AND e.details->>'state'='rework_required'
-                ORDER BY e.recorded_at DESC,e.event_id DESC LIMIT 1""")
+                ORDER BY EXISTS (SELECT 1 FROM grace_supervisory_authorization_events g
+                    WHERE g.event_type='cme_retry_authorized'
+                      AND g.authorization_id=(SELECT active.authorization_id
+                        FROM grace_supervisory_authorizations active
+                        WHERE active.status='active'
+                          AND active.activated_at<=clock_timestamp()
+                          AND (active.valid_until IS NULL OR
+                               active.valid_until>clock_timestamp())
+                        ORDER BY active.activated_at DESC LIMIT 1)
+                      AND g.payload->>'stall_event_id'=e.event_id::text
+                      AND (g.payload->>'expires_at')::timestamptz>clock_timestamp()
+                      AND NOT EXISTS (SELECT 1 FROM grace_supervisory_authorization_events c
+                        WHERE c.authorization_id=g.authorization_id
+                          AND c.event_type='cme_retry_consumed'
+                          AND c.payload->>'grant_event_id'=g.event_id::text)) DESC,
+                    e.recorded_at DESC,e.event_id DESC LIMIT 1""")
             stall = cur.fetchone()
             verification = None
             if stall:
@@ -1524,8 +1542,31 @@ class GraceExecutionService:
         prior_request = exchange.request_for_idempotency(base_key)
         retry_key = base_key + ":transport-retry-1"
         prior_transport_retry = exchange.request_for_idempotency(retry_key) if prior_request else None
+        bounded_key = base_key + ":bounded-output-fallback-1"
+        prior_bounded_fallback = exchange.request_for_idempotency(bounded_key) \
+            if prior_transport_retry else None
+        event_retry_authorized = False
+        if prior_bounded_fallback is not None:
+            from .grace_supervisory_authorization import GraceSupervisoryAuthorization
+            with self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""SELECT authorization_id FROM grace_supervisory_authorizations
+                    WHERE status='active' AND activated_at<=clock_timestamp()
+                      AND (valid_until IS NULL OR valid_until>clock_timestamp())
+                    ORDER BY activated_at DESC LIMIT 1""")
+                active_supervision = cur.fetchone()
+            if active_supervision:
+                event_retry_authorized = GraceSupervisoryAuthorization(
+                    self.pipeline, self.resident_reasoner.registry).cme_retry_exception_available(
+                        authorization_id=active_supervision["authorization_id"],
+                        objective_id=objective_id, assignment_id=assignment_id,
+                        objective_revision=objective["revision"],
+                        stall_event_id=event_id,
+                        progress_sequence=details.get("progress_seq"))
         diagnostic_attempt, idempotency_key = self._select_cme_diagnostic_request(
-            event_id, prior_request, prior_transport_retry, None, 0)
+            event_id, prior_request, prior_transport_retry, None, 0,
+            prior_bounded_fallback=prior_bounded_fallback,
+            event_retry_authorized=event_retry_authorized)
         if idempotency_key is None or exchange.request_for_idempotency(idempotency_key):
             return None
         authority_evidence = self.pipeline.rework_review_authority_evidence(
@@ -1556,9 +1597,13 @@ class GraceExecutionService:
         elif diagnostic_attempt == 4:
             original_id = str(uuid5(NAMESPACE_URL,
                 original_id + ":bounded-output-fallback-1"))
+        elif diagnostic_attempt == 5:
+            original_id = str(uuid5(NAMESPACE_URL,
+                original_id + ":steward-authorized-retry-1"))
         source = {"objective_id": objective_id, "objective_revision": objective["revision"],
             "proposal_id": reference["proposal_id"], "proposal_revision": reference["revision"],
-            "assignment_id": assignment_id, "step_id": context["step_id"],
+            "assignment_id": assignment_id,
+            "step_id": context["step_id"],
             "verification_id": context["completion"]["verification_id"],
             "cme_event_id": event_id, "cme_state": details["state"],
             "cme_progress_seq": details.get("progress_seq"),
@@ -1573,6 +1618,9 @@ class GraceExecutionService:
             "recovery_history": recovery_history,
             "diagnostic_attempt": diagnostic_attempt,
             "approved_scope_unchanged": True}
+        if diagnostic_attempt == 5:
+            from .grace_supervisory_authorization import S3_RETRY_OBJECTIVE_ASSIGNMENT_ID
+            source["objective_assignment_id"] = S3_RETRY_OBJECTIVE_ASSIGNMENT_ID
         request = ReasoningRequest(request_id=original_id, office_id=reasoner.office_id,
             assignment_id=objective_id, assignment_revision=str(objective["revision"]),
             binding_revision=binding_revision, implementation_revision=implementation_revision,
@@ -1616,6 +1664,7 @@ class GraceExecutionService:
             2: ":transport-retry-1",
             3: ":authorized-amendment-diagnostic-1",
             4: ":bounded-output-fallback-1",
+            5: ":steward-authorized-retry-1",
         }
         if diagnostic_attempt not in suffixes:
             raise ValueError("unsupported_cme_diagnostic_attempt")
@@ -1624,7 +1673,9 @@ class GraceExecutionService:
 
     @staticmethod
     def _select_cme_diagnostic_request(event_id, prior_request, prior_transport_retry,
-                                      amendment, amended_cme_used):
+                                      amendment, amended_cme_used, *,
+                                      prior_bounded_fallback=None,
+                                      event_retry_authorized=False):
         """Admit at most one amendment-authorized CME request after terminal retries."""
         base_key = "cme-recovery:" + event_id
 
@@ -1647,7 +1698,14 @@ class GraceExecutionService:
         if (isinstance(allocations, dict) and
                 allocations.get("cme_diagnostic_recovery") == 1 and amended_cme_used < 1):
             return 3, base_key + ":authorized-amendment-diagnostic-1"
-        return 4, base_key + ":bounded-output-fallback-1"
+        bounded_key = base_key + ":bounded-output-fallback-1"
+        if prior_bounded_fallback is None:
+            return 4, bounded_key
+        if (event_retry_authorized and prior_bounded_fallback.get("delivery_state") == "failed" and
+                prior_bounded_fallback.get("last_error_code") ==
+                    "provider_attempt_admission_blocked"):
+            return 5, base_key + ":steward-authorized-retry-1"
+        return None, None
 
     def queue_performance_evaluation(self):
         """Queue one idempotent evaluation for the newest unevaluated durable result."""
