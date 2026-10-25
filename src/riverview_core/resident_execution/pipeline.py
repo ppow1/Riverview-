@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.36
-# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTH-CORRELATION-20261025 | Correlate provider-attempt authorization UUIDs to the active registered grant and append corrected controller evidence.
+# Revision: 1.1.37
+# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTH-UUID-20261025 | Serialize the registered authorization UUID as text in append-only controller evidence.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Pin retry-hold release identity at pipeline construction so an old process cannot adopt a newly switched symlink.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
@@ -2280,7 +2280,8 @@ class GraceExecutionPipeline:
                 "source": f"{self.authorizer.schema}.active_grace_luna_escalation_grant",
                 "action": "resident.reasoning.escalate", "scope_ref": "provider:gpt-6-luna",
                 "grant_id": grant_id,
-                "authorization_id": (supervisory["authorization_id"] if supervisory else None),
+                "authorization_id": (str(supervisory["authorization_id"])
+                    if supervisory else None),
                 "active": bool(grant_id)},
             "supervisory_luna_authorization": ({
                 "authorization_id": str(supervisory["authorization_id"]),
