@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.37
+File Revision: 1.1.38
+Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-REVIEW-317 | Clarify strict complete-clause support and publication detection across step and artifact criteria.
 Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Separate integrity from criterion satisfaction and document unsupported factual and repository-publication checks.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Trigger evaluation from the exact exhausted S4 rejection and bind retry authorization to its S4 exchange provenance.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Require the exact replayed S4 evaluation evidence before exception issuance.
@@ -66,10 +67,12 @@ both the durable step criteria and each artifact's criteria. The current
 verifier supports exact literal clauses and rejects any required criterion for
 which it has no deterministic evidence check. In particular, prose-only
 factual claims are not treated as supported, even if they cite a path or
-contain matching words. A criterion must explicitly declare an exact phrase,
-literal, or exact-content check. The verifier does not infer external facts
-from artifact wording; those requirements remain unsupported until an existing
-authoritative evidence check applies.
+contain matching words. A supported criterion must be a complete exact-phrase
+or literal-presence clause; adding a factual claim to that clause makes the
+whole criterion unsupported. Step-level and artifact-level requirements are
+both scanned for repository-publication obligations. The verifier does not
+infer external facts from artifact wording; those requirements remain
+unsupported until an existing authoritative evidence check applies.
 
 The Codex artifact adapter clones the pinned local checkout into an isolated,
 network-disabled workspace and persists output in the private assignment

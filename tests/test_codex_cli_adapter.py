@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.16
+# Revision: 1.2.17
+# Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-REVIEW-317 | Reject mixed factual/literal criteria and detect publication obligations in persisted step criteria.
 # Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Cover fail-closed unsupported criteria and repository publication evidence.
 # Changed: 2026-10-25 UTC | RV-GRACE-ASSIGNMENT-EVIDENCE-HANDOFF-20261025 | Cover requirement-selected S3/S4/S5 evidence and pre-attempt evidence gating.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Prove non-S3 rework avoids the S3-only CME recovery evidence reader and still attaches its exact performance evaluation.
@@ -579,8 +580,11 @@ class CodexCLIAdapterTests(unittest.TestCase):
             "acceptance_criteria": ["Create `decision.json` containing exact phrase `verified delivery`."],
             "max_bytes": 32768}
         class Pipeline:
+            step_criteria_override = None
+
             def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
-                return {"acceptance_criteria": requirement["acceptance_criteria"],
+                return {"acceptance_criteria": _self.step_criteria_override or
+                    requirement["acceptance_criteria"],
                     "artifact_requirements": [requirement]}
 
         storage_dir = "codex-" + sha256(assignment_id.encode()).hexdigest()
@@ -649,6 +653,33 @@ class CodexCLIAdapterTests(unittest.TestCase):
             result_for('{"report":"reports/decision.json was independently checked."}'))
         self.assertEqual(citation_only.status.value, "REJECTED")
         self.assertFalse(citation_only.criteria["all_acceptance_criteria_supported"])
+
+        requirement["acceptance_criteria"] = [
+            "The calculation is accurate and contains exact phrase 'verified delivery'."]
+        mixed_fact = verifier.verify(assignment, attempt,
+            result_for('{"report":"verified delivery","total":-1}'))
+        self.assertEqual(mixed_fact.status.value, "REJECTED")
+        self.assertFalse(mixed_fact.criteria["all_acceptance_criteria_supported"])
+        self.assertFalse(mixed_fact.criteria["explicit_artifact_acceptance_clauses_satisfied"])
+        requirement["acceptance_criteria"] = [
+            "The correct calculation contains exact phrase 'verified delivery'."]
+        adjective_fact = verifier.verify(assignment, attempt,
+            result_for('{"report":"verified delivery","total":-1}'))
+        self.assertEqual(adjective_fact.status.value, "REJECTED")
+        self.assertFalse(adjective_fact.criteria["all_acceptance_criteria_supported"])
+
+        requirement["acceptance_criteria"] = [
+            "The summary contains exact phrase 'verified delivery'."]
+        Pipeline.step_criteria_override = [
+            "Commit the deliverable to GitHub with commit SHA, exact repository path, and "
+            "confirmation that remote content matches the delivered artifact."]
+        step_only_publication = verifier.verify(assignment, attempt,
+            result_for('{"report":"verified delivery"}'))
+        self.assertEqual(step_only_publication.status.value, "REJECTED")
+        self.assertFalse(step_only_publication.criteria[
+            "required_repository_publication_independently_verified"])
+        self.assertFalse(step_only_publication.criteria[
+            "repository_publication_receipt_consistent"])
 
         requirement["acceptance_criteria"] = [
             "Commit the deliverable to GitHub with commit SHA, exact repository path, and "
