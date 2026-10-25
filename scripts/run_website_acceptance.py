@@ -137,7 +137,7 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
                                         "reason":"pre_feature_baseline_release"})
                     if live_source_commit != ACCOUNT_EMAIL_PRE_FEATURE_COMMIT:
                         stage = "account_email_settings_read"
-                        email_settings=js("let r=await fetch('/api/v1/account/email-settings',{cache:'no-store'});let value=r.ok?await r.json():null;await new Promise(r=>setTimeout(r,250));return {status:r.status,value,configured:value?.configured===true,passwordField:document.querySelector('#smtp-password')?.value||null,saveVisible:!!document.querySelector('#save-email-settings')}")
+                        email_settings=js("let r=await fetch('/api/v1/account/email-settings',{cache:'no-store'});let value=r.ok?await r.json():null;await new Promise(r=>setTimeout(r,250));return {status:r.status,value,configured:value?.configured===true,passwordField:document.querySelector('#smtp-password')?.value??null,saveVisible:!!document.querySelector('#save-email-settings')}")
                         email_settings_ok=(email_settings.get("status")==200
                             and email_settings.get("saveVisible")
                             and email_settings.get("passwordField")=="")
