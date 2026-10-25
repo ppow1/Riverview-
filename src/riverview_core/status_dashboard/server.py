@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.42
+# Revision: 1.3.43
+# Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Expose a non-sensitive eligibility hint to hide recovery controls from unlinked sessions
 # Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Bind the status API operation to its catalog declaration
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Wire the authenticated resident credential and existing objective pipeline into Grace's registry bridge.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
@@ -919,6 +920,12 @@ def make_handler():
                     else:
                         identity = {key:self._account_identity[key] for key in
                                     ("account_id", "email", "roles") if key in self._account_identity}
+                        # This is only a UI capability hint. The decision POST
+                        # repeats these checks before recording anything.
+                        identity["can_decide_grace_recovery"] = (
+                            self._account_cookie_authenticated
+                            and "steward" in self._account_identity.get("roles", ())
+                            and bool(self._account_identity.get("authority_principal_id")))
                         self._json(200, {"status": "authenticated", "identity": identity}, request_id)
                     return
                 elif auth_logout:
