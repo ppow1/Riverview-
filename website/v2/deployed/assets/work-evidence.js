@@ -1,4 +1,4 @@
-// Revision: 1.0.0
+// Revision: 1.0.1
 /* Reusable, read-only evidence disclosure for Work and Engineering Progress. */
 (() => {
   "use strict";
@@ -41,6 +41,63 @@
     appendField(meta, "Process graph node", assignment.process_node_id);
     appendField(meta, "Correlation ID", assignment.correlation_id);
     target.append(meta);
+    target.append(element("h4", "Related outputs"));
+    const outputs = Array.isArray(detail.outputs) ? detail.outputs : [];
+    if (!outputs.length) {
+      target.append(element("p", detail.outputs_status === "no_recorded_outputs"
+        ? (assignment.state === "running" || ["queued", "ready"].includes(assignment.state)
+          ? "No deliverable recorded yet."
+          : assignment.state === "completed" ? "Completed work has no output record supplied."
+            : "No output record is available for this assignment.")
+        : "Output status unavailable from the current projection."));
+    } else {
+      const list = document.createElement("ul");
+      list.className = "work-output-list";
+      for (const output of outputs) {
+        const item = document.createElement("li");
+        const label = output.name || "Recorded output (name unavailable)";
+        item.append(element("strong", label));
+        const provenance = [
+          output.media_type || "type unavailable",
+          output.producing_assignment ? `assignment ${output.producing_assignment}` : null,
+          output.producing_attempt ? `attempt ${output.producing_attempt}` : null,
+          output.capability || null,
+          `recorded ${recordTime(output.recorded_at)}`,
+          `verification: ${output.verification_status || "unknown"}`,
+          `publication: ${output.publication_status || "not recorded"}`
+        ].filter(Boolean).join(" · ");
+        item.append(element("small", provenance));
+        if (output.summary) item.append(element("p", output.summary));
+        if (output.location_url && output.location_status === "recorded_not_verified") {
+          safeLink(item, output.location_url, "Open recorded location (publication not independently verified)");
+        } else {
+          item.append(element("small", output.availability === "inaccessible"
+            ? "Recorded output is inaccessible."
+            : "Recorded metadata only; no authorized download route is available."));
+        }
+        list.append(item);
+      }
+      target.append(list);
+      if (detail.outputs_truncated) {
+        target.append(element("p", "Output history is bounded to the eight most recent worker attempts; older outputs are omitted."));
+      }
+    }
+    const imageArtifacts = Array.isArray(detail.comfyui_artifacts) ? detail.comfyui_artifacts : [];
+    if (imageArtifacts.length) {
+      target.append(element("h4", "Verified downloadable images"));
+      const list = document.createElement("ul");
+      for (const artifact of imageArtifacts) {
+        const item = document.createElement("li");
+        const label = `${artifact.name} · ${artifact.bytes} bytes · SHA-256 ${artifact.sha256}`;
+        const expectedPath = /^\/api\/v1\/assignments\/[A-Za-z0-9:._-]{1,128}\/artifacts\/[1-8]$/;
+        if (typeof artifact.download_url === "string" && expectedPath.test(artifact.download_url)) {
+          safeLink(item, artifact.download_url, `Download ${artifact.name}`);
+        } else item.append(element("span", label));
+        item.append(element("small", ` · verified ${artifact.verification || "ACCEPTED"}`));
+        list.append(item);
+      }
+      target.append(list);
+    }
     if (detail.attempts?.length) {
       target.append(element("h4", "Worker attempts"));
       const attempts = document.createElement("ul");
@@ -75,11 +132,31 @@
       ? adapter.objectiveModel(record, assignment)
       : adapter.assignmentModel(record || {}, objectives);
     const details = element("details", undefined, "work-evidence-details");
-    details.append(element("summary", "Blocker, dependencies & evidence"));
+    details.append(element("summary", "Operational status, deliverables & evidence"));
     const fields = document.createElement("dl");
     fields.className = "work-evidence-fields";
     appendField(fields, "Lifecycle stage", model.stage);
     appendField(fields, "Status", model.status);
+    if (model.kind === "objective") {
+      appendField(fields, "Operational status", model.operationalStatus);
+      appendField(fields, "Status evidence source", model.operationalSource);
+      appendField(fields, "Status evidence time", model.operationalAt ? recordTime(model.operationalAt) : null);
+      appendField(fields, "Status source event", model.operationalEventType);
+      appendField(fields, "Status event ID", model.operationalEventId);
+      appendField(fields, "Canonical lifecycle", record.status);
+      appendField(fields, "Objective revision", record.revision);
+      if (Array.isArray(record.related_outputs) && record.related_outputs.length) {
+        appendField(fields, "Recorded output count", record.related_outputs.length);
+        appendField(fields, "Primary recorded output", record.related_outputs[0].name);
+        appendField(fields, "Output verification", "Unverified in objective summary; assignment detail has per-output verification status.");
+        appendField(fields, "Output publication", "Not assumed from objective metadata.");
+      } else if (Array.isArray(record.related_outputs)) {
+        appendField(fields, "Recorded output", record.status === "COMPLETED"
+          ? "No output record supplied in the objective projection." : "No deliverable recorded in the objective projection.");
+      } else {
+        appendField(fields, "Recorded output", "Output metadata is unavailable in this authorized projection.");
+      }
+    }
     appendField(fields, "Blocker / waiting reason", model.blocker);
     appendField(fields, "Dependencies", model.dependencyAvailability);
     appendField(fields, "Assignment owner", model.owner);

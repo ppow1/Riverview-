@@ -1,5 +1,5 @@
 /*
-Revision: 1.0.0
+Revision: 1.0.1
 */
 .work-evidence-details{min-width:185px;max-width:360px;font-size:10px}
 .work-evidence-details>summary{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);cursor:pointer;font-weight:650;white-space:nowrap}
@@ -24,4 +24,6 @@ Revision: 1.0.0
 :root[data-theme="dark"] .work-evidence-details[open]{box-shadow:0 5px 20px #0008}
 :root[data-theme="dark"] .work-related-highlight{background:#203730}
 .work-objectives-table{min-width:1320px}.work-assignments-table{min-width:980px}
+.work-operational-status{display:inline-block;padding:3px 7px;border-radius:999px;background:var(--surface,#fff);border:1px solid var(--line);font-weight:700;white-space:nowrap}.work-operational-status[data-status="engineering_executing"],.work-operational-status[data-status="recovery_in_progress"]{border-color:var(--teal);color:var(--teal)}.work-operational-status[data-status="unknown"],.work-operational-status[data-status="status_unavailable"]{color:var(--muted)}.work-operational-source{display:block;margin-top:4px;color:var(--muted);font-size:9px;max-width:180px;overflow-wrap:anywhere}.work-deliverable-link{display:block;max-width:250px;text-align:left;white-space:normal;overflow-wrap:anywhere}.work-output-list>li{display:grid;gap:4px;padding:7px 0;border-bottom:1px solid var(--line)}.work-output-list small{color:var(--muted);font-size:9px;overflow-wrap:anywhere}.work-output-list p{margin:2px 0;font-size:10px}
+.work-output-synopsis{display:block;max-width:250px;color:var(--muted);font-size:9px;overflow-wrap:anywhere}
 .work-sort{display:inline-grid;gap:6px;margin:8px 12px 0 0;color:var(--muted);font-size:9px;font-weight:650}.work-sort select{min-height:32px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit}

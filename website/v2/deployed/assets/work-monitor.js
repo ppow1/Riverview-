@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/work-monitor.js
 Component: RIVERVIEW-V2-WORK-EXECUTION-MONITOR
-Revision: 1.0.2
+Revision: 1.0.3
 Purpose: Present bounded objective and assignment state with existing authorized cancellation actions
 Execution Model: Request-driven same-origin browser reads; no background polling
 Observability: Visible authorization, source status, fetched-at time, and persisted record timestamps
@@ -77,7 +77,9 @@ History: Git and .riverview-backups/manifest.jsonl
   function matchesFilter(item, query, kind) {
     if (!query) return true;
     const fields = kind === "objective"
-      ? [item.objective_id, item.status, item.lifecycle_status, item.lifecycle_stage, item.assignment_id,
+      ? [item.objective_id, item.status, item.lifecycle_status, item.lifecycle_stage,
+        item.operational_status?.label, item.operational_status?.event_type,
+        ...(Array.isArray(item.related_outputs) ? item.related_outputs.flatMap((output) => [output.name, output.summary]) : []), item.assignment_id,
         state.assignments.find((assignment) => assignment.assignment_id === item.assignment_id)?.owner,
         item.assignment_state, item.latest_event?.event_type, item.rework?.rationale, item.verification?.decision]
       : [item.assignment_id, item.state, item.owner, item.workflow_id, item.workflow_step,
@@ -151,7 +153,22 @@ History: Git and .riverview-backups/manifest.jsonl
         : null;
       const model = evidenceAdapter.objectiveModel(item, assignment);
       cell(row, item.objective_id);
-      cell(row, `${model.status} · ${item.status || "source status unavailable"}`);
+      cell(row, item.status || "Source lifecycle status unavailable");
+      const operational = document.createElement("td");
+      const operationalLabel = item.operational_status?.label || "Status unavailable";
+      const operationalBadge = document.createElement("span");
+      operationalBadge.className = "work-operational-status";
+      operationalBadge.dataset.status = item.operational_status?.code || "status_unavailable";
+      operationalBadge.textContent = operationalLabel;
+      operational.append(operationalBadge);
+      if (item.operational_status?.source) {
+        const source = document.createElement("small");
+        source.className = "work-operational-source";
+        const when = item.operational_status.occurred_at ? ` · ${recordTime(item.operational_status.occurred_at)}` : "";
+        source.textContent = `${item.operational_status.source}${when}`;
+        operational.append(source);
+      }
+      row.append(operational);
       cell(row, model.stage);
       cell(row, model.blocker, "work-blocker-cell");
       const related = document.createElement("td");
@@ -163,7 +180,31 @@ History: Git and .riverview-backups/manifest.jsonl
           linked?.classList.add("work-related-highlight");
           window.setTimeout(() => linked?.classList.remove("work-related-highlight"), 1400);
         }));
-      } else related.textContent = "No linked work order recorded";
+      }
+      const outputs = Array.isArray(item.related_outputs) ? item.related_outputs : [];
+      const primary = outputs[0] || null;
+      const outputLabel = primary
+        ? `${primary.name}${outputs.length > 1 ? ` · +${outputs.length - 1} outputs` : ""}${model.outputsTruncated ? " · older outputs omitted" : ""}`
+        : (!model.outputsAvailable ? "Output status unavailable"
+          : item.status === "COMPLETED" ? "No output record supplied"
+          : ["WORK_ORDER_CREATED", "GROUNDED", "PROPOSED"].includes(item.status)
+            ? "No deliverable recorded yet" : "Deliverable status unavailable");
+      const deliverable = linkButton(outputLabel, () => {
+        const detail = row.querySelector(".work-evidence-details");
+        if (detail) {
+          detail.open = true;
+          detail.scrollIntoView({behavior: "smooth", block: "nearest"});
+        }
+      }, "work-record-link work-deliverable-link");
+      deliverable.setAttribute("aria-label", primary
+        ? `Open deliverable details for ${primary.name}` : `Open deliverable and evidence details: ${outputLabel}`);
+      related.append(deliverable);
+      if (primary?.summary) {
+        const synopsis = document.createElement("small");
+        synopsis.className = "work-output-synopsis";
+        synopsis.textContent = primary.summary;
+        related.append(synopsis);
+      }
       row.append(related);
       cell(row, model.owner);
       cell(row, `${model.progressEvent || "No progress event recorded"} · ${model.progressAge}`);
