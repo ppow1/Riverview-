@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.44
+# Revision: 1.1.45
+# Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Validate consumed performance feedback against its actual S4 escalation or CME-recovery trigger instead of pinning every rework to S4.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-APPEND-ONLY-LOCK-20261025 | Serialize S4 exception consumption on objective rows; keep append-only event history reads free of UPDATE locks.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Validate the evaluation source against the exact current S4 exhausted-rejection event.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Bind consumed evaluation replay to the immutable exchange assignment and allow historically associated child assignments in objective events.
@@ -915,7 +916,7 @@ class GraceExecutionPipeline:
 
     def performance_evaluation_runtime_evidence_for_assignment(self, objective_id,
                                                                 assignment_id):
-        """Expose validated durable Luna grading facts to the exact S4 Engineering task."""
+        """Expose validated durable Luna grading facts to the exact rework assignment."""
         if (not isinstance(objective_id, str) or not isinstance(assignment_id, str) or
                 not objective_id or not assignment_id):
             raise ValueError("performance evaluation evidence scope is invalid")
@@ -966,6 +967,27 @@ class GraceExecutionPipeline:
         provenance = exchange["response_provenance"] or {}
         usage = provenance.get("usage") if isinstance(provenance, Mapping) else None
         result = exchange["consumption_result"] or {}
+        trigger_payload = (trigger_event["payload"] or {}) if trigger_event else {}
+        if trigger_event and trigger_event["event_type"] == "engineering.rework_escalation_pending":
+            trigger_valid = (
+                trigger_payload.get("assignment_id") == assignment_id and
+                trigger_payload.get("step_id") == "s4" and
+                trigger_payload.get("reason_code") == "retry_limit_exhausted" and
+                trigger_payload.get("decision") == "ESCALATION_PENDING" and
+                trigger_payload.get("verification_id") ==
+                    "54d1fb2f-411e-4771-a137-785d2b620de7")
+        elif trigger_event and trigger_event["event_type"] == \
+                "resident.reasoning.cme_recovery_evaluated":
+            trigger_valid = (
+                trigger_payload.get("assignment_id") == assignment_id and
+                trigger_payload.get("recovery_action") == "REWORK_PROPOSED" and
+                isinstance(trigger_payload.get("request_id"), str) and
+                isinstance(trigger_payload.get("correlation_id"), str) and
+                isinstance(trigger_payload.get("response_sha256"), str) and
+                re.fullmatch(r"[0-9a-f]{64}", trigger_payload["response_sha256"]) is not None and
+                isinstance(trigger_payload.get("cme_event_id"), str))
+        else:
+            trigger_valid = False
         if (exchange["objective_id"] != objective_id or
                 exchange["provider_id"] != "gpt-6-luna" or
                 exchange["delivery_state"] != "grace_consumed" or
@@ -981,13 +1003,7 @@ class GraceExecutionPipeline:
                 source_assignment.get("assignment_id") != assignment_id or
                 source_assignment.get("evaluation_trigger_event_id") != trigger_event_id or
                 not trigger_event or trigger_event["event_id"] != trigger_event_id or
-                trigger_event["event_type"] != "engineering.rework_escalation_pending" or
-                (trigger_event["payload"] or {}).get("assignment_id") != assignment_id or
-                (trigger_event["payload"] or {}).get("step_id") != "s4" or
-                (trigger_event["payload"] or {}).get("reason_code") != "retry_limit_exhausted" or
-                (trigger_event["payload"] or {}).get("decision") != "ESCALATION_PENDING" or
-                (trigger_event["payload"] or {}).get("verification_id") !=
-                    "54d1fb2f-411e-4771-a137-785d2b620de7" or
+                not trigger_valid or
                 event_payload.get("response_sha256") != exchange["response_sha256"]):
             raise ObjectiveStateError("performance evaluation evidence correlation is invalid")
         by_type = {}

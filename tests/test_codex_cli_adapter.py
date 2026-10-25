@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.13
+# Revision: 1.2.14
+# Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Prove non-S3 rework avoids the S3-only CME recovery evidence reader and still attaches its exact performance evaluation.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-HANDOFF-20261025 | Verify only bounded server-derived Luna evaluation facts are attached to S4 rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Forward verified durable CME recovery exchange evidence into bounded same-assignment artifact rework.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Ensure original Steward instructions remain separate from formal execution criteria
@@ -229,7 +230,8 @@ class CodexCLIAdapterTests(unittest.TestCase):
                         "source_sha256":"a"*64},"proposal":{"steps":[{}]}}
             def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
                 return {"objective":"Write a truthful recovery artifact",
-                    "acceptance_criteria":criteria,"artifact_requirements":requirements}
+                    "step_id":"s3","acceptance_criteria":criteria,
+                    "artifact_requirements":requirements}
             def latest_rework_instruction(_self, value):
                 self.assertEqual(value, assignment_id)
                 return {"decision":"REWORK_PROPOSED","assignment_id":assignment_id,
@@ -296,7 +298,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
                         "source_sha256":"a"*64},"proposal":{"steps":[{}]}}
             def proposal_step_for_assignment(_self, oid, aid):
                 self.assertEqual((oid,aid),(objective_id,assignment_id))
-                return {"objective":"Report persisted Luna evaluation evidence",
+                return {"step_id":"s4","objective":"Report persisted Luna evaluation evidence",
                     "acceptance_criteria":criteria,"artifact_requirements":requirements}
             def latest_rework_instruction(_self, aid):
                 return {"decision":"REWORK_PROPOSED","assignment_id":aid,
@@ -306,7 +308,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
                     "acceptance_criteria_sha256":hashlib.sha256(json.dumps(criteria,
                         ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()}
             def cme_recovery_runtime_evidence_for_assignment(_self, _oid, _aid):
-                return None
+                self.fail("non-S3 rework must not invoke the S3-only CME evidence reader")
             def performance_evaluation_runtime_evidence_for_assignment(_self, oid, aid):
                 self.assertEqual((oid,aid),(objective_id,assignment_id))
                 return evidence

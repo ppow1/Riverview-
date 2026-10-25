@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/recovery.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.13
+# Revision: 1.2.15
+# Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Reconcile a narrowly proven pre-execution ObjectiveStateError during same-assignment rework while retaining prior artifacts and rejection history.
 # Changed: 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Add an exact-grant, append-only single-use disposition for one exhausted no-artifact assignment retry.
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Select no-artifact recovery through the exact durable objective-step assignment, dispatch event, and persisted proposal step rather than the latest objective assignment pointer.
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Reconcile assignment-defined artifact sets and detect partial output without fixed extensions
@@ -32,6 +33,7 @@ import hashlib
 import hmac
 import json
 import os
+from datetime import timedelta
 from pathlib import Path
 import re
 import stat
@@ -967,10 +969,12 @@ class PostgresRecoveryCoordinator:
 
         Codex executes in a fresh network-disabled temporary clone. Its adapter
         copies a file into the assignment artifact store only on
-        DELIVERABLE_PRODUCED. A CodexActionFailure therefore has no durable
-        artifact effect; before retry this method independently checks the
-        assignment-bound artifact path, attempts, results and verifications,
-        plus the expired lease and configured retry ceiling. Claim-time exact
+        DELIVERABLE_PRODUCED. A CodexActionFailure is retried only when the
+        assignment has no prior durable effect. A narrowly proven
+        ObjectiveStateError during same-assignment rework may retain earlier
+        rejected artifacts and verification, but requires a matching durable
+        REWORK_PROPOSED decision, no current-generation attempt/result/artifact,
+        a finished sub-two-second intent, and an expired lease. Claim-time exact
         worker grants are still revalidated by the normal adapter.
         """
         if (not isinstance(repository_revision, str) or
@@ -999,7 +1003,8 @@ class PostgresRecoveryCoordinator:
                 cur.execute("""SELECT a.id,a.state,a.workflow_step,a.authority_ref,
                         a.correlation_id,a.objective_ref,l.generation,l.expires_at,
                         i.intent_id,i.capability,i.effect_class,i.status AS intent_status,
-                        i.failure_class,o.source_revision,o.source_sha256,o.evidence
+                        i.failure_class,i.attempt_id,i.started_at,i.finished_at,
+                        o.source_revision,o.source_sha256,o.evidence
                     FROM assignments a
                     JOIN assignment_leases l ON l.assignment_id=a.id
                     JOIN worker_execution_intents i ON i.assignment_id=a.id
@@ -1022,8 +1027,26 @@ class PostgresRecoveryCoordinator:
                       AND l.expires_at<=clock_timestamp()
                       AND i.capability=%s
                       AND i.effect_class=%s
-                      AND (i.failure_class='CodexActionFailure'
-                           OR i.failure_class LIKE 'CodexActionFailure:%%')
+                      AND ((i.failure_class='CodexActionFailure'
+                            OR i.failure_class LIKE 'CodexActionFailure:%%')
+                        OR (i.failure_class='ObjectiveStateError'
+                            AND i.attempt_id IS NULL
+                            AND i.finished_at-i.started_at<=interval '2 seconds'
+                            AND EXISTS (
+                                SELECT 1 FROM grace_objective_events rd
+                                JOIN verification_records vr
+                                  ON vr.assignment_id=a.id
+                                 AND vr.verification_id::text=rd.payload->>'verification_id'
+                                 AND vr.decision='REJECTED'
+                                WHERE rd.objective_id=o.objective_id
+                                  AND rd.event_type='engineering.rework_decided'
+                                  AND rd.payload->>'assignment_id'=a.id
+                                  AND rd.payload->>'decision'='REWORK_PROPOSED'
+                                  AND rd.sequence=(SELECT max(latest.sequence)
+                                    FROM grace_objective_events latest
+                                    WHERE latest.objective_id=o.objective_id
+                                      AND latest.event_type='engineering.rework_decided'
+                                      AND latest.payload->>'assignment_id'=a.id))))
                       AND i.finished_at IS NOT NULL
                       AND o.status='WORK_ORDER_CREATED'
                       AND o.evidence->>'status'='VERIFIED'
@@ -1058,21 +1081,41 @@ class PostgresRecoveryCoordinator:
                         artifact_present = artifact.exists() or artifact.is_symlink()
                     else:
                         artifact_present = bool(_codex_artifact_files(root, assignment_id))
-                    if artifact_present:
+                    preexecution_state_error = (
+                        candidate["failure_class"] == "ObjectiveStateError" and
+                        candidate["attempt_id"] is None and
+                        candidate["finished_at"] - candidate["started_at"] <=
+                            timedelta(seconds=2))
+                    if artifact_present and not preexecution_state_error:
                         continue
-                    cur.execute("SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s",
-                                (assignment_id,))
+                    if preexecution_state_error and any(
+                            path.stat().st_mtime >= candidate["started_at"].timestamp()
+                            for path in _codex_artifact_files(root, assignment_id)):
+                        continue
+                    attempt_sql = ("SELECT count(*) AS n FROM worker_attempts "
+                        "WHERE assignment_id=%s AND lease_generation=%s" if preexecution_state_error else
+                        "SELECT count(*) AS n FROM worker_attempts WHERE assignment_id=%s")
+                    attempt_params = ((assignment_id, generation) if preexecution_state_error else
+                                      (assignment_id,))
+                    cur.execute(attempt_sql, attempt_params)
                     if int(cur.fetchone()["n"]) != 0:
                         continue
-                    cur.execute("SELECT count(*) AS n FROM worker_results r "
-                                "JOIN worker_attempts a USING(attempt_id) "
-                                "WHERE a.assignment_id=%s", (assignment_id,))
+                    result_sql = ("SELECT count(*) AS n FROM worker_results r "
+                        "JOIN worker_attempts a USING(attempt_id) "
+                        "WHERE a.assignment_id=%s AND a.lease_generation=%s"
+                        if preexecution_state_error else
+                        "SELECT count(*) AS n FROM worker_results r "
+                        "JOIN worker_attempts a USING(attempt_id) WHERE a.assignment_id=%s")
+                    result_params = ((assignment_id, generation) if preexecution_state_error else
+                                     (assignment_id,))
+                    cur.execute(result_sql, result_params)
                     if int(cur.fetchone()["n"]) != 0:
                         continue
-                    cur.execute("SELECT count(*) AS n FROM verification_records WHERE assignment_id=%s",
-                                (assignment_id,))
-                    if int(cur.fetchone()["n"]) != 0:
-                        continue
+                    if not preexecution_state_error:
+                        cur.execute("SELECT count(*) AS n FROM verification_records WHERE assignment_id=%s",
+                                    (assignment_id,))
+                        if int(cur.fetchone()["n"]) != 0:
+                            continue
                     cur.execute("SELECT 1 FROM worker_recovery_records "
                                 "WHERE assignment_id=%s AND lease_generation=%s",
                                 (assignment_id, generation))
@@ -1094,12 +1137,19 @@ class PostgresRecoveryCoordinator:
                     if cur.rowcount != 1:
                         raise RuntimeError("Codex retry intent changed during reconciliation")
                     evidence = {
-                        "proof": "typed_codex_failure_without_durable_artifact",
+                        "proof": ("typed_codex_preexecution_state_error_during_rework"
+                            if preexecution_state_error else
+                            "typed_codex_failure_without_durable_artifact"),
                         "execution_intent_finished": True,
-                        "assignment_attempt_absent": True,
-                        "worker_result_absent": True,
-                        "verification_absent": True,
-                        "assignment_artifact_absent": True,
+                        "execution_process_started": False if preexecution_state_error else None,
+                        "current_generation_attempt_absent": True,
+                        "current_generation_result_absent": True,
+                        "prior_rejected_verification_preserved": bool(preexecution_state_error),
+                        "prior_artifacts_preserved": bool(preexecution_state_error),
+                        "assignment_attempt_absent": not preexecution_state_error,
+                        "worker_result_absent": not preexecution_state_error,
+                        "verification_absent": not preexecution_state_error,
+                        "assignment_artifact_absent": not preexecution_state_error,
                         "knowledge_source_revision": candidate["source_revision"],
                         "execution_repository_revision": repository_revision,
                         "execution_capability": capability,

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.19
+# Revision: 1.2.21
+# Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Restrict the S3-only CME retry evidence reader to the exact S3 step; S5 uses its separately validated evaluation exchange.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-HANDOFF-20261025 | Supply validated durable Luna evaluation facts to exact assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Supply verified durable CME recovery facts to the existing bounded artifact rework.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Forward immutable objective request separately into authorized Engineering execution
@@ -178,30 +179,31 @@ class CodexWorkAction:
                         for item in historical)):
                 raise CodexActionFailure("diagnostic_history_evidence_incomplete")
         if rework is not None:
-            evidence_reader = getattr(
-                self.pipeline, "cme_recovery_runtime_evidence_for_assignment", None)
-            if callable(evidence_reader):
-                cme_evidence = evidence_reader(objective_id, assignment["id"])
-                if cme_evidence is not None:
-                    exchange_evidence = (cme_evidence.get("exchange")
-                        if isinstance(cme_evidence, Mapping) else None)
-                    if (not isinstance(cme_evidence, Mapping) or
-                            cme_evidence.get("schema") !=
-                                "rv.grace.cme-recovery-runtime-evidence.v1" or
-                            cme_evidence.get("read_only") is not True or
-                            cme_evidence.get("objective_id") != objective_id or
-                            cme_evidence.get("assignment_id") != assignment["id"] or
-                            not isinstance(exchange_evidence, Mapping) or
-                            exchange_evidence.get("provider_attempt_count") != 1 or
-                            exchange_evidence.get("delivery_state") !=
-                                "grace_consumed"):
-                        raise CodexActionFailure("cme_recovery_runtime_evidence_invalid")
-                    if runtime_evidence is None:
-                        runtime_evidence = cme_evidence
-                    else:
-                        runtime_evidence = {"schema": "rv.grace.codex-runtime-evidence.v1",
-                            "objective_runtime_evidence": runtime_evidence,
-                            "cme_recovery_evidence": cme_evidence}
+            if step.get("step_id") == "s3":
+                evidence_reader = getattr(
+                    self.pipeline, "cme_recovery_runtime_evidence_for_assignment", None)
+                if callable(evidence_reader):
+                    cme_evidence = evidence_reader(objective_id, assignment["id"])
+                    if cme_evidence is not None:
+                        exchange_evidence = (cme_evidence.get("exchange")
+                            if isinstance(cme_evidence, Mapping) else None)
+                        if (not isinstance(cme_evidence, Mapping) or
+                                cme_evidence.get("schema") !=
+                                    "rv.grace.cme-recovery-runtime-evidence.v1" or
+                                cme_evidence.get("read_only") is not True or
+                                cme_evidence.get("objective_id") != objective_id or
+                                cme_evidence.get("assignment_id") != assignment["id"] or
+                                not isinstance(exchange_evidence, Mapping) or
+                                exchange_evidence.get("provider_attempt_count") != 1 or
+                                exchange_evidence.get("delivery_state") !=
+                                    "grace_consumed"):
+                            raise CodexActionFailure("cme_recovery_runtime_evidence_invalid")
+                        if runtime_evidence is None:
+                            runtime_evidence = cme_evidence
+                        else:
+                            runtime_evidence = {"schema": "rv.grace.codex-runtime-evidence.v1",
+                                "objective_runtime_evidence": runtime_evidence,
+                                "cme_recovery_evidence": cme_evidence}
             evaluation_reader = getattr(
                 self.pipeline, "performance_evaluation_runtime_evidence_for_assignment", None)
             if callable(evaluation_reader):

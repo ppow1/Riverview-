@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.17
+# Revision: 1.2.20
+# Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Verify retry of a pre-execution S5 validation error preserves the earlier rejected attempt and artifact.
 # Changed: 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Cover exact-grant single-use exhausted-retry disposition, preserved history, and one new lease generation.
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Verify bounded no-artifact recovery retries the exact failed step when a concurrently dispatched sibling owns the objective pointer, without creating dispatch duplicates.
 # Purpose: Verify scoped deterministic and structured worker artifacts
@@ -1098,6 +1099,132 @@ class WorkerAdapterTests(unittest.TestCase):
             finally:
                 recovery.close()
         self.assertEqual(self.ledger.get(assignment_id)["state"], "awaiting_steward")
+
+    def test_preexecution_objective_state_error_recovers_rework_without_erasing_rejection(self):
+        import os
+        import tempfile
+        import time
+        from riverview_core.worker_adapter import ContinuousWorker, PostgresRecoveryCoordinator
+        from riverview_core.worker_adapter.verifier import VerificationResult, VerificationStatus
+
+        objective_id = "objective:codex-s5-preexec:" + uuid4().hex
+        assignment_id = self.ready_assignment(scope="work-order:engineering",
+                                              objective=objective_id)
+        revision, digest = "a" * 40, "b" * 64
+        criteria = ["The exact S5 outcome is independently verified"]
+        proposal = {"steps":[{"step_id":"s5","objective":"Record S5 outcome",
+            "acceptance_criteria":criteria}]}
+        self.admin.execute("""INSERT INTO grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,
+             evidence,proposal,assignment_id,source_revision,source_sha256)
+            VALUES (%s,'bounded S5 fixture','work-order:engineering','steward:test',
+             %s::jsonb,'WORK_ORDER_CREATED',%s::jsonb,%s::jsonb,%s,%s,%s)""",
+            (objective_id,json.dumps(criteria),
+             json.dumps({"status":"VERIFIED","source_revision":revision,
+                         "source_sha256":digest}),json.dumps(proposal),assignment_id,
+             revision,digest))
+        self.admin.execute("""INSERT INTO grace_objective_steps
+            (objective_id,step_id,step_order,step_objective,acceptance_criteria,
+             depends_on,status,assignment_id,dispatch_count)
+            VALUES (%s,'s5',5,'Record S5 outcome',%s::jsonb,'["s1","s2","s3","s4"]'::jsonb,
+                    'assigned',%s,1)""", (objective_id,json.dumps(criteria),assignment_id))
+        self.admin.execute("""INSERT INTO grace_objective_events
+            (objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,'work_order.dispatched',%s,'service:test',%s::jsonb)""",
+            (objective_id,"dispatch:s5:"+assignment_id,
+             json.dumps({"assignment_id":assignment_id,"workflow_step":"s5"})))
+
+        codex_worker = "worker-s5-preexec-" + uuid4().hex
+        codex_credential = self.register_as(codex_worker,
+            ["engineering.codex-cli-artifact.v1"],"work-order:engineering")
+        worker = ContinuousWorker(self.worker,codex_worker,codex_credential,
+            knowledge=self.VerifiedProvider(),
+            action=lambda _assignment,_grounded:{"status":"first attempt artifact"},
+            action_effect_class="external_uncertain",
+            action_capability="engineering.codex-cli-artifact.v1")
+        first = worker.run_once(assignment_id=assignment_id)
+        self.assertEqual(first["status"],"AWAITING_VERIFICATION")
+        verifier_id = "verifier-s5-preexec-" + uuid4().hex
+        verifier_credential = self.register_as(verifier_id,["assignment.verify.v1"],
+                                               "work-order:engineering")
+        class RejectFirstAttempt:
+            REVISION = "s5-recovery-fixture-v1"
+            def verify(self,_assignment,_attempt,_result):
+                return VerificationResult(VerificationStatus.REJECTED,
+                    {"s5_outcome_verified":False},("urn:fixture:s5-rejected",),
+                    self.REVISION,"The first S5 attempt is intentionally rejected.")
+        rejection = self.worker.verify_attempt(assignment_id,first["attempt_id"],
+            verifier_id,verifier_credential,RejectFirstAttempt(),
+            idempotency_key="s5-rejection:"+assignment_id)
+        self.assertEqual(rejection.status,VerificationStatus.REJECTED)
+        verification_id = self.admin.execute("""SELECT verification_id::text
+            FROM verification_records WHERE assignment_id=%s ORDER BY recorded_at DESC LIMIT 1""",
+            (assignment_id,)).fetchone()[0]
+        self.admin.execute("""INSERT INTO grace_objective_events
+            (objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,'engineering.rework_decided',%s,'office:grace',%s::jsonb)""",
+            (objective_id,"rework:s5:"+assignment_id,
+             json.dumps({"assignment_id":assignment_id,"decision":"REWORK_PROPOSED",
+                         "verification_id":verification_id})))
+        self.ledger.transition(assignment_id,"ready","rework_queued",
+                               "s5-rework-ready:"+assignment_id,actor_id="office:grace")
+        self.admin.execute("UPDATE assignment_leases SET acquired_at=clock_timestamp()-interval '3 minutes', "
+                           "heartbeat_at=clock_timestamp()-interval '3 minutes', "
+                           "expires_at=clock_timestamp()-interval '2 minutes' "
+                           "WHERE assignment_id=%s",(assignment_id,))
+        claim = self.worker.claim_next(codex_worker,codex_credential,
+            assignment_id=assignment_id,lease_seconds=60,
+            capability="engineering.codex-cli-artifact.v1")
+        generation = claim["lease"]["generation"]
+        self.worker.start_assignment(assignment_id,codex_worker,codex_credential,generation,
+            capability="engineering.codex-cli-artifact.v1")
+        intent_id = self.worker.begin_execution_intent(assignment_id,codex_worker,
+            codex_credential,generation,f"continuous:{assignment_id}:{generation}",
+            effect_class="external_uncertain",capability="engineering.codex-cli-artifact.v1")
+        self.worker.mark_execution_intent(intent_id,"outcome_unknown",
+                                          failure_class="ObjectiveStateError")
+        self.worker.scheduler.transition_with_lease(assignment_id,"awaiting_steward",
+            "ACTION_OUTCOME_UNKNOWN",f"unknown-s5:{assignment_id}:{generation}",
+            codex_worker,generation)
+        self.admin.execute("""UPDATE assignment_leases SET acquired_at=clock_timestamp()-interval '3 minutes',
+            expires_at=clock_timestamp()-interval '2 minutes' WHERE assignment_id=%s""",
+            (assignment_id,))
+
+        with tempfile.TemporaryDirectory(prefix="rv-s5-preexec-recovery-") as directory:
+            artifact_root=Path(directory)/"artifacts"
+            artifact_root.mkdir(mode=0o700)
+            prefix="codex-"+hashlib.sha256(assignment_id.encode()).hexdigest()
+            previous_dir=artifact_root/prefix
+            previous_dir.mkdir(mode=0o700)
+            previous_artifact=previous_dir/"012345abcdef"
+            previous_artifact.write_text("preserved rejected artifact",encoding="utf-8")
+            previous_artifact.chmod(0o600)
+            old=time.time()-60
+            os.utime(previous_artifact,(old,old))
+            recovery=PostgresRecoveryCoordinator(DSN,schema=self.schema,max_retries=3)
+            try:
+                result=recovery.reconcile_codex_failures_without_artifact(
+                    repository_revision="c"*40,artifact_root=artifact_root,
+                    scope_ref="work-order:engineering",worker_id=codex_worker)
+                self.assertEqual(len(result),1)
+                self.assertEqual(result[0]["resulting_state"],"ready")
+                self.assertEqual(recovery.reconcile_codex_failures_without_artifact(
+                    repository_revision="c"*40,artifact_root=artifact_root,
+                    scope_ref="work-order:engineering",worker_id=codex_worker),[])
+            finally:
+                recovery.close()
+            self.assertEqual(previous_artifact.read_text(encoding="utf-8"),
+                             "preserved rejected artifact")
+            event=self.admin.execute("""SELECT payload->'recovery_evidence'
+                FROM events WHERE assignment_id=%s ORDER BY seq DESC LIMIT 1""",
+                (assignment_id,)).fetchone()[0]
+            self.assertEqual(event["proof"],
+                "typed_codex_preexecution_state_error_during_rework")
+            self.assertFalse(event["execution_process_started"])
+            self.assertTrue(event["prior_rejected_verification_preserved"])
+        self.assertEqual(self.admin.execute("""SELECT decision FROM verification_records
+            WHERE verification_id=%s""",(verification_id,)).fetchone()[0],"REJECTED")
+        self.assertEqual(self.ledger.get(assignment_id)["state"],"ready")
 
     def test_verified_grounding_resumes_same_waiting_codex_assignment_once(self):
         import tempfile
