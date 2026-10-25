@@ -45,6 +45,17 @@
     }
     return body;
   }
+  async function put(path, payload) {
+    const cookie = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("rv_account_csrf="));
+    if (!cookie) throw new Error("csrf_token_missing");
+    const response = await fetch(path, {method:"PUT", credentials:"same-origin", cache:"no-store",
+      headers:{Accept:"application/json", "Content-Type":"application/json",
+        "X-Riverview-CSRF":decodeURIComponent(cookie.slice("rv_account_csrf=".length))},
+      body:JSON.stringify(payload)});
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) { const error = new Error(body.error || `http_${response.status}`); error.status = response.status; throw error; }
+    return body;
+  }
   function unavailable(error) {
     if (error.status === 401) return "Sign in to Riverview with an authorized Steward account to read proposal records.";
     if (error.status === 403) return "Access denied. This registry requires Steward account and institutional authority.";
@@ -116,6 +127,64 @@
     for (const event of detail.events) events.append(element("p", `${event.type || "Event type unavailable"} · revision ${event.revision ?? "unavailable"} · ${formatTime(event.occurredAt)}`));
     target.append(events);
     renderDecisionControls(target, detail);
+    renderRevisionEditor(target, detail);
+    renderPromotionControl(target, detail);
+  }
+  function currentContent(detail) {
+    return {title:detail.title, summary:detail.summary, objective:detail.objective, scope:detail.scope,
+      proposed_approach:detail.proposedApproach, constraints:detail.constraints,
+      acceptance_criteria:detail.acceptanceCriteria, tags:detail.tags};
+  }
+  function renderRevisionEditor(target, detail) {
+    const panel = element("section", null, "proposal-decision-panel");
+    panel.append(element("h4", "Edit proposal revision"));
+    panel.append(element("p", "Saving uses the existing revision compare-and-swap operation. It creates a new DRAFT revision and preserves the prior revision and audit history."));
+    const label = element("label", "Revision content (JSON)");
+    const input = document.createElement("textarea"); input.id = "proposal-revision-content"; input.rows = 14;
+    input.maxLength = 16384; input.spellcheck = false; input.value = JSON.stringify(currentContent(detail), null, 2);
+    label.append(input);
+    const button = element("button", "Save new draft revision"); button.type = "button"; button.className = "proposal-decision-submit";
+    button.addEventListener("click", async () => {
+      let content;
+      try { content = JSON.parse(input.value); } catch (_) { $("proposal-detail-status").textContent = "Revision was not saved: enter valid JSON."; return; }
+      if (!window.confirm(`Create a new DRAFT revision for proposal ${detail.proposalId} from revision ${detail.revision}? The existing revision remains in history.`)) return;
+      button.disabled = true; $("proposal-detail-status").textContent = "Saving a new revision through the existing Steward API…";
+      try {
+        await put(`/api/v1/institutional-proposals/${encodeURIComponent(detail.proposalId)}`, {expected_revision:detail.revision, content});
+        await refresh(); await loadDetail(detail.proposalId);
+        $("proposal-detail-status").textContent = "New draft revision saved; the previous revision remains in the audit history.";
+      } catch (error) {
+        $("proposal-detail-status").textContent = error.status === 409
+          ? "Revision not saved: the proposal changed. Refresh the selected record before editing again."
+          : `Revision not confirmed (${String(error.message || "unavailable").replace(/[^a-z0-9_.-]/gi, "_")}); no success is claimed.`;
+      } finally { button.disabled = false; }
+    });
+    panel.append(label, button); target.append(panel);
+  }
+  function renderPromotionControl(target, detail) {
+    const panel = element("section", null, "proposal-decision-panel");
+    panel.append(element("h4", "Approved revision promotion"));
+    if (detail.status !== "APPROVED") {
+      panel.append(element("p", `Promotion is unavailable while this revision is ${detail.status || "in an unknown lifecycle state"}. The server accepts only the current Steward-approved revision with matching approval evidence.`));
+      target.append(panel); return;
+    }
+    panel.append(element("p", "This calls the existing proposal work-order promotion path. The server rechecks the current approved revision and approval digest. Promotion creates an objective intake record; it does not assign a worker or authorize execution."));
+    const button = element("button", "Create Engineering objective"); button.type = "button"; button.className = "proposal-decision-submit";
+    button.addEventListener("click", async () => {
+      if (!window.confirm(`Promote approved proposal ${detail.proposalId}, revision ${detail.revision}, to an Engineering objective? This creates an objective record; it does not start execution.`)) return;
+      button.disabled = true; $("proposal-detail-status").textContent = "Submitting promotion to the existing Steward-authorized API…";
+      try {
+        const result = await post(`/api/v1/institutional-proposals/${encodeURIComponent(detail.proposalId)}/work-orders`, {revision:detail.revision});
+        await refresh(); await loadDetail(detail.proposalId);
+        const objectiveId = result.objective_id || result.payload?.objective_id || "objective recorded";
+        $("proposal-detail-status").textContent = `Promotion accepted by the existing API (${objectiveId}). Assignment and execution authorization remain separate.`;
+      } catch (error) {
+        $("proposal-detail-status").textContent = error.status === 409
+          ? "Promotion rejected because approval or current revision evidence no longer matches. No new promotion is claimed."
+          : `Promotion not confirmed (${String(error.message || "unavailable").replace(/[^a-z0-9_.-]/gi, "_")}); no success is claimed.`;
+      } finally { button.disabled = false; }
+    });
+    panel.append(button); target.append(panel);
   }
   function renderDecisionControls(target, detail) {
     const panel = element("section", null, "proposal-decision-panel");
@@ -226,5 +295,5 @@
   $("proposal-search-submit").addEventListener("click", refresh);
   $("proposal-search").addEventListener("keydown", (event) => { if (event.key === "Enter") refresh(); });
   $("proposal-status-filter").addEventListener("change", refresh);
-  window.RiverviewV2InstitutionalProposals = Object.freeze({render, refresh});
+  window.RiverviewV2InstitutionalProposals = Object.freeze({render, refresh, open:loadDetail});
 })();

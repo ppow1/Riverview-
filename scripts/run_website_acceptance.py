@@ -5,6 +5,7 @@ Revision: 1.3.2
 Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Skip the new assertion on pre-feature assets without changing the selected view.
 Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Verify unlinked Steward sees no decision controls in authenticated browser acceptance.
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-EMAIL-20261025 | Verify shared email settings read and role denial without changing production configuration.
+Changed: 2026-10-25 UTC | RV-V2-V1-FUNCTIONAL-PARITY-20261025 | Verify the canonical graph browser and searchable documentation catalog through authenticated V2 navigation.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ ACCOUNT_STATE_PRE_FEATURE_COMMIT = "8c59b5bfcdde0b08efc8b4807c16f37a8595f8a2"
 ACCOUNT_ROLE_GRANT_PRE_FEATURE_COMMIT = "68a05cd0316eccfd2db0b93cf408eac75dd92bfb"
 ACCOUNT_EMAIL_PRE_FEATURE_COMMIT = "3d5401bb47eef13133f7a09d4e6539a74339a62f"
 PROPOSAL_DECISIONS_PRE_FEATURE_COMMIT = "e994af0b79f5ce3a140702e67cb465107bc71987"
+PROPOSAL_LIFECYCLE_PRE_FEATURE_COMMIT = "7eca34b6c6c78689222ee816995d7eb0b85b42f9"
 
 
 def browser_acceptance(credentials: dict, *, account_admin_required: bool,
@@ -108,8 +110,9 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
             who=js("let r=await fetch('/api/v1/auth/session',{cache:'no-store'});if(!r.ok)return {status:r.status};let x=await r.json();return {status:r.status,roles:x.identity?.roles||[]}")
             results.append({"check":f"login_role_{persona}","status":"PASS" if role in who.get("roles",[]) else "FAIL","http":who.get("status"),"expected_role":role})
             # Confirm the live route is serving the V2 shell and its current bundle.
-            views=["resources","work","communications","notification-settings"]
+            views=["resources","work","communications","notification-settings","process-workflows","documentation"]
             proposal_decisions_available = live_source_commit != PROPOSAL_DECISIONS_PRE_FEATURE_COMMIT
+            proposal_lifecycle_available = live_source_commit != PROPOSAL_LIFECYCLE_PRE_FEATURE_COMMIT
             if role == "steward" and proposal_decisions_available: views.append("institutional-proposals")
             if account_admin_available: views.append("account-administration")
             for view in views:
@@ -124,8 +127,23 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
                 results.append({"check":"proposal_decisions_hidden_without_institutional_authority",
                     "status":"PASS" if proposal_ok else "FAIL","http":proposal_access.get("http"),
                     "decision_panels":proposal_access.get("controls")})
+                if proposal_lifecycle_available:
+                    results.append({"check":"proposal_revision_and_promotion_api_denied_without_institutional_authority",
+                        "status":"PASS" if proposal_access.get("http")==403 and proposal_access.get("controls")==0 else "FAIL",
+                        "http":proposal_access.get("http"),"controls":proposal_access.get("controls")})
                 if account_admin_available:
                     # Restore the view expected by the existing account acceptance below.
+                    js("document.querySelector('[data-view=account-administration]')?.click();return true")
+            if role == "steward" and proposal_lifecycle_available:
+                stage = "process_workflow_registry_acceptance"
+                graph_check=js("let nav=document.querySelector('[data-view=process-workflows]');nav?.click();let r=await fetch('/api/v1/graphs',{cache:'no-store'});let index=r.ok?await r.json():null;await new Promise(resolve=>setTimeout(resolve,300));let options=document.querySelectorAll('#graph-select option').length;return {http:r.status,count:index?.items?.length||0,options,visible:!document.querySelector('#process-workflows-workspace')?.hidden}")
+                graph_ok=graph_check.get("http")==200 and graph_check.get("count",0)>0 and graph_check.get("options",0)>0 and graph_check.get("visible")
+                results.append({"check":"process_workflow_registry_authenticated_read","status":"PASS" if graph_ok else "FAIL","http":graph_check.get("http"),"graphs":graph_check.get("count")})
+                stage = "documentation_catalog_acceptance"
+                docs_check=js("document.querySelector('[data-view=documentation]')?.click();for(let i=0;i<50;i++){if(document.querySelector('#documentation-catalog')?.children.length)break;await new Promise(r=>setTimeout(r,100));}let state=document.querySelector('#documentation-catalog-state')?.textContent||'';let search=document.querySelector('#documentation-search');if(search){search.value='process';search.dispatchEvent(new Event('input'));}return {visible:!document.querySelector('#documentation-workspace')?.hidden,count:document.querySelectorAll('.documentation-catalog-entry').length,state}")
+                docs_ok=docs_check.get("visible") and docs_check.get("count",0)>0 and "registered workflows" in docs_check.get("state","")
+                results.append({"check":"documentation_catalog_searchable_and_populated","status":"PASS" if docs_ok else "FAIL","entries":docs_check.get("count")})
+                if account_admin_available:
                     js("document.querySelector('[data-view=account-administration]')?.click();return true")
             if role == "steward":
                 stage = "recovery_controls_unlinked_steward"

@@ -4,6 +4,7 @@ File: website/v2/deployed/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
 Revision: 1.0.11
 Changed: 2026-10-24 UTC | RV-V2-GRACE-CANCELLATION-INTEGRATION | Resolve exact objective/work-order chat commands through the Steward session and shared lifecycle confirmation.
+Changed: 2026-10-25 UTC | RV-V2-V1-PROPOSAL-PARITY-20261025 | Add idempotent proposal drafting from a persisted, selected Steward message through the existing API.
 Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Show live conversation-linked objectives with safe cancellation and preserve a single panel across responsive sidebar transitions.
 Purpose: Connect V2 Grace chat and expose a content-free trace of its durable request lifecycle
 Execution Model: Interactive browser; request-driven reads/sends with durable response polling
@@ -438,6 +439,8 @@ History: Git and revision/backup manifest
       item.dataset.sequence = Number.isInteger(event.sequence) ? String(event.sequence) : "";
       item.querySelector("[data-create-work-order]").hidden = !(event.event_type === "user_message" && Number.isInteger(event.sequence) && state.identity?.roles?.includes("steward"));
       item.querySelector("[data-create-work-order]").dataset.sequence = Number.isInteger(event.sequence) ? String(event.sequence) : "";
+      item.querySelector("[data-draft-proposal]").hidden = !(event.event_type === "user_message" && Number.isInteger(event.sequence) && state.identity?.roles?.includes("steward"));
+      item.querySelector("[data-draft-proposal]").dataset.sequence = Number.isInteger(event.sequence) ? String(event.sequence) : "";
       if (!keyed.has(key)) historyNode.append(item);
     }
     if (reset) keyed.forEach((item, key) => { if (!wanted.has(key)) item.remove(); });
@@ -460,7 +463,8 @@ History: Git and revision/backup manifest
     const menu = document.createElement("div"); menu.className = "grace-message-menu"; menu.setAttribute("role", "menu");
     const copy = document.createElement("button"); copy.type = "button"; copy.setAttribute("role", "menuitem"); copy.setAttribute("data-copy-conversation", "true"); copy.textContent = "Copy Conversation Text";
     const work = document.createElement("button"); work.type = "button"; work.setAttribute("role", "menuitem"); work.setAttribute("data-create-work-order", "true"); work.textContent = "Create Work Order…";
-    menu.append(copy, work); details.append(summary, menu); item.append(role, meta, content, details); return item;
+    const proposal = document.createElement("button"); proposal.type = "button"; proposal.setAttribute("role", "menuitem"); proposal.setAttribute("data-draft-proposal", "true"); proposal.textContent = "Draft Institutional Proposal…";
+    menu.append(copy, work, proposal); details.append(summary, menu); item.append(role, meta, content, details); return item;
   }
 
   function conversationText() {
@@ -479,9 +483,20 @@ History: Git and revision/backup manifest
   historyNode.addEventListener("click", async event => {
     const copy = event.target.closest("[data-copy-conversation]");
     const work = event.target.closest("[data-create-work-order]");
-    if (!copy && !work) return;
+    const proposal = event.target.closest("[data-draft-proposal]");
+    if (!copy && !work && !proposal) return;
     const row = event.target.closest("[data-history-key]");
     if (copy) { try { await copyText(conversationText()); } catch (error) { $("grace-chat-action-status").textContent = `Copy failed (${safeError(error.message)}).`; } closeMenus(); return; }
+    if (proposal) {
+      const sequence = Number(proposal.dataset.sequence);
+      const source = state.history.find(item => item.event_type === "user_message" && item.sequence === sequence);
+      if (!source || !state.identity?.roles?.includes("steward") || !state.conversationId) { $("grace-chat-action-status").textContent = "A persisted Steward message, active conversation, and Steward session are required."; closeMenus(); return; }
+      $("proposal-draft-source").textContent = source.body || "";
+      $("proposal-draft-instruction").value = "Formalize the selected discussion as an institutional proposal";
+      $("proposal-draft-error").textContent = "";
+      $("proposal-draft-dialog").dataset.sourceSequence = String(sequence);
+      $("proposal-draft-dialog").showModal(); closeMenus(); return;
+    }
     const sequence = Number(work.dataset.sequence);
     const source = state.history.find(item => item.event_type === "user_message" && item.sequence === sequence);
     if (!source || !state.identity?.roles?.includes("steward")) { $("grace-chat-action-status").textContent = "A saved Steward message and Steward session are required."; closeMenus(); return; }
@@ -511,6 +526,26 @@ History: Git and revision/backup manifest
     } catch (error) { errorNode.textContent = `${safeError(error.payload?.error || error.message)} · no approval or execution is implied.`; }
     finally { submit.disabled = false; }
   });
+  $("proposal-draft-submit").addEventListener("click", async () => {
+    const sequence = Number($("proposal-draft-dialog").dataset.sourceSequence);
+    if (!Number.isInteger(sequence) || !state.conversationId || !state.identity?.roles?.includes("steward")) return;
+    const button = $("proposal-draft-submit"); button.disabled = true;
+    $("proposal-draft-error").textContent = "Submitting the selected persisted message to the existing proposal drafting service…";
+    try {
+      const result = await api("/api/v1/institutional-proposals", {method:"POST", body:{
+        conversation_id:state.conversationId, source_sequences:[sequence],
+        idempotency_key:`v2-proposal:${state.conversationId}:${sequence}`,
+        instruction:$("proposal-draft-instruction").value.trim()}});
+      if (result.status === "clarification_required") { $("proposal-draft-error").textContent = `Grace needs clarification: ${safeError(result.question || result.message || "review the source and retry")}`; return; }
+      $("proposal-draft-dialog").close(); $("grace-chat-action-status").textContent = "Proposal draft saved. It remains DRAFT and does not authorize objective creation or execution.";
+      document.querySelector('[data-view="institutional-proposals"]')?.click();
+      await window.RiverviewV2InstitutionalProposals?.refresh();
+      const proposalId = result.proposal?.proposal_id || result.proposal_id;
+      if (proposalId) await window.RiverviewV2InstitutionalProposals?.open(proposalId);
+    } catch (error) { $("proposal-draft-error").textContent = `Draft not confirmed (${safeError(error.payload?.error || error.message)}). No proposal was claimed.`; }
+    finally { button.disabled = false; }
+  });
+  document.querySelector('[data-close-proposal-draft]')?.addEventListener("click", () => $("proposal-draft-dialog").close());
   document.querySelector("[data-close-work-order]").addEventListener("click", () => $("grace-work-order-dialog").close());
 
   engineeringProgressList.addEventListener("click", event => {

@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: website/v2/deployed/index.html
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-File Revision: 1.0.30
+File Revision: 1.0.31
+Changed: 2026-10-25 UTC | RV-V2-V1-FUNCTIONAL-PARITY-20261025 | Restore proposal drafting/edit/promotion and canonical process workflow/documentation views in V2.
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Add account enrollment review, approved account roster, and session revocation through existing authenticated APIs.
 Changed: 2026-10-25 UTC | RV-V2-RESIDENT-PERMISSIONS-20261025 | Expose the existing audited Resident Permission Profiles interface in V2.
 Changed: 2026-10-25 UTC | RV-V2-INSTITUTIONAL-PROPOSALS-20261025 | Add the read-only proposal registry, review evidence, and linked work records to V2.
@@ -49,7 +50,8 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/work-monitor.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/work-evidence.css?rev=blocker-20261024">
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=roadmap-integrated-20261024">
-  <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposal-decisions-20261025">
+  <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposal-lifecycle-20261025">
+  <link rel="stylesheet" href="assets/process-workflows.css?rev=v1-parity-20261025">
   <link rel="stylesheet" href="assets/resident-permissions.css?rev=resident-permissions-20261025">
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
@@ -64,14 +66,16 @@ History: Git and revision/backup manifest
   <script defer src="assets/living-roadmap-adapter.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/living-roadmap.js?rev=roadmap-integrated-20261024"></script>
   <script defer src="assets/institutional-proposals-adapter.js?rev=proposals-readonly-20261025"></script>
-  <script defer src="assets/institutional-proposals.js?rev=proposal-decisions-20261025"></script>
+  <script defer src="assets/institutional-proposals.js?rev=proposal-lifecycle-20261025"></script>
+  <script defer src="assets/process-workflows.js?rev=v1-parity-20261025"></script>
+  <script defer src="assets/documentation-catalog.js?rev=v1-parity-20261025"></script>
   <script defer src="assets/resident-permissions.js?rev=resident-permissions-20261025"></script>
   <script defer src="assets/account-administration.js?rev=account-email-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=blocker-20261024"></script>
-  <script defer src="assets/workspace.js?rev=account-admin-20261025"></script>
+  <script defer src="assets/workspace.js?rev=v1-parity-20261025"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
-  <script defer src="assets/grace-chat.js?rev=blocker-20261024"></script>
+  <script defer src="assets/grace-chat.js?rev=proposal-draft-20261025"></script>
   <script defer src="assets/manual-image-generation.js"></script>
   <script defer src="assets/notification-settings.js"></script>
   <script defer src="assets/operational-inbox-adapter.js?rev=recovery-decision-controls-20261025"></script>
@@ -88,6 +92,8 @@ History: Git and revision/backup manifest
         <button class="nav-item" data-view="residents" aria-label="Residents" data-tooltip="Browse resident directory"><span aria-hidden="true">◉</span><span class="nav-label">Residents</span></button>
         <button class="nav-item" data-view="work" aria-label="Work" data-tooltip="Show institutional work status and workspace examples"><span aria-hidden="true">▤</span><span class="nav-label">Work</span></button>
         <button class="nav-item" data-view="institutional-proposals" aria-label="Institutional proposals" data-tooltip="Review existing institutional proposal records"><span aria-hidden="true">▱</span><span class="nav-label">Proposals</span></button>
+        <button class="nav-item" data-view="process-workflows" aria-label="Process workflows" data-tooltip="Browse canonical process graphs and live recorded positions"><span aria-hidden="true">⌘</span><span class="nav-label">Workflows</span></button>
+        <button class="nav-item" data-view="documentation" aria-label="Documentation and diagnostics" data-tooltip="Search registered documentation, source provenance, and verification references"><span aria-hidden="true">▤</span><span class="nav-label">Documentation</span></button>
         <button class="nav-item" data-view="resident-permissions" aria-label="Resident permissions" data-tooltip="View and manage resident permission profiles through Steward authorization"><span aria-hidden="true">⚿</span><span class="nav-label">Resident permissions</span></button>
         <button class="nav-item" data-view="account-administration" aria-label="Account administration" data-tooltip="Review enrollments and manage approved account access"><span aria-hidden="true">♙</span><span class="nav-label">Account administration</span></button>
         <button class="nav-item" data-view="roadmap" aria-label="Living Roadmap" data-tooltip="Explore workstreams, planning stages, milestones, and current work"><span aria-hidden="true">⌖</span><span class="nav-label">Living Roadmap</span></button>
@@ -138,12 +144,28 @@ History: Git and revision/backup manifest
             <p class="roadmap-provenance">Documented roadmap intent is distinguished from verified live objective projections. The canonical master-roadmap PostgreSQL tables and API are not present in this Dashboard's configured schema, so its Git snapshot is not treated as live status. Dependencies are not exposed by the objective API; they are shown as unavailable, never inferred. Planning-source conflicts, including RB-0001, remain Unknown.</p>
           </section>
           <section class="institutional-proposals" id="institutional-proposals-workspace" aria-labelledby="institutional-proposals-title" hidden>
-            <header class="proposal-heading"><div><p class="eyebrow">EXISTING INSTITUTIONAL REGISTRY · AUTHORIZED STEWARD DECISIONS</p><h2 id="institutional-proposals-title">Institutional Proposals</h2><p>Browse persisted proposal revisions, review evidence, lifecycle status, and linked work. Record an audited decision on an eligible exact revision through the existing authenticated API. Revision editing and promotion remain available through existing V1 operations.</p></div><button id="proposal-refresh" type="button">Refresh</button></header>
+            <header class="proposal-heading"><div><p class="eyebrow">EXISTING INSTITUTIONAL REGISTRY · AUTHORIZED STEWARD ACTIONS</p><h2 id="institutional-proposals-title">Institutional Proposals</h2><p>Browse persisted proposal revisions and evidence. Editing, decisions, and promotion use existing authenticated, auditable APIs; approval and objective intake remain separate lifecycle actions.</p></div><button id="proposal-refresh" type="button">Refresh</button></header>
             <div class="proposal-tools"><label for="proposal-search">Search proposals<input id="proposal-search" type="search" maxlength="256" placeholder="Title, summary, scope, or tag"></label><label for="proposal-status-filter">Lifecycle status<select id="proposal-status-filter"><option value="">All available statuses</option><option>DRAFT</option><option>READY_FOR_REVIEW</option><option>UNDER_REVIEW</option><option>CHANGES_REQUIRED</option><option>READY_FOR_STEWARD_DECISION</option><option>APPROVED</option><option>DEFERRED</option><option>REJECTED</option><option>SUPERSEDED</option></select></label><button id="proposal-search-submit" type="button">Search</button></div>
             <p id="proposal-status" class="proposal-status" role="status" aria-live="polite">Sign in with a Steward account and institutional authority to read proposal records.</p>
             <div class="proposal-columns"><section class="proposal-list-panel" aria-labelledby="proposal-list-heading"><h3 id="proposal-list-heading">Proposal records</h3><div id="proposal-list" class="proposal-list" aria-live="polite"></div></section><section class="proposal-detail-panel" aria-labelledby="proposal-detail-heading"><h3 id="proposal-detail-heading">Selected proposal</h3><p id="proposal-detail-status" role="status" aria-live="polite">Select an authorized proposal record to inspect its revision and evidence.</p><div id="proposal-detail" class="proposal-detail"></div></section></div>
-            <p class="proposal-boundary">Decision controls appear only after the authorized detail request succeeds and the exact revision is eligible. The server still enforces Steward role, institutional identity, lifecycle, digest, idempotency, and CSRF. Approval records proposal status only; it does not create or dispatch work.</p>
+            <p class="proposal-boundary">Controls appear after the authorized detail request succeeds. The server enforces Steward role, institutional identity, revision concurrency, lifecycle, approval digest, and CSRF. Creating an objective does not dispatch a worker or authorize execution.</p>
           </section>
+          <section class="process-workflows-workspace" id="process-workflows-workspace" aria-labelledby="process-workflows-title" hidden>
+            <header class="process-heading"><div><p class="eyebrow">CANONICAL PROCESS GRAPH · READ ONLY</p><h2 id="process-workflows-title">Process workflows</h2><p>Versioned graphs, stable node identities, cross-workflow destinations, and exact recorded execution position from the existing authenticated registry.</p></div></header>
+            <section class="process-card"><div class="process-card-heading"><div><h3>Registered workflows</h3><span class="muted" id="graph-revision">Registry has not been loaded.</span></div><label for="graph-select">Workflow<select id="graph-select"><option value="">Loading registry…</option></select></label></div>
+              <p id="graph-execution-position" class="graph-position">Live execution position is unknown until an authoritative assignment records a canonical graph and node ID.</p>
+              <div class="graph-toolbar" role="group" aria-label="Workflow diagram controls"><button id="graph-fit" type="button" disabled>Fit diagram</button><button id="graph-zoom-out" type="button" disabled aria-label="Zoom out">−</button><button id="graph-zoom-in" type="button" disabled aria-label="Zoom in">+</button><button id="graph-reset" type="button" disabled>Reset view</button><button id="graph-fullscreen" type="button" disabled aria-pressed="false">Full screen</button><span>Drag to pan · use wheel or zoom buttons to change scale.</span></div>
+              <div id="graph-canvas" class="graph-canvas" role="img" aria-label="Canonical process workflow diagram"><p class="muted">Select a workflow to view its nodes and transitions.</p></div>
+              <div class="graph-legend"><span class="graph-chip process">Process</span><span class="graph-chip decision">Decision</span><span class="graph-chip failure">Failure / escalation</span><span class="graph-chip recovery">Recovery / verification</span></div>
+              <aside id="graph-node-detail" class="graph-node-detail muted">Select a node for its stable identity, revision and references.</aside>
+            </section>
+            <section class="process-card"><h3>Cross-workflow destinations</h3><div id="graph-jumps" class="graph-jumps">Select a workflow to inspect registered jump points.</div></section>
+          </section>
+          <section class="documentation-workspace" id="documentation-workspace" aria-labelledby="documentation-title" hidden>
+            <header class="process-heading"><div><p class="eyebrow">CANONICAL DOCUMENTATION · SOURCE · EVIDENCE INDEX</p><h2 id="documentation-title">Documentation and diagnostics</h2><p>Search references declared by the existing process graph registry. A listed verification reference is a location, not a claim that the check passed. Diagnostic reports remain available through their existing views.</p></div></header>
+            <section class="process-card"><label class="documentation-search-label" for="documentation-search">Search registered workflows, nodes, documentation and evidence<input id="documentation-search" type="search" autocomplete="off" placeholder="Component, status, failure, workflow, file…"></label><p id="documentation-catalog-state" class="muted" role="status" aria-live="polite">Catalog has not been loaded.</p><div id="documentation-catalog" class="documentation-catalog"></div><p class="muted">Operational verification: <button type="button" class="inline-view-link" data-view="overview">Website verification</button> · <button type="button" class="inline-view-link" data-view="communications">Operational inbox</button> · <button type="button" class="inline-view-link" data-view="work">Work and engineering progress</button></p></section>
+          </section>
+          <dialog id="proposal-draft-dialog" class="grace-dialog" aria-labelledby="proposal-draft-title"><div class="dialog-heading"><h2 id="proposal-draft-title">Draft institutional proposal</h2><button type="button" data-close-proposal-draft aria-label="Close proposal draft">Close</button></div><p>The selected persisted Steward message is sent to the existing proposal drafting service. The result is a DRAFT only; it does not authorize an Engineering objective.</p><blockquote id="proposal-draft-source"></blockquote><label for="proposal-draft-instruction">Drafting instruction</label><input id="proposal-draft-instruction" maxlength="1000" value="Formalize the selected discussion as an institutional proposal"><p id="proposal-draft-error" role="status" aria-live="polite"></p><button type="button" id="proposal-draft-submit">Save proposal draft</button></dialog>
           <section class="resident-permissions-workspace" id="resident-permissions-workspace" aria-labelledby="resident-permissions-title" hidden>
             <div class="resident-permissions-heading"><div><p class="eyebrow">EXISTING AUTHORITY REGISTRY</p><h2 id="resident-permissions-title">Resident permissions</h2><p class="muted">Profiles are a policy gate over existing exact grants. A tier never grants authority by itself. Every change uses the existing Steward authorization and audited revision API.</p></div><button id="resident-permission-refresh" type="button">Refresh</button></div>
             <p id="resident-permission-state" class="resident-permission-state" role="status" aria-live="polite">Permission registry has not been checked.</p>
