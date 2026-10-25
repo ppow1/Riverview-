@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.21
+# Revision: 1.2.22
+# Changed: 2026-10-25 UTC | RV-GRACE-BASELINE-310-PR311 | Verify assignment evidence preflight observation persistence.
 # Changed: 2026-10-25 UTC | C3-PR302-MIGRATION-COMPATIBILITY | Verify the legacy criteria-reconciliation registration gets only its exact-grant contract.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Verify retry of a pre-execution S5 validation error preserves the earlier rejected attempt and artifact.
 # Changed: 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Cover exact-grant single-use exhausted-retry disposition, preserved history, and one new lease generation.
