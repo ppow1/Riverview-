@@ -62,9 +62,12 @@ class _Authorizer:
     def require(_cursor, _credential, action, scope):
         if (action, scope) not in {
                 ("office.state.write", "office:office:grace"),
-                ("objective.submit", "work-order:engineering")}:
+                ("objective.submit", "work-order:engineering"),
+                ("resident.status.read", "institution:riverview")}:
             raise GrantDenied("exact grant missing")
-        grant = "grant:office-state" if action == "office.state.write" else "grant:objective-submit"
+        grant = {"office.state.write": "grant:office-state",
+                 "objective.submit": "grant:objective-submit",
+                 "resident.status.read": "grant:status-read"}[action]
         return {"principal_id": "resident:grace", "grant_id": grant}
 
 
@@ -80,6 +83,13 @@ class _Pipeline:
     def submit_objective(self, objective_id, request, criteria, **kwargs):
         self.calls.append((objective_id, request, criteria, kwargs))
         return {"objective_id": objective_id, "status": "RECEIVED"}
+
+
+class _Projection:
+    def __init__(self): self.calls = 0
+    def status(self):
+        self.calls += 1
+        return {"projection_status": "healthy", "assignments_total": 0}
 
 
 class _State:
@@ -150,6 +160,37 @@ class GraceCapabilityRegistryTests(unittest.TestCase):
         self.assertEqual(result["error"]["code"], "capability_not_authorized")
         self.assertEqual(result["call"]["arguments"]["scope_ref"], "office:office:other")
         self.assertEqual(self.authority.calls, [])
+
+    def test_status_projection_is_exposed_only_with_exact_read_grant(self):
+        self.state.catalog.append({
+            "capability_id": "resident.status.read",
+            "description": "Read bounded institutional status projections",
+            "authority_action": "resident.status.read", "owner_office": "office:grace",
+            "implementation_ref": "dashboard.projection.v1", "dependencies": [],
+            "resources": [{"resource_id": "institution:riverview"}], "enabled": True,
+            "input_schema": {"type": "object", "additionalProperties": False,
+                              "required": [], "properties": {}},
+        })
+        projection = _Projection()
+        registry = GraceCapabilityRegistry(
+            dsn="postgresql://test", resident_credential="r" * 48,
+            authorizer=_Authorizer(), authority_registry=self.authority,
+            dashboard_projection=projection, connect=lambda: _Connection(self.state))
+        self.assertNotIn("resident.status.read", {tool["name"] for tool in registry.tool_specs()})
+        denied = registry.invoke("resident.status.read", {
+            "scope_ref": "institution:riverview", "input": {}})
+        self.assertEqual(denied["error"]["code"], "capability_not_authorized")
+        self.assertEqual(projection.calls, 0)
+
+        self.state.grants.append(("resident:grace", "resident.status.read",
+                                  "institution:riverview"))
+        self.assertIn("resident.status.read", {tool["name"] for tool in registry.tool_specs()})
+        result = registry.invoke("resident.status.read", {
+            "scope_ref": "institution:riverview", "input": {}})
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["authorization"]["scope_ref"], "institution:riverview")
+        self.assertEqual(result["result"]["projection_status"], "healthy")
+        self.assertEqual(projection.calls, 1)
 
     def test_engineering_submission_uses_existing_pipeline_and_waits_for_verifier(self):
         self.state.catalog.append({

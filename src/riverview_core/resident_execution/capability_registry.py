@@ -86,7 +86,8 @@ class GraceCapabilityRegistry:
     """Read current authority metadata and invoke only explicitly wired adapters."""
 
     def __init__(self, *, dsn, resident_credential, authorizer,
-                 authority_registry, pipeline=None, executors=None, authority_schema="riverview_authority",
+                 authority_registry, pipeline=None, dashboard_projection=None,
+                 executors=None, authority_schema="riverview_authority",
                  runtime_schema="riverview_dev", connect=None, clock=None):
         if not isinstance(dsn, str) or not dsn:
             raise ValueError("capability registry database connection is required")
@@ -105,6 +106,7 @@ class GraceCapabilityRegistry:
         self.authorizer = authorizer
         self.authority_registry = authority_registry
         self.pipeline = pipeline
+        self.dashboard_projection = dashboard_projection
         self.authority_schema = authority_schema
         self.runtime_schema = runtime_schema
         self.connect = connect or (lambda: psycopg.connect(self.dsn, connect_timeout=2))
@@ -114,6 +116,10 @@ class GraceCapabilityRegistry:
         # implementation_ref has an adapter supplied by the existing runtime.
         self.executors.setdefault("AuthorityRegistry.set_office_state.v1",
             self._set_office_state)
+        if dashboard_projection is not None and callable(
+                getattr(dashboard_projection, "status", None)):
+            self.executors.setdefault("dashboard.projection.v1",
+                self._read_dashboard_projection)
         if pipeline is not None and callable(getattr(pipeline, "submit_objective", None)):
             self.executors.setdefault("grace.execution-pipeline.v1", self._submit_work_order)
 
@@ -360,6 +366,11 @@ class GraceCapabilityRegistry:
             credential, office_id, inputs["state"],
             expected_revision=inputs["expected_revision"])
         return {"office_id": office_id, "revision": revision, "status": "updated"}
+
+    def _read_dashboard_projection(self, *, scope_ref, inputs, credential, grant):
+        if scope_ref != "institution:riverview" or inputs:
+            raise PermissionError("institution_status_scope_required")
+        return self.dashboard_projection.status()
 
     def _submit_work_order(self, *, scope_ref, inputs, credential, grant):
         objective = self.pipeline.submit_objective(

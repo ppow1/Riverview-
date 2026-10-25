@@ -2577,6 +2577,7 @@ def main():
                     dsn=dsn, resident_credential=resident_token,
                     authorizer=ExactGrantAuthorizer(authority_schema),
                     authority_registry=authority_registry, pipeline=objective_pipeline,
+                    dashboard_projection=projection,
                     authority_schema=authority_schema, runtime_schema=schema)
                 internal_tools = GraceInternalTools(capability_registry=capability_registry)
                 router = _build_grace_model_router(autonomic=provider, vision=vision,

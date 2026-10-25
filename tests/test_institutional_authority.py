@@ -85,8 +85,17 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0011_exact_grace_luna_escalation_check",
             "0012_grace_supervisory_authority",
             "0013_grace_capability_registry_read",
+            "0014_resident_status_read_schema",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT input_schema FROM {self.schema}.capability_catalog "
+                        "WHERE capability_id='resident.status.read'")
+            status_schema = cur.fetchone()[0]
+        self.assertEqual(status_schema, {
+            "type": "object", "additionalProperties": False,
+            "required": [], "properties": {},
+        })
         if os.geteuid() != 0:
             with self.assertRaises(AuthorityDenied):
                 self.registry.bootstrap_steward("steward:second")
