@@ -17,7 +17,7 @@
         timestamp: null, assignmentId: null, notificationId: null, deliveryState: null,
         sources: new Set(), severity: null, sequence: null, occurredAt: null,
         recordedAt: null, actorId: null, correlationId: null, causationId: null,
-        payloadSchema: null
+        payloadSchema: null, notificationDetails: null
       });
       return byEvent.get(key);
     };
@@ -53,9 +53,24 @@
       row.assignmentId = text(item.assignment_id) || row.assignmentId;
       row.notificationId = text(item.notification_id) || null;
       row.deliveryState = text(item.delivery_status) || "unknown";
+      row.notificationDetails = notificationDetails(item);
     }
     return [...byEvent.values()].map((row) => ({...row, sources: [...row.sources]}))
       .sort((a, b) => (isoTime(b.timestamp) ?? -Infinity) - (isoTime(a.timestamp) ?? -Infinity));
+  }
+
+  function notificationDetails(item = {}) {
+    const fields = ["notification_id", "source_event_id", "assignment_id", "event_type", "channel", "delivery_status",
+      "source_recorded_at", "created_at", "delivered_at", "acknowledged_at", "decision_request_id",
+      "decision_status", "assignment_version", "recovery_request_id", "recovery_status",
+      "recovery_objective_id", "recovery_objective_revision", "recovery_action", "attempt_limit",
+      "recovery_expires_at", "summary"];
+    const result = Object.fromEntries(fields.map((key) => [key, item[key] ?? null]));
+    const safeSourceFields = ["objective_id", "objective_revision", "runtime_revision", "failure_count",
+      "last_error_code", "blocked_at", "last_failure_at", "decision", "recommended_action", "automatic_recovery"];
+    const source = item.source_details && typeof item.source_details === "object" ? item.source_details : null;
+    result.source_details = source ? Object.fromEntries(safeSourceFields.map((key) => [key, source[key] ?? null])) : null;
+    return result;
   }
 
   function mergeEventPage(current = {}, page = {}, direction = "latest") {
@@ -95,7 +110,7 @@
     });
   }
 
-  const api = Object.freeze({mergeFeeds, mergeEventPage, notificationReceiptAction, filterRows});
+  const api = Object.freeze({mergeFeeds, mergeEventPage, notificationReceiptAction, notificationDetails, filterRows});
   if (typeof window !== "undefined") window.RiverviewV2OperationalInboxAdapter = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();
