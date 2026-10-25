@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run authenticated acceptance against the currently served Riverview V2 release.
 
-Revision: 1.0.2
+Revision: 1.0.3
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Verify Steward account reads and anonymous/viewer denials without changing account data.
 """
 from __future__ import annotations
@@ -13,9 +13,10 @@ from pathlib import Path
 BASE = os.environ.get("RIVERVIEW_ACCEPTANCE_ORIGIN", "https://192.168.1.155")
 REPORT_DIR = Path(os.environ.get("RIVERVIEW_ACCEPTANCE_REPORT_DIR", "/var/lib/riverview-website-acceptance"))
 PERSONAS = {"steward":"steward", "operator":"operator", "engineering":"operator", "viewer":"viewer"}
+ACCOUNT_ADMIN_PRE_FEATURE_COMMIT = "f737eb90537ddbc82d2a166b640b7e9f846bc16c"
 
 
-def browser_acceptance(credentials: dict) -> list[dict]:
+def browser_acceptance(credentials: dict, *, account_admin_required: bool) -> list[dict]:
     port = socket.socket(); port.bind(("127.0.0.1", 0)); driver_port = port.getsockname()[1]; port.close()
     chrome_driver=shutil.which("chromedriver")
     chrome_binary=shutil.which("google-chrome") or shutil.which("google-chrome-stable")
@@ -80,6 +81,13 @@ def browser_acceptance(credentials: dict) -> list[dict]:
         wd("POST",f"/session/{sid}/url",{"url":BASE+"/v2/"})
         refreshed=js("return [...document.scripts].find(x=>x.src.includes('grace-chat.js'))?.src||''")
         results.append({"check":"browser_refresh_uses_versioned_grace_asset","status":"PASS" if refreshed==fresh.get('script') else "FAIL"})
+        account_admin_available=js("return !!document.querySelector('[data-view=account-administration]')")
+        if account_admin_available:
+            results.append({"check":"account_admin_view_available","status":"PASS"})
+        elif account_admin_required:
+            results.append({"check":"account_admin_view_available","status":"FAIL","reason":"required_account_admin_view_missing"})
+        else:
+            results.append({"check":"account_admin_view_available","status":"SKIPPED","reason":"pre_feature_baseline_release"})
         for persona, role in PERSONAS.items():
             stage = "login_" + persona
             email=credentials[persona+"_email"]
@@ -91,17 +99,23 @@ def browser_acceptance(credentials: dict) -> list[dict]:
             who=js("let r=await fetch('/api/v1/auth/session',{cache:'no-store'});if(!r.ok)return {status:r.status};let x=await r.json();return {status:r.status,roles:x.identity?.roles||[]}")
             results.append({"check":f"login_role_{persona}","status":"PASS" if role in who.get("roles",[]) else "FAIL","http":who.get("status"),"expected_role":role})
             # Confirm the live route is serving the V2 shell and its current bundle.
-            for view in ["resources","work","communications","notification-settings","account-administration"]:
+            views=["resources","work","communications","notification-settings"]
+            if account_admin_available: views.append("account-administration")
+            for view in views:
                 stage = "navigation_" + persona + "_" + view
                 shown=js("let b=document.querySelector('[data-view='+JSON.stringify(params[0])+']');if(!b)return false;b.click();return b.getAttribute('aria-current')==='page'",[view])
                 results.append({"check":f"navigation_{persona}_{view}","status":"PASS" if shown else "FAIL"})
             if role == "steward":
-                stage = "account_administration_steward_read"
-                account_read=js("let paths=['/api/v1/account/enrollments?limit=50','/api/v1/account/users?limit=100'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push({status:r.status,body:r.ok?await r.json():null})}await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s}")
-                account_ok=(len(account_read.get("out",[]))==2 and all(x.get("status")==200 for x in account_read.get("out",[]))
-                            and account_read.get("visible") and "loaded" in account_read.get("status", "").lower())
-                results.append({"check":"account_admin_steward_read","status":"PASS" if account_ok else "FAIL",
-                                "http":[x.get("status") for x in account_read.get("out",[])]})
+                if account_admin_available:
+                    stage = "account_administration_steward_read"
+                    account_read=js("let paths=['/api/v1/account/enrollments?limit=50','/api/v1/account/users?limit=100'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push({status:r.status,body:r.ok?await r.json():null})}await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s}")
+                    account_ok=(len(account_read.get("out",[]))==2 and all(x.get("status")==200 for x in account_read.get("out",[]))
+                                and account_read.get("visible") and "loaded" in account_read.get("status", "").lower())
+                    results.append({"check":"account_admin_steward_read","status":"PASS" if account_ok else "FAIL",
+                                    "http":[x.get("status") for x in account_read.get("out",[])]})
+                else:
+                    results.append({"check":"account_admin_steward_read","status":"FAIL" if account_admin_required else "SKIPPED",
+                                    "reason":"account_admin_view_missing" if account_admin_required else "pre_feature_baseline_release"})
                 stage = "notification_settings_read"
                 settings=js("let r=await fetch('/api/v1/notification-settings',{cache:'no-store'});return {status:r.status,body:r.ok?await r.json():null}")
                 results.append({"check":"settings_authenticated_read","status":"PASS" if settings.get("status")==200 else "FAIL","http":settings.get("status")})
@@ -128,13 +142,16 @@ def browser_acceptance(credentials: dict) -> list[dict]:
             elif role in {"operator","viewer"}:
                 denied=js("return fetch('/api/v1/notification-settings',{cache:'no-store'}).then(r=>r.status)")
                 results.append({"check":f"settings_denied_{persona}","status":"PASS" if denied==403 else "FAIL","http":denied})
-                if role == "viewer":
+                if role == "viewer" and account_admin_available:
                     stage = "account_administration_viewer_denied"
                     account_denied=js("let paths=['/api/v1/account/enrollments?limit=1','/api/v1/account/users?limit=1'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push(r.status)}document.querySelector('[data-view=account-administration]')?.click();await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s}")
                     denied_ok=(account_denied.get("out")==[403,403] and account_denied.get("visible")
                                and "does not have the steward role" in account_denied.get("status", "").lower())
                     results.append({"check":"account_admin_viewer_denied","status":"PASS" if denied_ok else "FAIL",
                                     "http":account_denied.get("out")})
+                elif role == "viewer":
+                    results.append({"check":"account_admin_viewer_denied","status":"FAIL" if account_admin_required else "SKIPPED",
+                                    "reason":"account_admin_view_missing" if account_admin_required else "pre_feature_baseline_release"})
             stage = "logout_" + persona
             logout=js("let c=decodeURIComponent(document.cookie.split('; ').find(x=>x.startsWith('rv_account_csrf='))?.split('=').slice(1).join('=')||'');let r=await fetch('/api/v1/auth/session',{method:'DELETE',credentials:'same-origin',headers:{'X-Riverview-CSRF':c}});return r.status")
             after=js("return fetch('/api/v1/auth/session',{cache:'no-store'}).then(r=>r.status)")
@@ -158,6 +175,7 @@ def main() -> int:
     REPORT_DIR.mkdir(parents=True, exist_ok=True, mode=0o750)
     timestamp=datetime.now(timezone.utc).isoformat(timespec="seconds")
     checks=[]
+    live_source_commit=None
     try:
         request=urllib.request.Request(BASE+"/v2/",headers={"Cache-Control":"no-cache"})
         with urllib.request.urlopen(request,context=__import__('ssl')._create_unverified_context(),timeout=10) as res:
@@ -166,6 +184,7 @@ def main() -> int:
         try:
             with urllib.request.urlopen(BASE+"/v2/release.json",context=__import__('ssl')._create_unverified_context(),timeout=5) as response:
                 release=json.loads(response.read(4096))
+            live_source_commit=release.get("source_commit")
             valid=release.get("schema_version")=="rv.website-release.v1" and bool(release.get("release_id")) and bool(release.get("source_commit"))
             checks.append({"check":"live_release_identity","status":"PASS" if valid else "FAIL","release":release.get("release_id"),"source_commit":release.get("source_commit")})
         except urllib.error.HTTPError as exc:
@@ -174,7 +193,7 @@ def main() -> int:
         if mode == "full" and cred_path.is_file():
             data=json.loads(cred_path.read_text())
             creds={**data,**{name+"_email":f"codex-test-{name}@riverview.invalid" for name in PERSONAS}}
-            checks.extend(browser_acceptance(creds))
+            checks.extend(browser_acceptance(creds,account_admin_required=live_source_commit!=ACCOUNT_ADMIN_PRE_FEATURE_COMMIT))
         elif mode == "full":
             checks.append({"check":"authenticated_browser","status":"SKIPPED","reason":"persona credential unavailable"})
     except Exception as exc:
