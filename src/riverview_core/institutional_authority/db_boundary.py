@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.23
+# Revision: 1.0.25
+# Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-M33-PROFILE | Expose the exact migration-0008 function profile for version-specific verification.
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-SEARCHPATH-COMPAT-20261024 | Validate SECURITY DEFINER functions against their exact pinned search-path policy.
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BOUNDARY-ALLOWLIST-20261024 | Preserve the existing narrowly granted Luna and autonomy authority functions during boundary preflight.
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Include the narrow catalog and caller-grant projections in the runtime function allowlist.
@@ -80,6 +81,27 @@ RUNTIME_PERMISSION_FUNCTIONS = {
     "revoke_resident_permission_profile": "p_actor text, p_resident text, p_expected_revision bigint",
     "evaluate_resident_permission": "p_resident text, p_action text, p_resource text, p_access_level text, p_classification text, p_export boolean",
 }
+PROFILE_RUNTIME_PERMISSION_FUNCTIONS = dict(RUNTIME_PERMISSION_FUNCTIONS)
+_PERMISSION_FUNCTIONS_BY_MIGRATION = {
+    "0010_grace_autonomy_experiment_grant": {
+        "issue_grace_autonomy_experiment_grant":
+            "p_actor_id text, p_grant_id text, p_scope_ref text, p_valid_until timestamp with time zone",
+    },
+    "0011_exact_grace_luna_escalation_check": {
+        "active_grace_luna_escalation_grant": "",
+        "active_grace_autonomy_experiment_grant": "p_grant_id text, p_scope_ref text",
+    },
+    "0012_grace_supervisory_authority": {
+        "active_grace_supervisory_luna_grant": "p_grant_id text",
+        "issue_grace_supervisory_luna_grant":
+            "p_actor_id text, p_grant_id text, p_valid_until timestamp with time zone",
+        "revoke_grace_supervisory_luna_grant": "p_actor_id text, p_grant_id text",
+    },
+    "0013_grace_capability_registry_read": {
+        "list_capability_registry": "",
+        "list_capability_grants": "p_credential_sha256 bytea",
+    },
+}
 RUNTIME_PERMISSION_SIGNATURES = {
     "list_resident_permission_profiles": "(text)",
     "save_resident_permission_profile": "(text,text,bigint,jsonb)",
@@ -87,6 +109,7 @@ RUNTIME_PERMISSION_SIGNATURES = {
     "revoke_resident_permission_profile": "(text,text,bigint)",
     "evaluate_resident_permission": "(text,text,text,text,text,boolean)",
 }
+PROFILE_RUNTIME_PERMISSION_SIGNATURES = dict(RUNTIME_PERMISSION_SIGNATURES)
 RUNTIME_PERMISSION_FUNCTIONS.update({
     "active_grace_luna_escalation_grant": "",
     "active_grace_autonomy_experiment_grant": "p_grant_id text, p_scope_ref text",
@@ -130,6 +153,24 @@ def _identifier(value, label):
     return value
 
 
+def _permission_functions_for_migration_profile(cur, schema):
+    """Return the exact permission-function set authorized by the applied ledger."""
+    cur.execute(sql.SQL("SELECT version FROM {}.schema_migrations ORDER BY version").format(
+        sql.Identifier(schema)))
+    applied = {row["version"] for row in cur.fetchall()}
+    if "0008_resident_permission_profiles" not in applied:
+        raise BoundaryPreflightError("resident permission profile migration is not recorded")
+    staged_versions = tuple(_PERMISSION_FUNCTIONS_BY_MIGRATION)
+    for index, version in enumerate(staged_versions):
+        if version in applied and any(prior not in applied for prior in staged_versions[:index]):
+            raise BoundaryPreflightError("authority permission migration ledger has a gap")
+    functions = dict(PROFILE_RUNTIME_PERMISSION_FUNCTIONS)
+    for version, additions in _PERMISSION_FUNCTIONS_BY_MIGRATION.items():
+        if version in applied:
+            functions.update(additions)
+    return functions
+
+
 def provision_authority_boundary(connection, *, schema, runtime_role="riverview_core",
                                  manager_role="riverview_authority_manager",
                                  owner_role="riverview_authority_owner", apply=False):
@@ -159,6 +200,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
 
     with connection.transaction():
         with connection.cursor(row_factory=dict_row) as cur:
+            runtime_permission_functions_map = _permission_functions_for_migration_profile(cur, schema)
             cur.execute("""SELECT current_user, r.rolsuper, r.rolcreaterole
                            FROM pg_roles r WHERE r.rolname=current_user""")
             administrator = cur.fetchone()
@@ -248,7 +290,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 (AUTHORIZATION_FUNCTION, expected_auth_arguments),
                 (PRINCIPAL_AUTHORIZATION_FUNCTION, PRINCIPAL_AUTHORIZATION_ARGUMENTS),
                 *RUNTIME_OFFICE_FUNCTIONS.items(),
-                *RUNTIME_PERMISSION_FUNCTIONS.items(),
+                *runtime_permission_functions_map.items(),
             }
             observed_functions = {(row["proname"], row["arguments"]) for row in function_rows}
             if observed_functions != expected_functions:
@@ -328,7 +370,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     raise BoundaryPreflightError("resident office function security configuration is unsafe")
                 runtime_office_functions.append(function_row)
             runtime_permission_functions = []
-            for function_name, arguments in RUNTIME_PERMISSION_FUNCTIONS.items():
+            for function_name, arguments in runtime_permission_functions_map.items():
                 cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
                                       p.prosecdef AS security_definer,p.proconfig,
                                       has_function_privilege(%s::name,p.oid,'EXECUTE') AS runtime_execute,
@@ -459,7 +501,8 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
                     sql.Identifier(runtime_role)))
 
-            for function_name, signature in RUNTIME_PERMISSION_SIGNATURES.items():
+            for function_name in runtime_permission_functions_map:
+                signature = RUNTIME_PERMISSION_SIGNATURES[function_name]
                 cur.execute(sql.SQL("ALTER FUNCTION {}.{}{} OWNER TO {}").format(
                     sql.Identifier(schema), sql.Identifier(function_name), sql.SQL(signature),
                     sql.Identifier(owner_role)))
@@ -527,7 +570,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     raise BoundaryPreflightError("resident office function post-apply verification failed")
                 runtime_office_functions.append(function_row)
             runtime_permission_functions = []
-            for function_name, arguments in RUNTIME_PERMISSION_FUNCTIONS.items():
+            for function_name, arguments in runtime_permission_functions_map.items():
                 cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
                                       p.prosecdef AS security_definer,p.proconfig,
                                       has_function_privilege(%s::name,p.oid,'EXECUTE') AS runtime_execute,

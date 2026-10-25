@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.38
+# Revision: 1.1.39
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Consume one exact S4 retry exception atomically with same-assignment rework and preserve normal three-attempt bound.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Read back and validate exact consumed CME exchange and one-use authorization evidence for same-assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTH-UUID-20261025 | Serialize the registered authorization UUID as text in append-only controller evidence.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Pin retry-hold release identity at pipeline construction so an old process cannot adopt a newly switched symlink.
@@ -789,10 +790,19 @@ class GraceExecutionPipeline:
                 if (not objective or objective["assignment_id"] != assignment_id or
                         not assignment or assignment["objective_ref"] != objective_id):
                     raise ObjectiveStateError("supervisory event correlation changed")
+                event_payload = {"assignment_id": assignment_id,
+                    "request_id": request_id, "correlation_id": correlation_id, **payload}
+                cur.execute("SELECT event_type,payload FROM grace_objective_events "
+                    "WHERE objective_id=%s AND idempotency_key=%s",
+                    (objective_id, idempotency_key))
+                existing = cur.fetchone()
+                if existing:
+                    if (existing["event_type"] != event_type or
+                            dict(existing["payload"]) != event_payload):
+                        raise ObjectiveStateError("supervisory event idempotency conflict")
+                    return True
                 self._event(cur, objective_id, event_type, idempotency_key,
-                    "office:grace", {"assignment_id": assignment_id,
-                        "request_id": request_id, "correlation_id": correlation_id,
-                        **payload})
+                    "office:grace", event_payload)
         return True
 
     def supervisory_rejected_assignment_context(self, objective_id, assignment_id,
@@ -850,10 +860,151 @@ class GraceExecutionPipeline:
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT response_sha256,request_payload,delivery_state,
-                    consumption_owner FROM external_reasoning_exchanges
+                    consumption_owner,consumption_key,consumption_result,
+                    response_payload,response_provenance,provider_id
+                FROM external_reasoning_exchanges
                 WHERE request_id=%s AND correlation_id=%s""", (request_id, correlation_id))
             row = cur.fetchone()
         return dict(row) if row else None
+
+    def pending_consumed_performance_evaluation_replays(self, *, limit=10):
+        """List consumed evaluations blocked before durable grade/feedback recording."""
+        if type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError("performance evaluation replay limit is invalid")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT DISTINCT ON (x.request_id)
+                    x.request_id::text AS request_id,
+                    x.correlation_id::text AS correlation_id,e.objective_id,
+                    e.payload->>'assignment_id' AS assignment_id
+                FROM grace_objective_events e
+                JOIN external_reasoning_exchanges x
+                  ON x.request_id::text=e.payload->>'request_id'
+                 AND x.correlation_id::text=e.payload->>'correlation_id'
+                WHERE e.event_type='resident.performance.evaluation_blocked'
+                  AND x.delivery_state='grace_consumed' AND x.provider_id='gpt-6-luna'
+                  AND x.request_payload->>'request_type'='performance_evaluation'
+                  AND (NOT EXISTS (SELECT 1 FROM grace_objective_events recorded
+                    WHERE recorded.objective_id=e.objective_id
+                      AND recorded.event_type='resident.performance.evaluation_recorded'
+                      AND recorded.payload->>'request_id'=x.request_id::text)
+                    OR NOT EXISTS (SELECT 1 FROM grace_objective_events feedback
+                    WHERE feedback.objective_id=e.objective_id
+                      AND feedback.event_type='resident.performance.feedback_consumed'
+                      AND feedback.payload->>'request_id'=x.request_id::text))
+                ORDER BY x.request_id,e.sequence DESC LIMIT %s""", (limit,))
+            return cur.fetchall()
+
+    def performance_evaluation_runtime_evidence_for_assignment(self, objective_id,
+                                                                assignment_id):
+        """Expose validated durable Luna grading facts to the exact S4 Engineering task."""
+        if (not isinstance(objective_id, str) or not isinstance(assignment_id, str) or
+                not objective_id or not assignment_id):
+            raise ValueError("performance evaluation evidence scope is invalid")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT e.payload FROM grace_objective_events e
+                WHERE e.objective_id=%s
+                  AND e.event_type='resident.performance.feedback_consumed'
+                  AND e.payload->>'assignment_id'=%s
+                ORDER BY e.sequence DESC LIMIT 1""", (objective_id, assignment_id))
+            consumed_event = cur.fetchone()
+            if not consumed_event:
+                return None
+            event_payload = dict(consumed_event["payload"])
+            request_id, correlation_id = (event_payload.get("request_id"),
+                event_payload.get("correlation_id"))
+            cur.execute("""SELECT x.objective_id,x.provider_id,x.delivery_state,
+                    x.consumption_owner,x.consumption_key,x.consumption_result,
+                    x.response_sha256,x.request_payload,x.response_provenance
+                FROM external_reasoning_exchanges x
+                WHERE x.request_id=%s AND x.correlation_id=%s""",
+                (request_id, correlation_id))
+            exchange = cur.fetchone()
+            cur.execute("""SELECT event_type,event_id::text AS event_id,payload
+                FROM grace_objective_events
+                WHERE objective_id=%s AND event_type IN
+                  ('resident.performance.evaluation_recorded',
+                   'resident.performance.feedback_consumed')
+                  AND payload->>'request_id'=%s AND payload->>'correlation_id'=%s
+                ORDER BY sequence""", (objective_id, request_id, correlation_id))
+            lifecycle_events = cur.fetchall()
+            cur.execute("""SELECT event_type,correlation_id::text AS correlation_id,payload
+                FROM external_reasoning_exchange_events
+                WHERE request_id=%s AND event_type=ANY(%s)
+                ORDER BY sequence""", (request_id, ["provider_attempt_started",
+                    "provider_attempt_settled", "response_received", "grace_consumed"]))
+            exchange_events = cur.fetchall()
+        if not exchange:
+            raise ObjectiveStateError("performance evaluation exchange is unavailable")
+        request = exchange["request_payload"] or {}
+        original = request.get("original_request") if isinstance(request, Mapping) else None
+        source_assignment = original.get("assignment") if isinstance(original, Mapping) else None
+        provenance = exchange["response_provenance"] or {}
+        usage = provenance.get("usage") if isinstance(provenance, Mapping) else None
+        result = exchange["consumption_result"] or {}
+        if (exchange["objective_id"] != objective_id or
+                exchange["provider_id"] != "gpt-6-luna" or
+                exchange["delivery_state"] != "grace_consumed" or
+                exchange["consumption_owner"] is not None or
+                exchange["consumption_key"] !=
+                    f"external-reasoning-consumed:{request_id}" or
+                result.get("advisory_sha256") != exchange["response_sha256"] or
+                request.get("request_type") != "performance_evaluation" or
+                not isinstance(original, Mapping) or
+                original.get("assignment_id") != objective_id or
+                original.get("trigger") != "performance_evaluation" or
+                not isinstance(source_assignment, Mapping) or
+                source_assignment.get("assignment_id") != assignment_id or
+                event_payload.get("response_sha256") != exchange["response_sha256"]):
+            raise ObjectiveStateError("performance evaluation evidence correlation is invalid")
+        by_type = {}
+        for event in lifecycle_events:
+            by_type.setdefault(event["event_type"], []).append(event)
+        if (len(by_type.get("resident.performance.evaluation_recorded", [])) != 1 or
+                len(by_type.get("resident.performance.feedback_consumed", [])) != 1):
+            raise ObjectiveStateError("performance evaluation lifecycle evidence is incomplete")
+        recorded = dict(by_type["resident.performance.evaluation_recorded"][0]["payload"])
+        feedback = dict(by_type["resident.performance.feedback_consumed"][0]["payload"])
+        if (recorded != feedback or recorded.get("request_id") != request_id or
+                recorded.get("correlation_id") != correlation_id or
+                recorded.get("response_sha256") != exchange["response_sha256"] or
+                type(recorded.get("grade")) is not int or
+                not isinstance(usage, Mapping) or
+                not isinstance(provenance.get("response_id"), str)):
+            raise ObjectiveStateError("performance evaluation record does not match its exchange")
+        attempt_events = {}
+        for event in exchange_events:
+            attempt_events.setdefault(event["event_type"], []).append(event)
+        if (any(len(attempt_events.get(kind, [])) != 1 for kind in
+                ("provider_attempt_started", "provider_attempt_settled",
+                 "response_received", "grace_consumed")) or
+                any(event["correlation_id"] != correlation_id
+                    for rows in attempt_events.values() for event in rows) or
+                attempt_events["provider_attempt_settled"][0]["payload"].get("status") !=
+                    "settled" or
+                attempt_events["response_received"][0]["payload"].get("response_sha256") !=
+                    exchange["response_sha256"] or
+                usage.get("cost_usd") is None or
+                type(usage.get("input_tokens")) is not int or
+                type(usage.get("output_tokens")) is not int):
+            raise ObjectiveStateError("performance evaluation provider attempt evidence is incomplete")
+        safe_usage = {key: usage[key] for key in
+            ("input_tokens", "output_tokens", "reasoning_tokens", "cached_input_tokens", "cost_usd")
+            if key in usage}
+        return {"schema": "rv.grace.performance-evaluation-runtime-evidence.v1",
+            "read_only": True, "objective_id": objective_id,
+            "assignment_id": assignment_id,
+            "exchange": {"request_id": request_id, "correlation_id": correlation_id,
+                "provider_id": "gpt-6-luna", "response_id": provenance["response_id"],
+                "response_sha256": exchange["response_sha256"],
+                "delivery_state": "grace_consumed", "usage": safe_usage},
+            "evaluation": {"event_id": str(by_type[
+                    "resident.performance.evaluation_recorded"][0]["event_id"]),
+                "grade": recorded["grade"], "rubric": recorded["rubric"],
+                "feedback_consumed_event_id": str(by_type[
+                    "resident.performance.feedback_consumed"][0]["event_id"]),
+                "feedback_consumed": True, "authority_granted": False}}
 
     def cme_recovery_runtime_evidence_for_assignment(self, objective_id, assignment_id):
         """Expose exact consumed CME exchange facts to a same-assignment artifact rework."""
@@ -2234,7 +2385,9 @@ class GraceExecutionPipeline:
                 event["payload"].get("verification_id") == verification_id and
                 event["payload"].get("runtime_release_id") == self.runtime_release_id()
                 for event in events)
-            if same_release_hold:
+            retry_exception = self._available_s4_rework_exception(
+                events, objective_id, assignment_id, verification_id)
+            if same_release_hold and not retry_exception:
                 continue
             matching_decisions = [event for event in events if event["event_type"] in {
                 "engineering.rework_decided", "engineering.rejection_reviewed"} and
@@ -2279,6 +2432,8 @@ class GraceExecutionPipeline:
                 "step_acceptance_criteria": list(step["acceptance_criteria"]),
                 "submitter_id": row["submitter_id"], "origin": origin,
                 "completion": completion, "review_generation": review_generation}
+            if retry_exception:
+                item["s4_retry_exception"] = retry_exception
             if prior_authorization_stop:
                 prior_generation = last_receipt["payload"].get("review_generation", 1)
                 prior_key = (f"grace-rework-decision:{verification_id}" if prior_generation == 1 else
@@ -2313,6 +2468,184 @@ class GraceExecutionPipeline:
             if len(pending) >= limit:
                 break
         return pending
+
+    @staticmethod
+    def _available_s4_rework_exception(events, objective_id, assignment_id,
+                                        verification_id):
+        """Return the exact unexpired, unconsumed S4 exception for its rejection."""
+        from .grace_supervisory_authorization import (
+            S4_REWORK_ASSIGNMENT_ID, S4_REWORK_OBJECTIVE_ID,
+            S4_REWORK_OBJECTIVE_REVISION, S4_REWORK_VERIFICATION_ID,
+        )
+        if (objective_id != S4_REWORK_OBJECTIVE_ID or
+                assignment_id != S4_REWORK_ASSIGNMENT_ID or
+                verification_id != S4_REWORK_VERIFICATION_ID):
+            return None
+        grant = next((event for event in events if
+            event["event_type"] == "engineering.rework_retry_authorized" and
+            event.get("idempotency_key") ==
+                "grace-s4-rework-authorized:" + verification_id), None)
+        if not grant:
+            return None
+        payload = grant["payload"]
+        try:
+            expires_at = datetime.fromisoformat(payload["expires_at"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        consumed = any(event["event_type"] == "engineering.rework_retry_consumed" and
+            event["payload"].get("grant_event_id") == str(grant["event_id"])
+            for event in events)
+        expected = {"objective_id": objective_id,
+            "objective_revision": S4_REWORK_OBJECTIVE_REVISION,
+            "assignment_id": assignment_id, "step_id": "s4",
+            "verification_id": verification_id, "additional_attempts": 1,
+            "authorized_by": "steward:camrui"}
+        if (any(payload.get(key) != value for key, value in expected.items()) or
+                payload.get("schema") != "rv.grace.rework-retry-exception.v1" or
+                grant.get("actor_id") != "steward:camrui" or
+                expires_at <= datetime.now(timezone.utc) or consumed):
+            return None
+        return {"event_id": str(grant["event_id"]), **expected,
+            "expires_at": expires_at.isoformat()}
+
+    def consume_s4_rework_exception(self, context, *, credential):
+        """Atomically consume the approved exception and queue one bounded S4 correction."""
+        from .grace_supervisory_authorization import (
+            S4_REWORK_ASSIGNMENT_ID, S4_REWORK_OBJECTIVE_ID,
+            S4_REWORK_OBJECTIVE_REVISION, S4_REWORK_ROOT_ASSIGNMENT_ID,
+            S4_REWORK_VERIFICATION_ID,
+        )
+        if (not isinstance(context, dict) or
+                context.get("objective_id") != S4_REWORK_OBJECTIVE_ID or
+                context.get("assignment_id") != S4_REWORK_ASSIGNMENT_ID or
+                context.get("completion", {}).get("verification_id") !=
+                    S4_REWORK_VERIFICATION_ID or
+                context.get("step_id") != "s4"):
+            raise ObjectiveStateError("S4 retry exception scope mismatch")
+        objective_id, assignment_id = context["objective_id"], context["assignment_id"]
+        verification_id = S4_REWORK_VERIFICATION_ID
+        from datetime import datetime, timezone
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("""SELECT o.status,o.revision,o.assignment_id AS objective_assignment_id,
+                        a.id AS assignment_id,a.state AS assignment_state,a.objective_ref
+                    FROM grace_objectives o JOIN assignments a ON a.id=%s
+                        AND a.objective_ref=o.objective_id
+                    WHERE o.objective_id=%s FOR UPDATE OF o,a""",
+                    (assignment_id, objective_id))
+                state = cur.fetchone()
+                cur.execute("""SELECT event_id::text AS event_id,payload,actor_id
+                    FROM grace_objective_events WHERE objective_id=%s
+                      AND idempotency_key=%s FOR UPDATE""",
+                    (objective_id, "grace-s4-rework-authorized:" + verification_id))
+                grant = cur.fetchone()
+                if not state or not grant:
+                    raise ObjectiveStateError("S4 retry authorization is unavailable")
+                grant_payload = dict(grant["payload"])
+                if (state["status"] != "WORK_ORDER_CREATED" or
+                        state["revision"] != S4_REWORK_OBJECTIVE_REVISION or
+                        state["objective_assignment_id"] != S4_REWORK_ROOT_ASSIGNMENT_ID or
+                        state["assignment_id"] != assignment_id or
+                        state["objective_ref"] != objective_id or
+                        state["assignment_state"] != "rework_required" or
+                        grant["actor_id"] != "steward:camrui" or
+                        grant_payload.get("schema") !=
+                            "rv.grace.rework-retry-exception.v1" or
+                        grant_payload.get("objective_id") != objective_id or
+                        grant_payload.get("objective_revision") !=
+                            S4_REWORK_OBJECTIVE_REVISION or
+                        grant_payload.get("objective_assignment_id") !=
+                            S4_REWORK_ROOT_ASSIGNMENT_ID or
+                        grant_payload.get("assignment_id") != assignment_id or
+                        grant_payload.get("step_id") != "s4" or
+                        grant_payload.get("verification_id") != verification_id or
+                        grant_payload.get("authorized_by") != "steward:camrui" or
+                        grant_payload.get("prior_rework_attempts") != 3 or
+                        grant_payload.get("additional_attempts") != 1 or
+                        grant_payload.get("independent_verification_required") is not True or
+                        datetime.fromisoformat(grant_payload.get("expires_at", "")) <=
+                            datetime.now(timezone.utc)):
+                    raise ObjectiveStateError("S4 retry authorization no longer matches current work")
+                cur.execute("""SELECT verification_id::text AS verification_id,decision
+                    FROM verification_records WHERE assignment_id=%s
+                    ORDER BY recorded_at DESC,verification_id DESC LIMIT 1 FOR UPDATE""",
+                    (assignment_id,))
+                latest = cur.fetchone()
+                cur.execute("""SELECT count(*) AS attempts FROM grace_objective_events
+                    WHERE objective_id=%s AND event_type='engineering.rework_decided'
+                      AND payload->>'assignment_id'=%s
+                      AND payload->>'decision'='REWORK_PROPOSED'""",
+                    (objective_id, assignment_id))
+                attempts = cur.fetchone()["attempts"]
+                if (not latest or latest["verification_id"] != verification_id or
+                        latest["decision"] != "REJECTED" or attempts != 3):
+                    raise ObjectiveStateError("S4 rejection or prior-attempt count changed")
+                cur.execute("""SELECT step_id,status FROM grace_objective_steps
+                    WHERE objective_id=%s AND assignment_id=%s FOR UPDATE""",
+                    (objective_id, assignment_id))
+                step = cur.fetchone()
+                if not step or step["step_id"] != "s4" or step["status"] != "assigned":
+                    raise ObjectiveStateError("current S4 persisted step is required")
+                cur.execute("""SELECT event_id FROM grace_objective_events
+                    WHERE objective_id=%s AND event_type='engineering.rework_retry_consumed'
+                      AND payload->>'grant_event_id'=%s FOR UPDATE""",
+                    (objective_id, grant["event_id"]))
+                if cur.fetchone():
+                    return {"status": "already_consumed", "assignment_id": assignment_id}
+                cur.execute("SELECT authority_ref FROM assignments WHERE id=%s",
+                    (assignment_id,))
+                assignment_authority = cur.fetchone()
+                if assignment_authority is None:
+                    raise ObjectiveStateError("S4 assignment authorization scope disappeared")
+                principal = self.assignment_intake.authorizer.require(
+                    cur, credential, self.assignment_intake.ACTION,
+                    assignment_authority["authority_ref"])
+                instruction = ("Replace the inaccurate S4 blocked claim using only the supplied "
+                    "read-only durable Luna evaluation evidence. State the existing request and "
+                    "response IDs, response digest, token usage, actual cost, grade, and durable "
+                    "evaluation/feedback event IDs. State that evaluation feedback is advisory "
+                    "and grants no execution or approval authority. Preserve historical outcomes.")
+                criteria = list(context["step_acceptance_criteria"])
+                if not criteria or any(not isinstance(value, str) for value in criteria):
+                    raise ObjectiveStateError("persisted S4 acceptance criteria are unavailable")
+                decision_key = f"grace-rework-decision:{verification_id}:review:6"
+                payload = {"verification_id": verification_id,
+                    "assignment_id": assignment_id,
+                    "attempt_id": str(context["completion"].get("attempt_id", "")),
+                    "decision": "REWORK_PROPOSED",
+                    "rationale": "Steward authorized one exact S4 evidence correction after the retry limit; durable Luna evidence is now available to Engineering.",
+                    "correction_instruction": instruction,
+                    "criteria_to_address": criteria,
+                    "acceptance_criteria_sha256": hashlib.sha256(
+                        _json(criteria).encode("utf-8")).hexdigest(),
+                    "authorization_principal_id": principal["principal_id"],
+                    "retry_exception_event_id": str(grant["event_id"]),
+                    "rework_attempt_count_before": attempts,
+                    "review_generation": 6}
+                cur.execute("UPDATE assignment_leases SET expires_at=clock_timestamp() "
+                    "WHERE assignment_id=%s AND expires_at>clock_timestamp()",
+                    (assignment_id,))
+                self.ledger.transition(assignment_id, "ready", "s4",
+                    f"grace-s4-rework-ready:{verification_id}", actor_id="office:grace")
+                self._event(cur, objective_id, "engineering.rework_retry_consumed",
+                    f"grace-s4-rework-consumed:{grant['event_id']}", "office:grace",
+                    {"grant_event_id": str(grant["event_id"]),
+                     "assignment_id": assignment_id, "verification_id": verification_id,
+                     "attempt_number": 4, "prior_attempts_preserved": attempts})
+                self._event(cur, objective_id, "engineering.rework_decided",
+                    decision_key, "office:grace", payload)
+                self._event(cur, objective_id, "engineering.rework_review_recorded",
+                    f"grace-rework-review-recorded:{verification_id}:review:6",
+                    "office:grace", {"assignment_id": assignment_id,
+                        "verification_id": verification_id, "decision": "REWORK_PROPOSED",
+                        "review_generation": 6,
+                        "authorization_event_id": str(grant["event_id"]),
+                        "request_id": None})
+                return {"status": "authorized_rework_queued",
+                    "assignment_id": assignment_id, "verification_id": verification_id,
+                    "rework_attempt_count_before": attempts,
+                    "authorization_event_id": str(grant["event_id"])}
 
     def rework_review_authority_evidence(self, context, *, credential):
         """Return read-only current work-order, assignment, and supervisory grant facts."""

@@ -1,3 +1,4 @@
+-- File Revision: 1.0.0
 -- Durable envelope for the single authenticated Grace/Luna experiment approval.
 CREATE TABLE grace_experiment_authorizations (
     authorization_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

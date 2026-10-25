@@ -1,7 +1,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/grace_supervisory_authorization.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.3
+# Revision: 1.0.5
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Require the exact replayed S4 evaluation and durable feedback consumption before issuing the one-use attempt.
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Add one expiring exact-verification S4 rework exception using append-only single-use objective events.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Require all authorization tuple fields to match on idempotent replay.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Validate the approved parent assignment alongside the current S3 child pointer.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Require exact revision and root-assignment scope in retry availability checks.
@@ -39,6 +41,16 @@ S3_RETRY_EVENT_ASSIGNMENT_ID = (
     S3_RETRY_OBJECTIVE_ASSIGNMENT_ID + ":step:41242b9fae56fad4")
 S3_RETRY_GRANT_KEY = "grace-supervision:cme-retry-authorized:" + S3_RETRY_STALL_EVENT_ID
 S3_RETRY_GRANT_LIFETIME = timedelta(minutes=30)
+
+S4_REWORK_OBJECTIVE_ID = S3_RETRY_OBJECTIVE_ID
+S4_REWORK_OBJECTIVE_REVISION = 8
+S4_REWORK_ROOT_ASSIGNMENT_ID = S3_RETRY_OBJECTIVE_ASSIGNMENT_ID
+S4_REWORK_ASSIGNMENT_ID = (
+    S4_REWORK_ROOT_ASSIGNMENT_ID + ":step:5b840157e7e86aef")
+S4_REWORK_VERIFICATION_ID = "54d1fb2f-411e-4771-a137-785d2b620de7"
+S4_REWORK_EVALUATION_REQUEST_ID = "98ca464e-23b8-5511-8ca0-cd8c528cdffa"
+S4_REWORK_EXCEPTION_IDEMPOTENCY_KEY = (
+    "grace-s4-rework-authorized:" + S4_REWORK_VERIFICATION_ID)
 
 
 class GraceSupervisoryAuthorization:
@@ -156,6 +168,119 @@ class GraceSupervisoryAuthorization:
                 "stall_event_id": stall_event_id, "progress_sequence": progress_sequence,
                 "max_attempts": 1, "per_request_limit_usd": format(PER_REQUEST_LIMIT, ".8f"),
                 "expires_at": expires_at.isoformat()}
+
+    def authorize_one_s4_rework_attempt(self, *, actor_id, objective_id,
+            objective_revision, objective_assignment_id, assignment_id,
+            verification_id, assignment_credential, explicit_steward_confirmation):
+        """Record one exact S4 rework authorization without changing normal retry limits."""
+        if (actor_id != "steward:camrui" or explicit_steward_confirmation is not True or
+                objective_id != S4_REWORK_OBJECTIVE_ID or
+                objective_revision != S4_REWORK_OBJECTIVE_REVISION or
+                objective_assignment_id != S4_REWORK_ROOT_ASSIGNMENT_ID or
+                assignment_id != S4_REWORK_ASSIGNMENT_ID or
+                verification_id != S4_REWORK_VERIFICATION_ID):
+            raise PermissionError("s4_rework_exception_scope_mismatch")
+        evidence_reader = getattr(self.pipeline,
+            "performance_evaluation_runtime_evidence_for_assignment", None)
+        evidence = evidence_reader(objective_id, assignment_id) if callable(evidence_reader) else None
+        if (not isinstance(evidence, dict) or
+                evidence.get("schema") !=
+                    "rv.grace.performance-evaluation-runtime-evidence.v1" or
+                evidence.get("objective_id") != objective_id or
+                evidence.get("assignment_id") != assignment_id or
+                not isinstance(evidence.get("exchange"), dict) or
+                evidence["exchange"].get("request_id") !=
+                    S4_REWORK_EVALUATION_REQUEST_ID or
+                evidence["exchange"].get("delivery_state") != "grace_consumed" or
+                not isinstance(evidence.get("evaluation"), dict) or
+                evidence["evaluation"].get("feedback_consumed") is not True or
+                evidence["evaluation"].get("authority_granted") is not False):
+            raise PermissionError("s4_durable_performance_evaluation_required")
+        with self.ledger.db.transaction(), self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT o.status,o.revision,o.assignment_id AS objective_assignment_id,
+                    a.id AS assignment_id,a.state AS assignment_state,a.objective_ref,
+                    s.step_id,s.status AS step_status
+                FROM grace_objectives o JOIN assignments a ON a.id=%s
+                    AND a.objective_ref=o.objective_id
+                JOIN grace_objective_steps s ON s.objective_id=o.objective_id
+                    AND s.assignment_id=a.id
+                WHERE o.objective_id=%s AND s.step_id='s4'
+                FOR UPDATE OF o,a,s""", (assignment_id, objective_id))
+            state = cur.fetchone()
+            if (state is None or state["revision"] != objective_revision or
+                    state["objective_assignment_id"] != objective_assignment_id or
+                    state["assignment_id"] != assignment_id or
+                    state["objective_ref"] != objective_id):
+                raise PermissionError("active_exact_assignment_create_grant_required")
+            cur.execute("SELECT authority_ref FROM assignments WHERE id=%s",
+                (assignment_id,))
+            assignment_scope = cur.fetchone()
+            if (assignment_scope is None or not self.pipeline.assignment_intake.authorizer.require(
+                    cur, assignment_credential, self.pipeline.assignment_intake.ACTION,
+                    assignment_scope["authority_ref"])):
+                raise PermissionError("active_exact_assignment_create_grant_required")
+            cur.execute("""SELECT verification_id::text AS verification_id,decision
+                FROM verification_records WHERE assignment_id=%s
+                ORDER BY recorded_at DESC,verification_id DESC LIMIT 1""",
+                (assignment_id,))
+            latest = cur.fetchone()
+            cur.execute("""SELECT count(*) AS attempts FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='engineering.rework_decided'
+                  AND payload->>'assignment_id'=%s
+                  AND payload->>'decision'='REWORK_PROPOSED'""",
+                (objective_id, assignment_id))
+            attempt_count = cur.fetchone()["attempts"]
+            cur.execute("""SELECT 1 FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='engineering.rework_escalation_pending'
+                  AND payload->>'assignment_id'=%s AND payload->>'verification_id'=%s
+                  AND payload->>'reason_code'='retry_limit_exhausted' LIMIT 1""",
+                (objective_id, assignment_id, verification_id))
+            exhausted_hold = cur.fetchone() is not None
+            if (not state or state["status"] != "WORK_ORDER_CREATED" or
+                    state["revision"] != objective_revision or
+                    state["assignment_id"] != objective_assignment_id or
+                    state["objective_ref"] != objective_id or
+                    state["assignment_state"] != "rework_required" or
+                    state["step_status"] != "assigned" or not latest or
+                    latest["verification_id"] != verification_id or
+                    latest["decision"] != "REJECTED" or
+                    attempt_count != 3 or not exhausted_hold):
+                raise PermissionError("current_exhausted_s4_rejection_does_not_match_approval")
+            expires_at = datetime.now(timezone.utc) + S3_RETRY_GRANT_LIFETIME
+            payload = {"schema": "rv.grace.rework-retry-exception.v1",
+                "authorized_by": actor_id,
+                "approval_reference": "Steward-directed Codex instruction",
+                "objective_id": objective_id,
+                "objective_revision": objective_revision,
+                "objective_assignment_id": objective_assignment_id,
+                "assignment_id": assignment_id, "step_id": "s4",
+                "verification_id": verification_id,
+                "prior_rework_attempts": attempt_count,
+                "additional_attempts": 1,
+                "expires_at": expires_at.isoformat(),
+                "independent_verification_required": True}
+            cur.execute("""INSERT INTO grace_objective_events
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'engineering.rework_retry_authorized',%s,%s,%s::jsonb)
+                ON CONFLICT (idempotency_key) DO NOTHING RETURNING event_id""",
+                (objective_id, S4_REWORK_EXCEPTION_IDEMPOTENCY_KEY, actor_id,
+                 json.dumps(payload, sort_keys=True)))
+            event = cur.fetchone()
+            if event is None:
+                cur.execute("""SELECT event_id::text AS event_id,payload
+                    FROM grace_objective_events WHERE objective_id=%s
+                      AND idempotency_key=%s""",
+                    (objective_id, S4_REWORK_EXCEPTION_IDEMPOTENCY_KEY))
+                existing = cur.fetchone()
+                if not existing or dict(existing["payload"]) != payload:
+                    raise PermissionError("s4_rework_exception_idempotency_conflict")
+                return {"status": "already_recorded", "event_id": existing["event_id"],
+                    "expires_at": payload["expires_at"]}
+            return {"status": "authorized", "event_id": str(event["event_id"]),
+                "objective_id": objective_id, "assignment_id": assignment_id,
+                "verification_id": verification_id, "prior_rework_attempts": 3,
+                "additional_attempts": 1, "expires_at": expires_at.isoformat()}
 
     def cme_retry_exception_available(self, *, authorization_id, objective_id,
             objective_revision, assignment_id, stall_event_id, progress_sequence):

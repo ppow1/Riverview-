@@ -1,3 +1,4 @@
+// File Revision: 1.0.0
 /* Riverview V2 notification preferences: same-origin, authenticated API only. */
 (() => {
   "use strict";

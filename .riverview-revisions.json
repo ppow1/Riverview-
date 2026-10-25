@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.24",
-      "sha256": "fd17dfc24a9884af12acff2a5c68b6472e97ff9f5f4cce198449855ad9d61463",
-      "size_bytes": 1296735
+      "revision": "1.0.25",
+      "sha256": "dac1f2d9366f62fa5425d87583a216e53af10a1fab3de249c1f16ada31a65178",
+      "size_bytes": 1564023
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.323"
+      "revision": "1.1.325"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -7847,9 +7847,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.35",
-      "sha256": "55b6636db7187f8c9e6c7dce5f6af8e78315847b28eb62fee5e2951042a281ce",
-      "size_bytes": 775635
+      "revision": "1.1.36",
+      "sha256": "4d7510ca5e76f81e5f9141ebd006d9af0e4a9bcb0d7c06b713460dbf7e053cf3",
+      "size_bytes": 779182
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7859,9 +7859,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.72",
-      "sha256": "2d760b51d259ec75a578bc9d43e4d72b41c361a72a6d29302ea4407c0e368571",
-      "size_bytes": 100796
+      "revision": "1.0.73",
+      "sha256": "d04ed738c0978e0222a0383b6edfbc22fcf4ee2dbb1bab40037e727936069e63",
+      "size_bytes": 103945
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -8331,6 +8331,12 @@
       "sha256": "8a637d18c55eae4ddb4defe713e1ff04bcdbeba9ae1ecbb7cd1923a7062a1824",
       "size_bytes": 2411
     },
+    "src/riverview_core/cme/migrations/0006_grace_objective_blocked_attention.sql": {
+      "path": "src/riverview_core/cme/migrations/0006_grace_objective_blocked_attention.sql",
+      "revision": "1.0.0",
+      "sha256": "c1fd612f67662ea501c26991e6009f61911e5f3379bef4a6e2c3b259e731bb62",
+      "size_bytes": 996
+    },
     "src/riverview_core/cme/monitor.py": {
       "path": "src/riverview_core/cme/monitor.py",
       "revision": "1.0.3",
@@ -8558,6 +8564,12 @@
       "revision": "1.0.1",
       "sha256": "446ac3a7af152e4ae18f6a24970abc9153134fdecf9c7e2827c539eb81299d14",
       "size_bytes": 4528
+    },
+    "src/riverview_core/notifications/migrations/0007_grace_objective_blocked_notification.sql": {
+      "path": "src/riverview_core/notifications/migrations/0007_grace_objective_blocked_notification.sql",
+      "revision": "1.0.0",
+      "sha256": "554a5371894045a2bdbb7ea27f97eb605d171edcea697627b063616e56bc5c77",
+      "size_bytes": 1044
     },
     "src/riverview_core/notifications/service.py": {
       "path": "src/riverview_core/notifications/service.py",
@@ -9549,19 +9561,25 @@
       "sha256": "75da3b47937776addb01912e1de1f11dd1b5cf859a4df55850958172cfa3e5c3",
       "size_bytes": 15190
     },
-    "src/riverview_core/cme/migrations/0006_grace_objective_blocked_attention.sql": {
-      "path": "src/riverview_core/cme/migrations/0006_grace_objective_blocked_attention.sql",
+    "website/v2/deployed/assets/octominer/controller-feature-reference.png": {
+      "path": "website/v2/deployed/assets/octominer/controller-feature-reference.png",
       "revision": "1.0.0",
-      "sha256": "c1fd612f67662ea501c26991e6009f61911e5f3379bef4a6e2c3b259e731bb62",
-      "size_bytes": 996
+      "sha256": "1bb72f98c40228ef9ccaa35133e16adeac6e5c639da3ab82f54b35a2882177dc",
+      "size_bytes": 739048
     },
-    "src/riverview_core/notifications/migrations/0007_grace_objective_blocked_notification.sql": {
-      "path": "src/riverview_core/notifications/migrations/0007_grace_objective_blocked_notification.sql",
+    "website/v2/deployed/assets/octominer/smart-watchdog-fan-controller-reference.png": {
+      "path": "website/v2/deployed/assets/octominer/smart-watchdog-fan-controller-reference.png",
       "revision": "1.0.0",
-      "sha256": "554a5371894045a2bdbb7ea27f97eb605d171edcea697627b063616e56bc5c77",
-      "size_bytes": 1044
+      "sha256": "d8e243a5fae87fd7d969033dc6b00476d3b5c5892852ac42b552441dac535299",
+      "size_bytes": 1612974
+    },
+    "website/v2/deployed/assets/octominer/x12ultra-front-open-chassis-reference.png": {
+      "path": "website/v2/deployed/assets/octominer/x12ultra-front-open-chassis-reference.png",
+      "revision": "1.0.0",
+      "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
+      "size_bytes": 2008940
     }
   },
-  "manifest_revision": "1.1.323",
+  "manifest_revision": "1.1.324",
   "updated_at": "2026-10-23T02:19:41Z"
 }

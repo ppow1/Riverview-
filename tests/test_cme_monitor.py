@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_cme_monitor.py
 # Component: CME
-# Revision: 1.0.5
+# Revision: 1.0.7
+# Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Apply actual Grace objective migrations and seed all required objective fields in CME tests.
 # Changed: 2026-10-24 UTC | RV-CME-GRACE-BLOCKED-OBJECTIVE-ESCALATION-20261024 | Verify revision-block detection and no automatic recovery.
 # Purpose: Verify concurrent monitoring, durable alerts, health and process restart
 # Execution Model: Isolated PostgreSQL integration tests and real monitor subprocesses
@@ -18,9 +19,11 @@
 """PostgreSQL-backed tests for CME monitoring; never target shared app data."""
 
 import os
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -52,13 +55,12 @@ class CMEMonitorTests(unittest.TestCase):
         self.assertEqual(apply_migrations(
             DSN, schema=self.schema, migrations_dir=self.root / "cme/migrations"),
             ["0005_cme_monitoring", "0006_grace_objective_blocked_attention"])
-        self.admin.execute("""CREATE TABLE grace_objectives (
-            objective_id TEXT PRIMARY KEY,status TEXT NOT NULL,revision BIGINT NOT NULL,
-            assignment_id TEXT)""")
-        self.admin.execute("""CREATE TABLE grace_objective_events (
-            sequence BIGSERIAL PRIMARY KEY,objective_id TEXT NOT NULL,event_type TEXT NOT NULL,
-            idempotency_key TEXT NOT NULL,actor_id TEXT NOT NULL,
-            payload JSONB NOT NULL,occurred_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp())""")
+        with tempfile.TemporaryDirectory(prefix="rv-cme-objective-steps-") as temp:
+            target = Path(temp)
+            for name in ("0001_grace_objectives.sql", "0009_durable_objective_steps.sql"):
+                migration = self.root / "resident_execution/migrations" / name
+                shutil.copyfile(migration, target / migration.name)
+            apply_migrations(DSN, schema=self.schema, migrations_dir=temp)
         apply_migrations(DSN, schema=self.schema,
                          migrations_dir=self.root / "institutional_authority/migrations")
         self.admin.execute("INSERT INTO institutional_principals(principal_id,principal_kind) "
@@ -148,9 +150,13 @@ class CMEMonitorTests(unittest.TestCase):
         unblocked_id = "objective:test-unblocked-grace-reasoning"
         with self.admin.cursor() as cur:
             cur.execute("""INSERT INTO grace_objectives
-                (objective_id,status,revision) VALUES (%s,'GROUNDED',2)""", (objective_id,))
+                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,revision)
+                VALUES (%s,'blocked test','work-order:engineering','steward:test','[]'::jsonb,'GROUNDED',2)""",
+                (objective_id,))
             cur.execute("""INSERT INTO grace_objectives
-                (objective_id,status,revision) VALUES (%s,'GROUNDED',2)""", (unblocked_id,))
+                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,revision)
+                VALUES (%s,'unblocked test','work-order:engineering','steward:test','[]'::jsonb,'GROUNDED',2)""",
+                (unblocked_id,))
             cur.execute("""INSERT INTO grace_objective_events
                 (objective_id,event_type,idempotency_key,actor_id,payload)
                 VALUES (%s,'execution.reasoning_failed','blocked-test-event',

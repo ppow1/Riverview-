@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.70",
+      "graph_revision": "1.0.71",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -3935,9 +3935,9 @@
         },
         {
           "id": "rv:grace:operational-integration:external-advisory-consumer",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "Source implemented; isolated PostgreSQL verified — Grace consumes correlated response_received exchange through the bound ResidentReasoner, records one unapproved proposal/evaluation event, then acknowledges with the durable fence",
+          "label": "Grace consumes correlated responses; performance-evaluation validation failures retain sanitized correlation and can replay the same already-consumed exchange idempotently without another provider call",
           "source_references": [
             "src/riverview_core/resident_execution/external_reasoning.py",
             "src/riverview_core/resident_execution/service.py",
@@ -3948,7 +3948,46 @@
             "docs/components/GRACE_PERSISTENT_EXECUTION.md"
           ],
           "verification_evidence": [
-            "tests/test_external_reasoning_exchange.py"
+            "tests/test_external_reasoning_exchange.py",
+            "tests/test_supervisory_evaluation_unit.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:s4-performance-evidence-handoff",
+          "node_revision": "1.0.0",
+          "type": "recovery",
+          "label": "Read-only server validation joins the exact assignment to its consumed Luna exchange, actual usage/cost, grade and feedback events; Engineering receives bounded facts and no database access",
+          "source_references": [
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/codex_workflow.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_codex_cli_adapter.py",
+            "tests/test_supervisory_evaluation_unit.py"
+          ]
+        },
+        {
+          "id": "rv:grace:operational-integration:s4-single-use-rework-exception",
+          "node_revision": "1.0.0",
+          "type": "decision",
+          "label": "Only the exact current S4 rejection may consume one audited expiring Steward exception; the existing three attempts remain in history and independent verification is still mandatory",
+          "source_references": [
+            "src/riverview_core/resident_execution/grace_supervisory_authorization.py",
+            "src/riverview_core/resident_execution/pipeline.py",
+            "src/riverview_core/resident_execution/service.py"
+          ],
+          "documentation_references": [
+            "docs/components/GRACE_EXECUTION_PIPELINE.md",
+            "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+          ],
+          "verification_evidence": [
+            "tests/test_supervisory_evaluation_unit.py",
+            "tests/test_grace_execution.py"
           ]
         },
         {
@@ -4211,9 +4250,9 @@
         },
         {
           "id": "rv:grace:operational-integration:rework-retry-escalation",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "decision",
-          "label": "If fewer than three scoped correction proposals exist and the authorized review provider is available, continue rejection review; otherwise persist escalation pending without dispatch or assignment mutation.",
+          "label": "Continue within the ordinary three-proposal bound; exact exhausted holds suppress CME diagnostics, while only the registered exact S4 single-use exception may resume that one rejection.",
           "source_references": [
             "src/riverview_core/resident_execution/pipeline.py",
             "src/riverview_core/resident_execution/service.py"
@@ -4942,6 +4981,30 @@
           "to": "rv:grace:operational-integration:grace-rejection-review",
           "type": "recovery_route",
           "label": "If the existing authorized provider was unavailable, resume normal rejection review after it is commissioned/restored; retry exhaustion remains a Steward decision boundary."
+        },
+        {
+          "from": "rv:grace:operational-integration:external-advisory-consumer",
+          "to": "rv:grace:operational-integration:s4-performance-evidence-handoff",
+          "type": "recovery_route",
+          "label": "Replay a prior consumed evaluation idempotently after consumer validation failure, then expose only verified durable exchange and feedback facts to the exact S4 assignment."
+        },
+        {
+          "from": "rv:grace:operational-integration:s4-performance-evidence-handoff",
+          "to": "rv:grace:operational-integration:same-assignment-governed-rework",
+          "type": "runtime_transition",
+          "label": "The worker receives bounded server-derived evaluation evidence and no database/provider access."
+        },
+        {
+          "from": "rv:grace:operational-integration:rework-escalation-pending",
+          "to": "rv:grace:operational-integration:s4-single-use-rework-exception",
+          "type": "recovery_route",
+          "label": "Only the exact S4 verification may resume after a matching unexpired Steward authorization event."
+        },
+        {
+          "from": "rv:grace:operational-integration:s4-single-use-rework-exception",
+          "to": "rv:grace:operational-integration:same-assignment-governed-rework",
+          "type": "runtime_transition",
+          "label": "Atomically consume the one-use grant, fence the prior lease, and queue the same assignment without resetting its three prior rework events."
         },
         {
           "from": "rv:grace:operational-integration:proposal-validation",
@@ -16975,6 +17038,8 @@
     "rv:grace:operational-integration:rework-steward-direction",
     "rv:grace:operational-integration:rework-worker-cycle",
     "rv:grace:operational-integration:router-backed-grace-proposal",
+    "rv:grace:operational-integration:s4-performance-evidence-handoff",
+    "rv:grace:operational-integration:s4-single-use-rework-exception",
     "rv:grace:operational-integration:same-assignment-governed-rework",
     "rv:grace:operational-integration:source-enrollment-fail-closed",
     "rv:grace:operational-integration:source-target-dispatch-binding",

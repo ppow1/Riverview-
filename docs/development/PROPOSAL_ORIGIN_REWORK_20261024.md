@@ -1,3 +1,5 @@
+**Document Revision:** 1.0.0
+
 # Proposal-origin rework correction — 2026-10-24
 
 ## Authorization and scope

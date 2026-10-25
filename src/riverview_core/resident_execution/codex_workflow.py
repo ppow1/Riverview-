@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.18
+# Revision: 1.2.19
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-HANDOFF-20261025 | Supply validated durable Luna evaluation facts to exact assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Supply verified durable CME recovery facts to the existing bounded artifact rework.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Forward immutable objective request separately into authorized Engineering execution
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject explicit negative JSON outcomes and verify literal artifact acceptance clauses independently
@@ -201,6 +202,29 @@ class CodexWorkAction:
                         runtime_evidence = {"schema": "rv.grace.codex-runtime-evidence.v1",
                             "objective_runtime_evidence": runtime_evidence,
                             "cme_recovery_evidence": cme_evidence}
+            evaluation_reader = getattr(
+                self.pipeline, "performance_evaluation_runtime_evidence_for_assignment", None)
+            if callable(evaluation_reader):
+                evaluation_evidence = evaluation_reader(objective_id, assignment["id"])
+                if evaluation_evidence is not None:
+                    if (not isinstance(evaluation_evidence, Mapping) or
+                            evaluation_evidence.get("schema") !=
+                                "rv.grace.performance-evaluation-runtime-evidence.v1" or
+                            evaluation_evidence.get("read_only") is not True or
+                            evaluation_evidence.get("objective_id") != objective_id or
+                            evaluation_evidence.get("assignment_id") != assignment["id"] or
+                            not isinstance(evaluation_evidence.get("exchange"), Mapping) or
+                            not isinstance(evaluation_evidence.get("evaluation"), Mapping) or
+                            evaluation_evidence["exchange"].get("delivery_state") !=
+                                "grace_consumed" or
+                            evaluation_evidence["evaluation"].get("feedback_consumed") is not True or
+                            evaluation_evidence["evaluation"].get("authority_granted") is not False):
+                        raise CodexActionFailure(
+                            "performance_evaluation_runtime_evidence_invalid")
+                    runtime_evidence = ({"schema": "rv.grace.codex-runtime-evidence.v1",
+                        "objective_runtime_evidence": runtime_evidence,
+                        "performance_evaluation_evidence": evaluation_evidence}
+                        if runtime_evidence is not None else evaluation_evidence)
         try:
             repository_revision = self.adapter.repository_revision()
         except Exception as exc:

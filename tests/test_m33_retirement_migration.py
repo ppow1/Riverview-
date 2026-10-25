@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_m33_retirement_migration.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.2.0
+# Revision: 1.2.2
+# Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-M33-PROFILE | Verify only the five functions belonging to migration 0008 in the prerequisite case.
 # Purpose: Verify 0008 commits atomically with the runtime function ACL boundary
 # Execution Model: Disposable PostgreSQL schemas
 # Observability: unittest assertions for preflight, ledger, ACLs, and row preservation
@@ -80,9 +81,7 @@ class M33RetirementMigrationTests(unittest.TestCase):
         self.prior_dir.mkdir()
         self.full_dir.mkdir()
         for path in sorted(MIGRATIONS.glob("*.sql")):
-            if path.name.startswith("0009_"):
-                shutil.copyfile(path, self.full_dir / path.name)
-            else:
+            if path.name <= "0009_worker_registration_retirement_event.sql":
                 shutil.copyfile(path, self.full_dir / path.name)
                 if path.name < "0009_worker_registration_retirement_event.sql":
                     shutil.copyfile(path, self.prior_dir / path.name)
@@ -249,9 +248,9 @@ class M33RetirementMigrationTests(unittest.TestCase):
                 expected_database=self.database, **self.role_kwargs)["status"], "READY")
 
             from riverview_core.institutional_authority.db_boundary import (
-                RUNTIME_PERMISSION_SIGNATURES,
+                PROFILE_RUNTIME_PERMISSION_SIGNATURES,
             )
-            for function, signature in RUNTIME_PERMISSION_SIGNATURES.items():
+            for function, signature in PROFILE_RUNTIME_PERMISSION_SIGNATURES.items():
                 procedure = f"{schema}.{function}{signature}"
                 privileges = self.admin.execute(
                     "SELECT has_function_privilege(%s,to_regprocedure(%s),'EXECUTE'), "
