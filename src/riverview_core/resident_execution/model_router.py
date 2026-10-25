@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.2.10
+# Revision: 1.2.11
+# Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Route registry questions to fresh discovery and constrain answers to persisted tool evidence.
 # Changed: 2026-10-22 UTC | RV-GRACE-RESULT-REVIEW-ROUTER-20261022 | Do not inject an unrelated required status-tool turn into schema-constrained reviews.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Forward optional structured-output schema through the existing capability-pinned reasoning route.
 # Changed: 2026-10-18 UTC | RV-GRACE-PROMPT-BYTE-BOUND | Trim oldest conversational context to the provider byte limit while preserving system instructions and the active turn.
@@ -389,6 +390,9 @@ class GraceModelRouter:
                     {"role": "system", "content": (
                         "Use the structured tool result as evidence for the user's question. "
                         "Describe errors clearly. Do not claim a successful action. "
+                        "For capability discovery, report only identifiers present in the "
+                        "returned registry result and preserve its authorization, availability, "
+                        "health, and schema distinctions. Never infer an identifier. "
                         "Do not request or emit another tool call.")}]
                 followup = self._bound_provider_bytes(followup, provider=provider)
                 final = provider.complete_chat(followup,
@@ -414,6 +418,10 @@ class GraceModelRouter:
         for name in names:
             if isinstance(name, str) and name.lower() in text:
                 return name
+        if ("riverview_capability_discover" in names and
+                re.search(r"\b(capabilit(?:y|ies)|tools?|registry)\b", text) and
+                re.search(r"\b(what|which|list|show|available|registered|inventory|have|discover)\b", text)):
+            return "riverview_capability_discover"
         if ("comms5_cme_status" in names and re.search(r"\bcme\b", text)
                 and re.search(r"\b(status|health|healthy|worker|workers|registered|enabled|assignment)\b", text)):
             return "comms5_cme_status"

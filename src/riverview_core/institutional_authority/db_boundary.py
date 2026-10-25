@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.17
+# Revision: 1.0.18
+# Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Include the narrow catalog and caller-grant projections in the runtime function allowlist.
 # Purpose: Separate authority relation ownership from the shared runtime role
 # Execution Model: Explicit PostgreSQL DBA operation; dry-run by default
 # Observability: Redacted JSON preflight and applied-relation report
@@ -84,6 +85,14 @@ RUNTIME_PERMISSION_SIGNATURES = {
     "revoke_resident_permission_profile": "(text,text,bigint)",
     "evaluate_resident_permission": "(text,text,text,text,text,boolean)",
 }
+RUNTIME_PERMISSION_FUNCTIONS.update({
+    "list_capability_registry": "",
+    "list_capability_grants": "p_credential_sha256 bytea",
+})
+RUNTIME_PERMISSION_SIGNATURES.update({
+    "list_capability_registry": "()",
+    "list_capability_grants": "(bytea)",
+})
 _IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
 
 

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.40
+# Revision: 1.3.41
+# Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Wire the authenticated resident credential and existing objective pipeline into Grace's registry bridge.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify artifact ownership and group-read layout at the authorized download boundary.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve bounded cancellation reasons through the exact-grant objective route.
@@ -2559,6 +2560,9 @@ def main():
                     raise ValueError("model router requires the existing explicit OCTO1 opt-in")
                 authority_schema = os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")
                 from riverview_core.resident_execution.model_router import GraceModelRouter
+                from riverview_core.resident_execution.internal_tools import GraceInternalTools
+                from riverview_core.resident_execution.capability_registry import GraceCapabilityRegistry
+                from riverview_core.institutional_authority import ExactGrantAuthorizer
                 reasoning = LocalReasoningProvider(
                     "http://192.168.1.160:8080/v1",
                     "/root/Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
@@ -2569,8 +2573,14 @@ def main():
                     "/mnt/model-storage/vision/Qwen3-VL-30B-A3B/Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated.i1-IQ3_XS.gguf",
                     os.environ["RIVERVIEW_GRACE_30B_MODEL_SHA256"], timeout_seconds=25,
                     allow_approved_private_lan=True)
+                capability_registry = GraceCapabilityRegistry(
+                    dsn=dsn, resident_credential=resident_token,
+                    authorizer=ExactGrantAuthorizer(authority_schema),
+                    authority_registry=authority_registry, pipeline=objective_pipeline,
+                    authority_schema=authority_schema, runtime_schema=schema)
+                internal_tools = GraceInternalTools(capability_registry=capability_registry)
                 router = _build_grace_model_router(autonomic=provider, vision=vision,
-                    reasoning=reasoning)
+                    reasoning=reasoning, internal_tools=internal_tools)
                 with psycopg.connect(dsn, connect_timeout=2) as migration_probe:
                     _verify_grace_router_startup_readiness(
                         migration_probe, schema=schema, registry=authority_registry,

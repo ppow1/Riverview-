@@ -3,7 +3,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: scripts/run_grace_execution_service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.14
+# Revision: 1.2.15
+# Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Bind Grace's current resident credential and existing pipeline to dynamic institutional capability discovery.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-ISOLATED-WORKER-DB | Give concurrent ComfyUI and repository workers separate PostgreSQL adapter connections.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-REGISTERED-CAPABILITY | Include the enabled ComfyUI capability in the worker's exact persisted startup identity.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Store binary outputs in a dedicated group-readable artifact root while keeping journals private.
@@ -95,6 +96,7 @@ from riverview_core.resident_execution.conversation import (
 from riverview_core.status_dashboard.projection import DashboardProjection
 from riverview_core.resident_execution.operational_context import GraceOperationalContext
 from riverview_core.resident_execution.internal_tools import GraceInternalTools
+from riverview_core.resident_execution.capability_registry import GraceCapabilityRegistry
 from riverview_core.doorbell.runtime import (DoorbellRuntimeConfigurationError,
     create_configured_doorbell_worker)
 from riverview_core.diagnostics import configure_component_logging
@@ -346,7 +348,11 @@ def main() -> int:
         dashboard_projection = DashboardProjection(dsn, schema=schema,
             source_commit=commit, deployment_id=os.environ.get(
                 "RIVERVIEW_DEPLOYMENT_ID", "grace-runtime"))
-        internal_tools = GraceInternalTools()
+        capability_registry = GraceCapabilityRegistry(
+            dsn=dsn, resident_credential=resident_token, authorizer=authorizer,
+            authority_registry=authority_registry, pipeline=pipeline,
+            authority_schema=authority_schema, runtime_schema=schema)
+        internal_tools = GraceInternalTools(capability_registry=capability_registry)
         for configured_provider in providers.values():
             if isinstance(configured_provider, GraceModelRouter):
                 configured_provider.internal_tools = internal_tools

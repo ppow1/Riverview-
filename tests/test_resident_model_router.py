@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_resident_model_router.py
 # Component: RESIDENT-MODEL-ROUTER
-# Revision: 1.0.21
+# Revision: 1.0.22
+# Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Refresh the pinned internal-catalog size to the deployed Comms5 implementation set.
 # Changed: 2026-10-22 UTC | RV-GRACE-RESULT-REVIEW-ROUTER-20261022 | Ensure typed reviews do not trigger automatic status-tool routing from structured lifecycle fields.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional structured output is forwarded through the capability-pinned reasoning stage.
 # Purpose: Verify primary 80B routing, capability-pinned recovery, bounded fallback and diagnostics
@@ -202,9 +203,9 @@ class GraceModelRouterTests(unittest.TestCase):
 
         tools = GraceInternalTools(backend=CatalogBackend())
         catalog = tools.catalog()
-        self.assertEqual(len(catalog), 25)
+        self.assertEqual(len(catalog), 32)
         self.assertEqual(len(json.dumps(catalog, sort_keys=True,
-            separators=(",", ":"), ensure_ascii=False).encode()), 22238)
+            separators=(",", ":"), ensure_ascii=False).encode()), 32902)
         self.router.internal_tools = tools
         self.reasoner.chat_prefix = "/no_think\n"
         # These bounded, synthetic system messages mirror the live 12 KiB base
