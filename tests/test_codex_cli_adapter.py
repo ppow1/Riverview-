@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.11
+# Revision: 1.2.12
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Forward verified durable CME recovery exchange evidence into bounded same-assignment artifact rework.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Ensure original Steward instructions remain separate from formal execution criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject negative JSON outcomes and check exact artifact literals at the independent Codex verifier boundary
 # Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
@@ -35,6 +36,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -187,6 +190,80 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertIn("Read-only server-derived runtime evidence", prompt)
         self.assertIn("do not claim this worker performed the recorded transitions", prompt)
         self.assertIn("execution.reasoning_attempted", prompt)
+
+    def test_cme_rework_receives_persisted_exchange_evidence_without_runtime_access(self):
+        criteria = ["The artifact identifies the authorized Luna request and its actual outcome."]
+        requirements = [{"name":"recovery", "path":"reports/recovery.json",
+            "media_type":"application/json", "acceptance_criteria":criteria,
+            "max_bytes":32768}]
+        assignment_id = "assignment:grace:s3-fixture"
+        objective_id = "objective:grace:s3-fixture"
+        verification_id = "2eb56a17-5ab1-4697-90c2-0ebe20843267"
+        evidence = {"schema":"rv.grace.cme-recovery-runtime-evidence.v1",
+            "read_only":True, "objective_id":objective_id,
+            "assignment_id":assignment_id, "step_id":"s3",
+            "stall_event_id":"8671a141-da3c-47c5-960d-324e3c51eeef",
+            "progress_sequence":223, "recovery_action":"REWORK_PROPOSED",
+            "exchange":{"request_id":"29e66ad4-5eba-5e55-8e88-1003b635235e",
+                "correlation_id":"322f4240-37cf-4b01-abb3-0a0673ba4d64",
+                "provider_id":"gpt-6-luna", "provider_model":"gpt-6-luna",
+                "response_id":"resp_0df0c5556ec6ec00016add7e1cdb6887d284d801ed6187e2fe",
+                "response_sha256":"a"*64, "delivery_state":"grace_consumed",
+                "provider_attempt_count":1, "usage":{"input_tokens":4731,
+                    "output_tokens":452,"cost_usd":"0.0006991"}},
+            "authorization":{"authorization_id":"556cfa24-0a55-5000-9b31-c11242d749a4",
+                "retry_grant_event_id":"d621148a-7426-53bb-9434-d476383713f6",
+                "retry_consumption_event_id":"f631870f-a37d-488b-82b5-cb6174e80ea2",
+                "reservation_event_id":"fa27a745-9d1d-4797-87a6-441ba3e3ff1e",
+                "reserved_cost_usd":"0.05","actual_cost_usd":"0.0006991",
+                "retry_exception_consumed":True}}
+
+        class Pipeline:
+            def get_objective(_self, value):
+                self.assertEqual(value, objective_id)
+                return {"objective_id":objective_id,"status":"WORK_ORDER_CREATED",
+                    "request":"Use the existing durable Luna recovery result.",
+                    "source_revision":self.revision,"source_sha256":"a"*64,
+                    "evidence":{"status":"VERIFIED","source_revision":self.revision,
+                        "source_sha256":"a"*64},"proposal":{"steps":[{}]}}
+            def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
+                return {"objective":"Write a truthful recovery artifact",
+                    "acceptance_criteria":criteria,"artifact_requirements":requirements}
+            def latest_rework_instruction(_self, value):
+                self.assertEqual(value, assignment_id)
+                return {"decision":"REWORK_PROPOSED","assignment_id":assignment_id,
+                    "acceptance_criteria_sha256":hashlib.sha256(
+                        json.dumps(criteria,ensure_ascii=False,sort_keys=True,
+                            separators=(",",":")).encode()).hexdigest(),
+                    "correction_instruction":"Use the server-provided durable request evidence.",
+                    "criteria_to_address":criteria,"verification_id":verification_id}
+            def cme_recovery_runtime_evidence_for_assignment(_self, oid, aid):
+                self.assertEqual((oid,aid),(objective_id,assignment_id))
+                return evidence
+
+        captured = {}
+        adapter = self.adapter()
+        grounded = KnowledgeResult(KnowledgeStatus.VERIFIED,
+            source_references=("repo://docs/example.md",), source_revision=self.revision,
+            source_sha256="b"*64, retrieval_complete=True)
+
+        # Return a successful adapter result while retaining the exact request for inspection.
+        def execute(request):
+            captured["request"] = request
+            return SimpleNamespace(status="DELIVERABLE_PRODUCED", artifact_name="recovery.json",
+                artifact_sha256="b"*64, artifact_bytes=10, repository_revision=self.revision,
+                source_artifact_name="reports/recovery.json", changed_files=("reports/recovery.json",),
+                artifacts=(), rework_verification_id=verification_id, detail_code="produced",
+                execution_started=True)
+        adapter.execute = execute
+        CodexWorkAction(Pipeline(),adapter,"repo://example/test",5)(
+            {"id":assignment_id,"objective_ref":objective_id},grounded)
+        request = captured["request"]
+        self.assertEqual(dict(request.runtime_evidence),evidence)
+        prompt = CodexCLIExecutionAdapter._prompt(request)
+        self.assertIn("29e66ad4-5eba-5e55-8e88-1003b635235e",prompt)
+        self.assertIn("resp_0df0c5556ec6ec00016add7e1cdb6887d284d801ed6187e2fe",prompt)
+        self.assertIn("Read-only server-derived runtime evidence",prompt)
 
     def test_prompt_preserves_steward_instructions_separately_from_formal_criteria(self):
         request = self.assignment(steward_instructions=(

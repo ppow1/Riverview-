@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.37
+# Revision: 1.1.38
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Read back and validate exact consumed CME exchange and one-use authorization evidence for same-assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTH-UUID-20261025 | Serialize the registered authorization UUID as text in append-only controller evidence.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Pin retry-hold release identity at pipeline construction so an old process cannot adopt a newly switched symlink.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
@@ -68,6 +69,8 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
+from collections.abc import Mapping
 import hashlib
 import json
 from pathlib import Path
@@ -851,6 +854,208 @@ class GraceExecutionPipeline:
                 WHERE request_id=%s AND correlation_id=%s""", (request_id, correlation_id))
             row = cur.fetchone()
         return dict(row) if row else None
+
+    def cme_recovery_runtime_evidence_for_assignment(self, objective_id, assignment_id):
+        """Expose exact consumed CME exchange facts to a same-assignment artifact rework."""
+        if (not isinstance(objective_id, str) or not re.fullmatch(
+                r"objective:[A-Za-z0-9._:-]{1,150}", objective_id) or
+                not isinstance(assignment_id, str) or not re.fullmatch(
+                r"assignment:[A-Za-z0-9._:-]{1,190}", assignment_id)):
+            raise ValueError("CME recovery evidence scope is invalid")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT payload->'external_reasoning' AS reference
+                FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='engineering.rework_decided'
+                  AND payload->>'assignment_id'=%s
+                  AND payload->>'decision'='REWORK_PROPOSED'
+                  AND payload ? 'external_reasoning'
+                ORDER BY sequence DESC LIMIT 1""", (objective_id, assignment_id))
+            reference_row = cur.fetchone()
+            if reference_row is None:
+                return None
+            reference = reference_row["reference"]
+            if (not isinstance(reference, Mapping) or set(reference) != {
+                    "request_id", "correlation_id", "response_sha256", "cme_event_id"}):
+                raise ObjectiveStateError("persisted CME rework reference is invalid")
+            request_id = reference["request_id"]
+            correlation_id = reference["correlation_id"]
+            response_sha256 = reference["response_sha256"]
+            cme_event_id = reference["cme_event_id"]
+            if (not isinstance(request_id, str) or not re.fullmatch(r"[0-9a-f-]{36}", request_id) or
+                    not isinstance(correlation_id, str) or not re.fullmatch(r"[0-9a-f-]{36}", correlation_id) or
+                    not isinstance(response_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", response_sha256) or
+                    not isinstance(cme_event_id, str) or not re.fullmatch(r"[0-9a-f-]{36}", cme_event_id)):
+                raise ObjectiveStateError("persisted CME rework reference is invalid")
+            cur.execute("""SELECT request_id::text AS request_id,
+                    correlation_id::text AS correlation_id,objective_id,provider_id,
+                    delivery_state,consumption_owner,consumption_key,consumption_result,
+                    response_sha256,request_payload,response_provenance
+                FROM external_reasoning_exchanges
+                WHERE request_id=%s AND correlation_id=%s AND objective_id=%s""",
+                (request_id, correlation_id, objective_id))
+            exchange = cur.fetchone()
+            cur.execute("""SELECT event_type,event_id::text AS event_id,
+                    correlation_id::text AS correlation_id,payload
+                FROM external_reasoning_exchange_events
+                WHERE request_id=%s AND event_type=ANY(%s)
+                ORDER BY occurred_at,event_id""", (request_id, [
+                    "provider_attempt_started", "provider_attempt_settled",
+                    "response_received", "grace_consumed"]))
+            exchange_events = cur.fetchall()
+            cur.execute("""SELECT event_type,event_id::text AS event_id,
+                    authorization_id::text AS authorization_id,objective_id,payload
+                FROM grace_supervisory_authorization_events
+                WHERE request_id=%s AND event_type=ANY(%s)
+                ORDER BY occurred_at,event_id""", (request_id, [
+                    "luna_reserved", "luna_settled", "cme_retry_consumed"]))
+            authorization_events = cur.fetchall()
+            cur.execute("""SELECT payload FROM grace_objective_events
+                WHERE objective_id=%s AND event_type='resident.reasoning.cme_recovery_evaluated'
+                  AND payload->>'request_id'=%s AND payload->>'cme_event_id'=%s
+                ORDER BY sequence DESC LIMIT 1""", (objective_id, request_id, cme_event_id))
+            consumed_decision = cur.fetchone()
+            cur.execute("SELECT revision FROM grace_objectives WHERE objective_id=%s",
+                (objective_id,))
+            objective_revision = cur.fetchone()
+
+        if not exchange:
+            raise ObjectiveStateError("referenced CME exchange is unavailable")
+        request_payload = exchange["request_payload"]
+        original = request_payload.get("original_request") if isinstance(request_payload, Mapping) else None
+        request_assignment = original.get("assignment") if isinstance(original, Mapping) else None
+        if (exchange["provider_id"] != "gpt-6-luna" or
+                exchange["delivery_state"] != "grace_consumed" or
+                exchange["consumption_owner"] is not None or
+                exchange["consumption_key"] != f"external-reasoning-consumed:{request_id}" or
+                not isinstance(exchange["consumption_result"], Mapping) or
+                exchange["consumption_result"].get("advisory_sha256") != response_sha256 or
+                exchange["consumption_result"].get("result_reference") !=
+                    f"objective:{objective_id}:external-reasoning:{request_id}" or
+                exchange["response_sha256"] != response_sha256 or
+                request_payload.get("request_type") != "cme_diagnostic_recovery" or
+                not isinstance(original, Mapping) or original.get("assignment_id") != objective_id or
+                not isinstance(request_assignment, Mapping) or
+                request_assignment.get("assignment_id") != assignment_id or
+                request_assignment.get("step_id") != "s3" or
+                request_assignment.get("cme_event_id") != cme_event_id or
+                type(request_assignment.get("cme_progress_seq")) is not int or
+                not consumed_decision or
+                consumed_decision["payload"].get("recovery_action") != "REWORK_PROPOSED" or
+                consumed_decision["payload"].get("response_sha256") != response_sha256 or
+                consumed_decision["payload"].get("correlation_id") != correlation_id):
+            raise ObjectiveStateError("referenced CME exchange is not the consumed S3 result")
+
+        event_by_type = {}
+        for event in exchange_events:
+            event_by_type.setdefault(event["event_type"], []).append(event)
+        if (any(len(event_by_type.get(kind, [])) != 1 for kind in (
+                "provider_attempt_started", "provider_attempt_settled",
+                "response_received", "grace_consumed")) or
+                event_by_type["provider_attempt_settled"][0]["payload"].get("status") != "settled"):
+            raise ObjectiveStateError("CME exchange attempt is incomplete or repeated")
+        if (any(event["correlation_id"] != correlation_id
+                    for rows in event_by_type.values() for event in rows) or
+                event_by_type["response_received"][0]["payload"].get("response_sha256") != response_sha256 or
+                event_by_type["grace_consumed"][0]["payload"].get("advisory_sha256") != response_sha256 or
+                event_by_type["grace_consumed"][0]["payload"].get("consumption_key") !=
+                    exchange["consumption_key"]):
+            raise ObjectiveStateError("CME exchange response or consumption lineage is invalid")
+        auth_by_type = {}
+        for event in authorization_events:
+            auth_by_type.setdefault(event["event_type"], []).append(event)
+        if any(len(auth_by_type.get(kind, [])) != 1 for kind in (
+                "luna_reserved", "luna_settled", "cme_retry_consumed")):
+            raise ObjectiveStateError("CME exchange authorization evidence is incomplete")
+        reserved = auth_by_type["luna_reserved"][0]
+        settled = auth_by_type["luna_settled"][0]
+        consumed = auth_by_type["cme_retry_consumed"][0]
+        reservation_payload = reserved["payload"]
+        consumption_payload = consumed["payload"]
+        settlement_payload = settled["payload"]
+        grant_event_id = consumption_payload.get("grant_event_id")
+        if not isinstance(grant_event_id, str) or not re.fullmatch(
+                r"[0-9a-f-]{36}", grant_event_id):
+            raise ObjectiveStateError("CME retry grant is not bound to the consumed result")
+        with self.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute("""SELECT event_type,event_id::text AS event_id,
+                    authorization_id::text AS authorization_id,objective_id,payload
+                FROM grace_supervisory_authorization_events
+                WHERE event_id=%s::uuid AND event_type='cme_retry_authorized'""",
+                (grant_event_id,))
+            grant = cur.fetchone()
+        if (reserved["authorization_id"] != settled["authorization_id"] or
+                reserved["authorization_id"] != consumed["authorization_id"] or
+                not grant or reserved["authorization_id"] != grant["authorization_id"] or
+                reservation_payload.get("request_type") != "cme_diagnostic_recovery" or
+                reservation_payload.get("assignment_id") != assignment_id or
+                reservation_payload.get("cme_progress_seq") != request_assignment["cme_progress_seq"] or
+                consumption_payload.get("request_id") != request_id or
+                consumption_payload.get("stall_event_id") != cme_event_id or
+                consumption_payload.get("assignment_id") != assignment_id or
+                reservation_payload.get("cme_retry_grant_event_id") != grant_event_id or
+                grant["event_id"] != grant_event_id or grant["objective_id"] != objective_id or
+                grant["payload"].get("schema") != "rv.grace.cme-retry-exception.v1" or
+                grant["payload"].get("objective_id") != objective_id or
+                grant["payload"].get("objective_assignment_id") !=
+                    consumption_payload.get("objective_assignment_id") or
+                not objective_revision or grant["payload"].get("objective_revision") !=
+                    objective_revision["revision"] or
+                grant["payload"].get("assignment_id") != assignment_id or
+                grant["payload"].get("step_id") != "s3" or
+                grant["payload"].get("stall_event_id") != cme_event_id or
+                grant["payload"].get("progress_sequence") != request_assignment["cme_progress_seq"] or
+                grant["payload"].get("request_type") != "cme_diagnostic_recovery" or
+                grant["payload"].get("max_attempts") != 1 or
+                grant["payload"].get("per_request_limit_usd") != "0.05000000" or
+                settled["objective_id"] != objective_id or
+                settled["payload"].get("status") != "settled"):
+            raise ObjectiveStateError("CME retry grant is not bound to the consumed result")
+        usage = (exchange["response_provenance"] or {}).get("usage")
+        settled_usage = settlement_payload.get("usage")
+        if not isinstance(usage, Mapping) or not isinstance(settled_usage, Mapping):
+            raise ObjectiveStateError("CME provider usage evidence is unavailable")
+        try:
+            actual_cost = Decimal(str(settlement_payload["cost_usd"]))
+            reserved_cost = Decimal(str(reservation_payload["reserved_cost_usd"]))
+            if (not actual_cost.is_finite() or not reserved_cost.is_finite() or
+                    actual_cost < 0 or actual_cost > reserved_cost or reserved_cost != Decimal("0.05") or
+                    Decimal(str(usage["cost_usd"])) != actual_cost):
+                raise ValueError
+            for key in ("input_tokens", "output_tokens", "reasoning_tokens",
+                    "cached_input_tokens"):
+                if key in usage and settled_usage.get(key) != usage[key]:
+                    raise ValueError
+        except (KeyError, InvalidOperation, ValueError):
+            raise ObjectiveStateError("CME provider cost evidence is invalid") from None
+        response_id = (exchange["response_provenance"] or {}).get("response_id")
+        provider_model = (exchange["response_provenance"] or {}).get("provider_model")
+        if (not isinstance(response_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", response_id) or
+                provider_model != "gpt-6-luna"):
+            raise ObjectiveStateError("CME provider response identity is invalid")
+        result = {"schema": "rv.grace.cme-recovery-runtime-evidence.v1", "read_only": True,
+            "objective_id": objective_id, "assignment_id": assignment_id,
+            "step_id": "s3", "stall_event_id": cme_event_id,
+            "progress_sequence": request_assignment["cme_progress_seq"],
+            "recovery_action": "REWORK_PROPOSED",
+            "exchange": {"request_id": request_id, "correlation_id": correlation_id,
+                "provider_id": "gpt-6-luna", "provider_model": provider_model,
+                "response_id": response_id, "response_sha256": response_sha256,
+                "delivery_state": "grace_consumed", "provider_attempt_count": 1,
+                "usage": {key: usage[key] for key in (
+                    "input_tokens", "output_tokens", "reasoning_tokens",
+                    "cached_input_tokens", "cost_usd") if key in usage}},
+            "authorization": {"authorization_id": reserved["authorization_id"],
+                "retry_grant_event_id": grant_event_id,
+                "retry_consumption_event_id": consumed["event_id"],
+                "reservation_event_id": reserved["event_id"],
+                "reserved_cost_usd": str(reserved_cost),
+                "actual_cost_usd": str(actual_cost),
+                "retry_exception_consumed": True}}
+        if len(_json(result).encode("utf-8")) > 8192:
+            raise ObjectiveStateError("CME recovery runtime evidence exceeds its bound")
+        return result
 
     def dispatchable_step(self, objective_id):
         """Return the first pending step whose persisted dependencies are verified."""

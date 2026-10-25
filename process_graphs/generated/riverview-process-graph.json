@@ -2799,7 +2799,7 @@
     },
     {
       "graph_id": "rv:grace:operational-integration",
-      "graph_revision": "1.0.69",
+      "graph_revision": "1.0.70",
       "component_id": "RESIDENT-ORCHESTRATION",
       "workflow_id": "grace-engineering-objective.v1",
       "diagram_order": 9,
@@ -4091,19 +4091,22 @@
         },
         {
           "id": "rv:grace:operational-integration:rework-worker-cycle",
-          "node_revision": "1.0.0",
+          "node_revision": "1.0.1",
           "type": "process",
-          "label": "The existing assignment lease and worker cycle executes the same assignment under its new fenced generation and records a distinct attempt before verification",
+          "label": "The existing assignment lease and worker cycle executes the same assignment under its new fenced generation and records a distinct attempt before verification. For CME rework, Grace supplies read-only, server-derived facts from the exact consumed exchange and event-scoped authorization; the worker never accesses runtime systems directly.",
           "source_references": [
             "src/riverview_core/assignment_scheduler/scheduler.py",
             "src/riverview_core/worker_adapter/continuous.py",
-            "src/riverview_core/resident_execution/service.py"
+            "src/riverview_core/resident_execution/service.py",
+            "src/riverview_core/resident_execution/codex_workflow.py",
+            "src/riverview_core/resident_execution/pipeline.py"
           ],
           "documentation_references": [
             "docs/components/GRACE_EXECUTION_PIPELINE.md"
           ],
           "verification_evidence": [
-            "tests/test_grace_execution.py"
+            "tests/test_grace_execution.py",
+            "tests/test_codex_cli_adapter.py"
           ]
         },
         {

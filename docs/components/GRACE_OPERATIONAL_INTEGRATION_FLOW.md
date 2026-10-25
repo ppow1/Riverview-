@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.70
+**Document Revision:** 1.0.71
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Show lifecycle criteria separately, prioritize ready work, and gate conversation-origin completion on Grace review.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -150,7 +150,7 @@ flowchart LR
     g_rv_grace_operational_integration_grace_rejection_review_9f70861f{"For latest independent REJECTED result, Grace may choose exact-criteria correction within three proposals or Steward direction; provider absence creates durable actionable escalation-pending state."}
     g_rv_grace_operational_integration_grace_satisfied_verifier_recheck_a1e20956["Only an explicit durable Grace OBJECTIVE_SATISFIED decision permits the same immutable attempt to be rechecked under a corrected verifier revision; preserve the original rejection"]
     g_rv_grace_operational_integration_same_assignment_governed_rework_9ebc8fcf["Recheck assignment.create, fence the completed lease, and transition the same assignment to ready with a new scheduler generation"]
-    g_rv_grace_operational_integration_rework_worker_cycle_8998f04d["The existing assignment lease and worker cycle executes the same assignment under its new fenced generation and records a distinct attempt before verification"]
+    g_rv_grace_operational_integration_rework_worker_cycle_8998f04d["The existing assignment lease and worker cycle executes the same assignment under its new fenced generation and records a distinct attempt before verification. For CME rework, Grace supplies read-only, server-derived facts from the exact consumed exchange and event-scoped authorization; the worker never accesses runtime systems directly."]
     g_rv_grace_operational_integration_rework_attempt_verification_ba069bce["Independently verify the new successful attempt only once; preserve prior artifacts and rejection records; latest rejection becomes the next decision target"]
     g_rv_grace_operational_integration_rework_steward_direction_b806bf42[["A bounded STEWARD_AUTHORIZATION_REQUIRED decision keeps work incomplete and records the precise decision boundary"]]
     g_rv_grace_operational_integration_rework_controller_authorization_check_d989c732["Execution controller checks the exact active Luna grant and correlated request/evaluation ledger before retaining a Steward-authorization hold; failed attempts remain distinct from a recorded grade and verifier rejection remains unchanged"]
