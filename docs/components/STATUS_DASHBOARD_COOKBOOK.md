@@ -1096,3 +1096,36 @@ After a controlled Dashboard release containing the storage collector, verify th
 - Expected successful result: `riverview-v2-<timestamp>-<capture-id>.zip` is downloaded and the status includes the confirmed private Release link and Copy GitHub Link. Manifest version is `v2`; the archive receipt must match capture ID, filename, size and SHA-256.
 - If GET returns 401/403, authenticate in the dashboard and retry. If archive POST returns 403, reload the dashboard to obtain a fresh CSRF cookie, then click Snapshot once. If archive fails after package creation, retain the local ZIP; do not report archive success. If browser download cannot start after archive confirmation, use the confirmed GitHub release link.
 - Resume point: `/v2/` Snapshot click. No service restart or database migration is needed for the route once the package is installed; deployment and service restart still require their separate release authorization. Rollback removes the V2 route/assets from the dashboard package and returns V2 users to the fixture-only LAN preview; it does not change archive assets or credentials.
+
+## V2 Objective operational status and deliverables
+
+V2 Work → Objectives reads the existing authenticated
+`GET /api/v1/objectives` projection and keeps the canonical objective lifecycle
+status separate from its derived **Operational status**. The projection derives
+the label from the latest durable objective event, current-revision unexpired
+recovery decision requests, unresolved current-revision supervisor reservations,
+active unexpired external-reasoning exchanges, and the linked assignment state.
+Terminal objective states and a running Engineering assignment take precedence;
+remaining concurrent evidence is ordered by persisted timestamps, and equal-time
+conflicts or insufficient evidence are shown as **Unknown**. A reasoning attempt
+without a current unresolved record is treated as stale after the configured
+heartbeat freshness interval. This is a read-only field on the existing
+`rv.dashboard.objectives.v1` and owner-scoped progress projections; it adds no
+transition, authority, or execution operation.
+
+The objective **Related work / deliverable** summary is built from the linked
+assignment's recorded worker-result artifact metadata. Expanding Operational
+status, deliverables & evidence loads the existing authenticated
+`GET /api/v1/assignments/{id}` detail. That view lists recorded names, MIME type,
+attempt, assignment, summary, timestamp, verification decision and any recorded
+GitHub location. A GitHub URL is labelled a recorded location, not independently
+verified publication. File metadata alone does not establish a downloadable
+artifact. The only binary download currently available is the existing
+accepted-ComfyUI image route, which independently verifies the completed
+assignment, accepted verifier decision, result digest, stored object key and
+image type. Other private/local files remain metadata-only because there is no
+general authorized artifact-serving route; no filesystem path is returned.
+Owner-scoped objective progress deliberately omits output metadata, and V2
+states that output details are unavailable for that projection. Neither opening
+the details panel nor reading an artifact creates a receipt or changes lifecycle
+state. Refresh Work to read current persisted status again.

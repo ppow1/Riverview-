@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.16
+# Revision: 1.0.17
+# Changed: 2026-10-25 UTC | RV-V2-OBJECTIVE-OPERATIONAL-STATUS-OUTPUTS | Add evidence-derived objective operations and safe assignment output metadata.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Require active engineering-scope registry and matching capability for live worker health.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Project accepted image downloads beside their assignment verification record.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Expose only independently accepted ComfyUI binary artifact metadata for authorized download.
@@ -32,12 +33,14 @@ import hashlib
 import json
 import re
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
+from .operational_status import derive_operational_status
 
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 _SAFE_CODE = re.compile(r"^[A-Za-z0-9_.:-]{1,96}$")
@@ -426,7 +429,8 @@ class DashboardProjection:
                          ORDER BY seq DESC LIMIT 20""", (assignment_id,))
             events = cur.fetchall()
             tables = self._relations(cur, [f"{self.schema}.worker_attempts",
-                                           f"{self.schema}.verification_records"])
+                                           f"{self.schema}.verification_records",
+                                           f"{self.schema}.worker_results"])
             attempts = []
             verifications = []
             if tables[f"{self.schema}.worker_attempts"]:
@@ -452,6 +456,84 @@ class DashboardProjection:
                                   "decision": row["decision"], "evidence_count": row["evidence_count"],
                                   "recorded_at": self._iso(row["recorded_at"])}
                                  for row in cur.fetchall()]
+            outputs = []
+            if (tables[f"{self.schema}.worker_attempts"] and
+                    tables[f"{self.schema}.worker_results"]):
+                verification_select = ("verification.decision AS verification_decision,"
+                    "verification.recorded_at AS verified_at" if
+                    tables[f"{self.schema}.verification_records"] else
+                    "NULL::text AS verification_decision,NULL::timestamptz AS verified_at")
+                verification_join = ("LEFT JOIN LATERAL (SELECT decision,recorded_at "
+                    "FROM verification_records vr WHERE vr.attempt_id=ranked.attempt_id "
+                    "ORDER BY recorded_at DESC,verification_id DESC LIMIT 1) verification ON true"
+                    if tables[f"{self.schema}.verification_records"] else "")
+                cur.execute(f"""WITH ranked AS (
+                                SELECT wa.attempt_id,wa.capability,wa.started_at,wa.status AS attempt_status,
+                                    wr.result,wr.recorded_at,
+                                    row_number() OVER (ORDER BY wa.started_at DESC,wa.attempt_id DESC) AS attempt_rank
+                                    ,bool_or(CASE WHEN jsonb_typeof(wr.result->'artifacts')='array'
+                                          THEN jsonb_array_length(wr.result->'artifacts')>0
+                                          ELSE wr.result ? 'artifact_name' END) OVER () AS has_any_output
+                                FROM worker_attempts wa JOIN worker_results wr USING(attempt_id)
+                                WHERE wa.assignment_id=%s)
+                             SELECT ranked.attempt_id,ranked.capability,ranked.started_at,
+                                    ranked.attempt_status,ranked.result,ranked.recorded_at,
+                                    {verification_select},ranked.attempt_rank,ranked.has_any_output
+                             FROM ranked
+                             {verification_join}
+                             WHERE ranked.attempt_rank<=9
+                             ORDER BY ranked.attempt_rank""",
+                            (assignment_id,))
+                outputs_truncated = False
+                for result_row in cur.fetchall():
+                    result = result_row["result"] if isinstance(result_row["result"], dict) else {}
+                    artifact_rows = result.get("artifacts") if isinstance(result.get("artifacts"), list) else []
+                    if not artifact_rows and isinstance(result.get("artifact_name"), str):
+                        artifact_rows = [{"name": result.get("artifact_name"),
+                                          "media_type": result.get("media_type"),
+                                          "bytes": result.get("artifact_bytes"),
+                                          "sha256": result.get("artifact_sha256")}]
+                    if result_row["attempt_rank"] > 8:
+                        outputs_truncated = bool(result_row["has_any_output"])
+                        continue
+                    for artifact in artifact_rows[:8]:
+                        if not isinstance(artifact, dict):
+                            continue
+                        name = artifact.get("name")
+                        if (not isinstance(name, str) or len(name) > 200 or
+                                Path(name).name != name or "/" in name or "\\" in name
+                                or any(ord(ch) < 32 for ch in name)):
+                            name = "Recorded output (name unavailable)"
+                        media_type = artifact.get("media_type")
+                        if (not isinstance(media_type, str) or
+                                not re.fullmatch(r"[A-Za-z0-9.+_-]{1,80}/[A-Za-z0-9.+_-]{1,80}", media_type)):
+                            media_type = "Type unavailable"
+                        byte_count = artifact.get("bytes")
+                        if type(byte_count) is not int or byte_count < 0:
+                            byte_count = None
+                        digest = artifact.get("sha256")
+                        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+                            digest = None
+                        location_url = artifact.get("published_url") or result.get("published_url")
+                        if (not isinstance(location_url, str) or
+                                not re.fullmatch(r"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/(?:commit|pull|blob|issues|releases/tag)/[A-Za-z0-9_./-]+)?", location_url)):
+                            location_url = None
+                        summary = artifact.get("summary") or result.get("summary")
+                        if not isinstance(summary, str) or not summary.strip():
+                            summary = None
+                        outputs.append({"name": name, "media_type": media_type,
+                            "bytes": byte_count, "sha256": digest,
+                            "summary": summary[:500] if summary else None,
+                            "producing_assignment": assignment_id,
+                            "producing_attempt": str(result_row["attempt_id"]),
+                            "capability": result_row["capability"],
+                            "recorded_at": self._iso(result_row["recorded_at"]),
+                            "verification_status": result_row["verification_decision"] or "not_verified",
+                            "verification_recorded_at": self._iso(result_row["verified_at"]),
+                            "publication_status": "not_independently_verified",
+                            "location_url": location_url,
+                            "location_status": "recorded_not_verified" if location_url else "not_recorded",
+                            "availability": "recorded_location" if location_url else "no_authorized_download_route"})
             return {"status": "available", "assignment": {
                 "assignment_id": assignment["id"], "state": assignment["state"],
                 "owner": assignment["owner"], "workflow_id": assignment["workflow_id"],
@@ -466,6 +548,10 @@ class DashboardProjection:
                             "causation_id": str(row["causation_id"]) if row["causation_id"] else None}
                            for row in events],
                 "attempts": attempts, "verifications": verifications,
+                "outputs": outputs,
+                "outputs_status": ("truncated" if outputs_truncated else
+                    "available" if outputs else "no_recorded_outputs"),
+                "outputs_truncated": outputs_truncated,
                 "diagnostic_ref": "docs/components/STATUS_DASHBOARD_COOKBOOK.md"}
         detail = self._read(query)
         if (detail and re.fullmatch(r"[A-Za-z0-9:._-]{1,128}", assignment_id) and
@@ -706,7 +792,8 @@ class DashboardProjection:
             cur.execute("""SELECT o.objective_id,o.request,o.scope_ref,o.submitter_id,
                     o.acceptance_criteria,o.status,o.assignment_id,o.source_revision,
                     o.source_sha256,o.revision,o.created_at,o.updated_at,
-                    a.state AS assignment_state,wa.attempt_id,wr.result AS artifact,
+                    a.state AS assignment_state,a.updated_at AS assignment_updated_at,
+                    wa.attempt_id,wr.result AS artifact,
                     wr.result_sha256,vr.decision AS verification_decision,
                     vr.verification_id,vr.verifier_revision,vr.summary AS verification_summary,
                     received.payload AS received_payload,
@@ -777,8 +864,118 @@ class DashboardProjection:
                 ORDER BY o.updated_at DESC,o.objective_id LIMIT %s""",
                 (objective_id, objective_id, conversation_id, conversation_id,
                  owner_principal_id, owner_principal_id, limit))
+            rows = cur.fetchall()
+            objective_ids = [row["objective_id"] for row in rows]
+            assignment_ids = [row["assignment_id"] for row in rows if row["assignment_id"]]
+            outputs_by_assignment = {}
+            outputs_truncated_by_assignment = set()
+            if assignment_ids:
+                cur.execute("""WITH ranked AS (
+                        SELECT wa.assignment_id,wa.started_at,wa.attempt_id,wr.result,
+                            row_number() OVER (PARTITION BY wa.assignment_id
+                                ORDER BY wa.started_at DESC,wa.attempt_id DESC) AS attempt_rank,
+                            bool_or(CASE WHEN jsonb_typeof(wr.result->'artifacts')='array'
+                                THEN jsonb_array_length(wr.result->'artifacts')>0
+                                ELSE wr.result ? 'artifact_name' END) OVER
+                                (PARTITION BY wa.assignment_id) AS has_any_output
+                        FROM worker_attempts wa JOIN worker_results wr USING(attempt_id)
+                        WHERE wa.assignment_id=ANY(%s::text[]))
+                    SELECT assignment_id,result,attempt_rank,has_any_output FROM ranked
+                    WHERE attempt_rank<=9 ORDER BY assignment_id,attempt_rank""",
+                    (assignment_ids,))
+                for output_row in cur.fetchall():
+                    result = output_row["result"] if isinstance(output_row["result"], dict) else {}
+                    records = result.get("artifacts") if isinstance(result.get("artifacts"), list) else []
+                    if not records and isinstance(result.get("artifact_name"), str):
+                        records = [{"name": result["artifact_name"], "summary": result.get("summary")}]
+                    if output_row["attempt_rank"] > 8:
+                        if output_row["has_any_output"]:
+                            outputs_truncated_by_assignment.add(output_row["assignment_id"])
+                        continue
+                    output_summary = outputs_by_assignment.setdefault(output_row["assignment_id"], [])
+                    for record in records[:8]:
+                        if len(output_summary) >= 64 or not isinstance(record, dict):
+                            continue
+                        name = record.get("name")
+                        if (not isinstance(name, str) or len(name) > 200 or Path(name).name != name
+                                or "/" in name or "\\" in name
+                                or any(ord(ch) < 32 for ch in name)):
+                            name = "Recorded output (name unavailable)"
+                        summary = record.get("summary")
+                        output_summary.append({"name": name,
+                            "summary": summary[:240] if isinstance(summary, str) and summary.strip() else None})
+            activity_by_objective = {}
+            recovery_by_objective = {}
+            supervisor_by_objective = {}
+            reasoning_by_objective = {}
+            evidence_relations = self._relations(cur, [
+                f"{self.schema}.grace_objective_events",
+                f"{self.schema}.grace_recovery_decision_requests",
+                f"{self.schema}.grace_supervisory_authorization_events",
+                f"{self.schema}.external_reasoning_exchanges"])
+            if objective_ids and evidence_relations[f"{self.schema}.grace_objective_events"]:
+                cur.execute("""SELECT DISTINCT ON (objective_id) objective_id,sequence,event_id,
+                        event_type,occurred_at,payload->>'detail_code' AS detail_code,
+                        payload->>'status' AS status,payload->>'objective_revision' AS objective_revision,
+                        payload->>'request_id' AS request_id
+                    FROM grace_objective_events
+                    WHERE objective_id=ANY(%s::text[])
+                    ORDER BY objective_id,sequence DESC""", (objective_ids,))
+                activity_by_objective = {r["objective_id"]: {
+                    "sequence": r["sequence"], "event_id": str(r["event_id"]),
+                    "event_type": r["event_type"], "occurred_at": r["occurred_at"],
+                    "detail_code": r["detail_code"], "status": r["status"],
+                    "objective_revision": r["objective_revision"],
+                    "request_id": r["request_id"], "source": "grace_objective_events"}
+                    for r in cur.fetchall()}
+            if objective_ids and evidence_relations[f"{self.schema}.grace_recovery_decision_requests"]:
+                cur.execute("""SELECT DISTINCT ON (r.objective_id) r.objective_id,r.request_id,
+                        r.objective_revision,r.status,r.created_at,r.expires_at
+                    FROM grace_recovery_decision_requests r
+                    JOIN grace_objectives o USING(objective_id)
+                    WHERE r.objective_id=ANY(%s::text[]) AND r.status='pending'
+                      AND r.objective_revision=o.revision AND r.expires_at>clock_timestamp()
+                    ORDER BY r.objective_id,r.created_at DESC,r.request_id DESC""", (objective_ids,))
+                recovery_by_objective = {r["objective_id"]: {
+                    "event_id": str(r["request_id"]), "objective_revision": r["objective_revision"],
+                    "status": r["status"], "occurred_at": r["created_at"],
+                    "expires_at": r["expires_at"], "source": "grace_recovery_decision_requests"}
+                    for r in cur.fetchall()}
+            if objective_ids and evidence_relations[f"{self.schema}.grace_supervisory_authorization_events"]:
+                cur.execute("""SELECT DISTINCT ON (s.objective_id) s.objective_id,s.event_id,
+                        s.event_type,s.occurred_at,s.request_id
+                    FROM grace_supervisory_authorization_events s
+                    JOIN grace_objectives o ON o.objective_id=s.objective_id
+                    WHERE s.objective_id=ANY(%s::text[]) AND s.event_type='luna_reserved'
+                      AND s.payload->>'request_type'='cme_diagnostic_recovery'
+                      AND s.occurred_at>=o.updated_at
+                      AND NOT EXISTS (SELECT 1 FROM grace_supervisory_authorization_events settled
+                          WHERE settled.request_id=s.request_id AND settled.event_type='luna_settled')
+                    ORDER BY s.objective_id,s.occurred_at DESC,s.event_id DESC""", (objective_ids,))
+                supervisor_by_objective = {r["objective_id"]: {
+                    "event_id": str(r["event_id"]), "event_type": r["event_type"],
+                    "occurred_at": r["occurred_at"],
+                    "source": "grace_supervisory_authorization_events"}
+                    for r in cur.fetchall()}
+            if objective_ids and evidence_relations[f"{self.schema}.external_reasoning_exchanges"]:
+                cur.execute("""SELECT DISTINCT ON (exchange.objective_id) exchange.objective_id,exchange.request_id,
+                        exchange.delivery_state,exchange.requested_at,exchange.updated_at,exchange.deadline_at
+                    FROM external_reasoning_exchanges exchange
+                    JOIN grace_objectives o ON o.objective_id=exchange.objective_id
+                    WHERE exchange.objective_id=ANY(%s::text[])
+                      AND exchange.delivery_state IN ('awaiting_delivery','awaiting_external_claim',
+                                             'awaiting_response','response_received')
+                      AND exchange.deadline_at>clock_timestamp()
+                      AND exchange.requested_at>=o.updated_at
+                    ORDER BY exchange.objective_id,exchange.updated_at DESC,exchange.request_id DESC""", (objective_ids,))
+                reasoning_by_objective = {r["objective_id"]: {
+                    "event_id": str(r["request_id"]), "event_type": r["delivery_state"],
+                    "occurred_at": r["updated_at"], "deadline_at": r["deadline_at"],
+                    "active": True, "source": "external_reasoning_exchanges"}
+                    for r in cur.fetchall()}
+            observed_now = datetime.now(UTC)
             items=[]
-            for row in cur.fetchall():
+            for row in rows:
                 artifact = row["artifact"] if isinstance(row["artifact"], dict) else None
                 received_payload = row["received_payload"] if isinstance(row["received_payload"], dict) else {}
                 origin = received_payload.get("origin") if isinstance(received_payload.get("origin"), dict) else {}
@@ -816,6 +1013,24 @@ class DashboardProjection:
                     lifecycle_status, lifecycle_stage = "waiting", "Awaiting authorized work order"
                 else:
                     lifecycle_status, lifecycle_stage = "waiting", str(row["status"])
+                latest_activity = activity_by_objective.get(row["objective_id"])
+                current_revision = int(row["revision"])
+                criteria_failure = None
+                if (latest_activity and latest_activity.get("event_type") == "execution.reasoning_failed"
+                        and latest_activity.get("detail_code") == "PROPOSAL_CRITERIA_BINDING_REJECTED"
+                        and latest_activity.get("status") == "BLOCKED"
+                        and latest_activity.get("objective_revision") == str(current_revision)):
+                    criteria_failure = latest_activity
+                operational_status = derive_operational_status(
+                    lifecycle_status=row["status"], revision=current_revision,
+                    assignment_state=assignment_state, latest_event=latest_activity,
+                    lifecycle_updated_at=row["updated_at"],
+                    assignment_updated_at=row["assignment_updated_at"],
+                    criteria_failure=criteria_failure,
+                    recovery_approval=recovery_by_objective.get(row["objective_id"]),
+                    supervisor_recovery=supervisor_by_objective.get(row["objective_id"]),
+                    external_reasoning=reasoning_by_objective.get(row["objective_id"]),
+                    now=observed_now, active_attempt_seconds=self.heartbeat_stale_seconds)
                 item = {"objective_id": row["objective_id"],
                     "request": str(row["request"])[:512], "scope_ref": row["scope_ref"],
                     "submitter_id": row["submitter_id"],
@@ -831,15 +1046,19 @@ class DashboardProjection:
                                   type(origin.get("source_sequence")) is int else None),
                     "lifecycle_status": lifecycle_status,
                     "lifecycle_stage": lifecycle_stage,
+                    "operational_status": operational_status,
                     "latest_event": ({"event_type": row["latest_event_type"],
                                       "occurred_at": self._iso(row["latest_event_at"])}
                                      if row["latest_event_type"] else None),
                     "attempt_id": str(row["attempt_id"]) if row["attempt_id"] else None,
-                    "artifact": ({"sha256": row["result_sha256"],
-                                  "reference": artifact.get("artifact_name"),
-                                  "path": artifact.get("artifact_path"),
+                "artifact": ({"sha256": row["result_sha256"],
+                                  "reference": artifact.get("artifact_name") or
+                                      (outputs_by_assignment.get(row["assignment_id"], [{}])[0].get("name")),
+                                  "summary": artifact.get("summary"),
                                   "status": artifact.get("status")}
                                  if artifact else None),
+                    "related_outputs": outputs_by_assignment.get(row["assignment_id"], []),
+                    "related_outputs_truncated": row["assignment_id"] in outputs_truncated_by_assignment,
                     "verification": ({"decision": row["verification_decision"],
                                       "verification_id": verification_id,
                                       "verifier_revision": row["verifier_revision"],
@@ -879,6 +1098,7 @@ class DashboardProjection:
                     item = {key: item[key] for key in (
                         "objective_id", "status", "assignment_id", "assignment_state",
                         "origin", "lifecycle_status", "lifecycle_stage", "latest_event",
+                        "operational_status",
                         "verification", "rework", "steward_action_required",
                         "grounding_diagnostics",
                         "dispatch_failures", "last_dispatch_failure_at",
