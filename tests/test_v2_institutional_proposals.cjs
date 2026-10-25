@@ -48,7 +48,7 @@ test('V2 exposes the proposal registry through an isolated Steward-facing worksp
   assert.match(client, /cache:"no-store"/);
 });
 
-test('V2 records an exact-revision decision only through the authenticated existing API', () => {
+test('V2 preserves exact-revision decision controls through the authenticated existing API', () => {
   const client = fs.readFileSync(path.join(ROOT, 'assets/institutional-proposals.js'), 'utf8');
   const css = fs.readFileSync(path.join(ROOT, 'assets/institutional-proposals.css'), 'utf8');
   assert.match(client, /\/decision`/);
@@ -60,8 +60,8 @@ test('V2 records an exact-revision decision only through the authenticated exist
   assert.match(client, /approved_purpose/);
   assert.match(client, /No decision was recorded/);
   assert.match(client, /error\.status === 409/);
-  assert.doesNotMatch(client, /method\s*:\s*"(PUT|PATCH|DELETE)"/);
-  assert.doesNotMatch(client, /\/work-orders/);
+  assert.match(client, /method:"PUT"/);
+  assert.match(client, /\/work-orders`/);
   assert.match(client, /textContent\s*=/);
   assert.doesNotMatch(client, /\.innerHTML\s*=/);
   assert.match(client, /error\.status === 401/);
@@ -71,7 +71,23 @@ test('V2 records an exact-revision decision only through the authenticated exist
   assert.match(client, /crypto\.randomUUID\(\)/);
   assert.match(client, /This will append an auditable Steward decision/);
   assert.match(client, /does not create or dispatch an Engineering work order/);
+  assert.match(client, /expected_revision:detail\.revision/);
+  assert.match(client, /Create a new DRAFT revision/);
+  assert.match(client, /only the current Steward-approved revision/);
+  assert.match(client, /does not start execution/);
+  assert.match(client, /window\.confirm\(`Promote approved proposal/);
   assert.match(css, /proposal-decision-panel/);
   assert.match(css, /@media\(max-width:760px\)/);
   assert.match(css, /@media\(max-width:440px\)/);
+});
+
+test('V2 exposes draft authoring from a persisted Grace message through the existing proposal API', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const chat = fs.readFileSync(path.join(ROOT, 'assets/grace-chat.js'), 'utf8');
+  assert.match(html, /id="proposal-draft-dialog"/);
+  assert.match(chat, /data-draft-proposal/);
+  assert.match(chat, /source_sequences:\[sequence\]/);
+  assert.match(chat, /idempotency_key:`v2-proposal:/);
+  assert.match(chat, /"\/api\/v1\/institutional-proposals"/);
+  assert.match(chat, /remains DRAFT/);
 });

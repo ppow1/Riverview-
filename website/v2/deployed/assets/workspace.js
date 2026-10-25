@@ -22,7 +22,7 @@ History: Git and revision/backup manifest
 (() => {
   "use strict";
   const fixtures = window.RIVERVIEW_V2_FIXTURES;
-  const labels = { overview: "Workspace overview", residents: "Residents", work: "Work", "institutional-proposals": "Institutional proposals", "resident-permissions": "Resident permissions", "account-administration": "Account administration", roadmap: "Living Roadmap", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
+  const labels = { overview: "Workspace overview", residents: "Residents", work: "Work", "institutional-proposals": "Institutional proposals", "resident-permissions": "Resident permissions", "account-administration": "Account administration", "process-workflows": "Process workflows", documentation: "Documentation and diagnostics", roadmap: "Living Roadmap", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
   const nav = document.getElementById("primary-nav");
   const area = document.getElementById("view-content");
   const title = document.getElementById("page-title");
@@ -106,9 +106,11 @@ History: Git and revision/backup manifest
     const isAccountAdministration = view === "account-administration";
     const isImageGeneration = view === "image-generation";
     const isNotificationSettings = view === "notification-settings";
+    const isProcessWorkflows = view === "process-workflows";
+    const isDocumentation = view === "documentation";
     document.querySelector(".welcome-row").hidden = isRoadmap;
     document.getElementById("snapshot-status").hidden = isRoadmap;
-    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isRoadmap || isProposals || isResidentPermissions || isAccountAdministration;
+    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isRoadmap || isProposals || isResidentPermissions || isAccountAdministration || isProcessWorkflows || isDocumentation;
     document.getElementById("manual-image-workspace").hidden = !isImageGeneration;
     document.getElementById("grace-workspace").hidden = !isGrace;
     document.getElementById("communications-workspace").hidden = !isCommunications;
@@ -119,8 +121,10 @@ History: Git and revision/backup manifest
     document.getElementById("institutional-proposals-workspace").hidden = !isProposals;
     document.getElementById("resident-permissions-workspace").hidden = !isResidentPermissions;
     document.getElementById("account-administration-workspace").hidden = !isAccountAdministration;
+    document.getElementById("process-workflows-workspace").hidden = !isProcessWorkflows;
+    document.getElementById("documentation-workspace").hidden = !isDocumentation;
     heading.textContent = view === "overview" ? "Resident directory" : isWork ? "Workspace examples" : labels[view] || labels.residents;
-    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isRoadmap && !isProposals && !isResidentPermissions && !isAccountAdministration) {
+    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isRoadmap && !isProposals && !isResidentPermissions && !isAccountAdministration && !isProcessWorkflows && !isDocumentation) {
       area.replaceChildren();
       if (view === "overview" || view === "residents") {
         const list = el("div", "list-stack");
@@ -157,6 +161,7 @@ History: Git and revision/backup manifest
     if (isAccountAdministration) window.dispatchEvent(new Event("rv:account-administration"));
     if (isCommunications) window.RiverviewV2Communications?.render();
     if (isNotificationSettings) window.RiverviewV2NotificationSettings?.render();
+    if (isProcessWorkflows || isDocumentation) window.dispatchEvent(new CustomEvent("rvv2:view", { detail: { view } }));
     document.querySelectorAll(".nav-item").forEach((button) => {
       const active = button.dataset.view === view || (view === "grace" && button.dataset.view === "residents");
       button.classList.toggle("active", active);
@@ -186,6 +191,10 @@ History: Git and revision/backup manifest
       render(button.dataset.view);
       document.querySelector(".rail").classList.remove("mobile-open");
     }
+  });
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("button.inline-view-link[data-view]");
+    if (button) render(button.dataset.view);
   });
   document.getElementById("selected-resident").addEventListener("click", () => render("residents"));
   document.getElementById("mobile-menu").addEventListener("click", () => document.querySelector(".rail").classList.toggle("mobile-open"));
