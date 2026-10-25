@@ -25,7 +25,7 @@
       "size_bytes": 1296735
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.320"
+      "revision": "1.1.321"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -9583,6 +9583,6 @@
       "revision": "1.0.31"
     }
   },
-  "manifest_revision": "1.1.320",
+  "manifest_revision": "1.1.321",
   "updated_at": "2026-10-24T22:12:59Z"
 }
