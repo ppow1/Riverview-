@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_direct_luna_adapter_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-25 UTC | RV-GRACE-LUNA-JSON-MODE-INPUT-20261024 | Assert evaluation JSON-mode requests explicitly instruct JSON in user input.
 # Changed: 2026-10-25 UTC | RV-GRACE-LUNA-EVAL-INPUT-20261024 | Cover evaluation message shape and retained sanitized input validation errors.
 # Purpose: Verify bounded Luna adapter requests and sanitized exchange outcomes
 # Execution Model: Offline unit tests; provider calls are mocked
@@ -203,9 +204,26 @@ class DirectLunaAdapterUnitTests(unittest.TestCase):
                 self.assertEqual(body["text"]["format"]["type"], "json_object")
                 if request_type == "performance_evaluation":
                     self.assertEqual(body["input"], [{"role": "user", "content": [{
-                        "type": "input_text", "text": json.dumps(exchange.row["request_payload"],
-                            ensure_ascii=False, separators=(",", ":"))}]}])
+                        "type": "input_text", "text": (
+                            "Return the performance evaluation as a valid JSON object.\n\n" +
+                            json.dumps(exchange.row["request_payload"], ensure_ascii=False,
+                                separators=(",", ":")))}]}])
                 self.assertEqual(exchange.begin_args["reserved_cost"], 0.05)
+
+    def test_performance_evaluation_json_mode_contains_explicit_user_instruction(self):
+        exchange = _Exchange(request_type="performance_evaluation", max_tokens=512)
+        outcome, captured = self._call(exchange, {"id": "resp_fixture_json_instruction",
+            "model": "gpt-6-luna", "status": "completed", "incomplete_details": None,
+            "output_text": "{}", "usage": {"input_tokens": 12, "output_tokens": 4}})
+        self.assertEqual(outcome["status"], "RESPONSE_SUBMITTED")
+        body = json.loads(captured["request"].data)
+        self.assertEqual(body["text"]["format"], {"type": "json_object"})
+        user_text = body["input"][0]["content"][0]["text"]
+        self.assertTrue(user_text.startswith(
+            "Return the performance evaluation as a valid JSON object.\n\n"))
+        self.assertIn(json.dumps(exchange.row["request_payload"], ensure_ascii=False,
+            separators=(",", ":")), user_text)
+        self.assertEqual(exchange.begin_args["reserved_cost"], 0.05)
 
     def test_evaluation_input_validation_error_is_retained_safely(self):
         exchange = _Exchange(request_type="performance_evaluation", max_tokens=512)

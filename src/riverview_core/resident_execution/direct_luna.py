@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/direct_luna.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-25 UTC | RV-GRACE-LUNA-JSON-MODE-INPUT-20261024 | Add the required JSON-mode instruction to evaluation input text.
 # Changed: 2026-10-25 UTC | RV-GRACE-LUNA-EVAL-INPUT-20261024 | Send evaluation evidence as a user input_text message in the Responses request.
 # Changed: 2026-10-24 UTC | RV-GRACE-LUNA-DENIAL-TERMINALIZATION-20261024 | Close provider-denied requests with a fenced zero-charge exchange event.
 # Purpose: Submit authorized bounded Luna requests through Grace's durable exchange
@@ -170,7 +171,9 @@ def process_one(exchange):
     # Keep evaluation evidence as user text inside a Responses input message. The
     # serialized payload is content, not the top-level input value.
     provider_input = ([{"role": "user", "content": [{
-        "type": "input_text", "text": serialized_payload}]}]
+        "type": "input_text", "text": (
+            "Return the performance evaluation as a valid JSON object.\n\n"
+            + serialized_payload)}]}]
         if request_type == "performance_evaluation" else serialized_payload)
     body_data = {"model": MODEL_ID, "store": False, "max_output_tokens": max_output_tokens,
         "reasoning": {"effort": "low"}, "instructions": (
