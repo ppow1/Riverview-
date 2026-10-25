@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_notifications.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.4
+# Revision: 1.0.5
+# Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Assert an unlinked Steward session is denied before the decision service
 # Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify idempotent Grace block projection and non-authoritative receipt.
 # Purpose: Verify durable visual notice projection, recovery, privacy, and receipt authority
 # Execution Model: Isolated PostgreSQL integration tests against unique rvtest_* schemas
@@ -141,6 +142,29 @@ class NotificationHTTPTests(unittest.TestCase):
                                       token=self.token, body=body)
         self.assertEqual(status, 403)
         self.assertEqual(result["error"], "steward_account_session_required")
+
+    def test_unlinked_steward_account_cannot_record_recovery_decision(self):
+        class AccountAuth:
+            def authenticate(_self, credential, *, csrf_token, state_changing):
+                if credential != "unlinked-session" or (state_changing and csrf_token != "csrf"):
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied("denied")
+                return {"account_id": "unlinked-steward-test", "roles": ["steward"]}
+            def require_role(_self, identity, *roles):
+                if not set(identity.get("roles", ())).intersection(roles):
+                    from riverview_core.account_auth import AuthDenied
+                    raise AuthDenied("role required")
+                return identity
+        calls = []
+        self.server._account_auth_service = AccountAuth()
+        self.server._notification_service.decide_grace_recovery = lambda *args, **kwargs: calls.append((args, kwargs))
+        body = json.dumps({"decision": "approve", "reason": "disposable denied-path test",
+                           "idempotency_key": "unlinked-steward-must-not-write"})
+        status, result = self.request("POST", f"/api/v1/grace-recovery/{uuid4()}/decision",
+            body=body, cookie="rv_account_session=unlinked-session", csrf="csrf")
+        self.assertEqual(status, 403)
+        self.assertEqual(result["error"], "steward_account_session_required")
+        self.assertEqual(calls, [])
 
     def test_notification_settings_api_requires_steward_and_persists_update(self):
         class AccountAuth:
