@@ -3,7 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const {mergeFeeds, mergeEventPage, notificationReceiptAction, notificationDetails, filterRows} = require("../website/v2/deployed/assets/operational-inbox-adapter.js");
+const {mergeFeeds, mergeEventPage, notificationReceiptAction, notificationDetails, canRequestRecoveryDecision, filterRows} = require("../website/v2/deployed/assets/operational-inbox-adapter.js");
 
 test("adapter joins notification, attention, and event history by authoritative event ID", () => {
   const rows = mergeFeeds({
@@ -80,6 +80,13 @@ test("notification detail adapter preserves API lifecycle timestamps and whiteli
   assert.equal(Object.hasOwn(detail,"private_token"),false);
 });
 
+test("recovery decision request controls require a Steward account role", () => {
+  assert.equal(canRequestRecoveryDecision({roles:["steward"]}),true);
+  assert.equal(canRequestRecoveryDecision({roles:["operator"]}),false);
+  assert.equal(canRequestRecoveryDecision({roles:["steward","viewer"]}),true);
+  assert.equal(canRequestRecoveryDecision(null),false);
+});
+
 test("filters search, source, supplied severity, delivery state, and sort without mutating", () => {
   const rows = mergeFeeds({
     notifications: [
@@ -130,11 +137,29 @@ test("notification detail and dispatcher status are visible without automatic re
   const html=fs.readFileSync(path.join(root,"index.html"),"utf8");
   const js=fs.readFileSync(path.join(root,"assets/operational-inbox.js"),"utf8");
   assert.match(html,/id="inbox-dispatcher-health"/);
-  assert.match(html,/notification-detail-status-20261025/);
+  assert.match(html,/recovery-decision-controls-20261025/);
   assert.match(js,/Notification status and source details/);
   for (const field of ["source_recorded_at","created_at","delivered_at","acknowledged_at","decision_status","recovery_status"])
     assert.ok(js.includes(field));
   assert.match(js,/This does not confirm NTFY delivery/);
   assert.match(js,/Dispatcher \$\{human\(health\.status\)\}/);
   assert.doesNotMatch(js,/\.addEventListener\(["'](?:load|DOMContentLoaded)["'][\s\S]{0,300}postNoticeReceipt/);
+});
+
+test("recovery decisions use the existing CSRF-protected endpoint after confirmation and reason", () => {
+  const html=fs.readFileSync(path.resolve(__dirname,"../website/v2/deployed/index.html"),"utf8");
+  const js=fs.readFileSync(path.resolve(__dirname,"../website/v2/deployed/assets/operational-inbox.js"),"utf8");
+  const adapter=fs.readFileSync(path.resolve(__dirname,"../website/v2/deployed/assets/operational-inbox-adapter.js"),"utf8");
+  assert.match(html,/recovery-decision-controls-20261025/);
+  assert.match(js,/item\.recovery_status === "pending"/);
+  assert.match(js,/Request: approve one retry/);
+  assert.match(js,/Request: defer/);
+  assert.match(js,/Request: reject/);
+  assert.match(js,/window\.confirm\(/);
+  assert.match(js,/window\.prompt\(/);
+  assert.match(js,/\/api\/v1\/grace-recovery\/\$\{encodeURIComponent\(requestId\)\}\/decision/);
+  assert.match(js,/idempotency_key: `grace-recovery-decision:\$\{requestId\}:\$\{decision\}`/);
+  assert.match(js,/csrfHeaders\(\)/);
+  assert.match(js,/Recovery decisions require a Steward account with linked institutional Steward authority/);
+  assert.match(adapter,/identity\.roles\.includes\("steward"\)/);
 });

@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.4
+File Revision: 1.0.5
 Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Document Grace block escalation visual delivery and receipt boundaries.
 Changed: 2026-10-24 UTC | RV-GRACE-BOUNDED-RECOVERY-DECISION-20261024 | Document exact Steward-bound single-use recovery decisions.
 Changed: 2026-10-25 UTC | RV-V2-NOTIFICATION-DETAIL-STATUS-20261025 | Document V2 read-only notification lifecycle detail and dispatcher status.
+Changed: 2026-10-25 UTC | RV-V2-GRACE-RECOVERY-DECISIONS-20261025 | Document V2 Steward decision requests through the established recovery API.
 Purpose: Define durable notifications and exact-bound Grace recovery decisions
 Authority: Receipt is non-authoritative; recovery decision requires the authenticated Steward account workflow
 Changed: 2026-10-11 UTC | RV-M3.2-001 | Normalize controlled Markdown spacing
@@ -99,7 +100,13 @@ the same response. Opening the inbox or a detail does not write a receipt.
 explicitly confirmed, and `acknowledged` means that dashboard receipt was
 explicitly acknowledged. None of these states proves NTFY relay acceptance,
 iPhone delivery, or that a person saw a message. The API contains no NTFY relay
-receipt. V2 does not expose recovery decision controls from this view.
+receipt. For a pending exact-bound recovery request, V2 offers the existing
+`approve`, `defer`, and `reject` decisions only to an account session with the
+Steward role; the API additionally requires its institutional Steward
+principal and CSRF token. Each action requires browser confirmation and a
+nonempty audit reason. The endpoint records the decision only; it does not run
+Grace or dispatch a retry. A denied or unavailable request is reported without
+claiming that a decision was recorded.
 
 Every route is loopback and Host-header checked. API access requires the
 existing dashboard bearer over the same origin. Recovery decision posts also

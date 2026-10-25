@@ -94,6 +94,10 @@
     return null;
   }
 
+  function canRequestRecoveryDecision(identity) {
+    return Array.isArray(identity?.roles) && identity.roles.includes("steward");
+  }
+
   function filterRows(rows, {query = "", source = "all", severity = "all", status = "all", sort = "newest"} = {}) {
     const needle = query.trim().toLocaleLowerCase();
     return rows.filter((row) => {
@@ -110,7 +114,7 @@
     });
   }
 
-  const api = Object.freeze({mergeFeeds, mergeEventPage, notificationReceiptAction, notificationDetails, filterRows});
+  const api = Object.freeze({mergeFeeds, mergeEventPage, notificationReceiptAction, notificationDetails, canRequestRecoveryDecision, filterRows});
   if (typeof window !== "undefined") window.RiverviewV2OperationalInboxAdapter = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();
