@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.8
+# Revision: 1.0.9
+# Changed: 2026-10-25 UTC | RV-GRACE-BASELINE-310-PR311 | Allow persisted assignment evidence preflight observations.
 # Purpose: Authenticate a scoped local worker and persist deterministic attempts/results
 # Execution Model: Request-driven local task execution with PostgreSQL durability
 # Observability: Worker identity, capability, attempt outcome, and result digest

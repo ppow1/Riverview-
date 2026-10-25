@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.23
+# Revision: 1.0.24
+# Changed: 2026-10-25 UTC | RV-GRACE-BASELINE-310-PR311 | Cover assignment evidence preflight persistence.
 # Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
