@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.69
+# Revision: 1.0.72
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Fix the integration fixture's explicit service import for concurrent admission coverage.
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Exercise exact S4 single-use exception issuance and concurrent atomic consumption without resetting prior rework attempts.
 # Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Prove persisted authorization stops are checked against the active exact grant without another re-review.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-AUTHORITY-EVIDENCE-20261024 | Verify re-review evidence carries exact active Luna grant scope and bounded prior request attempt facts.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
@@ -1815,7 +1817,7 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertNotEqual(rows[0]["assignment_id"], rows[1]["assignment_id"])
 
     def _create_rework_fixture(self, suffix, *, conversation_id=None,
-                               proposal_reference=None):
+                               proposal_reference=None, step_id="s1"):
         if proposal_reference is None:
             objective_id = "objective:governed-rework:" + suffix
         else:
@@ -1836,7 +1838,7 @@ class GraceExecutionTests(unittest.TestCase):
             proposal_reference=proposal_reference)
         self.pipeline.ground_objective(objective_id)
         self.pipeline.record_proposal(objective_id,
-            PlanProposal("Create acceptance artifact", (PlanStep("s1",
+            PlanProposal("Create acceptance artifact", (PlanStep(step_id,
                 "Create an acceptance artifact", tuple(criteria), artifact_requirements=(
                     ArtifactRequirement("acceptance", "reports/acceptance.txt", "text/plain",
                         tuple(criteria)),)),), 0))
@@ -2261,6 +2263,109 @@ class GraceExecutionTests(unittest.TestCase):
         item = projection.objectives(objective_id=objective_id)["items"][0]
         self.assertEqual(item["lifecycle_status"], "blocked")
         self.assertTrue(item["steward_action_required"])
+
+    def test_exact_s4_rework_exception_is_consumed_once_under_concurrent_admission(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from contextlib import ExitStack
+        from riverview_core.resident_execution.service import GraceExecutionService
+        from riverview_core.resident_execution.grace_supervisory_authorization import (
+            GraceSupervisoryAuthorization)
+        from riverview_core.resident_execution import GraceExecutionPipeline
+
+        objective_id, assignment_id, criteria, _action, worker, verifier = \
+            self._create_rework_fixture("s4-one-use", step_id="s4")
+        service = GraceExecutionService(self.pipeline, self.adapter, worker,
+            dispatch_credential=self.credentials["steward"], authority_ref=self.scope,
+            verifier_id=self.verifier_id, verifier_credential=self.credentials["verifier"],
+            artifact_root=self.root / "s4-rework-artifacts", verifier=verifier,
+            rejected_work_order_publisher=None)
+        for index in range(self.pipeline.MAX_GOVERNED_REWORK_ATTEMPTS):
+            self.assertEqual(worker.run_once(assignment_id=assignment_id)["status"],
+                "AWAITING_VERIFICATION")
+            self.assertTrue(service.verify_one(assignment_id))
+            context = self.pipeline.pending_rejected_work_order_reviews()[0]
+            decision = {"decision":"REWORK_PROPOSED",
+                "rationale":"The exact S4 rejection requires one correction.",
+                "correction_instruction":"Use a deliberately incomplete correction.",
+                "criteria_to_address":[criteria[index % len(criteria)]]}
+            self.pipeline.record_rework_decision(context, decision,
+                credential=self.credentials["steward"])
+        self.assertEqual(worker.run_once(assignment_id=assignment_id)["status"],
+            "AWAITING_VERIFICATION")
+        self.assertTrue(service.verify_one(assignment_id))
+        context = self.pipeline.pending_rejected_work_order_reviews()[0]
+        self.assertEqual(context["rework_attempt_count"], 3)
+        self.assertEqual(service.publish_rejected_work_order_reviews(), 0)
+        verification_id=context["completion"]["verification_id"]
+        objective_revision=self.pipeline.get_objective(objective_id)["revision"]
+
+        auth_module=__import__(
+            "riverview_core.resident_execution.grace_supervisory_authorization",
+            fromlist=["S4_REWORK_OBJECTIVE_ID"])
+        with ExitStack() as stack:
+            for name,value in (("S4_REWORK_OBJECTIVE_ID",objective_id),
+                ("S4_REWORK_OBJECTIVE_REVISION",objective_revision),
+                ("S4_REWORK_ROOT_ASSIGNMENT_ID",assignment_id),
+                ("S4_REWORK_ASSIGNMENT_ID",assignment_id),
+                ("S4_REWORK_VERIFICATION_ID",verification_id),
+                ("S4_REWORK_EXCEPTION_IDEMPOTENCY_KEY",
+                    "grace-s4-rework-authorized:" + verification_id)):
+                stack.enter_context(patch.object(auth_module,name,value))
+            authorization=GraceSupervisoryAuthorization(self.pipeline,self.authorizer)
+            with patch.object(self.pipeline,
+                    "performance_evaluation_runtime_evidence_for_assignment",
+                    return_value={"schema":
+                        "rv.grace.performance-evaluation-runtime-evidence.v1",
+                        "objective_id":objective_id,"assignment_id":assignment_id,
+                        "exchange":{"request_id":
+                            "98ca464e-23b8-5511-8ca0-cd8c528cdffa",
+                            "delivery_state":"grace_consumed"},
+                        "evaluation":{"feedback_consumed":True,
+                            "authority_granted":False}}):
+                grant=authorization.authorize_one_s4_rework_attempt(
+                    actor_id="steward:camrui",objective_id=objective_id,
+                    objective_revision=objective_revision,
+                    objective_assignment_id=assignment_id,assignment_id=assignment_id,
+                    verification_id=verification_id,
+                    assignment_credential=self.credentials["steward"],
+                    explicit_steward_confirmation=True)
+            self.assertEqual(grant["status"],"authorized")
+            events = self.pipeline.objective_events(objective_id)
+            candidate = self.pipeline._available_s4_rework_exception(
+                events, objective_id, assignment_id, verification_id)
+            self.assertIsNotNone(candidate, repr([(event["event_type"],
+                event.get("idempotency_key"), event.get("actor_id"), event.get("payload")) for event in events
+                if event["event_type"] == "engineering.rework_retry_authorized"]))
+            eligible=self.pipeline.pending_rejected_work_order_reviews()[0]
+            self.assertEqual(eligible["s4_retry_exception"]["event_id"],grant["event_id"])
+
+            def consume_once():
+                import psycopg
+                ledger=PostgresLedger(DSN,schema=self.schema)
+                intake=AuthorizedAssignmentIntake(ledger,self.authorizer)
+                pipeline=GraceExecutionPipeline(ledger,self.authorizer,intake,self.knowledge)
+                try:
+                    return pipeline.consume_s4_rework_exception(
+                        eligible,credential=self.credentials["steward"])
+                except Exception as exc:
+                    return exc
+                finally:
+                    ledger.close()
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                outcomes=list(executor.map(lambda _i:consume_once(),range(2)))
+            successes=[value for value in outcomes if isinstance(value,dict) and
+                value.get("status")=="authorized_rework_queued"]
+            self.assertEqual(len(successes),1,repr(outcomes))
+            self.assertEqual(self.ledger.get(assignment_id)["state"],"ready")
+            events=self.pipeline.objective_events(objective_id)
+            consumed=[event for event in events if event["event_type"]==
+                "engineering.rework_retry_consumed"]
+            decisions=[event for event in events if event["event_type"]==
+                "engineering.rework_decided" and
+                event["payload"].get("decision")=="REWORK_PROPOSED"]
+            self.assertEqual(len(consumed),1)
+            self.assertEqual(len(decisions),4)
 
     def test_uncommissioned_rejection_review_provider_records_pending_without_requeue(self):
         from riverview_core.resident_execution.service import GraceExecutionService

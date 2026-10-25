@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.55
+# Revision: 1.0.56
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Replay consumed Luna evaluations idempotently and retain sanitized correlated consumer diagnostics.
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Suppress CME provider admission only for assignments durably held at exhausted rework limit.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Carry the approved parent assignment separately from the current S3 child pointer.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Restrict retry prioritization to the current active supervision authorization.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Queue only the approved event-scoped S3 diagnostic retry.
@@ -126,6 +128,24 @@ def _safe_rework_review_failure_detail(exc):
         return None
     detail = str(exc)
     return detail if detail in _SAFE_REWORK_REVIEW_FAILURE_DETAILS else "conversation_unavailable"
+
+
+def _safe_supervisory_failure_code(exc):
+    """Return only a bounded source-defined diagnostic code, never exception text."""
+    allowed = {
+        "supervisory_advisory_invalid", "supervisory_advisory_schema_invalid",
+        "cme_advisory_fields_invalid", "cme_exchange_response_correlation_invalid",
+        "cme_advisory_criteria_out_of_scope", "cme_advisory_lineage_invalid",
+        "cme_advisory_rework_incomplete",
+        "performance_evaluation_fields_invalid",
+        "performance_exchange_response_correlation_invalid",
+        "performance_replay_correlation_invalid",
+        "performance_evaluation_provider_attempt_evidence_incomplete",
+    }
+    detail = str(exc)
+    if detail in allowed:
+        return detail
+    return "supervisory_consumer_failed"
 
 
 class GraceExecutionService:
@@ -1167,6 +1187,21 @@ class GraceExecutionService:
         """Review rejected work within retry bounds or persist a Steward-action hold."""
         published = 0
         for context in self.pipeline.pending_rejected_work_order_reviews(limit=limit):
+            if context.get("s4_retry_exception"):
+                result = self.pipeline.consume_s4_rework_exception(
+                    context, credential=self.dispatch_credential)
+                LOG.warning(json.dumps({"event": "grace_s4_rework_exception_consumed",
+                    "objective_id": context["objective_id"],
+                    "assignment_id": context["assignment_id"],
+                    "verification_id": context["completion"]["verification_id"],
+                    "authorization_event_id": context["s4_retry_exception"]["event_id"],
+                    "result": result.get("status"),
+                    "prior_rework_attempts": result.get("rework_attempt_count_before"),
+                    "next_action": "same_assignment_engineering_rework_and_independent_verification"},
+                    sort_keys=True))
+                if result.get("status") == "authorized_rework_queued":
+                    published += 1
+                continue
             prior_decision = context.get("prior_review_decision")
             if (context.get("origin") is None and isinstance(prior_decision, dict) and
                     prior_decision.get("decision") == "STEWARD_AUTHORIZATION_REQUIRED"):
@@ -1419,13 +1454,32 @@ class GraceExecutionService:
                     except Exception as supervisory_exc:
                         assignment_id = consumed.original_request.assignment.get("assignment_id")
                         if isinstance(assignment_id, str) and assignment_id:
+                            reason_code = _safe_supervisory_failure_code(supervisory_exc)
+                            failure_stage = ("advisory_validation"
+                                if isinstance(supervisory_exc, (ValueError, json.JSONDecodeError))
+                                else "advisory_consumption")
                             self.pipeline.record_supervisory_event(objective_id, assignment_id,
                                 event_type=("resident.reasoning.cme_recovery_blocked"
                                     if request_type == "cme_diagnostic_recovery" else
                                     "resident.performance.evaluation_blocked"),
                                 request_id=request_id, correlation_id=correlation_id,
-                                idempotency_key=f"supervisory-blocked:{request_id}",
-                                payload={"reason_code": type(supervisory_exc).__name__})
+                                idempotency_key=f"supervisory-blocked:v2:{request_id}",
+                                payload={"reason_code": reason_code,
+                                    "failure_type": type(supervisory_exc).__name__,
+                                    "failure_stage": failure_stage,
+                                    "next_action": "preserve_consumed_response_and_correct_consumer"})
+                            LOG.warning(json.dumps({
+                                "event": "grace_supervisory_consumer_failed",
+                                "objective_id": objective_id,
+                                "assignment_id": assignment_id,
+                                "request_id": request_id,
+                                "correlation_id": correlation_id,
+                                "request_type": request_type,
+                                "failure_type": type(supervisory_exc).__name__,
+                                "reason_code": reason_code,
+                                "failure_stage": failure_stage,
+                                "next_action": "preserve_consumed_response_and_correct_consumer",
+                                "provider_call_made": False}, sort_keys=True))
                     exchange.acknowledge_consumed(request_id, correlation_id,
                         principal_id=principal, consumption_key=consumed.consumption_key,
                         consumption_token=consumed.consumption_token, fence=consumed.fence,
@@ -1480,6 +1534,49 @@ class GraceExecutionService:
                 LOG.warning(json.dumps({"event": "grace_external_reasoning_consume_failed",
                     "request_id": request_id, "correlation_id": correlation_id,
                     "failure_type": type(exc).__name__}, sort_keys=True))
+        replay_selector = getattr(
+            self.pipeline, "pending_consumed_performance_evaluation_replays", None)
+        if callable(replay_selector):
+            for item in replay_selector(limit=max(1, min(limit, 10))):
+                request_id, correlation_id = item["request_id"], item["correlation_id"]
+                objective_id, assignment_id = item["objective_id"], item["assignment_id"]
+                try:
+                    consumed = exchange.consume(request_id, correlation_id,
+                        principal_id=principal, authorize=self.external_reasoning_authorize)
+                    if (not consumed.already_consumed or
+                            consumed.original_request.trigger != "performance_evaluation" or
+                            consumed.original_request.assignment_id != objective_id or
+                            consumed.original_request.assignment.get("assignment_id") !=
+                                assignment_id):
+                        raise ValueError("performance_replay_correlation_invalid")
+                    self._consume_performance_evaluation(consumed, item)
+                    exchange.acknowledge_consumed(request_id, correlation_id,
+                        principal_id=principal, consumption_key=consumed.consumption_key,
+                        consumption_token=consumed.consumption_token,
+                        fence=consumed.fence,
+                        result_reference=(
+                            f"objective:{objective_id}:external-reasoning:{request_id}"),
+                        authorize=self.external_reasoning_authorize)
+                    processed += 1
+                except Exception as exc:
+                    reason_code = _safe_supervisory_failure_code(exc)
+                    failure_stage = ("evaluation_validation" if isinstance(exc, ValueError)
+                                     else "evaluation_replay")
+                    self.pipeline.record_supervisory_event(objective_id, assignment_id,
+                        event_type="resident.performance.evaluation_blocked",
+                        request_id=request_id, correlation_id=correlation_id,
+                        idempotency_key=f"supervisory-blocked:v2:{request_id}",
+                        payload={"reason_code": reason_code,
+                            "failure_type": type(exc).__name__,
+                            "failure_stage": failure_stage,
+                            "next_action": "preserve_consumed_response_and_correct_consumer"})
+                    LOG.warning(json.dumps({"event": "grace_performance_evaluation_replay_failed",
+                        "objective_id": objective_id, "assignment_id": assignment_id,
+                        "request_id": request_id, "correlation_id": correlation_id,
+                        "failure_type": type(exc).__name__, "reason_code": reason_code,
+                        "failure_stage": failure_stage,
+                        "next_action": "preserve_consumed_response_and_correct_consumer",
+                        "provider_call_made": False}, sort_keys=True))
         return processed
 
     def queue_cme_diagnostic_escalation(self):
@@ -1524,6 +1621,27 @@ class GraceExecutionService:
             return None
         objective_id, assignment_id = stall["objective_id"], stall["assignment_id"]
         event_id = stall["event_id"]
+        with self.pipeline.ledger.db.cursor() as cur:
+            self.pipeline.ledger._set_search_path(cur)
+            cur.execute("""SELECT count(*) AS attempts,
+                    EXISTS (SELECT 1 FROM grace_objective_events hold
+                      WHERE hold.objective_id=%s
+                        AND hold.event_type='engineering.rework_escalation_pending'
+                        AND hold.payload->>'assignment_id'=%s
+                        AND hold.payload->>'verification_id'=%s
+                        AND hold.payload->>'reason_code'='retry_limit_exhausted')
+                        AS exhausted_hold
+                FROM grace_objective_events rework
+                WHERE rework.objective_id=%s
+                  AND rework.event_type='engineering.rework_decided'
+                  AND rework.payload->>'assignment_id'=%s
+                  AND rework.payload->>'decision'='REWORK_PROPOSED'""",
+                (objective_id, assignment_id, verification["verification_id"],
+                 objective_id, assignment_id))
+            rework_gate = cur.fetchone()
+        if self._cme_rework_retry_exhausted(rework_gate,
+                self.pipeline.MAX_GOVERNED_REWORK_ATTEMPTS):
+            return None
         if exchange.has_active_for_objective(objective_id):
             return None
         objective = self.pipeline.get_objective(objective_id)
@@ -1656,6 +1774,12 @@ class GraceExecutionService:
                 sql.Identifier(authority_schema)), (auth["authority_grant_id"],))
             linked = cur.fetchone()
         return bool(linked and linked["grant_id"] == auth["authority_grant_id"])
+
+    @staticmethod
+    def _cme_rework_retry_exhausted(gate, retry_limit):
+        """Suppress diagnostics only for a durably escalated exhausted assignment."""
+        return bool(gate and type(gate.get("attempts")) is int and
+            gate["attempts"] >= retry_limit and gate.get("exhausted_hold") is True)
 
     @staticmethod
     def _cme_diagnostic_escalation_id(event_id, diagnostic_attempt):
@@ -1927,6 +2051,14 @@ class GraceExecutionService:
         if not isinstance(advisory, str) or len(advisory) > 8000:
             raise ValueError("supervisory_advisory_invalid")
         value = json.loads(advisory)
+        if not isinstance(value, dict):
+            raise ValueError("supervisory_advisory_schema_invalid")
+        if "schema" not in value and "schema_version" in value:
+            value = {**value, "schema": value["schema_version"]}
+            value.pop("schema_version", None)
+        if "rubric" not in value and "rubric_scores" in value:
+            value = {**value, "rubric": value["rubric_scores"]}
+            value.pop("rubric_scores", None)
         if not isinstance(value, dict) or set(value) != allowed_fields or value.get("schema") != schema:
             raise ValueError("supervisory_advisory_schema_invalid")
         return value
@@ -2030,8 +2162,19 @@ class GraceExecutionService:
         assignment_id = consumed.original_request.assignment.get("assignment_id")
         exchange_meta = self.pipeline.exchange_response_metadata(
             consumed.request_id, consumed.correlation_id)
-        if (not exchange_meta or exchange_meta["delivery_state"] != "response_received" or
-                exchange_meta["consumption_owner"] != "resident:grace" or
+        response_in_progress = (exchange_meta and
+            exchange_meta["delivery_state"] == "response_received" and
+            exchange_meta["consumption_owner"] == "resident:grace")
+        already_consumed = (exchange_meta and
+            exchange_meta["delivery_state"] == "grace_consumed" and
+            exchange_meta["consumption_owner"] is None and
+            exchange_meta["consumption_key"] ==
+                f"external-reasoning-consumed:{consumed.request_id}" and
+            isinstance(exchange_meta["consumption_result"], Mapping) and
+            exchange_meta["consumption_result"].get("advisory_sha256") ==
+                exchange_meta["response_sha256"])
+        if (not exchange_meta or not (response_in_progress or already_consumed) or
+                exchange_meta["provider_id"] != "gpt-6-luna" or
                 exchange_meta["request_payload"].get("request_type") != "performance_evaluation"):
             raise ValueError("performance_exchange_response_correlation_invalid")
         payload = {"grade": value["grade"], "grade_explanation": value["grade_explanation"],

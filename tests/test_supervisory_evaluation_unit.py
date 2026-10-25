@@ -1,7 +1,9 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.10
+# Revision: 1.0.12
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Require exact durable evaluation evidence before issuing an S4 exception.
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Cover response alias normalization, consumed-response replay, diagnostics, and exhausted-rework CME suppression.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Reject authorization requests outside the exact Steward-approved tuple.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Cover exact event-authorized retry selection without changing ordinary retries.
 # Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Prove persisted reviewer authorization stops are controller-checked and logged without another 80B call.
@@ -33,10 +35,11 @@ from riverview_core.resident_execution.pipeline import AuthorizedAssignmentIntak
 class _Pipeline:
     def __init__(self):
         self.records = []
+        self.exchange_metadata = None
 
     def exchange_response_metadata(self, request_id, correlation_id):
-        return {"delivery_state": "response_received",
-            "consumption_owner": "resident:grace",
+        return self.exchange_metadata or {"delivery_state": "response_received",
+            "consumption_owner": "resident:grace", "provider_id": "gpt-6-luna",
             "request_payload": {"request_type": "performance_evaluation"},
             "response_sha256": "a" * 64}
 
@@ -336,6 +339,173 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             "Steward_decision_required")
         self.assertEqual(consumed_record["idempotency_key"],
             "performance-feedback-consumed:request:test")
+
+    def test_known_luna_schema_aliases_are_normalized_without_mutating_response(self):
+        service = GraceExecutionService.__new__(GraceExecutionService)
+        service.pipeline = _Pipeline()
+        value = {"schema_version": "rv.grace.performance-evaluation.v1", "grade": 2,
+            "grade_explanation": "The durable evidence is usable.",
+            "rubric_scores": {"reasoning": 2, "authorization": 3,
+                "execution": 2, "verification": 2},
+            "what_went_well": ["The review used persisted evidence"],
+            "gaps": ["The S4 artifact omitted the durable exchange reference"],
+            "actionable_feedback": ["Reference the exact response and usage fields"],
+            "authority_promotion_recommendation": "Steward_decision_required"}
+        raw = json.dumps(value)
+        consumed = SimpleNamespace(original_request=SimpleNamespace(
+            assignment_id="objective:test", assignment={"assignment_id":"assignment:test",
+                "evaluation_trigger_event_id":"trigger:test"}, trigger="performance_evaluation"),
+            request_id="request:alias", correlation_id="correlation:alias",
+            advisory={"advisory": raw})
+        service._consume_performance_evaluation(consumed, {})
+        self.assertEqual(json.loads(consumed.advisory["advisory"]), value)
+        self.assertEqual(service.pipeline.records[0][2]["payload"]["rubric"],
+            value["rubric_scores"])
+        with self.assertRaisesRegex(ValueError, "supervisory_advisory_schema_invalid"):
+            service._json_advisory(SimpleNamespace(advisory={"advisory": json.dumps(
+                value | {"schema": value["schema_version"]})}),
+                "rv.grace.performance-evaluation.v1",
+                {"schema", "grade", "grade_explanation", "rubric", "what_went_well",
+                 "gaps", "actionable_feedback", "authority_promotion_recommendation"})
+
+    def test_already_consumed_exchange_is_accepted_only_with_matching_result_hash(self):
+        service = GraceExecutionService.__new__(GraceExecutionService)
+        service.pipeline = _Pipeline()
+        service.pipeline.exchange_metadata = {"delivery_state":"grace_consumed",
+            "consumption_owner":None,
+            "consumption_key":"external-reasoning-consumed:request:replay",
+            "consumption_result":{"advisory_sha256":"a"*64},
+            "provider_id":"gpt-6-luna",
+            "request_payload":{"request_type":"performance_evaluation"},
+            "response_sha256":"a"*64}
+        value = {"schema":"rv.grace.performance-evaluation.v1", "grade":2,
+            "grade_explanation":"Persisted grade", "rubric":{"reasoning":2,
+            "authorization":3,"execution":2,"verification":2},
+            "what_went_well":[],"gaps":[],"actionable_feedback":[],
+            "authority_promotion_recommendation":"Steward_decision_required"}
+        consumed = SimpleNamespace(original_request=SimpleNamespace(
+            assignment_id="objective:test", assignment={"assignment_id":"assignment:test",
+                "evaluation_trigger_event_id":"event:test"}, trigger="performance_evaluation"),
+            request_id="request:replay", correlation_id="correlation:replay",
+            advisory={"advisory":json.dumps(value)})
+        service._consume_performance_evaluation(consumed, {})
+        self.assertEqual(len(service.pipeline.records), 2)
+        service.pipeline.exchange_metadata["consumption_result"]["advisory_sha256"] = "b"*64
+        with self.assertRaisesRegex(ValueError, "performance_exchange_response_correlation_invalid"):
+            service._consume_performance_evaluation(consumed, {})
+
+    def test_cme_diagnostics_stop_only_for_exhausted_rework_with_durable_hold(self):
+        decide = GraceExecutionService._cme_rework_retry_exhausted
+        self.assertTrue(decide({"attempts":3,"exhausted_hold":True},3))
+        self.assertFalse(decide({"attempts":3,"exhausted_hold":False},3))
+        self.assertFalse(decide({"attempts":2,"exhausted_hold":True},3))
+        self.assertFalse(decide(None,3))
+
+    def test_s4_exception_is_exact_expiring_and_single_use(self):
+        from datetime import datetime, timedelta, timezone
+        choose = GraceExecutionPipeline._available_s4_rework_exception
+        from riverview_core.resident_execution.grace_supervisory_authorization import (
+            S4_REWORK_ASSIGNMENT_ID,S4_REWORK_OBJECTIVE_ID,S4_REWORK_VERIFICATION_ID,
+            S4_REWORK_OBJECTIVE_REVISION)
+        event_id="event:s4-rework-grant"
+        grant={"event_id":event_id,"idempotency_key":
+            "grace-s4-rework-authorized:"+S4_REWORK_VERIFICATION_ID,
+            "event_type":"engineering.rework_retry_authorized","actor_id":"steward:camrui",
+            "payload":{
+                "schema":"rv.grace.rework-retry-exception.v1",
+                "authorized_by":"steward:camrui","objective_id":S4_REWORK_OBJECTIVE_ID,
+                "objective_revision":S4_REWORK_OBJECTIVE_REVISION,
+                "assignment_id":S4_REWORK_ASSIGNMENT_ID,"step_id":"s4",
+                "verification_id":S4_REWORK_VERIFICATION_ID,"additional_attempts":1,
+                "expires_at":(datetime.now(timezone.utc)+timedelta(minutes=5)).isoformat()}}
+        args=(S4_REWORK_OBJECTIVE_ID,S4_REWORK_ASSIGNMENT_ID,S4_REWORK_VERIFICATION_ID)
+        self.assertIsNotNone(choose([grant],*args))
+        self.assertIsNone(choose([grant],"objective:other",*args[1:]))
+        consumed={"event_id":"event:consumed","event_type":"engineering.rework_retry_consumed",
+            "payload":{"grant_event_id":event_id}}
+        self.assertIsNone(choose([grant,consumed],*args))
+        from riverview_core.resident_execution.grace_supervisory_authorization import (
+            GraceSupervisoryAuthorization)
+        authority=object.__new__(GraceSupervisoryAuthorization)
+        with self.assertRaisesRegex(PermissionError,"s4_rework_exception_scope_mismatch"):
+            authority.authorize_one_s4_rework_attempt(actor_id="steward:camrui",
+                objective_id="objective:wrong",objective_revision=S4_REWORK_OBJECTIVE_REVISION,
+                objective_assignment_id="assignment:wrong",assignment_id="assignment:wrong",
+                verification_id=S4_REWORK_VERIFICATION_ID,assignment_credential="unused",
+                explicit_steward_confirmation=True)
+
+    def test_s4_rework_exception_requires_replayed_evaluation_evidence(self):
+        from riverview_core.resident_execution.grace_supervisory_authorization import (
+            GraceSupervisoryAuthorization,S4_REWORK_OBJECTIVE_ID,
+            S4_REWORK_OBJECTIVE_REVISION,S4_REWORK_ROOT_ASSIGNMENT_ID,
+            S4_REWORK_ASSIGNMENT_ID,S4_REWORK_VERIFICATION_ID)
+        pipeline=SimpleNamespace(
+            performance_evaluation_runtime_evidence_for_assignment=lambda *_args:None)
+        authority=object.__new__(GraceSupervisoryAuthorization)
+        authority.pipeline=pipeline
+        authority.ledger=object()
+        with self.assertRaisesRegex(PermissionError,
+                "s4_durable_performance_evaluation_required"):
+            authority.authorize_one_s4_rework_attempt(actor_id="steward:camrui",
+                objective_id=S4_REWORK_OBJECTIVE_ID,
+                objective_revision=S4_REWORK_OBJECTIVE_REVISION,
+                objective_assignment_id=S4_REWORK_ROOT_ASSIGNMENT_ID,
+                assignment_id=S4_REWORK_ASSIGNMENT_ID,
+                verification_id=S4_REWORK_VERIFICATION_ID,
+                assignment_credential="unused",explicit_steward_confirmation=True)
+
+    def test_supervisory_failure_code_excludes_arbitrary_exception_text(self):
+        from riverview_core.resident_execution.service import _safe_supervisory_failure_code
+        self.assertEqual(_safe_supervisory_failure_code(
+            ValueError("performance_exchange_response_correlation_invalid")),
+            "performance_exchange_response_correlation_invalid")
+        self.assertEqual(_safe_supervisory_failure_code(
+            RuntimeError("secret token and private payload")),
+            "supervisory_consumer_failed")
+
+    def test_consumed_evaluation_replay_records_without_provider_invocation(self):
+        service=GraceExecutionService.__new__(GraceExecutionService)
+        service.pipeline=_Pipeline()
+        service.pipeline.pending_consumed_performance_evaluation_replays=lambda **_kwargs:[{
+            "objective_id":"objective:test","assignment_id":"assignment:test",
+            "request_id":"request:replay","correlation_id":"correlation:replay"}]
+        service.pipeline.exchange_metadata={"delivery_state":"grace_consumed",
+            "consumption_owner":None,
+            "consumption_key":"external-reasoning-consumed:request:replay",
+            "consumption_result":{"advisory_sha256":"a"*64},
+            "provider_id":"gpt-6-luna",
+            "request_payload":{"request_type":"performance_evaluation"},
+            "response_sha256":"a"*64}
+        value={"schema":"rv.grace.performance-evaluation.v1","grade":2,
+            "grade_explanation":"Persisted response is valid.","rubric":{
+                "reasoning":2,"authorization":3,"execution":2,"verification":2},
+            "what_went_well":[],"gaps":[],"actionable_feedback":[],
+            "authority_promotion_recommendation":"Steward_decision_required"}
+        consumed=SimpleNamespace(already_consumed=True,consumption_key=
+            "external-reasoning-consumed:request:replay",consumption_token="",fence=1,
+            request_id="request:replay",correlation_id="correlation:replay",
+            advisory={"advisory":json.dumps(value)},original_request=SimpleNamespace(
+                assignment_id="objective:test",trigger="performance_evaluation",
+                assignment={"assignment_id":"assignment:test",
+                    "evaluation_trigger_event_id":"trigger:test"}))
+        class Exchange:
+            calls=[]
+            def pending_responses(_self,_principal,limit): return []
+            def consume(_self,*args,**kwargs):
+                self.assertEqual(args,("request:replay","correlation:replay"))
+                _self.calls.append("consume")
+                return consumed
+            def acknowledge_consumed(_self,*args,**kwargs):
+                _self.calls.append("ack")
+                return "grace_consumed"
+        exchange=Exchange(); service.external_reasoning_exchange=exchange
+        service.resident_reasoner=object(); service.external_reasoning_principal="resident:grace"
+        service.external_reasoning_authorize=lambda *_args,**_kwargs:True
+        self.assertEqual(service.consume_external_reasoning(),1)
+        self.assertEqual(exchange.calls,["consume","ack"])
+        self.assertEqual([row[2]["event_type"] for row in service.pipeline.records],
+            ["resident.performance.evaluation_recorded",
+             "resident.performance.feedback_consumed"])
 
     def test_partial_or_missing_grade_explanation_is_not_recorded(self):
         service = GraceExecutionService.__new__(GraceExecutionService)

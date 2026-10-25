@@ -1,0 +1,86 @@
+{
+  "task_id": "RV-GRACE-S4-RECOVERY-20261025",
+  "source_commit": "07e0ab008796dc2dd75b12d84204261627c25fde",
+  "captured_at_utc": "2026-10-25T05:05:50.578501+00:00",
+  "restoration": "Copy exact backup_path bytes over the source path; verify SHA-256 before restoring.",
+  "files": [
+    {
+      "path": "src/riverview_core/resident_execution/pipeline.py",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/src/riverview_core/resident_execution/pipeline.py",
+      "sha256": "d168c2f036d9f80e4ce3584ef68f0c94d00b0b467f9937306ac76da5f14175a6",
+      "bytes": 209508
+    },
+    {
+      "path": "src/riverview_core/resident_execution/service.py",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/src/riverview_core/resident_execution/service.py",
+      "sha256": "deb293e605c7c4c7dbb1a592af5c0a4c000d21f475632bf55d0a6ad5e080f269",
+      "bytes": 146095
+    },
+    {
+      "path": "src/riverview_core/resident_execution/codex_workflow.py",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/src/riverview_core/resident_execution/codex_workflow.py",
+      "sha256": "c698ebe8810934d0d7f44a7908a47eb91329916a1ec3ceb6d4d96c8fda0fe1da",
+      "bytes": 40957
+    },
+    {
+      "path": "tests/test_supervisory_evaluation_unit.py",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/tests/test_supervisory_evaluation_unit.py",
+      "sha256": "8fbd5a61902038d482e3f5b493ceb15dd55d99416542d7ba89be34d73816e735",
+      "bytes": 22322
+    },
+    {
+      "path": "tests/test_grace_execution.py",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/tests/test_grace_execution.py",
+      "sha256": "9648ffe6a352dd61077f1c92f205b5d835cce05726369027143bcc0e8e47777f",
+      "bytes": 252945
+    },
+    {
+      "path": "tests/test_codex_cli_adapter.py",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/tests/test_codex_cli_adapter.py",
+      "sha256": "1723948bfad07eff30225992eeb02670ac7876279595234da380078b27e4a2b6",
+      "bytes": 53548
+    },
+    {
+      "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/docs/components/GRACE_EXECUTION_PIPELINE.md",
+      "sha256": "c4277e3edf11d8a75fe2beb71f5b1c243f511e2238fe2e988f022aabf37af719",
+      "bytes": 46002
+    },
+    {
+      "path": "docs/components/GRACE_EXECUTION_COOKBOOK.md",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/docs/components/GRACE_EXECUTION_COOKBOOK.md",
+      "sha256": "b67f50fe488e6a6a75ffeefbedf4fd4f47617c696830b4212d65bdb595bbde36",
+      "bytes": 54544
+    },
+    {
+      "path": "process_graphs/grace/operational-integration.json",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/process_graphs/grace/operational-integration.json",
+      "sha256": "2d760b51d259ec75a578bc9d43e4d72b41c361a72a6d29302ea4407c0e368571",
+      "bytes": 100796
+    },
+    {
+      "path": "process_graphs/generated/riverview-process-graph.json",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/process_graphs/generated/riverview-process-graph.json",
+      "sha256": "55b6636db7187f8c9e6c7dce5f6af8e78315847b28eb62fee5e2951042a281ce",
+      "bytes": 775635
+    },
+    {
+      "path": "src/riverview_core/resident_execution/grace_supervisory_authorization.py",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/src/riverview_core/resident_execution/grace_supervisory_authorization.py",
+      "sha256": "1c193ecc3210cdff505be8256c446a3df8c3578932717db507fa39365a8cfef4",
+      "bytes": 20773
+    },
+    {
+      "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
+      "sha256": "6640a328dee70b903feb8ebbbd9622d04d0f553fdafee9a1a03b909b84389921",
+      "bytes": 56417
+    },
+    {
+      "path": "process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md",
+      "backup_path": "/home/admin1/projects/Riverview-S4-Evidence-Replay/.riverview-backups/RV-GRACE-S4-RECOVERY-20261025/process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md",
+      "sha256": "36d1da385ed9cf7d1c5891b0e8e263404f6e43673fb9b4638207537250187576",
+      "bytes": 7246
+    }
+  ]
+}

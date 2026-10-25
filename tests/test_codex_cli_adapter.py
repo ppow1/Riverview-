@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.12
+# Revision: 1.2.13
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-HANDOFF-20261025 | Verify only bounded server-derived Luna evaluation facts are attached to S4 rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Forward verified durable CME recovery exchange evidence into bounded same-assignment artifact rework.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Ensure original Steward instructions remain separate from formal execution criteria
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject negative JSON outcomes and check exact artifact literals at the independent Codex verifier boundary
@@ -264,6 +265,70 @@ class CodexCLIAdapterTests(unittest.TestCase):
         self.assertIn("29e66ad4-5eba-5e55-8e88-1003b635235e",prompt)
         self.assertIn("resp_0df0c5556ec6ec00016add7e1cdb6887d284d801ed6187e2fe",prompt)
         self.assertIn("Read-only server-derived runtime evidence",prompt)
+
+    def test_s4_rework_receives_server_validated_evaluation_facts(self):
+        objective_id = "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2"
+        assignment_id = "assignment:grace:s4-fixture"
+        verification_id = "54d1fb2f-411e-4771-a137-785d2b620de7"
+        criteria = ["The Luna exchange correlation, actual token usage, and cost are recorded.",
+            "Grace consumes the advisory without treating it as approval or execution authority."]
+        requirements = [{"name":"evaluation-evidence","path":"reports/s4-evaluation.md",
+            "media_type":"text/markdown", "acceptance_criteria":criteria,"max_bytes":32768}]
+        evidence = {"schema":"rv.grace.performance-evaluation-runtime-evidence.v1",
+            "read_only":True,"objective_id":objective_id,"assignment_id":assignment_id,
+            "exchange":{"request_id":"98ca464e-23b8-5511-8ca0-cd8c528cdffa",
+                "correlation_id":"b0f214ac-7461-463e-b804-fc89ccce2483",
+                "provider_id":"gpt-6-luna","response_id":"resp_fixture",
+                "response_sha256":"a"*64,"delivery_state":"grace_consumed",
+                "usage":{"input_tokens":2572,"output_tokens":280,
+                    "reasoning_tokens":130,"cost_usd":"0.0003972"}},
+            "evaluation":{"event_id":"event:grade","grade":2,
+                "rubric":{"reasoning":1,"authorization":3,"execution":2,"verification":2},
+                "feedback_consumed_event_id":"event:feedback","feedback_consumed":True,
+                "authority_granted":False}}
+
+        class Pipeline:
+            def get_objective(_self, value):
+                return {"objective_id":value,"status":"WORK_ORDER_CREATED",
+                    "request":"Create the truthful S4 evaluation evidence report.",
+                    "source_revision":self.revision,"source_sha256":"a"*64,
+                    "evidence":{"status":"VERIFIED","source_revision":self.revision,
+                        "source_sha256":"a"*64},"proposal":{"steps":[{}]}}
+            def proposal_step_for_assignment(_self, oid, aid):
+                self.assertEqual((oid,aid),(objective_id,assignment_id))
+                return {"objective":"Report persisted Luna evaluation evidence",
+                    "acceptance_criteria":criteria,"artifact_requirements":requirements}
+            def latest_rework_instruction(_self, aid):
+                return {"decision":"REWORK_PROPOSED","assignment_id":aid,
+                    "verification_id":verification_id,
+                    "correction_instruction":"Use the server supplied exchange evidence.",
+                    "criteria_to_address":criteria,
+                    "acceptance_criteria_sha256":hashlib.sha256(json.dumps(criteria,
+                        ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()}
+            def cme_recovery_runtime_evidence_for_assignment(_self, _oid, _aid):
+                return None
+            def performance_evaluation_runtime_evidence_for_assignment(_self, oid, aid):
+                self.assertEqual((oid,aid),(objective_id,assignment_id))
+                return evidence
+
+        captured={}; adapter=self.adapter()
+        adapter.execute=lambda request: (captured.__setitem__("request",request) or
+            SimpleNamespace(status="DELIVERABLE_PRODUCED",artifact_name="s4.md",
+                artifact_sha256="b"*64,artifact_bytes=10,repository_revision=self.revision,
+                source_artifact_name="reports/s4-evaluation.md",
+                changed_files=("reports/s4-evaluation.md",),artifacts=(),
+                rework_verification_id=verification_id,detail_code="produced",
+                execution_started=True))
+        grounded=KnowledgeResult(KnowledgeStatus.VERIFIED,
+            source_references=("repo://docs/example.md",),source_revision=self.revision,
+            source_sha256="c"*64,retrieval_complete=True)
+        CodexWorkAction(Pipeline(),adapter,"repo://example/test",5)(
+            {"id":assignment_id,"objective_ref":objective_id},grounded)
+        runtime=dict(captured["request"].runtime_evidence)
+        self.assertEqual(runtime,evidence)
+        self.assertFalse(runtime["evaluation"]["authority_granted"])
+        self.assertIn("98ca464e-23b8-5511-8ca0-cd8c528cdffa",
+            CodexCLIExecutionAdapter._prompt(captured["request"]))
 
     def test_prompt_preserves_steward_instructions_separately_from_formal_criteria(self):
         request = self.assignment(steward_instructions=(
