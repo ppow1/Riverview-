@@ -15,6 +15,13 @@ driver_module=importlib.util.module_from_spec(driver_spec); driver_spec.loader.e
 
 
 class WebsiteAcceptanceTests(unittest.TestCase):
+    def test_process_workflow_acceptance_is_gated_for_pre_feature_baseline(self):
+        source = (ROOT/"scripts/run_website_acceptance.py").read_text()
+        self.assertIn("PROCESS_WORKFLOWS_PRE_FEATURE_COMMIT", source)
+        self.assertIn("process_workflows_available = live_source_commit != PROCESS_WORKFLOWS_PRE_FEATURE_COMMIT", source)
+        self.assertIn("if process_workflows_available: views.extend([\"process-workflows\",\"documentation\"])", source)
+        self.assertIn('if role == "steward" and process_workflows_available:', source)
+
     def test_recovery_control_browser_check_requires_unlinked_steward_hint_and_hidden_controls(self):
         source = (ROOT/"scripts/run_website_acceptance.py").read_text()
         self.assertIn("recovery_controls_hidden_for_unlinked_steward", source)
