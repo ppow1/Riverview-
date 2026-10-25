@@ -48,9 +48,14 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn("/api/v1/account/enrollments?limit=50",source)
         self.assertIn("/api/v1/account/users?limit=100",source)
         self.assertNotIn("/api/v1/account/enrollments/",source)
-        self.assertIn("/api/v1/account/users/12345678-1234-4234-8234-123456789abc/disable",source)
+        self.assertIn("['disable',{disabled:true}]",source)
+        self.assertIn("['roles',{role:'steward',grant:true}]",source)
+        self.assertIn("['grant',{revoked:true}]",source)
+        self.assertIn("[403,403,403,403,403]",source)
         self.assertIn('"account_state_controls_visible"',source)
+        self.assertIn('"account_role_grant_controls_visible"',source)
         self.assertIn('ACCOUNT_STATE_PRE_FEATURE_COMMIT',source)
+        self.assertIn('ACCOUNT_ROLE_GRANT_PRE_FEATURE_COMMIT',source)
         self.assertIn('live_source_commit=live_source_commit',source)
 
     def test_predeploy_account_denial_and_nginx_snippet_rollback_are_safe(self):
