@@ -33,6 +33,7 @@ from tests.test_status_dashboard import _FakeProjection, ROOT
 class _AccountService:
     def __init__(self):
         self.identity = {"account_id":"account-1", "email":"viewer@example.org", "roles":["viewer"]}
+        self.account_state_calls = []
 
     def status(self):
         return {"component_id":"WEBSITE-ACCOUNT-AUTH", "status":"degraded",
@@ -91,6 +92,7 @@ class _AccountService:
 
     def set_account_state(self, actor, account_id, *, disabled):
         self.require_role(actor, "steward")
+        self.account_state_calls.append((account_id, disabled, actor["account_id"]))
         return {"status":"updated"}
 
     def change_role(self, actor, account_id, role, *, grant):
@@ -194,6 +196,28 @@ class AccountAuthHTTPTests(unittest.TestCase):
         status, _, body = self.request("GET", "/api/v1/account/enrollments", cookie=cookie)
         self.assertEqual(status, 403)
         self.assertEqual(json.loads(body)["error"], "not_authorized")
+
+    def test_account_state_endpoint_preserves_csrf_and_steward_authorization(self):
+        cookie = "rv_account_session=" + "S"*43
+        account_id = "12345678-1234-4234-8234-123456789abc"
+        path = f"/api/v1/account/users/{account_id}/disable"
+        origin = "https://192.168.1.155"
+        status, _, body = self.request("POST", path, cookie=cookie,
+            body={"disabled":True}, origin=origin)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "csrf_or_session_check_failed")
+        status, _, body = self.request("POST", path, cookie=cookie, csrf="C"*43,
+            body={"disabled":True}, origin=origin)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "not_authorized")
+        self.assertEqual(self.accounts.account_state_calls, [])
+
+        self.accounts.identity["roles"] = ["steward"]
+        status, _, body = self.request("POST", path, cookie=cookie, csrf="C"*43,
+            body={"disabled":True}, origin=origin)
+        self.assertEqual(status, 200)
+        self.assertEqual(self.accounts.account_state_calls,
+                         [(account_id, True, "account-1")])
 
 
 if __name__ == "__main__":

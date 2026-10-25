@@ -221,6 +221,48 @@ class AccountAuthPostgresTests(unittest.TestCase):
         self.service.set_account_state(self.steward, applicant_id, disabled=True)
         self.assertIsNone(self.service.authenticate(session.session_token))
 
+    def test_disposable_account_state_toggle_revokes_sessions_and_writes_audit(self):
+        with self.assertRaises(AuthDenied):
+            self.service.set_account_state(self.steward, self.steward_id, disabled=True)
+        self.service.request_access("state-test@example.org", source_key="127.0.0.9")
+        enrollment = self.mail.messages[-1]
+        self.service.verify_enrollment(enrollment["challenge_id"], enrollment["token"])
+        item = self.service.review_enrollments(self.steward)[0]
+        self.service.decide_enrollment(self.steward, item["enrollment_id"],
+            "approve", role="operator", grant_type="permanent")
+        setup = self.mail.messages[-1]
+        self.service.set_password(setup["challenge_id"], setup["token"], "disposable test password")
+        session = self.service.authenticate_password("state-test@example.org",
+            "disposable test password", source_key="127.0.0.9")
+        applicant_id = session.account_id
+        applicant = {"account_id":applicant_id, "roles":["operator"]}
+        with self.assertRaises(AuthDenied):
+            self.service.set_account_state(applicant, applicant_id, disabled=True)
+
+        self.assertEqual(self.service.set_account_state(self.steward, applicant_id,
+            disabled=True), {"status":"disabled"})
+        self.assertIsNone(self.service.authenticate(session.session_token))
+        with self.psycopg.connect(DSN) as conn:
+            disabled_at = conn.execute(f'SELECT disabled_at FROM "{self.schema}".accounts '
+                "WHERE account_id=%s", (applicant_id,)).fetchone()[0]
+            events = conn.execute(f'SELECT event_type FROM "{self.schema}".account_audit '
+                "WHERE account_id=%s ORDER BY recorded_at", (applicant_id,)).fetchall()
+        self.assertIsNotNone(disabled_at)
+        self.assertEqual(events[-1][0], "account_disabled")
+
+        self.assertEqual(self.service.set_account_state(self.steward, applicant_id,
+            disabled=False), {"status":"enabled"})
+        with self.psycopg.connect(DSN) as conn:
+            disabled_at = conn.execute(f'SELECT disabled_at FROM "{self.schema}".accounts '
+                "WHERE account_id=%s", (applicant_id,)).fetchone()[0]
+            events = conn.execute(f'SELECT event_type FROM "{self.schema}".account_audit '
+                "WHERE account_id=%s ORDER BY recorded_at", (applicant_id,)).fetchall()
+        self.assertIsNone(disabled_at)
+        self.assertEqual(events[-1][0], "account_enabled")
+        restored = self.service.authenticate_password("state-test@example.org",
+            "disposable test password", source_key="127.0.0.9")
+        self.assertEqual(restored.account_id, applicant_id)
+
     def test_unverified_and_unknown_email_do_not_login_and_rate_limit(self):
         self.service.request_access("new@example.org", source_key="127.0.0.1")
         for _ in range(4):

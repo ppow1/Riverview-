@@ -1,5 +1,5 @@
 /*
-Revision: 1.0.0
+Revision: 1.1.0
 */
 .account-administration-workspace{max-width:1100px;margin:0 auto;padding:4px 0 28px}
 .account-admin-heading,.account-admin-section-heading{display:flex;justify-content:space-between;align-items:start;gap:16px}
@@ -21,6 +21,8 @@ Revision: 1.0.0
 .account-admin-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .account-admin-actions button,.account-admin-row>button,.account-admin-heading>button{min-height:36px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
 .account-admin-actions button:hover,.account-admin-row>button:hover,.account-admin-heading>button:hover{border-color:var(--teal)}
+.account-admin-actions .account-admin-danger{color:#a33b39;border-color:color-mix(in srgb,#a33b39 40%,var(--line))}
+.account-admin-actions .account-admin-danger:hover{border-color:#a33b39;background:color-mix(in srgb,#a33b39 7%,var(--surface))}
 .account-admin-actions button:disabled,.account-admin-row>button:disabled{opacity:.55;cursor:not-allowed}
 .account-admin-actions .account-admin-secondary,.account-admin-row>.account-admin-secondary{color:var(--muted)}
 .account-admin-empty{margin:0;padding:12px;color:var(--muted);font-size:12px}

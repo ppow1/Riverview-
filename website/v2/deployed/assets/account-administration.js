@@ -10,6 +10,7 @@ Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Reuse V1 accoun
   const escape = (value) => String(value == null ? "" : value).replace(/[&<>"']/g,
     (character) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[character]));
   let busy = false;
+  let currentAccountId = "";
 
   async function request(path, method = "GET", body) {
     const headers = {Accept:"application/json"};
@@ -67,12 +68,18 @@ Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Reuse V1 accoun
       $("account-roster-count").textContent = `${items.length} accounts`;
       host.innerHTML = items.length ? items.map((account) => {
         const roles = Array.isArray(account.roles) ? account.roles : [];
+        const disabled = account.disabled === true;
+        const self = account.account_id === currentAccountId;
         const metadata = [roles.length ? roles.join(", ") : "no roles", account.disabled ? "disabled" : "active",
           account.grant_type || "grant type unavailable", account.grant_expires_at ? `expires ${formatTime(account.grant_expires_at)}` : "no expiry recorded",
           account.grant_revoked ? "grant revoked" : "grant active", account.one_time_used ? "one-time session used" : "one-time session not used"];
-        return `<article class="account-admin-row"><div class="account-admin-record"><strong>${escape(account.email)}</strong><span>${escape(metadata.join(" · "))}</span></div><button type="button" class="account-admin-secondary" data-revoke-sessions="${escape(account.account_id)}" data-account-email="${escape(account.email)}">Revoke sessions</button></article>`;
+        const stateControl = self && !disabled
+          ? `<button type="button" class="account-admin-secondary" disabled title="Stewards cannot disable their own account">Cannot disable own account</button>`
+          : `<button type="button" class="${disabled ? "account-admin-secondary" : "account-admin-danger"}" data-account-state="${escape(account.account_id)}" data-disabled="${disabled}" data-account-email="${escape(account.email)}">${disabled ? "Enable account" : "Disable account"}</button>`;
+        return `<article class="account-admin-row"><div class="account-admin-record"><strong>${escape(account.email)}</strong><span>${escape(metadata.join(" · "))}</span></div><div class="account-admin-actions"><button type="button" class="account-admin-secondary" data-revoke-sessions="${escape(account.account_id)}" data-account-email="${escape(account.email)}">Revoke sessions</button>${stateControl}</div></article>`;
       }).join("") : `<p class="account-admin-empty">No approved accounts were returned.</p>`;
       host.querySelectorAll("[data-revoke-sessions]").forEach((button) => button.addEventListener("click", () => revokeSessions(button)));
+      host.querySelectorAll("[data-account-state]").forEach((button) => button.addEventListener("click", () => setAccountState(button)));
       return {ok:true,count:items.length};
     } catch (error) {
       $("account-roster-count").textContent = "Unavailable";
@@ -119,9 +126,35 @@ Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Reuse V1 accoun
     } finally { busy = false; }
   }
 
+  async function setAccountState(button) {
+    if (busy) return;
+    const disabled = button.dataset.disabled === "false";
+    const email = button.dataset.accountEmail || "this account";
+    const prompt = disabled
+      ? `Disable ${email}? This blocks new sign-ins, revokes active sessions, and records the change in account audit history.`
+      : `Enable ${email}? This allows the account to sign in again and records the change in account audit history.`;
+    if (!window.confirm(prompt)) return;
+    busy = true; button.disabled = true;
+    try {
+      const result = await request(`/api/v1/account/users/${encodeURIComponent(button.dataset.accountState)}/disable`,
+        "POST", {disabled});
+      setStatus(`Account ${result.status}; the existing account service recorded the change.`);
+      await loadAccounts();
+    } catch (error) {
+      button.disabled = false;
+      setStatus(`Account state change failed. ${explain(error)}`);
+    } finally { busy = false; }
+  }
+
   async function load() {
     if (busy) return;
-    setStatus("Loading account queue and approved account roster through the existing authenticated service…");
+    setStatus("Loading the authenticated Steward account and approved account roster…");
+    try {
+      const session = await request("/api/v1/auth/session");
+      currentAccountId = String(session.identity?.account_id || "");
+    } catch (_) {
+      currentAccountId = "";
+    }
     const [enrollments, accounts] = await Promise.all([loadEnrollments(), loadAccounts()]);
     if (enrollments.ok && accounts.ok) setStatus("Account queue and roster loaded through the existing Steward-authorized APIs.");
     else if (!enrollments.ok && !accounts.ok && enrollments.error === accounts.error) setStatus(explain(new Error(enrollments.error)));
