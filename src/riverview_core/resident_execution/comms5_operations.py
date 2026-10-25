@@ -46,6 +46,8 @@ class Comms5Operations:
 
     SUPPORTED = frozenset({
         "comms5_submit_steward_seed", "comms5_store_specification",
+        "comms5_revise_specification",
+        "comms5_prepare_proposal_for_decision",
         "comms5_seed_status", "comms5_seed_lineage", "comms5_cancel_draft",
         "comms5_supersede_seed", "comms5_confirm_and_promote_seed",
         "comms5_resource_policy_status", "comms5_form_and_queue_work",
@@ -182,6 +184,65 @@ class Comms5Operations:
             if self.steward_review_bridge is None:
                 raise RuntimeError("external_reasoning_exchange_unavailable")
             return self.steward_review_bridge.call_tool(actor, tool, arguments)
+        if tool == "comms5_revise_specification":
+            proposal_id = self._proposal_id(arguments.get("proposal_id"))
+            expected_revision = arguments.get("expected_revision")
+            if type(expected_revision) is not int or expected_revision < 1:
+                raise ValueError("expected_revision_invalid")
+            idem = self._idempotency(arguments.get("idempotency_key"))
+            content = arguments.get("content")
+            current = self.registry.get(proposal_id)
+            if current["proposal"]["lifecycle_status"] != "DRAFT":
+                raise ProposalConflict("only a draft proposal can be revised through Comms5")
+            digest = self.registry._digest(content)
+            event_key = "comms5-revision:" + hashlib.sha256(
+                (actor + "\\0" + idem).encode("utf-8")).hexdigest()
+            if current["proposal"]["current_revision"] != expected_revision:
+                prior = next((event for event in reversed(current["events"])
+                    if event.get("event_type") == "proposal.revised"
+                    and event.get("idempotency_key") == event_key), None)
+                if prior and prior.get("payload", {}).get("content_sha256") == digest:
+                    return {**self._receipt(current), "status": "revision_reused",
+                            "executed": True}
+                raise ProposalConflict("proposal revision changed")
+            record = self.registry.revise(proposal_id, expected_revision, content,
+                actor_id=actor,
+                provenance={"source": "authenticated_comms5", "contract": "riverview-comms-contract:5.0",
+                    "client": self._provenance(arguments)["client"]},
+                idempotency_key=event_key)
+            return {**self._receipt(record), "status": "revised", "executed": True}
+
+        if tool == "comms5_prepare_proposal_for_decision":
+            if arguments.get("explicit_steward_confirmation") is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            proposal_id = self._proposal_id(arguments.get("proposal_id"))
+            revision = arguments.get("expected_revision")
+            digest = arguments.get("expected_content_sha256")
+            if (type(revision) is not int or revision < 1 or not isinstance(digest, str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", digest)):
+                raise ValueError("proposal_revision_binding_invalid")
+            idem = self._idempotency(arguments.get("idempotency_key"))
+            record = self.registry.get(proposal_id, revision=revision)
+            current = record["proposal"]
+            content = record["revision"]
+            if (current["current_revision"] != revision or
+                    content["content_sha256"] != digest):
+                raise ProposalConflict("proposal revision or digest changed")
+            if current["lifecycle_status"] == "DRAFT":
+                record = self.registry.transition(proposal_id, revision, "READY_FOR_REVIEW",
+                    actor_id=actor, reason="Authenticated Comms5 Steward submitted exact revision for decision",
+                    idempotency_key="comms5-ready-review:" + hashlib.sha256(
+                        (actor + "\\0" + idem).encode()).hexdigest())
+                current = record["proposal"]
+            if current["lifecycle_status"] == "READY_FOR_REVIEW":
+                record = self.registry.transition(proposal_id, revision, "READY_FOR_STEWARD_DECISION",
+                    actor_id=actor, reason="Authenticated Comms5 Steward marked exact revision ready for Steward decision",
+                    idempotency_key="comms5-ready-decision:" + hashlib.sha256(
+                        (actor + "\\0" + idem).encode()).hexdigest())
+            elif current["lifecycle_status"] != "READY_FOR_STEWARD_DECISION":
+                raise ProposalConflict("proposal is not eligible for Steward decision")
+            return {**self._receipt(record), "status": "ready_for_steward_decision",
+                    "executed": True, "approval_recorded": False}
         if tool == "comms5_submit_steward_seed":
             text = arguments.get("seed_text")
             if not isinstance(text, str) or not text.strip() or len(text.encode("utf-8")) > 4000:
