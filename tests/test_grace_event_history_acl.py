@@ -1,6 +1,7 @@
 """Regression coverage for event-history identity access and least privilege."""
 
-# File Revision: 1.0.0
+# File Revision: 1.0.2
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-APPEND-ONLY-LOCK-20261025 | Prove both S4 authorization and consumption event lookups work without UPDATE privilege or FOR UPDATE.
 
 import hashlib
 import os
@@ -132,6 +133,49 @@ class GraceEventHistoryACLPostgresTests(unittest.TestCase):
             has_table_privilege('riverview_core', %s, 'DELETE')""",
             (qualified, qualified, qualified, qualified)).fetchone()
         self.assertEqual(grants, (True, False, False, False))
+
+    def test_append_only_grant_lookup_does_not_require_update_lock(self):
+        if not self.db.execute("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=%s)",
+                               ("riverview_core",)).fetchone()[0]:
+            self.skipTest("riverview_core role is absent in disposable PostgreSQL")
+        from riverview_core.postgres_ledger import PostgresLedger
+
+        objective_id = "objective:s4-acl-fixture:" + uuid4().hex
+        event_key = "grace-s4-rework-authorized:" + str(uuid4())
+        self.db.execute(self.sql.SQL("""INSERT INTO {}.grace_objectives
+            (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status)
+            VALUES (%s,'controlled S4 ACL fixture','work-order:engineering',
+                    'steward:test','[]'::jsonb,'WORK_ORDER_CREATED')""").format(
+                        self.sql.Identifier(self.schema)), (objective_id,))
+        self.db.execute(self.sql.SQL("""INSERT INTO {}.grace_objective_events
+            (objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,'engineering.rework_retry_authorized',%s,'steward:camrui','{{}}'::jsonb)""").format(
+                        self.sql.Identifier(self.schema)), (objective_id, event_key))
+
+        ledger = PostgresLedger(DSN, schema=self.schema)
+        try:
+            ledger.db.execute(self.sql.SQL("SET ROLE {}").format(
+                self.sql.Identifier("riverview_core")))
+            with ledger.db.cursor() as cur:
+                ledger._set_search_path(cur)
+                statement = """SELECT event_id::text AS event_id,payload,actor_id
+                    FROM grace_objective_events WHERE objective_id=%s
+                      AND idempotency_key=%s"""
+                cur.execute(statement, (objective_id, event_key))
+                row = cur.fetchone()
+                self.assertEqual(row["actor_id"], "steward:camrui")
+                with self.assertRaises(self.psycopg.errors.InsufficientPrivilege):
+                    cur.execute(statement + " FOR UPDATE", (objective_id, event_key))
+                consumed_statement = """SELECT event_id FROM grace_objective_events
+                    WHERE objective_id=%s AND event_type='engineering.rework_retry_consumed'
+                      AND payload->>'grant_event_id'=%s"""
+                cur.execute(consumed_statement, (objective_id, "grant-fixture"))
+                self.assertIsNone(cur.fetchone())
+                with self.assertRaises(self.psycopg.errors.InsufficientPrivilege):
+                    cur.execute(consumed_statement + " FOR UPDATE",
+                                (objective_id, "grant-fixture"))
+        finally:
+            ledger.close()
 
     def test_actual_event_history_select_returns_event_id_as_runtime_role(self):
         from riverview_core.postgres_ledger import PostgresLedger

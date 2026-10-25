@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.42
+# Revision: 1.1.44
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-APPEND-ONLY-LOCK-20261025 | Serialize S4 exception consumption on objective rows; keep append-only event history reads free of UPDATE locks.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Validate the evaluation source against the exact current S4 exhausted-rejection event.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Bind consumed evaluation replay to the immutable exchange assignment and allow historically associated child assignments in objective events.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Consume one exact S4 retry exception atomically with same-assignment rework and preserve normal three-attempt bound.
@@ -2584,9 +2585,12 @@ class GraceExecutionPipeline:
                     WHERE o.objective_id=%s FOR UPDATE OF o,a""",
                     (assignment_id, objective_id))
                 state = cur.fetchone()
+                # The objective row is already locked above, serializing all S4
+                # consumers. Keep this append-only audit lookup read-only: the core
+                # runtime intentionally has no UPDATE privilege on event history.
                 cur.execute("""SELECT event_id::text AS event_id,payload,actor_id
                     FROM grace_objective_events WHERE objective_id=%s
-                      AND idempotency_key=%s FOR UPDATE""",
+                      AND idempotency_key=%s""",
                     (objective_id, "grace-s4-rework-authorized:" + verification_id))
                 grant = cur.fetchone()
                 if not state or not grant:
@@ -2646,9 +2650,11 @@ class GraceExecutionPipeline:
                 step = cur.fetchone()
                 if not step or step["step_id"] != "s4" or step["status"] != "assigned":
                     raise ObjectiveStateError("current S4 persisted step is required")
+                # The objective lock above serializes this single-use check too;
+                # event history remains append-only and is never row-locked for update.
                 cur.execute("""SELECT event_id FROM grace_objective_events
                     WHERE objective_id=%s AND event_type='engineering.rework_retry_consumed'
-                      AND payload->>'grant_event_id'=%s FOR UPDATE""",
+                      AND payload->>'grant_event_id'=%s""",
                     (objective_id, grant["event_id"]))
                 if cur.fetchone():
                     return {"status": "already_consumed", "assignment_id": assignment_id}
