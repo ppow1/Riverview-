@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.33",
-      "sha256": "3b3dc4560aa33e43e4be82797983b40ed3f12ea173115fc734a4e4b98db4c1ec",
-      "size_bytes": 1580520
+      "revision": "1.0.34",
+      "sha256": "8548ffc37cff5d4711c71c3a62ba1b078135f9be49f405670b9c851507a16949",
+      "size_bytes": 1582926
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.334"
+      "revision": "1.1.335"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",

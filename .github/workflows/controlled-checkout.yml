@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED CONFIGURATION
 # File: .github/workflows/controlled-checkout.yml
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.6
+# Revision: 1.0.7
+# Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Compare API operations against the actual PR base branch
 # Purpose: Enforce full tests and file revision/backup checkout on GitHub changes
 # Execution Model: Event-driven on pull_request and push
 # Observability: GitHub Actions job result and test output
@@ -61,7 +62,9 @@ jobs:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -v
       - name: Require declarations for added website API operations
-        run: python scripts/validate_capability_declaration_changes.py --base origin/main
+        env:
+          CAPABILITY_DIFF_BASE: origin/${{ github.base_ref || 'main' }}
+        run: python scripts/validate_capability_declaration_changes.py --base "$CAPABILITY_DIFF_BASE"
       - name: Verify canonical process graphs and generated views
         run: python scripts/process_graph.py check
       - name: Verify controlled revisions and preserved predecessors
