@@ -142,6 +142,25 @@ class NotificationHTTPTests(unittest.TestCase):
         self.assertEqual(status, 403)
         self.assertEqual(result["error"], "steward_account_session_required")
 
+    def test_unlinked_steward_account_cannot_record_recovery_decision(self):
+        class UnlinkedStewardAccount:
+            def authenticate(_self, credential, *, csrf_token, state_changing):
+                from riverview_core.account_auth import AuthDenied
+                if credential != "session" or (state_changing and csrf_token != "csrf"):
+                    raise AuthDenied("denied")
+                return {"account_id":"account-unlinked","roles":["steward"]}
+            def require_role(_self, identity, *roles):
+                if not set(identity.get("roles", ())).intersection(roles):
+                    raise PermissionError("role required")
+        self.server._account_auth_service = UnlinkedStewardAccount()
+        request_id = str(uuid4())
+        body = json.dumps({"decision":"approve","reason":"reviewed bounded request",
+                           "idempotency_key":"unlinked-steward-decision"})
+        status, result = self.request("POST", f"/api/v1/grace-recovery/{request_id}/decision",
+            body=body, cookie="rv_account_session=session", csrf="csrf")
+        self.assertEqual(status,403)
+        self.assertEqual(result["error"],"steward_account_session_required")
+
     def test_notification_settings_api_requires_steward_and_persists_update(self):
         class AccountAuth:
             def authenticate(_self, credential, *, csrf_token, state_changing):

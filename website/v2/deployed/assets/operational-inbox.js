@@ -12,6 +12,8 @@
   };
   let refreshedAt = null;
   let canWriteReceipts = false;
+  let canRequestRecoveryDecision = false;
+  let recoveryAccessMessage = "Sign in with a Steward account linked to institutional Steward authority to decide recovery requests.";
   const receiptRequests = new Set();
 
   const node = (tag, value, className) => {
@@ -164,6 +166,7 @@
     details.className = "inbox-notification-details";
     const summary = node("summary", "Notification status and source details");
     const fields = document.createElement("dl");
+    let recoveryActions = null;
     const statusMeaning = {
       queued: "Queued by Riverview; dashboard display is not confirmed. This does not confirm NTFY delivery.",
       delivered: "Dashboard display was explicitly confirmed; this does not confirm NTFY delivery or that a person saw it.",
@@ -191,7 +194,26 @@
       ["Recommended next action", "recommended_action"], ["Automatic recovery state", "automatic_recovery"]]) {
       if (source[key] != null && source[key] !== "") appendField(fields, label, source[key]);
     }
+    if (item.recovery_request_id && item.recovery_status === "pending") {
+      const actions = document.createElement("div");
+      actions.className = "inbox-recovery-actions";
+      if (canRequestRecoveryDecision) {
+        for (const [decision, label] of [["approve", "Request: approve one retry"], ["defer", "Request: defer"], ["reject", "Request: reject"]]) {
+          const button = node("button", label, decision === "approve" || decision === "reject" ? "inbox-recovery-decision inbox-recovery-consequential" : "inbox-recovery-decision");
+          button.type = "button";
+          button.dataset.recoveryDecision = decision;
+          button.dataset.recoveryRequest = item.recovery_request_id;
+          button.addEventListener("click", () => recordRecoveryDecision(button));
+          actions.append(button);
+        }
+        actions.append(node("small", "The existing API additionally requires linked institutional Steward authority. Every choice requires confirmation and an audit reason; approval does not itself execute a retry."));
+      } else {
+        actions.append(node("small", recoveryAccessMessage, "inbox-recovery-unavailable"));
+      }
+      recoveryActions = actions;
+    }
     details.append(summary, transportNote, fields);
+    if (recoveryActions) details.append(recoveryActions);
     return details;
   }
 
@@ -210,7 +232,10 @@
       const session = response.ok ? await response.json() : null;
       const roles = session?.identity?.roles || [];
       canWriteReceipts = Array.isArray(roles) && (roles.includes("operator") || roles.includes("steward"));
-    } catch (_) { canWriteReceipts = false; }
+      canRequestRecoveryDecision = adapter.canRequestRecoveryDecision(session?.identity);
+      recoveryAccessMessage = !response.ok ? "A Steward account session is required for recovery decisions."
+        : "Recovery decisions require a Steward account with linked institutional Steward authority; this server authorization is checked before recording.";
+    } catch (_) { canWriteReceipts = false; canRequestRecoveryDecision = false; recoveryAccessMessage = "Steward authorization status is unavailable; recovery decisions are disabled."; }
   }
   function csrfHeaders() {
     const raw = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("rv_account_csrf="))?.slice("rv_account_csrf=".length);
@@ -223,6 +248,46 @@
     });
     if (!response.ok) throw new Error(`http_${response.status}`);
     return response.json();
+  }
+
+  async function recordRecoveryDecision(button) {
+    const requestId = button.dataset.recoveryRequest;
+    const decision = button.dataset.recoveryDecision;
+    if (!canRequestRecoveryDecision || !/^[0-9a-f-]{36}$/i.test(requestId || "") || !["approve", "defer", "reject"].includes(decision)) return;
+    if (!window.confirm(`Confirm Steward decision “${decision}” for this exact one-attempt recovery request (${requestId})?`)) return;
+    const reason = window.prompt("Required audit reason for this Steward recovery decision:");
+    if (!reason?.trim()) return;
+    button.disabled = true;
+    $("#inbox-action-status").textContent = `Submitting Steward ${decision} decision…`;
+    try {
+      const response = await fetch(`/api/v1/grace-recovery/${encodeURIComponent(requestId)}/decision`, {
+        method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: {...csrfHeaders(), "Content-Type": "application/json"},
+        body: JSON.stringify({decision, reason: reason.trim().slice(0, 1000),
+          idempotency_key: `grace-recovery-decision:${requestId}:${decision}`})
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          canRequestRecoveryDecision = false;
+          recoveryAccessMessage = "Recovery decision unavailable: the server rejected this Steward session or institutional authority. No decision was recorded.";
+        }
+        if (response.status === 409) await refresh();
+        throw new Error(response.status === 401 || response.status === 403 ? "Steward authority required; no decision recorded"
+          : response.status === 404 ? "Recovery request no longer exists"
+            : response.status === 409 ? "Recovery request is already decided or expired"
+              : response.status === 503 ? "Recovery decision service unavailable; no decision confirmed"
+                : `http_${response.status}`);
+      }
+      await refresh();
+      $("#inbox-action-status").textContent = result.status === "expired"
+        ? "Recovery request expired; no decision was recorded."
+        : `Steward ${decision} decision recorded. Existing bounded recovery processing determines whether or when anything is dispatched.`;
+    } catch (error) {
+      button.disabled = false;
+      $("#inbox-action-status").textContent = `Recovery decision not confirmed (${error.message}).`;
+      render();
+    }
   }
   async function refreshNotifications() {
     await readFeed("notifications", feeds.notifications);

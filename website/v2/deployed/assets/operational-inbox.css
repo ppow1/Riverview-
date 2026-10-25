@@ -17,6 +17,11 @@ Revision: 1.0.0
 .inbox-event-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:10px}
 .inbox-table-wrap details{margin-top:6px;font-size:10px}
 .inbox-notification-details{margin-top:7px}
+.inbox-recovery-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px}
+.inbox-recovery-decision{padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px;cursor:pointer}
+.inbox-recovery-decision:disabled{opacity:.55;cursor:wait}
+.inbox-recovery-consequential{border-color:#b7792b}
+.inbox-recovery-actions small,.inbox-recovery-unavailable{flex-basis:100%;color:var(--muted);font-size:9px;line-height:1.45}
 .inbox-table-wrap details summary{cursor:pointer;color:var(--accent,#385c7a)}
 .inbox-table-wrap details dl{display:grid;grid-template-columns:minmax(100px,auto) minmax(0,1fr);gap:3px 9px;margin:8px 0}
 .inbox-table-wrap details dt{font-weight:650}
