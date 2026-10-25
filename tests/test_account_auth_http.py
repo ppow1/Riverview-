@@ -36,6 +36,7 @@ class _AccountService:
         self.account_state_calls = []
         self.role_calls = []
         self.grant_revocations = []
+        self.email_settings_calls = []
 
     def status(self):
         return {"component_id":"WEBSITE-ACCOUNT-AUTH", "status":"degraded",
@@ -106,6 +107,21 @@ class _AccountService:
         self.require_role(actor, "steward")
         self.grant_revocations.append((account_id, actor["account_id"]))
         return {"status":"grant_revoked"}
+
+    def email_settings(self, actor):
+        self.require_role(actor, "steward")
+        self.email_settings_calls.append("read")
+        return {"configured":False,"password_configured":False}
+
+    def save_email_settings(self, actor, settings, *, key_path):
+        self.require_role(actor, "steward")
+        self.email_settings_calls.append("save")
+        return {"configured":True}
+
+    def test_email_settings(self, actor, *, key_path, public_origin):
+        self.require_role(actor, "steward")
+        self.email_settings_calls.append("test")
+        return {"delivery_status":"sent"}
 
     def revoke_sessions(self, actor, account_id):
         self.require_role(actor, "steward")
@@ -241,6 +257,23 @@ class AccountAuthHTTPTests(unittest.TestCase):
             self.assertEqual(json.loads(response)["error"], "not_authorized")
         self.assertEqual(self.accounts.role_calls, [])
         self.assertEqual(self.accounts.grant_revocations, [])
+
+    def test_shared_email_settings_endpoints_reject_viewer_without_access(self):
+        cookie = "rv_account_session=" + "S"*43
+        csrf = "C"*43
+        origin = "https://192.168.1.155"
+        status, _, body = self.request("GET", "/api/v1/account/email-settings", cookie=cookie)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "not_authorized")
+        status, _, body = self.request("PUT", "/api/v1/account/email-settings", cookie=cookie,
+            csrf=csrf, body={"smtp_host":"invalid.example"}, origin=origin)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "not_authorized")
+        status, _, body = self.request("POST", "/api/v1/account/email-settings/test", cookie=cookie,
+            csrf=csrf, origin=origin)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "not_authorized")
+        self.assertEqual(self.accounts.email_settings_calls, [])
 
 
 if __name__ == "__main__":
