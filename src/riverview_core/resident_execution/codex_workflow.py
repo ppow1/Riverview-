@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.17
+# Revision: 1.2.18
+# Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Supply verified durable CME recovery facts to the existing bounded artifact rework.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Forward immutable objective request separately into authorized Engineering execution
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Reject explicit negative JSON outcomes and verify literal artifact acceptance clauses independently
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Resolve Codex assignment provenance through the durable proposal-step link when sibling steps are dispatched concurrently.
@@ -175,6 +176,31 @@ class CodexWorkAction:
                         item.get("event_counts", {}).get("execution.reasoning_failed", 0) >= 599
                         for item in historical)):
                 raise CodexActionFailure("diagnostic_history_evidence_incomplete")
+        if rework is not None:
+            evidence_reader = getattr(
+                self.pipeline, "cme_recovery_runtime_evidence_for_assignment", None)
+            if callable(evidence_reader):
+                cme_evidence = evidence_reader(objective_id, assignment["id"])
+                if cme_evidence is not None:
+                    exchange_evidence = (cme_evidence.get("exchange")
+                        if isinstance(cme_evidence, Mapping) else None)
+                    if (not isinstance(cme_evidence, Mapping) or
+                            cme_evidence.get("schema") !=
+                                "rv.grace.cme-recovery-runtime-evidence.v1" or
+                            cme_evidence.get("read_only") is not True or
+                            cme_evidence.get("objective_id") != objective_id or
+                            cme_evidence.get("assignment_id") != assignment["id"] or
+                            not isinstance(exchange_evidence, Mapping) or
+                            exchange_evidence.get("provider_attempt_count") != 1 or
+                            exchange_evidence.get("delivery_state") !=
+                                "grace_consumed"):
+                        raise CodexActionFailure("cme_recovery_runtime_evidence_invalid")
+                    if runtime_evidence is None:
+                        runtime_evidence = cme_evidence
+                    else:
+                        runtime_evidence = {"schema": "rv.grace.codex-runtime-evidence.v1",
+                            "objective_runtime_evidence": runtime_evidence,
+                            "cme_recovery_evidence": cme_evidence}
         try:
             repository_revision = self.adapter.repository_revision()
         except Exception as exc:
