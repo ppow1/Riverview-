@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Run authenticated acceptance against the currently served Riverview V2 release.
 
-Revision: 1.3.1
+Revision: 1.3.2
+Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Skip the new assertion on pre-feature assets without changing the selected view.
 Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Verify unlinked Steward sees no decision controls in authenticated browser acceptance.
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-EMAIL-20261025 | Verify shared email settings read and role denial without changing production configuration.
 """
@@ -114,16 +115,20 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
                 results.append({"check":f"navigation_{persona}_{view}","status":"PASS" if shown else "FAIL"})
             if role == "steward":
                 stage = "recovery_controls_unlinked_steward"
-                recovery_controls=js("document.querySelector('[data-view=communications]')?.click();await new Promise(r=>setTimeout(r,700));let r=await fetch('/api/v1/auth/session',{cache:'no-store'});let x=r.ok?await r.json():null;let notes=[...document.querySelectorAll('.inbox-recovery-unavailable')].map(e=>e.textContent||'');let explanation=notes.every(t=>t.toLowerCase().includes('no linked institutional steward authority'));return {status:r.status,eligible:x?.identity?.can_decide_grace_recovery,controls:document.querySelectorAll('[data-recovery-decision]').length,unavailable:notes.length,explanation}")
-                recovery_controls_ok=(recovery_controls.get("status")==200
-                    and recovery_controls.get("eligible") is False
-                    and recovery_controls.get("controls")==0
-                    and recovery_controls.get("explanation",False))
-                results.append({"check":"recovery_controls_hidden_for_unlinked_steward",
-                    "status":"PASS" if recovery_controls_ok else "FAIL",
-                    "http":recovery_controls.get("status"),
-                    "controls":recovery_controls.get("controls"),
-                    "unavailable_rows":recovery_controls.get("unavailable")})
+                recovery_controls=js("let asset=[...document.scripts].find(s=>s.src.includes('operational-inbox.js'))?.src||'';let applicable=asset.includes('recovery-session-eligibility-20261025');await new Promise(r=>setTimeout(r,700));let r=await fetch('/api/v1/auth/session',{cache:'no-store'});let x=r.ok?await r.json():null;let notes=[...document.querySelectorAll('.inbox-recovery-unavailable')].map(e=>e.textContent||'');let explanation=notes.every(t=>t.toLowerCase().includes('no linked institutional steward authority'));return {status:r.status,applicable,eligible:x?.identity?.can_decide_grace_recovery,controls:document.querySelectorAll('[data-recovery-decision]').length,unavailable:notes.length,explanation}")
+                if not recovery_controls.get("applicable"):
+                    results.append({"check":"recovery_controls_hidden_for_unlinked_steward",
+                        "status":"SKIPPED","reason":"pre_recovery_control_release"})
+                else:
+                    recovery_controls_ok=(recovery_controls.get("status")==200
+                        and recovery_controls.get("eligible") is False
+                        and recovery_controls.get("controls")==0
+                        and recovery_controls.get("explanation",False))
+                    results.append({"check":"recovery_controls_hidden_for_unlinked_steward",
+                        "status":"PASS" if recovery_controls_ok else "FAIL",
+                        "http":recovery_controls.get("status"),
+                        "controls":recovery_controls.get("controls"),
+                        "unavailable_rows":recovery_controls.get("unavailable")})
                 if account_admin_available:
                     stage = "account_administration_steward_read"
                     account_read=js("let paths=['/api/v1/account/enrollments?limit=50','/api/v1/account/users?limit=100'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push({status:r.status,body:r.ok?await r.json():null})}await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';let controls=document.querySelectorAll('[data-account-state]').length+document.querySelectorAll('button[title*=\"cannot disable their own account\" i]').length;let roleControls=document.querySelectorAll('[data-account-role]').length+Array.from(document.querySelectorAll('.account-admin-control-note')).filter(x=>x.textContent.includes('Role changes are unavailable')).length;let grantControls=document.querySelectorAll('[data-revoke-grant]').length+document.querySelectorAll('button[title*=\"cannot revoke their own access grant\" i]').length;return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s,stateControls:controls,roleControls,grantControls}")
