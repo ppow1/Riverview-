@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.2.20
+# Revision: 1.2.21
+# Changed: 2026-10-25 UTC | C3-PR302-MIGRATION-COMPATIBILITY | Verify the legacy criteria-reconciliation registration gets only its exact-grant contract.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Verify retry of a pre-execution S5 validation error preserves the earlier rejected attempt and artifact.
 # Changed: 2026-10-20 UTC | RV-GRACE-S3-RECOVERY-DISPOSITION-001 | Cover exact-grant single-use exhausted-retry disposition, preserved history, and one new lease generation.
 # Changed: 2026-10-20 UTC | RV-GRACE-MULTISTEP-PROVENANCE-RECOVERY-001 | Verify bounded no-artifact recovery retries the exact failed step when a concurrently dispatched sibling owns the objective pointer, without creating dispatch duplicates.
@@ -170,6 +171,29 @@ class WorkerAdapterTests(unittest.TestCase):
         self.ledger.close()
         self.admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(self.schema)))
         self.admin.close()
+
+    def test_legacy_criteria_reconciliation_capability_has_exact_grant_contract(self):
+        import psycopg
+
+        row = self.admin.execute(
+            "SELECT authorization_contract FROM capability_catalog "
+            "WHERE capability_id='steward.objective.criteria.reconcile'").fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row[0], {
+            "mode": "exact_grant",
+            "action": "objective.criteria.reconcile",
+            "scope_policy": "exact_scope",
+        })
+        with self.assertRaisesRegex(
+                psycopg.errors.RaiseException,
+                "capability_authorization_contract_required"):
+            self.admin.execute("""
+                INSERT INTO capability_catalog
+                    (capability_id,description,authority_action,owner_office,
+                     implementation_ref,dependencies,approval_default,enabled)
+                VALUES ('test.missing.authorization.contract','test','test.action',
+                        'office:test','test.executor','[]'::jsonb,false,true)
+            """)
 
     def register(self, capabilities=None, scope=None):
         return self.register_as(self.worker_id,

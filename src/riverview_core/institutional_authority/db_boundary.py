@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.25
+# Revision: 1.0.27
+# Changed: 2026-10-25 UTC | C3-PR302-MIGRATION-COMPATIBILITY | Allowlist and protect the migration-gated legacy capability trigger.
+# Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Keep the migration-0015 invoker-only function out of older boundary profiles
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-M33-PROFILE | Expose the exact migration-0008 function profile for version-specific verification.
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-SEARCHPATH-COMPAT-20261024 | Validate SECURITY DEFINER functions against their exact pinned search-path policy.
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BOUNDARY-ALLOWLIST-20261024 | Preserve the existing narrowly granted Luna and autonomy authority functions during boundary preflight.
@@ -140,6 +142,13 @@ RUNTIME_PERMISSION_SIGNATURES.update({
     "list_capability_registry": "()",
     "list_capability_grants": "(bytea)",
 })
+DEPLOYMENT_REGISTRATION_FUNCTIONS = {
+    "reconcile_capability_declarations":
+        "p_declarations jsonb, p_source_commit text",
+}
+DEPLOYMENT_TRIGGER_FUNCTIONS = {
+    "fill_legacy_criteria_reconcile_authorization_contract": "",
+}
 _IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
 
 
@@ -171,6 +180,23 @@ def _permission_functions_for_migration_profile(cur, schema):
     return functions
 
 
+def _deployment_registration_functions_for_migration(cur, schema):
+    """Require the deployment reconciler only after its migration is recorded."""
+    cur.execute(sql.SQL("SELECT EXISTS(SELECT 1 FROM {}.schema_migrations "
+                        "WHERE version='0015_deployed_capability_declarations') AS applied")
+                .format(sql.Identifier(schema)))
+    return (dict(DEPLOYMENT_REGISTRATION_FUNCTIONS)
+            if cur.fetchone()["applied"] else {})
+
+
+def _deployment_trigger_functions_for_migration(cur, schema):
+    """Allow only the compatibility trigger installed by authority migration 0015."""
+    cur.execute(sql.SQL("SELECT EXISTS(SELECT 1 FROM {}.schema_migrations "
+                        "WHERE version='0015_deployed_capability_declarations') AS applied")
+                .format(sql.Identifier(schema)))
+    return dict(DEPLOYMENT_TRIGGER_FUNCTIONS) if cur.fetchone()["applied"] else {}
+
+
 def provision_authority_boundary(connection, *, schema, runtime_role="riverview_core",
                                  manager_role="riverview_authority_manager",
                                  owner_role="riverview_authority_owner", apply=False):
@@ -188,8 +214,8 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
     It must not inherit the NOLOGIN table owner: owner membership would permit
     direct DDL and bypass append-only/registry controls. The ordinary runtime
     receives neither schema visibility nor table/function access. The selected
-    schema may contain only these nine tables, the migration ledger, and the
-    append-only trigger function.
+    schema may contain only the allowlisted tables, migration ledger, and
+    migration-scoped authority functions and triggers.
     """
     schema = _identifier(schema, "schema")
     runtime_role = _identifier(runtime_role, "runtime role")
@@ -201,6 +227,10 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
     with connection.transaction():
         with connection.cursor(row_factory=dict_row) as cur:
             runtime_permission_functions_map = _permission_functions_for_migration_profile(cur, schema)
+            deployment_registration_functions_map = (
+                _deployment_registration_functions_for_migration(cur, schema))
+            deployment_trigger_functions_map = (
+                _deployment_trigger_functions_for_migration(cur, schema))
             cur.execute("""SELECT current_user, r.rolsuper, r.rolcreaterole
                            FROM pg_roles r WHERE r.rolname=current_user""")
             administrator = cur.fetchone()
@@ -291,6 +321,8 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 (PRINCIPAL_AUTHORIZATION_FUNCTION, PRINCIPAL_AUTHORIZATION_ARGUMENTS),
                 *RUNTIME_OFFICE_FUNCTIONS.items(),
                 *runtime_permission_functions_map.items(),
+                *deployment_registration_functions_map.items(),
+                *deployment_trigger_functions_map.items(),
             }
             observed_functions = {(row["proname"], row["arguments"]) for row in function_rows}
             if observed_functions != expected_functions:
@@ -316,10 +348,13 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                            FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
                            WHERE n.nspname=%s AND p.proname=ANY(%s)
                              AND p.pronargs=0""",
-                        (schema, list(APPEND_ONLY_TRIGGER_FUNCTIONS)))
+                        (schema, [*APPEND_ONLY_TRIGGER_FUNCTIONS,
+                                  *deployment_trigger_functions_map]))
             trigger_rows = cur.fetchall()
-            if len(trigger_rows) != len(APPEND_ONLY_TRIGGER_FUNCTIONS):
-                raise BoundaryPreflightError("append-only authority trigger function is missing")
+            expected_trigger_functions = (*APPEND_ONLY_TRIGGER_FUNCTIONS,
+                                          *deployment_trigger_functions_map)
+            if len(trigger_rows) != len(expected_trigger_functions):
+                raise BoundaryPreflightError("authority trigger function is missing")
             if any(row["function_owner"] not in acceptable_owners for row in trigger_rows):
                 raise BoundaryPreflightError("authority trigger function owner is outside the approved transition set")
 
@@ -389,6 +424,28 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                         "resident permission function security configuration is unsafe: " + function_name)
                 runtime_permission_functions.append(function_row)
 
+            deployment_registration_functions = []
+            for function_name, arguments in deployment_registration_functions_map.items():
+                cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
+                                      p.prosecdef AS security_definer,
+                                      has_function_privilege(%s::name,p.oid,'EXECUTE') AS runtime_execute,
+                                      has_function_privilege(%s::name,p.oid,'EXECUTE') AS manager_execute,
+                                      EXISTS (SELECT 1 FROM aclexplode(COALESCE(
+                                        p.proacl,acldefault('f',p.proowner))) acl
+                                        WHERE acl.grantee=0 AND acl.privilege_type='EXECUTE') AS public_execute
+                               FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                               WHERE n.nspname=%s AND p.proname=%s
+                                 AND pg_get_function_identity_arguments(p.oid)=%s""",
+                            (runtime_role, manager_role, schema, function_name, arguments))
+                function_row = cur.fetchone()
+                if (function_row is None or function_row["security_definer"]
+                        or function_row["runtime_execute"] or function_row["manager_execute"]
+                        or function_row["public_execute"]
+                        or function_row["function_owner"] not in acceptable_owners):
+                    raise BoundaryPreflightError(
+                        "deployment capability registration function must remain invoker-only")
+                deployment_registration_functions.append(function_row)
+
             cur.execute("""SELECT has_schema_privilege(%s::name,%s,'USAGE') AS runtime_usage,
                                   has_schema_privilege(%s::name,%s,'CREATE') AS runtime_create,
                                   has_schema_privilege(%s::name,%s,'USAGE') AS manager_usage,
@@ -439,6 +496,9 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 or any(function["function_owner"] != owner_role
                        or not function["runtime_execute"] or function["manager_execute"]
                        for function in runtime_permission_functions)
+                or any(function["security_definer"] or function["runtime_execute"]
+                       or function["manager_execute"] or function["public_execute"]
+                       for function in deployment_registration_functions)
             )
 
             if not apply:
@@ -472,7 +532,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     sql.SQL("{},{}").format(sql.Identifier(runtime_role), sql.Identifier(manager_role))))
                 cur.execute(sql.SQL("GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE {}.{} TO {}").format(
                     sql.Identifier(schema), sql.Identifier(table_name), sql.Identifier(manager_role)))
-            for trigger_function in APPEND_ONLY_TRIGGER_FUNCTIONS:
+            for trigger_function in expected_trigger_functions:
                 cur.execute(sql.SQL("ALTER FUNCTION {}.{}() OWNER TO {}").format(
                     sql.Identifier(schema), sql.Identifier(trigger_function), sql.Identifier(owner_role)))
                 cur.execute(sql.SQL("REVOKE ALL PRIVILEGES ON FUNCTION {}.{}() FROM PUBLIC,{},{}").format(
@@ -584,6 +644,24 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     raise BoundaryPreflightError("resident permission function post-apply verification failed")
                 function_row["function_name"] = function_name
                 runtime_permission_functions.append(function_row)
+            deployment_registration_functions = []
+            for function_name, arguments in deployment_registration_functions_map.items():
+                cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
+                                      p.prosecdef AS security_definer,
+                                      has_function_privilege(%s::name,p.oid,'EXECUTE') AS runtime_execute,
+                                      has_function_privilege(%s::name,p.oid,'EXECUTE') AS manager_execute,
+                                      EXISTS (SELECT 1 FROM aclexplode(COALESCE(
+                                        p.proacl,acldefault('f',p.proowner))) acl
+                                        WHERE acl.grantee=0 AND acl.privilege_type='EXECUTE') AS public_execute
+                               FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                               WHERE n.nspname=%s AND p.proname=%s
+                                 AND pg_get_function_identity_arguments(p.oid)=%s""",
+                            (runtime_role, manager_role, schema, function_name, arguments))
+                function_row = cur.fetchone()
+                if function_row is None:
+                    raise BoundaryPreflightError(
+                        "deployment capability registration function post-apply verification failed")
+                deployment_registration_functions.append(function_row)
             if (len(verification) != len(AUTHORITY_TABLES)
                     or any(row["owner"] != owner_role for row in verification)
                     or any(row[name] for row in verification
@@ -609,7 +687,10 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                                function["function_name"],
                                f"search_path={schema}, pg_catalog, pg_temp") not in function["proconfig"]
                            or not function["runtime_execute"] or function["manager_execute"]
-                           for function in runtime_permission_functions)):
+                           for function in runtime_permission_functions)
+                    or any(function["security_definer"] or function["runtime_execute"]
+                           or function["manager_execute"] or function["public_execute"]
+                           for function in deployment_registration_functions)):
                 raise BoundaryPreflightError("post-apply privilege verification failed; transaction rolled back")
             return {
                 "status": "APPLIED",
