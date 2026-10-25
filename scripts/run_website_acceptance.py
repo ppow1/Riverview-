@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run authenticated acceptance against the currently served Riverview V2 release.
 
-Revision: 1.0.3
+Revision: 1.0.4
 Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Verify Steward account reads and anonymous/viewer denials without changing account data.
 """
 from __future__ import annotations
@@ -75,7 +75,9 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool) -> li
         anon=js("try { let r=await fetch('/api/v1/auth/session',{cache:'no-store'}); return r.status } catch(e){ return 0 }")
         results.append({"check":"unauthenticated_session_denied","status":"PASS" if anon==401 else "FAIL","http":anon})
         anon_accounts=js("let paths=['/api/v1/account/enrollments?limit=1','/api/v1/account/users?limit=1'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push(r.status)}return out")
-        results.append({"check":"account_admin_anonymous_denied","status":"PASS" if anon_accounts==[403,403] else "FAIL","http":anon_accounts})
+        anonymous_denied=(isinstance(anon_accounts,list) and len(anon_accounts)==2
+                          and all(status in {401,403} for status in anon_accounts))
+        results.append({"check":"account_admin_anonymous_denied","status":"PASS" if anonymous_denied else "FAIL","http":anon_accounts})
         fresh=js("let s=[...document.scripts].find(x=>x.src.includes('grace-chat.js'))?.src||'';let r=await fetch('/v2/',{method:'HEAD',cache:'no-store'});return {script:s,cache:r.headers.get('cache-control')||''}")
         results.append({"check":"fresh_release_cache_contract","status":"PASS" if 'rev=' in fresh.get('script','') and 'no-store' in fresh.get('cache','').lower() else "FAIL"})
         wd("POST",f"/session/{sid}/url",{"url":BASE+"/v2/"})

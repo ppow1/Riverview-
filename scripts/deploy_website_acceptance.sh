@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Revision: 1.0.1
+# Revision: 1.0.2
+# Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-DEPLOY-ROLLBACK-20261025 | Back up and restore a pre-existing acceptance Nginx include during rollback.
 set -euo pipefail
 
 repo=${1:-$(pwd)}
@@ -24,6 +25,16 @@ v2=/etc/nginx/snippets/riverview-v2.conf
 include=/etc/nginx/snippets/riverview-website-acceptance.location.conf
 install -m 0640 "$site" "$backup/riverview-lan"
 install -m 0640 "$v2" "$backup/riverview-v2.conf"
+if [[ -f "$include" && ! -L "$include" ]]; then
+  install -m 0644 "$include" "$backup/riverview-website-acceptance.location.conf"
+fi
+restore_include() {
+  if [[ -f "$backup/riverview-website-acceptance.location.conf" ]]; then
+    install -m 0644 "$backup/riverview-website-acceptance.location.conf" "$include"
+  else
+    rm -f "$include"
+  fi
+}
 install -m 0644 "$repo/deploy/nginx/riverview-website-acceptance.location.conf" "$include"
 
 python3 - "$site" <<'PY'
@@ -78,6 +89,7 @@ systemctl daemon-reload
 if ! nginx -t; then
   install -m 0640 "$backup/riverview-lan" "$site"
   install -m 0640 "$backup/riverview-v2.conf" "$v2"
+  restore_include
   exit 1
 fi
 systemctl reload nginx
@@ -90,7 +102,7 @@ baseline=$(python3 -c 'import json;print(json.load(open("/var/lib/riverview-webs
 if [[ "$baseline" == FAIL || "$baseline" == MISSING || $baseline_status -ne 0 ]]; then
   install -m 0640 "$backup/riverview-lan" "$site"
   install -m 0640 "$backup/riverview-v2.conf" "$v2"
-  rm -f "$include"
+  restore_include
   nginx -t && systemctl reload nginx
   echo "BLOCKED: production baseline acceptance=$baseline; backup=$backup" >&2
   exit 1
@@ -100,7 +112,7 @@ install -m 0640 "$newv2" "$v2"
 if ! nginx -t; then
   install -m 0640 "$backup/riverview-v2.conf" "$v2"
   install -m 0640 "$backup/riverview-lan" "$site"
-  rm -f "$include"
+  restore_include
   exit 1
 fi
 systemctl reload nginx
@@ -114,7 +126,7 @@ overall=$(python3 -c 'import json;print(json.load(open("/var/lib/riverview-websi
 if [[ "$overall" == FAIL || "$overall" == MISSING || $run_status -ne 0 ]]; then
   install -m 0640 "$backup/riverview-lan" "$site"
   install -m 0640 "$backup/riverview-v2.conf" "$v2"
-  rm -f "$include"
+  restore_include
   nginx -t && systemctl reload nginx
   echo "ROLLED_BACK: post-deployment acceptance=$overall; backup=$backup" >&2
   exit 1
