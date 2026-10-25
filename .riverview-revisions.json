@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.29",
-      "sha256": "b241f04f60434a5b17d17dabdc4ef14e1a494263988172baa80892cac9207924",
-      "size_bytes": 1570981
+      "revision": "1.0.31",
+      "sha256": "8329cc05bc503e56caf79f6fa49ac5f67c37488263871720c778bcc54520372b",
+      "size_bytes": 1571629
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.329"
+      "revision": "1.1.331"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -9473,9 +9473,9 @@
     },
     "tests/test_revision_control.py": {
       "path": "tests/test_revision_control.py",
-      "revision": "1.2.5",
-      "sha256": "0d9a60d3fa96fdfab939c414a453a674b929ff2f320d7691a249abd5b8497d5e",
-      "size_bytes": 7143
+      "revision": "1.2.6",
+      "sha256": "eab596d947894e7d1acd175636a4ebcaf590bd4915f0c26890b91cb91349de17",
+      "size_bytes": 7406
     },
     "tests/test_riverview_doorbell_bridge_node.cjs": {
       "path": "tests/test_riverview_doorbell_bridge_node.cjs",

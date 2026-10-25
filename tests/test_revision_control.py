@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_revision_control.py
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.2.5
-# Changed: 2026-10-25 UTC | RV-S4-MIGRATION-CHECKSUM-METADATA-20261025 | Verify SQL file revisions use checksum-bound sidecar metadata and reject byte drift.
+# Revision: 1.2.6
+# Changed: 2026-10-25 UTC | RV-S4-MIGRATION-CHECKSUM-METADATA-20261025 | Verify SQL file revisions use checksum-bound sidecar metadata, reject byte drift, and fall back to native headers.
 # Purpose: Regression tests for revision validation and predecessor preservation
 # Execution Model: Request-driven tests
 # Observability: unittest results and exit code
@@ -112,6 +112,11 @@ class RevisionTests(unittest.TestCase):
         self.assertEqual(rev.revision(self.root,'migration.sql'),'1.0.0')
         migration.write_bytes(data+b'-- changed\n')
         self.assertIsNone(rev.revision(self.root,'migration.sql'))
+
+    def test_sql_native_revision_header_fallback(self):
+        migration=self.root/'native.sql'
+        migration.write_text('-- Revision: 1.0.7\nSELECT 1;\n')
+        self.assertEqual(rev.revision(self.root,'native.sql'),'1.0.7')
 
     def test_legacy_revision_initialization_requires_preserved_predecessor(self):
         old=self.file.read_bytes()
