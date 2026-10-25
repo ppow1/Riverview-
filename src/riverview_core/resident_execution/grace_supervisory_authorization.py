@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/grace_supervisory_authorization.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.0.8
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Expose aggregate monthly Luna actual, reservation, and remaining budget from the shared ledger.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Bind the one-use S4 exception to a consumed evaluation for the exact S4 rejection, not the historical S3 request.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Bind the one-use S4 exception to the locked live revision and current assignment pointer instead of historical constants.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REWORK-EXCEPTION-20261025 | Require the exact replayed S4 evaluation and durable feedback consumption before issuing the one-use attempt.
@@ -383,6 +384,7 @@ class GraceSupervisoryAuthorization:
 
     def status(self):
         from psycopg import sql
+        from .external_reasoning import monthly_luna_usage
         with self.ledger.db.cursor() as cur:
             self.ledger._set_search_path(cur)
             cur.execute("""SELECT a.authorization_id,a.authority_grant_id,a.authorized_by,
@@ -407,11 +409,14 @@ class GraceSupervisoryAuthorization:
                 cur.execute(sql.SQL("SELECT {}.active_grace_supervisory_luna_grant(%s) AS grant_id").format(
                     sql.Identifier(self.authority_registry.schema)), (row["authority_grant_id"],))
                 linked_grant_active = cur.fetchone()["grant_id"] == row["authority_grant_id"]
+            monthly = monthly_luna_usage(cur)
         if row is None:
             return {"status": "not_authorized"}
         spent = row["spent"]
         unresolved = row["unresolved"]
         outstanding = row["outstanding"]
+        monthly_actual = monthly["actual"]
+        monthly_reserved = monthly["estimated"] + monthly["open"]
         state = row["status"]
         if state == "active" and not linked_grant_active:
             state = "revoked_or_inactive"
@@ -426,6 +431,12 @@ class GraceSupervisoryAuthorization:
             "unresolved_cost_usd": format(unresolved, ".8f"),
             "reserved_usd": format(outstanding, ".8f"),
             "available_usd": format(row["total_budget_usd"] - spent - unresolved - outstanding, ".8f"),
+            "monthly_luna_budget_usd": "5.00000000",
+            "monthly_luna_budget_period_utc": monthly["month_start"].strftime("%Y-%m"),
+            "monthly_luna_actual_spend_usd": format(monthly_actual, ".8f"),
+            "monthly_luna_reserved_usd": format(monthly_reserved, ".8f"),
+            "monthly_luna_available_usd": format(max(Decimal("0"),
+                Decimal("5.00000000") - monthly_actual - monthly_reserved), ".8f"),
             "request_count": int(row["requests"]), "expires_at": row["valid_until"].isoformat()
                 if row["valid_until"] else None}
 

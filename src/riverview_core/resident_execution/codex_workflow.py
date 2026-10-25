@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.22
+# Revision: 1.2.24
+# Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-REVIEW-317 | Reject mixed factual/literal clauses and include persisted step criteria in publication gating.
+# Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Fail closed on unsupported acceptance criteria and unverified repository publication requirements.
 # Changed: 2026-10-25 UTC | RV-GRACE-ASSIGNMENT-EVIDENCE-HANDOFF-20261025 | Select validated runtime evidence from persisted assignment requirements and preflight it before worker execution.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Restrict the S3-only CME retry evidence reader to the exact S3 step; S5 uses its separately validated evaluation exchange.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-HANDOFF-20261025 | Supply validated durable Luna evaluation facts to exact assignment rework.
@@ -53,7 +55,8 @@ import xml.etree.ElementTree as ET
 from ..worker_adapter.knowledge import KnowledgeStatus
 from ..worker_adapter.verifier import VerificationResult, VerificationStatus
 from ..resident_reasoning import ArtifactRequirement
-from .verifier import artifact_literals_satisfied, json_has_authoritative_negative_outcome
+from .verifier import (artifact_literals_satisfied, explicit_artifact_literals,
+                       json_has_authoritative_negative_outcome)
 from .codex_cli import CAPABILITY, CodexAssignment, CodexCLIExecutionAdapter
 from .codex_source_change import (CAPABILITY as SOURCE_CHANGE_CAPABILITY,
     CodexSourceChangeAdapter, CodexSourceChangeAssignment, CodexSourceChangeResult,
@@ -389,7 +392,7 @@ class CodexWorkAction:
 class CodexArtifactVerifier:
     """Independently verify every persisted assignment-defined artifact."""
 
-    REVISION = "1.0.4"
+    REVISION = "1.0.5"
     MAX_GRACE_REVIEW_BYTES = 12 * 1024
     _NAME = re.compile(r"^codex-[0-9a-f]{64}(?:-r[0-9a-f]{12})?/[0-9a-f]{12}$")
 
@@ -459,13 +462,72 @@ class CodexArtifactVerifier:
             raise ValueError("artifact integrity or declared type check failed")
         return raw
 
+    @staticmethod
+    def _publication_required(contract, step_criteria=()):
+        """Detect repository publication obligations in step and artifact criteria."""
+        criteria_groups = [step_criteria]
+        criteria_groups.extend(
+            item.get("acceptance_criteria", ())
+            for item in (contract if isinstance(contract, list) else ())
+            if isinstance(item, Mapping))
+        for group in criteria_groups:
+            if not isinstance(group, (list, tuple)):
+                continue
+            for criterion in group:
+                if not isinstance(criterion, str):
+                    continue
+                text = criterion.casefold()
+                has_github = "github" in text or "git hub" in text
+                has_commit = any(term in text for term in ("commit", "committed", "commit sha"))
+                has_remote_proof = "remote content" in text or "remote artifact" in text
+                has_repository_commit = "repository" in text and has_commit
+                has_github_delivery = has_github and any(term in text for term in
+                    ("commit", "push", "publish", "repository", "remote"))
+                if (has_github_delivery or has_repository_commit or has_remote_proof):
+                    return True
+        return False
+
+    @staticmethod
+    def _publication_receipt_consistent(contract, entries, result, step_criteria=()):
+        """Reject absent or self-contradictory worker receipts without trusting them."""
+        if not CodexArtifactVerifier._publication_required(contract, step_criteria):
+            return True
+        receipt = result.get("publication_evidence")
+        if not isinstance(receipt, Mapping) or not isinstance(entries, list) or len(entries) != 1:
+            return False
+        entry = entries[0]
+        commit = receipt.get("commit_sha")
+        remote_digest = receipt.get("remote_sha256")
+        delivered_digest = receipt.get("delivered_sha256")
+        return (isinstance(commit, str) and bool(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", commit)) and
+            receipt.get("repository_path") == entry.get("path") and
+            isinstance(remote_digest, str) and bool(re.fullmatch(r"[0-9a-f]{64}", remote_digest)) and
+            remote_digest == entry.get("sha256") and delivered_digest == entry.get("sha256"))
+
+    @staticmethod
+    def _criterion_has_supported_check(criterion):
+        """Accept only a complete literal-presence clause, never a factual conjunct."""
+        if not isinstance(criterion, str):
+            return False
+        quoted = r"(?:`[^`\n]{1,512}`|'[^'\n]{1,512}'|\"[^\"\n]{1,512}\")"
+        subject = r"(?:the\s+[A-Za-z][A-Za-z0-9_-]*|create\s+`?[A-Za-z0-9_./-]+`?)"
+        marker = r"(?:exact\s+phrase|literal)"
+        forms = (
+            rf"{subject}\s+(?:contains?|contain|containing)\s+{marker}\s+{quoted}",
+            rf"{subject}\s+contains\s+exactly\s+{quoted}",
+        )
+        return bool(explicit_artifact_literals(criterion)) and any(
+            re.fullmatch(rf"(?is)\s*{form}[.!]?\s*", criterion) for form in forms)
+
     def verify(self, assignment, attempt, result):
         result = result if isinstance(result, dict) else {}
         step = (self.pipeline.proposal_step_for_assignment(
             assignment.get("objective_ref"), assignment.get("id"))
             if self.pipeline is not None else None)
         contract = step.get("artifact_requirements") if isinstance(step, Mapping) else None
+        step_criteria = step.get("acceptance_criteria") if isinstance(step, Mapping) else None
         entries = result.get("artifacts")
+        publication_required = self._publication_required(contract, step_criteria)
         criteria = {
             "attempt_succeeded": attempt.get("status") == "succeeded",
             "executor_capability_matches": attempt.get("capability") == CAPABILITY,
@@ -478,7 +540,15 @@ class CodexArtifactVerifier:
             "artifact_path_projection_matches_contract": False,
             "authorized_acceptance_criteria_bound": False,
             "artifact_semantic_outcome_not_negative": True,
-            "explicit_artifact_acceptance_clauses_satisfied": True,
+            "all_acceptance_criteria_supported": False,
+            "all_required_step_criteria_supported": False,
+            "all_required_step_criteria_satisfied": False,
+            "all_artifact_acceptance_criteria_supported": False,
+            "explicit_artifact_acceptance_clauses_satisfied": False,
+            # A worker receipt cannot independently establish remote publication.
+            "required_repository_publication_independently_verified": not publication_required,
+            "repository_publication_receipt_consistent": self._publication_receipt_consistent(
+                contract, entries, result, step_criteria),
             "source_provenance_is_pinned": bool(
                 re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", str(result.get("source_revision", ""))) and
                 re.fullmatch(r"[0-9a-f]{64}", str(result.get("source_sha256", "")))),
@@ -509,21 +579,44 @@ class CodexArtifactVerifier:
                     entry.get("name") == requirement.get("name"))
             if criteria["artifact_contract_matches_persisted_assignment"]:
                 verified = []
+                verified_contents = []
+                all_artifact_criteria_supported = True
+                all_artifact_criteria_satisfied = True
                 for requirement in contract:
                     entry = next(item for item in entries if item.get("name") == requirement["name"])
                     raw = self._open_verified(entry, assignment["id"],
                         result.get("rework_verification_id"))
                     verified.append(entry)
+                    verified_contents.append((raw, entry.get("media_type")))
                     if entry.get("media_type") == "application/json":
                         criteria["artifact_semantic_outcome_not_negative"] = (
                             criteria["artifact_semantic_outcome_not_negative"] and
                             not json_has_authoritative_negative_outcome(json.loads(raw.decode("utf-8"))))
-                    criteria["explicit_artifact_acceptance_clauses_satisfied"] = (
-                        criteria["explicit_artifact_acceptance_clauses_satisfied"] and
-                        artifact_literals_satisfied(raw, entry.get("acceptance_criteria", ()),
-                                                    entry.get("media_type")))
+                    acceptance = entry.get("acceptance_criteria", ())
+                    supported = bool(acceptance) and all(
+                        self._criterion_has_supported_check(clause) for clause in acceptance)
+                    satisfied = supported and artifact_literals_satisfied(
+                        raw, acceptance, entry.get("media_type"))
+                    all_artifact_criteria_supported = (
+                        all_artifact_criteria_supported and supported)
+                    all_artifact_criteria_satisfied = (
+                        all_artifact_criteria_satisfied and satisfied)
                     evidence += ("workspace://" + entry["storage_name"],
                                  "sha256:" + entry["sha256"])
+                step_supported = (isinstance(step_criteria, (list, tuple)) and bool(step_criteria) and
+                    all(self._criterion_has_supported_check(clause) for clause in step_criteria))
+                step_satisfied = step_supported and all(
+                    any(artifact_literals_satisfied(raw, (clause,), media_type)
+                        for raw, media_type in verified_contents)
+                    for clause in step_criteria)
+                criteria["all_required_step_criteria_supported"] = bool(step_supported)
+                criteria["all_required_step_criteria_satisfied"] = bool(step_satisfied)
+                criteria["all_artifact_acceptance_criteria_supported"] = (
+                    bool(contract) and all_artifact_criteria_supported)
+                criteria["all_acceptance_criteria_supported"] = (
+                    bool(contract) and bool(step_supported) and all_artifact_criteria_supported)
+                criteria["explicit_artifact_acceptance_clauses_satisfied"] = (
+                    bool(contract) and all_artifact_criteria_satisfied)
                 criteria["all_required_artifacts_integrity_and_type_verified"] = len(verified) == len(contract)
                 first = entries[0]
                 criteria["artifact_path_projection_matches_contract"] = (

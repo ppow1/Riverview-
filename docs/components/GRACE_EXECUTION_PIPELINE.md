@@ -2,7 +2,9 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_PIPELINE.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.36
+File Revision: 1.1.38
+Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-REVIEW-317 | Clarify strict complete-clause support and publication detection across step and artifact criteria.
+Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Separate integrity from criterion satisfaction and document unsupported factual and repository-publication checks.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Trigger evaluation from the exact exhausted S4 rejection and bind retry authorization to its S4 exchange provenance.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Require the exact replayed S4 evaluation evidence before exception issuance.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Document server-validated evaluation evidence handoff, idempotent consumed-response replay, and exact one-use S4 recovery.
@@ -55,6 +57,37 @@ Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-ENABLE-001 | Explicitly enabl
 Changed: 2026-10-16 UTC | RV-GRACE-CODEX-CODE-MODE-MDWE-001 | Keep the Code Mode filesystem and network sandbox while allowing its required executable-memory runtime in the owner service
 -->
 # Grace Execution Pipeline — infrastructure slice
+
+## Codex artifact acceptance limits and repository publication
+
+`CodexArtifactVerifier` separates artifact integrity from criterion
+satisfaction. A valid digest, declared media type, assignment binding, and
+provenance do not establish that every acceptance criterion was met. It checks
+both the durable step criteria and each artifact's criteria. The current
+verifier supports exact literal clauses and rejects any required criterion for
+which it has no deterministic evidence check. In particular, prose-only
+factual claims are not treated as supported, even if they cite a path or
+contain matching words. A supported criterion must be a complete exact-phrase
+or literal-presence clause; adding a factual claim to that clause makes the
+whole criterion unsupported. Step-level and artifact-level requirements are
+both scanned for repository-publication obligations. The verifier does not
+infer external facts from artifact wording; those requirements remain
+unsupported until an existing authoritative evidence check applies.
+
+The Codex artifact adapter clones the pinned local checkout into an isolated,
+network-disabled workspace and persists output in the private assignment
+artifact store. It does not commit or push deliverables. No service-side
+authorized repository publisher or independent remote-content reader is
+registered for this capability. Therefore a persisted artifact contract that
+explicitly requires GitHub/repository publication is rejected, even if the
+worker result includes a publication receipt. A future supported publication
+path must independently establish the commit SHA, exact repository path, and
+remote content digest matching the delivered artifact; worker-reported fields
+alone are not proof.
+
+Integrity and requirement satisfaction remain separate verifier criteria.
+An unsupported criterion must not be represented as accepted merely because
+the artifact is structurally valid.
 
 **Status:** Implemented for deterministic, isolated integration; not a commissioned operational Grace resident.
 

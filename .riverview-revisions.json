@@ -9,8 +9,8 @@
     ".github/workflows/controlled-checkout.yml": {
       "path": ".github/workflows/controlled-checkout.yml",
       "revision": "1.0.5",
-      "sha256": "c2b79e58b1ea9af8688057754d4f6c6531b9e1b25d5a4fd45cfa0731dac41953",
-      "size_bytes": 2646
+      "sha256": "ac889058b7a8bae281ff442cb2d16ff3d3bc9d7a0c6ab86abe226339ac96294d",
+      "size_bytes": 3311
     },
     ".gitignore": {
       "path": ".gitignore",
@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.35",
-      "sha256": "12350301908fcc30093cd7351fb184924a6d9869090d21935cfb728ffb5c5b22",
-      "size_bytes": 1584723
+      "revision": "1.0.39",
+      "sha256": "866a426cae9b49a0cb530bf2855a19bce19bcf01409fa93b56d388ebdd34eebe",
+      "size_bytes": 1614338
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.336"
+      "revision": "1.1.342"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -204,8 +204,8 @@
     "deploy/systemd/riverview-grace-comfyui.conf": {
       "path": "deploy/systemd/riverview-grace-comfyui.conf",
       "revision": "1.0.0",
-      "sha256": "8f60fd7fa7055f757687720acdbbb9429a21928c27fa565d5292138b1a2a1312",
-      "size_bytes": 684
+      "sha256": "e94e684ed16eab717c0e423b4d4185ef1cf17159682915925dad6648dbf0448f",
+      "size_bytes": 715
     },
     "deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf": {
       "path": "deploy/systemd/riverview-grace-execution-owner-session-source-worker.conf",
@@ -240,8 +240,8 @@
     "deploy/systemd/riverview-notification-dispatcher.service": {
       "path": "deploy/systemd/riverview-notification-dispatcher.service",
       "revision": "1.0.0",
-      "sha256": "5ad840b5d32a09498b040b1de55ae94531947feb55bcf9dd15b8f5dd92087457",
-      "size_bytes": 2116
+      "sha256": "34c95341a014b51c25bcb6a5aed96d0f4fef09d14ef5280d3b41f20f57009a86",
+      "size_bytes": 2376
     },
     "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
       "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
@@ -378,8 +378,8 @@
     "docs/components/CHATGPT_DOORBELL_STATUS.schema.json": {
       "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
       "revision": "1.0.0",
-      "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
-      "size_bytes": 6987
+      "sha256": "494c779325bb402cfb0b86447d6e4db930a51aeb53a500b8ca24ed8876145722",
+      "size_bytes": 7156
     },
     "docs/components/CME_MONITOR.md": {
       "path": "docs/components/CME_MONITOR.md",
@@ -402,8 +402,8 @@
     "docs/components/COMFYUI_ENGINEERING_ADAPTER.md": {
       "path": "docs/components/COMFYUI_ENGINEERING_ADAPTER.md",
       "revision": "1.0.1",
-      "sha256": "817780f00d3d553958e0777f47b9a1d64bfe47a7c0b6242e0b44b8604bd707a9",
-      "size_bytes": 7212
+      "sha256": "2d0a11f00db8294bfa4bd1d2add2593b5fedcb821eab19bb9d7836c7248d7742",
+      "size_bytes": 8577
     },
     "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md": {
       "path": "docs/components/COMMS5_CAMRUI_DEPLOYMENT.md",
@@ -450,14 +450,14 @@
     "docs/components/EXTERNAL_REASONING_EXCHANGE.md": {
       "path": "docs/components/EXTERNAL_REASONING_EXCHANGE.md",
       "revision": "1.1.9",
-      "sha256": "56247d369252f5795342f89d9b0a2d61a077c4f7770b42718562309f8340f5d3",
-      "size_bytes": 22883
+      "sha256": "df989b9b7075d89eec0d95028746f1b82373f400fd13049790b5ff2b9e5bb5dc",
+      "size_bytes": 24209
     },
     "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md": {
       "path": "docs/components/EXTERNAL_REASONING_EXCHANGE_COOKBOOK.md",
       "revision": "1.1.8",
-      "sha256": "8eb280e93f87ed8ef3e7754b401fff89517ac8c7efbedc2467e49ea294b9cd4c",
-      "size_bytes": 21968
+      "sha256": "266d39561640becd97efdca319737c2c17550b66a4aeb03e7b90feeaeef41a5e",
+      "size_bytes": 23523
     },
     "docs/components/EXTERNAL_REVIEW_READINESS.md": {
       "path": "docs/components/EXTERNAL_REVIEW_READINESS.md",
@@ -491,21 +491,21 @@
     },
     "docs/components/GRACE_EXECUTION_COOKBOOK.md": {
       "path": "docs/components/GRACE_EXECUTION_COOKBOOK.md",
-      "revision": "1.1.29",
-      "sha256": "e5bf7da1f81df58544400b3340498869f6345c5cf632a3c336a7232f3859dddb",
-      "size_bytes": 51703
+      "revision": "1.1.35",
+      "sha256": "236afcef23714359f8f552e59586887d8e01dfee6a1a4d31260704869ece694b",
+      "size_bytes": 63067
     },
     "docs/components/GRACE_EXECUTION_PIPELINE.md": {
       "path": "docs/components/GRACE_EXECUTION_PIPELINE.md",
-      "revision": "1.1.33",
-      "sha256": "c4277e3edf11d8a75fe2beb71f5b1c243f511e2238fe2e988f022aabf37af719",
-      "size_bytes": 46002
+      "revision": "1.1.37",
+      "sha256": "3b9cca99bb6b1b42d92a947fff692b317c26405adbd4d09212db2edac5c6c181",
+      "size_bytes": 51187
     },
     "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md": {
       "path": "docs/components/GRACE_OPERATIONAL_INTEGRATION_FLOW.md",
-      "revision": "1.0.67",
-      "sha256": "a84e98477ee9833091da6301750e0080bd868e9fd38d75b698430866cd029456",
-      "size_bytes": 55128
+      "revision": "1.0.74",
+      "sha256": "4e3b6c9d2e5640639eb6204c055d98aac48407e3307ddbac68be426339acf05d",
+      "size_bytes": 58892
     },
     "docs/components/GRACE_PERSISTENT_EXECUTION.md": {
       "path": "docs/components/GRACE_PERSISTENT_EXECUTION.md",
@@ -516,14 +516,14 @@
     "docs/components/INSTITUTIONAL_AUTHORITY.md": {
       "path": "docs/components/INSTITUTIONAL_AUTHORITY.md",
       "revision": "1.0.29",
-      "sha256": "4c11fb4a2032aba162c94a16611444683fb84ea098cd807ea570a04c724aca27",
-      "size_bytes": 24010
+      "sha256": "8ebd07876e5abce1cb5c9eaef58fa5ffe44a568c78af49ba7fc4fd76ccf168f3",
+      "size_bytes": 25893
     },
     "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md": {
       "path": "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
       "revision": "1.0.33",
-      "sha256": "56bc15e1fc9f8eb6a222b339304b3c2f1383813866c09449b07a0b719b7142d0",
-      "size_bytes": 58107
+      "sha256": "e3451bc25ddae54ef9ecf67e11cd606f18b9008fb0d4e83d018677c062a74433",
+      "size_bytes": 60621
     },
     "docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md": {
       "path": "docs/components/INSTITUTIONAL_AUTHORITY_FLOW.md",
@@ -552,14 +552,14 @@
     "docs/components/NOTIFICATION_DELIVERY.md": {
       "path": "docs/components/NOTIFICATION_DELIVERY.md",
       "revision": "1.0.2",
-      "sha256": "0c63738eefbc4bf0dc630036d1cf92c57a94542f8f371a1cdaf9ee83f8c89ba0",
-      "size_bytes": 6969
+      "sha256": "b30fd80d9794374bc4c59ca16a4ebe136b072486a75268d7bd92977e65e1ffb0",
+      "size_bytes": 8337
     },
     "docs/components/NOTIFICATION_DELIVERY_API.schema.json": {
       "path": "docs/components/NOTIFICATION_DELIVERY_API.schema.json",
       "revision": "1.0.1",
-      "sha256": "29ae3efa4f6bb599cfd30b1f8087c64b8d0c58eecc494037f96eb02c034561df",
-      "size_bytes": 3806
+      "sha256": "47861eddfa27c08267522079ace39040ce4755f71cd1982c05d69e1134a1090d",
+      "size_bytes": 4569
     },
     "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md": {
       "path": "docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md",
@@ -648,8 +648,8 @@
     "docs/components/RESIDENT_REASONING_FLOW.md": {
       "path": "docs/components/RESIDENT_REASONING_FLOW.md",
       "revision": "1.0.19",
-      "sha256": "1756c202c5febd924434ffb3732da086371f7fdfb3f616af1f22d915a47a4821",
-      "size_bytes": 25792
+      "sha256": "e997faf252cb4cc7b2d3b4249de7d3621a68247e564951d0de1a54d375fd61d2",
+      "size_bytes": 28498
     },
     "docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md": {
       "path": "docs/components/RIVERVIEW_OPERATIONS_COOKBOOK.md",
@@ -659,15 +659,15 @@
     },
     "docs/components/RUNTIME_BASELINE.md": {
       "path": "docs/components/RUNTIME_BASELINE.md",
-      "revision": "1.0.12",
-      "sha256": "ba269e753973701282bbfb112951014269d65b14e2fea68485b403b933c86243",
-      "size_bytes": 20686
+      "revision": "1.0.13",
+      "sha256": "66944e5a713c60a5e4736d82185f2c752eb9ba1e14e98afead67bb2ba2197f26",
+      "size_bytes": 23000
     },
     "docs/components/RUNTIME_BASELINE_COOKBOOK.md": {
       "path": "docs/components/RUNTIME_BASELINE_COOKBOOK.md",
-      "revision": "1.0.10",
-      "sha256": "c6f526a262adf0b9eb1b0ed31254a220cfa090925767f5dde04feec6fa7e5d36",
-      "size_bytes": 14737
+      "revision": "1.0.11",
+      "sha256": "a7a4efcada58501497ccb84bd319cf832746c0c4e18a4cd917ee257cdbf8ebe5",
+      "size_bytes": 16611
     },
     "docs/components/RUNTIME_BASELINE_FLOW.md": {
       "path": "docs/components/RUNTIME_BASELINE_FLOW.md",
@@ -678,8 +678,8 @@
     "docs/components/STATUS_DASHBOARD.md": {
       "path": "docs/components/STATUS_DASHBOARD.md",
       "revision": "1.1.15",
-      "sha256": "42691c36b59fae97249e73df2c78cff5398322ae4ed87d3aa47932992e697b0a",
-      "size_bytes": 31466
+      "sha256": "644a2a2207ddaf81e824b98e093e0ab3d8333c2768c800d7806ec8345d00ef9c",
+      "size_bytes": 37237
     },
     "docs/components/STATUS_DASHBOARD_API.schema.json": {
       "path": "docs/components/STATUS_DASHBOARD_API.schema.json",
@@ -690,14 +690,14 @@
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
       "revision": "1.1.34",
-      "sha256": "bd482941da5a8c41a07c709cd5b1bbc4a14d5955a06b94381fac48548ac9aa7f",
-      "size_bytes": 66200
+      "sha256": "6d1b649d96b67c5568ed7953f61dc30eafb715afd82b338c60edb88412b023c3",
+      "size_bytes": 77745
     },
     "docs/components/STATUS_DASHBOARD_FLOW.md": {
       "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
       "revision": "1.0.16",
-      "sha256": "fbdd06c7fca581668a0571f54bc6f802937cec1da00abff0c72bcf152568fe8f",
-      "size_bytes": 19022
+      "sha256": "5c32b77b95b11d5c93489fac3e8bf63e993900b93e2636b6decf16805b05d3a0",
+      "size_bytes": 25601
     },
     "docs/components/WORKER_ADAPTER.md": {
       "path": "docs/components/WORKER_ADAPTER.md",
@@ -1199,9 +1199,9 @@
     },
     "docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md": {
       "path": "docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md",
-      "revision": "1.0.0",
-      "sha256": "5ff9d092d9f2de0562c0633650f37a23825dc5b5da00a3f3c9c89066204943e5",
-      "size_bytes": 8092
+      "revision": "1.0.1",
+      "sha256": "8c09366c246a4cccdd5c4b3eee45962da6053cc8e0f0b158ea74650fc14fc210",
+      "size_bytes": 11051
     },
     "docs/standards/ENGINEERING_RECORDS_STANDARD.md": {
       "path": "docs/standards/ENGINEERING_RECORDS_STANDARD.md",
@@ -7848,14 +7848,14 @@
     "process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md": {
       "path": "process_graphs/generated/RIVERVIEW_PROCESS_GRAPH.md",
       "revision": "1.0.24",
-      "sha256": "dc1ee14cedeab4b9c35e89dd60eef4d498dd39d6a2a506ce802dda4d0ebb89ea",
-      "size_bytes": 7106
+      "sha256": "36d1da385ed9cf7d1c5891b0e8e263404f6e43673fb9b4638207537250187576",
+      "size_bytes": 7246
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.37",
-      "sha256": "d3d840511e46e5cd1ac471bba4993c64e3e09d7dce15a940ce0f0e2cb284f74a",
-      "size_bytes": 780643
+      "revision": "1.1.39",
+      "sha256": "142f9c0f7910eab32bdd7028de0dd596a6420e494d5b3fb558c1aca5c2f56e5d",
+      "size_bytes": 781144
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -7865,9 +7865,9 @@
     },
     "process_graphs/grace/operational-integration.json": {
       "path": "process_graphs/grace/operational-integration.json",
-      "revision": "1.0.74",
-      "sha256": "5076d3a29c35cde054bca15fc150f7386edac534610b890eae349820175c6e0c",
-      "size_bytes": 105234
+      "revision": "1.0.76",
+      "sha256": "317b386cea62916d82cf33244723151585b5fc6b7f38d95353cbfd80abe5e2eb",
+      "size_bytes": 105715
     },
     "process_graphs/institutional-authority/identity-and-grants.json": {
       "path": "process_graphs/institutional-authority/identity-and-grants.json",
@@ -8154,8 +8154,8 @@
     "scripts/run_grace_execution_service.py": {
       "path": "scripts/run_grace_execution_service.py",
       "revision": "1.2.12",
-      "sha256": "26d47d11d95d6eb4a212df8b36d200a74e606db513c0ac2b67ae18f3c39a0f88",
-      "size_bytes": 46215
+      "sha256": "dbd2af6773c8664aa508eda38107c590fe37618a3395f59472986be6fe25917e",
+      "size_bytes": 48867
     },
     "scripts/run_notification_dispatcher.py": {
       "path": "scripts/run_notification_dispatcher.py",
@@ -8226,8 +8226,8 @@
     "scripts/verify_diagnostic_snapshot_browser.py": {
       "path": "scripts/verify_diagnostic_snapshot_browser.py",
       "revision": "1.1.1",
-      "sha256": "c33cf38fc1a9efca9953c1e39e9ca86bf784c9b0208408500945840effd93a0d",
-      "size_bytes": 53622
+      "sha256": "d9f00a6712a4f58c2ffa92155321ee649f4495c7b1ab782a64824746cb18f49e",
+      "size_bytes": 71468
     },
     "scripts/verify_event_processor.py": {
       "path": "scripts/verify_event_processor.py",
@@ -8346,14 +8346,14 @@
     "src/riverview_core/cme/monitor.py": {
       "path": "src/riverview_core/cme/monitor.py",
       "revision": "1.0.3",
-      "sha256": "19fa09731709b69cca80a90c424c87ff4790439c796e8669d3037756028ec2dc",
-      "size_bytes": 26590
+      "sha256": "9070b1d48bf594a2fe9aa8844af94b3bd2728084eaff8910d6aa58ac96c66330",
+      "size_bytes": 26783
     },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
       "revision": "1.0.9",
-      "sha256": "082133a20a519338b658f5fab26f4194945f28847fb5fd377c077060629a633b",
-      "size_bytes": 13996
+      "sha256": "5df2142d210f690bd30679917e4d03058881daaeed23f8beffb659c0071efe70",
+      "size_bytes": 14679
     },
     "src/riverview_core/comms5/server.py": {
       "path": "src/riverview_core/comms5/server.py",
@@ -8364,8 +8364,8 @@
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
       "revision": "1.0.1",
-      "sha256": "9572c1fc46cdbe1fc1ad212877a74805be9aae987b477b876dbe37abc0dc8c86",
-      "size_bytes": 92890
+      "sha256": "4c6be8e843da35adb586a2f0434ea0d6c417684026247b9b40a3c73ce707b4ba",
+      "size_bytes": 119417
     },
     "src/riverview_core/diagnostics.py": {
       "path": "src/riverview_core/diagnostics.py",
@@ -8454,8 +8454,8 @@
     "src/riverview_core/institutional_authority/grants.py": {
       "path": "src/riverview_core/institutional_authority/grants.py",
       "revision": "1.0.4",
-      "sha256": "4f791a2732671c23e44d57a0e32fbf5750a3e69037e2d9b95fc2801b62f938fa",
-      "size_bytes": 12262
+      "sha256": "bdb5892c9c6342a114572e0135d546d93d4ab06dcf6147884881991ed14e6953",
+      "size_bytes": 13386
     },
     "src/riverview_core/institutional_authority/m33_retirement_migration.py": {
       "path": "src/riverview_core/institutional_authority/m33_retirement_migration.py",
@@ -8550,14 +8550,14 @@
     "src/riverview_core/institutional_authority/permission_profiles.py": {
       "path": "src/riverview_core/institutional_authority/permission_profiles.py",
       "revision": "1.0.2",
-      "sha256": "6a93273153016fb6bc94d1b68ff857ee4e7473876f92db9ea7b991c53a0fdd1e",
-      "size_bytes": 13229
+      "sha256": "f1d094d5799ee1d68ec2f2da5ef5c9c24ece54d6ba0fcc3b9fcd533f140bf64a",
+      "size_bytes": 18451
     },
     "src/riverview_core/institutional_authority/registry.py": {
       "path": "src/riverview_core/institutional_authority/registry.py",
       "revision": "1.0.13",
-      "sha256": "00df3d49bd78bcbf26084bd84916b6664b2acb4eff2382d7aefe95c64e79fc4f",
-      "size_bytes": 43194
+      "sha256": "495363f62d71ab87f8c2ddcdc74eacfebbecc1262dc74348b949fc0da726bc56",
+      "size_bytes": 47403
     },
     "src/riverview_core/ledger.py": {
       "path": "src/riverview_core/ledger.py",
@@ -8568,8 +8568,8 @@
     "src/riverview_core/local_reasoning_provider.py": {
       "path": "src/riverview_core/local_reasoning_provider.py",
       "revision": "1.3.31",
-      "sha256": "b46ac6e555552314d0334a519b853fa074368620513a728199b6dccb561a8f10",
-      "size_bytes": 64154
+      "sha256": "ead3aa5cdbf961bfcaa47604d34b77902a8f4cfc40f2bc66352b0644e5db3021",
+      "size_bytes": 65358
     },
     "src/riverview_core/migrations/0001_assignment_event_ledger.sql": {
       "path": "src/riverview_core/migrations/0001_assignment_event_ledger.sql",
@@ -8592,8 +8592,8 @@
     "src/riverview_core/notifications/dispatcher.py": {
       "path": "src/riverview_core/notifications/dispatcher.py",
       "revision": "1.0.2",
-      "sha256": "a644a7027b5dd6ade35e9561bfc668b1b019d85135c887423f32e93895160309",
-      "size_bytes": 11332
+      "sha256": "8a8254df7c711a10534d322ed9b74726a2a79cadc594e3220f272e7c59e300ce",
+      "size_bytes": 18439
     },
     "src/riverview_core/notifications/migrations/0006_durable_notifications.sql": {
       "path": "src/riverview_core/notifications/migrations/0006_durable_notifications.sql",
@@ -8628,8 +8628,8 @@
     "src/riverview_core/notifications/service.py": {
       "path": "src/riverview_core/notifications/service.py",
       "revision": "1.0.3",
-      "sha256": "737aa4a2b9c2e9fafaf637d83e9b2e93924ca4b9b5a96f8b8c5106d12edb8e3f",
-      "size_bytes": 11887
+      "sha256": "d3e9500c1f4c13584d0ab14486daaf443c44afbd69fd857e5995acd9137f8a4b",
+      "size_bytes": 21985
     },
     "src/riverview_core/postgres_ledger.py": {
       "path": "src/riverview_core/postgres_ledger.py",
@@ -8640,14 +8640,14 @@
     "src/riverview_core/postgres_migrations.py": {
       "path": "src/riverview_core/postgres_migrations.py",
       "revision": "1.0.2",
-      "sha256": "4d6dd6518d0e3ae3ef107e949a511a6148301433a7102decd3ce341a0829b40d",
-      "size_bytes": 4056
+      "sha256": "4deb43ff7ab38c491a3a6a94ff3ba391f6a785235d1d2cbfa03d2ac797fb51ae",
+      "size_bytes": 7132
     },
     "src/riverview_core/reasoning_escalation.py": {
       "path": "src/riverview_core/reasoning_escalation.py",
       "revision": "1.1.1",
-      "sha256": "87ce167a8d85ff26365c25600be1b9d73dad25f543e22ae81585d456f392a0a1",
-      "size_bytes": 11220
+      "sha256": "703acbd1c54e975c098d51e6bc2aabd771c97ab3bca58244bc0cd392be0c9f8a",
+      "size_bytes": 11221
     },
     "src/riverview_core/resident_execution/__init__.py": {
       "path": "src/riverview_core/resident_execution/__init__.py",
@@ -8658,8 +8658,8 @@
     "src/riverview_core/resident_execution/codex_cli.py": {
       "path": "src/riverview_core/resident_execution/codex_cli.py",
       "revision": "1.1.8",
-      "sha256": "33609dd8a65a7dd0625e38cfee6eaeaa3683654b91664d292584224f87008744",
-      "size_bytes": 35068
+      "sha256": "0056316333c611275acf5688bf858ecc884a537924261805d6a9210f7f96c2ea",
+      "size_bytes": 35847
     },
     "src/riverview_core/resident_execution/codex_source_change.py": {
       "path": "src/riverview_core/resident_execution/codex_source_change.py",
@@ -8669,27 +8669,27 @@
     },
     "src/riverview_core/resident_execution/codex_workflow.py": {
       "path": "src/riverview_core/resident_execution/codex_workflow.py",
-      "revision": "1.2.17",
-      "sha256": "98b896cda5c7a2738429ed3bfdbb78e192eb23c44bb7b56368335998662e95c4",
-      "size_bytes": 37076
+      "revision": "1.2.23",
+      "sha256": "a8eade58c73ee5d687dbf6ce7286ad3918a35e91ed31bc8505dea05f5f62f3b1",
+      "size_bytes": 53091
     },
     "src/riverview_core/resident_execution/comms5_operations.py": {
       "path": "src/riverview_core/resident_execution/comms5_operations.py",
       "revision": "1.0.7",
-      "sha256": "9f2b6f1581e52353edf6cd25bd0a215ec6e9046a3d46c7182c33529ac4d9ff30",
-      "size_bytes": 58887
+      "sha256": "ad58d446a5ff37ba50c9f1dc6a3dc43df6a9a5cc3276f94bde9b4c260ad64e97",
+      "size_bytes": 68421
     },
     "src/riverview_core/resident_execution/conversation.py": {
       "path": "src/riverview_core/resident_execution/conversation.py",
       "revision": "1.2.29",
-      "sha256": "55cd3300346b8d4e95aa3cabbf90beccb9a935fdf61e6154994b93aab0d9209b",
-      "size_bytes": 175053
+      "sha256": "6bbea581b293d9fc04e22820e64394355b93675eca23c1b44895e88c461856ea",
+      "size_bytes": 184817
     },
     "src/riverview_core/resident_execution/external_reasoning.py": {
       "path": "src/riverview_core/resident_execution/external_reasoning.py",
       "revision": "1.1.3",
-      "sha256": "91754a1b7eb44f107ce696f58a5f552d8f70fec68c48bb41f2f4aca8833239a5",
-      "size_bytes": 69107
+      "sha256": "35b9f25855b201b696bef306416cdbbc6066056de3ff3fa9b0ad6a4bcc1fb41e",
+      "size_bytes": 102566
     },
     "src/riverview_core/resident_execution/external_reasoning_mcp.py": {
       "path": "src/riverview_core/resident_execution/external_reasoning_mcp.py",
@@ -8712,8 +8712,8 @@
     "src/riverview_core/resident_execution/internal_tools.py": {
       "path": "src/riverview_core/resident_execution/internal_tools.py",
       "revision": "1.0.0",
-      "sha256": "fa847f696f80438ff5fbe72f3afc00507c18b9ab60232febe18760ed562ffe71",
-      "size_bytes": 3469
+      "sha256": "1b43ad9d8f736bb0ea0360870cc171f0655a808727629183ee1d847d3d33ada1",
+      "size_bytes": 7554
     },
     "src/riverview_core/resident_execution/migrations/0001_grace_objectives.sql": {
       "path": "src/riverview_core/resident_execution/migrations/0001_grace_objectives.sql",
@@ -8838,8 +8838,8 @@
     "src/riverview_core/resident_execution/model_router.py": {
       "path": "src/riverview_core/resident_execution/model_router.py",
       "revision": "1.2.10",
-      "sha256": "dc5fbcb87dd0a5cac3f4af7c61150d9acf8eef05f530cb6238e6c7cd8be2f22a",
-      "size_bytes": 40655
+      "sha256": "dd0a95ab6c222e3876ebb732f06a5472a10df89319ed83f2ceaeb05a5dd26017",
+      "size_bytes": 41400
     },
     "src/riverview_core/resident_execution/operational_context.py": {
       "path": "src/riverview_core/resident_execution/operational_context.py",
@@ -8850,8 +8850,8 @@
     "src/riverview_core/resident_execution/pipeline.py": {
       "path": "src/riverview_core/resident_execution/pipeline.py",
       "revision": "1.1.32",
-      "sha256": "b499076a3e07483f438358e6403fb523a9babb9744bd4b36dfb39142f9f1e250",
-      "size_bytes": 147679
+      "sha256": "0d32ef4439890e37b32d0f186cda73c39d6ec171e4bb246dd298e02e7a9a0873",
+      "size_bytes": 237773
     },
     "src/riverview_core/resident_execution/proposal_lifecycle.py": {
       "path": "src/riverview_core/resident_execution/proposal_lifecycle.py",
@@ -8868,8 +8868,8 @@
     "src/riverview_core/resident_execution/service.py": {
       "path": "src/riverview_core/resident_execution/service.py",
       "revision": "1.0.44",
-      "sha256": "e47869f0e6ea9c585fe9610ad36fdb1329f771bd1a0e9bf31a67f573666a8d6e",
-      "size_bytes": 84387
+      "sha256": "569eaa80541bd9c34ca9ad9eceb1533bdece0458a8d09b8614f21084ae1d6ffd",
+      "size_bytes": 170890
     },
     "src/riverview_core/resident_execution/verifier.py": {
       "path": "src/riverview_core/resident_execution/verifier.py",
@@ -8886,8 +8886,8 @@
     "src/riverview_core/resident_reasoning.py": {
       "path": "src/riverview_core/resident_reasoning.py",
       "revision": "1.0.31",
-      "sha256": "8368d04ee6f9ce135d856a5da21ce002e3e1d4b506b03908ca06104103d956ae",
-      "size_bytes": 57036
+      "sha256": "8d822cd9ebd98f62e476296414c9d83a802aa130a87c1fb1c383cf718a05f1fb",
+      "size_bytes": 57219
     },
     "src/riverview_core/status_dashboard/__init__.py": {
       "path": "src/riverview_core/status_dashboard/__init__.py",
@@ -8910,8 +8910,8 @@
     "src/riverview_core/status_dashboard/projection.py": {
       "path": "src/riverview_core/status_dashboard/projection.py",
       "revision": "1.0.14",
-      "sha256": "279cf7025bbb75b7a8da5c0c9e78e0b210a6587c3cea01224dd79989eac1e00f",
-      "size_bytes": 52257
+      "sha256": "f926aec15f11879887a95c622c93cacf987567ca5bd01a6b1011913af2721ed1",
+      "size_bytes": 77922
     },
     "src/riverview_core/status_dashboard/resource_telemetry.py": {
       "path": "src/riverview_core/status_dashboard/resource_telemetry.py",
@@ -8928,38 +8928,38 @@
     "src/riverview_core/status_dashboard/snapshot_archive.py": {
       "path": "src/riverview_core/status_dashboard/snapshot_archive.py",
       "revision": "1.0.3",
-      "sha256": "e4565ac463f782a0f7a6881d32eba92c7ebd5944310bbb41fb87af5e5bf4e13a",
-      "size_bytes": 14568
+      "sha256": "ec45c17697b1abe2cc6d8acefbc550ba56794e58cf9d3e7ed18e49099926e586",
+      "size_bytes": 18900
     },
     "src/riverview_core/status_dashboard/static/app.css": {
       "path": "src/riverview_core/status_dashboard/static/app.css",
       "revision": "1.0.15",
-      "sha256": "9bcb9775b787152482ee79f2ec9eb49ff78a19100af6d8944f82384cd0c11081",
-      "size_bytes": 27093
+      "sha256": "19de4557e77592bdebea9cca15314cd9b30f259252f13cf11f23974d7386bd61",
+      "size_bytes": 27644
     },
     "src/riverview_core/status_dashboard/static/app.js": {
       "path": "src/riverview_core/status_dashboard/static/app.js",
       "revision": "1.4.27",
-      "sha256": "3e1e9341287bf52bb5fa498fae8d612600412bd6cc47406b0ffff197f945d72d",
-      "size_bytes": 95014
+      "sha256": "17cb65a7fb83232bf2c016a6cc0225dff89cca28dead7bdebac910498ecd85c7",
+      "size_bytes": 96845
     },
     "src/riverview_core/status_dashboard/static/capabilities.json": {
       "path": "src/riverview_core/status_dashboard/static/capabilities.json",
       "revision": "1.1.2",
-      "sha256": "fbe0fb6d53ca6e7fd3ff72073d6dbec49f6b36fd840dbc643cfd1fbc6dcc70f2",
-      "size_bytes": 23138
+      "sha256": "3cf75c3dc6e3db34cb0517e7dd01349ef8657243f8480067655e685877d95a0b",
+      "size_bytes": 23154
     },
     "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js": {
       "path": "src/riverview_core/status_dashboard/static/diagnostic-snapshot.js",
       "revision": "1.1.8",
-      "sha256": "489ea4c0904a7a1144bf4e83da9f99f1a217e43b251073894d68e99af4d64027",
-      "size_bytes": 45622
+      "sha256": "c0abf2923cf0a95e5cd0ef32eec24a46851207648959ca4c9ebb1fb5ef86c0c6",
+      "size_bytes": 58621
     },
     "src/riverview_core/status_dashboard/static/index.html": {
       "path": "src/riverview_core/status_dashboard/static/index.html",
       "revision": "1.1.23",
-      "sha256": "bf7a399ca7eca5ecf9bb8a923d3ac25ed0632052a89bd620a62e9d3403107fcc",
-      "size_bytes": 36810
+      "sha256": "d40774fd742fbe284e03632fb73c573fe474a8447eb10d3d0eb2ba1dd09d0359",
+      "size_bytes": 36868
     },
     "src/riverview_core/status_dashboard/static/institutional-proposals.js": {
       "path": "src/riverview_core/status_dashboard/static/institutional-proposals.js",
@@ -8994,8 +8994,8 @@
     "src/riverview_core/worker_adapter/adapter.py": {
       "path": "src/riverview_core/worker_adapter/adapter.py",
       "revision": "1.0.23",
-      "sha256": "66661bfe8c00399f0d90e6fc5f173bda67c79561333788513077ab2582b417cc",
-      "size_bytes": 43311
+      "sha256": "f3c5fcc739174938bd752ec7624d5083f5f7fadac42f8da8981872c1679991b8",
+      "size_bytes": 45654
     },
     "src/riverview_core/worker_adapter/comfyui.py": {
       "path": "src/riverview_core/worker_adapter/comfyui.py",
@@ -9006,8 +9006,8 @@
     "src/riverview_core/worker_adapter/continuous.py": {
       "path": "src/riverview_core/worker_adapter/continuous.py",
       "revision": "1.1.5",
-      "sha256": "c25d8e499c91e50219ca6eb0c6c52a04cc2c4d1fc50a5cf2dd1a6675c3db789f",
-      "size_bytes": 21215
+      "sha256": "00ffd6cb661ce5ba1ae931dda33b964154d9c96a17163f1ef0d781ed7f2993a0",
+      "size_bytes": 22926
     },
     "src/riverview_core/worker_adapter/engineering_artifact.py": {
       "path": "src/riverview_core/worker_adapter/engineering_artifact.py",
@@ -9132,8 +9132,8 @@
     "src/riverview_core/worker_adapter/recovery.py": {
       "path": "src/riverview_core/worker_adapter/recovery.py",
       "revision": "1.2.13",
-      "sha256": "bf5a12b20a5199b0caa3449148d0e7c28b08575e2c09bbdff86bec34da067581",
-      "size_bytes": 72025
+      "sha256": "21b0f997ee55fe461a1f8e09a1a3d93c7fc6b9317016c7bab57dbef5a16b7ba1",
+      "size_bytes": 76131
     },
     "src/riverview_core/worker_adapter/repository_knowledge.py": {
       "path": "src/riverview_core/worker_adapter/repository_knowledge.py",
@@ -9156,8 +9156,8 @@
     "src/riverview_core/worker_adapter/service.py": {
       "path": "src/riverview_core/worker_adapter/service.py",
       "revision": "1.0.3",
-      "sha256": "48bc66eee2c7e9c2e8a6d9628fbc6f661b6c5456dae0ff41c4c991afc97a401f",
-      "size_bytes": 7679
+      "sha256": "77d932b13e72df74241dd1dfee8a47c5b18c53bf1b6c7c7aa31b4f7474eade37",
+      "size_bytes": 9741
     },
     "src/riverview_core/worker_adapter/verifier.py": {
       "path": "src/riverview_core/worker_adapter/verifier.py",
@@ -9204,8 +9204,8 @@
     "tests/test_authorizer_profile_legacy_compatibility.py": {
       "path": "tests/test_authorizer_profile_legacy_compatibility.py",
       "revision": "1.0.1",
-      "sha256": "f962e270bd79b3854d7734a1774e9bc5b948f1a817ec18fc3f43db610c14b921",
-      "size_bytes": 13746
+      "sha256": "2b470083feb829632ce86283f3ca31b12d9c41446e2f4774252e5ef3e855f506",
+      "size_bytes": 13899
     },
     "tests/test_chatgpt_doorbell.py": {
       "path": "tests/test_chatgpt_doorbell.py",
@@ -9216,8 +9216,8 @@
     "tests/test_cme_monitor.py": {
       "path": "tests/test_cme_monitor.py",
       "revision": "1.0.5",
-      "sha256": "d66fa7762438a5a516cb713f8b685bc861184d35e7c0f648ac72794e555345d4",
-      "size_bytes": 18869
+      "sha256": "41d3fd9f08da50cd7a1a5c31b4de8c9d4515854cbcb0fb21beaa5bd11818f214",
+      "size_bytes": 20313
     },
     "tests/test_cme_monitor_service.py": {
       "path": "tests/test_cme_monitor_service.py",
@@ -9227,9 +9227,9 @@
     },
     "tests/test_codex_cli_adapter.py": {
       "path": "tests/test_codex_cli_adapter.py",
-      "revision": "1.2.11",
-      "sha256": "7894185782198f107cc4dd6d557c64042001f28e46dff575ee78d60d13104da0",
-      "size_bytes": 45287
+      "revision": "1.2.16",
+      "sha256": "8bd6e99dc473f81c742ab40150b2c1ba923030e18505b84229a3eacebc833b1b",
+      "size_bytes": 68868
     },
     "tests/test_codex_source_change.py": {
       "path": "tests/test_codex_source_change.py",
@@ -9240,14 +9240,14 @@
     "tests/test_comfyui_adapter.py": {
       "path": "tests/test_comfyui_adapter.py",
       "revision": "1.0.1",
-      "sha256": "52e0b73b0c700e92c9c897e843c92f3dec10caf61f99dc5b4c5609a20ee5da70",
-      "size_bytes": 13428
+      "sha256": "2c5dc7b9c77ffa9af4c805f6f9d10b69d64c61ceea7268c04eef4d840434596d",
+      "size_bytes": 14053
     },
     "tests/test_comms5_current_runtime.py": {
       "path": "tests/test_comms5_current_runtime.py",
       "revision": "1.0.6",
-      "sha256": "644664a4d64b7ab7911feb3aef25e5dd016b11dbc40665d5df2903d774e9786c",
-      "size_bytes": 26472
+      "sha256": "b778d7bf7b022555b06fc3d3728deb58c17fab9d1960de66fe9ce3a1364e8b1e",
+      "size_bytes": 34647
     },
     "tests/test_comms5_deployment.py": {
       "path": "tests/test_comms5_deployment.py",
@@ -9258,8 +9258,8 @@
     "tests/test_comms5_mcp.py": {
       "path": "tests/test_comms5_mcp.py",
       "revision": "1.1.6",
-      "sha256": "eae439095b01ba767aae7e49c54b740e5230d870f812c61660394896169a8b52",
-      "size_bytes": 22552
+      "sha256": "60729f9f71b1aa1b63c6256c5f10f9cc8e7b943441075f6f98e8539e228899c2",
+      "size_bytes": 22650
     },
     "tests/test_comms5_packaging.py": {
       "path": "tests/test_comms5_packaging.py",
@@ -9300,8 +9300,8 @@
     "tests/test_external_reasoning_exchange.py": {
       "path": "tests/test_external_reasoning_exchange.py",
       "revision": "1.1.2",
-      "sha256": "462e9f5a66c8c75a692060a1346f588e8cc0a8853532e3d0942a51f3d7cde94b",
-      "size_bytes": 72796
+      "sha256": "a651e12922f100a4bdeed7d2ba113ca98f1843e82eba6a727f2d68f2facc66fc",
+      "size_bytes": 118281
     },
     "tests/test_external_reasoning_mcp.py": {
       "path": "tests/test_external_reasoning_mcp.py",
@@ -9330,8 +9330,8 @@
     "tests/test_grace_conversation_result.py": {
       "path": "tests/test_grace_conversation_result.py",
       "revision": "1.0.16",
-      "sha256": "28764b6fd5df7482fb64e528fb0e3b4f5dd8c894b83be53eae58de7a5cee2ffd",
-      "size_bytes": 42871
+      "sha256": "e4f2ad0069789f43facdfeba0b9ae64b8a909f80b50fd24cd30e0a1488e9160d",
+      "size_bytes": 53334
     },
     "tests/test_grace_dashboard_tool_wiring.py": {
       "path": "tests/test_grace_dashboard_tool_wiring.py",
@@ -9360,20 +9360,20 @@
     "tests/test_grace_event_history_acl.py": {
       "path": "tests/test_grace_event_history_acl.py",
       "revision": "1.0.0",
-      "sha256": "aeafd2a8f0144bd9699a3cc050aa9a7a45dfad8d7f51eabcb765efa391d5bfaf",
-      "size_bytes": 8364
+      "sha256": "31aa68c5281a72005c6b3a73417b79dae567407c0ca78233883e37a2f56c05b3",
+      "size_bytes": 11230
     },
     "tests/test_grace_execution.py": {
       "path": "tests/test_grace_execution.py",
-      "revision": "1.0.67",
-      "sha256": "5a7b6065284c9379becee6747f44b589952df8f66fd0623f9117b71f195b23b2",
-      "size_bytes": 221366
+      "revision": "1.0.83",
+      "sha256": "455c866a1df727acfd1b385418b84788bf33f7caf19c3b1396d540ca7a6735c5",
+      "size_bytes": 290084
     },
     "tests/test_grace_execution_health_acl.py": {
       "path": "tests/test_grace_execution_health_acl.py",
       "revision": "1.0.0",
-      "sha256": "0f178da431c09b425e4da61e28d37b336d0925f64451412c56cc9e12d4446fe9",
-      "size_bytes": 10510
+      "sha256": "78ebfedea592e9ac9658ccd8c2b4858f410451d08bf211f2ca1d1e3e552ff531",
+      "size_bytes": 11814
     },
     "tests/test_grace_internal_tools.py": {
       "path": "tests/test_grace_internal_tools.py",
@@ -9414,14 +9414,14 @@
     "tests/test_grace_runtime_provider_wiring.py": {
       "path": "tests/test_grace_runtime_provider_wiring.py",
       "revision": "1.0.10",
-      "sha256": "b1d7c07d87fd45023f707342d322833e28ead52c479b4a855cb03cdcde266ccb",
-      "size_bytes": 15134
+      "sha256": "f8e76f2d427ee526ca237d410dfcf1d794b1e9420d060e97a820590613233dfb",
+      "size_bytes": 17559
     },
     "tests/test_institutional_authority.py": {
       "path": "tests/test_institutional_authority.py",
       "revision": "1.0.17",
-      "sha256": "a94c6737e2e414308277709b2597db6331749bf0b970acfc645bb515b7fe525e",
-      "size_bytes": 21677
+      "sha256": "8e57c29e74ccc46a4aa36d223bc27d1b7e3702594b4d5b3c92cb0de45e6cce6a",
+      "size_bytes": 34192
     },
     "tests/test_institutional_authority_boundary.py": {
       "path": "tests/test_institutional_authority_boundary.py",
@@ -9450,8 +9450,8 @@
     "tests/test_local_reasoning_provider.py": {
       "path": "tests/test_local_reasoning_provider.py",
       "revision": "1.1.34",
-      "sha256": "068542cd8cebbcbbed45cb8cc6561d5c7991625d83e8b79ff0193f76f549fc84",
-      "size_bytes": 59892
+      "sha256": "82e31e2b52170d09f8a14476f9ebbc50ad5cdca287dba08227f2e4d91ea746ef",
+      "size_bytes": 60828
     },
     "tests/test_m33_commissioning.py": {
       "path": "tests/test_m33_commissioning.py",
@@ -9462,8 +9462,8 @@
     "tests/test_m33_retirement_migration.py": {
       "path": "tests/test_m33_retirement_migration.py",
       "revision": "1.2.0",
-      "sha256": "770ee865e03f0f8aa0da7afca3fe4a73f9bac2b5fb1bc830c0115bf6e898e335",
-      "size_bytes": 23178
+      "sha256": "fb1af9ae7057bd0ed29c6f609aaf10a55b308cfa79adb71bc55815c4efe04a76",
+      "size_bytes": 23286
     },
     "tests/test_migrate_document_revisions.py": {
       "path": "tests/test_migrate_document_revisions.py",
@@ -9473,15 +9473,15 @@
     },
     "tests/test_notifications.py": {
       "path": "tests/test_notifications.py",
-      "revision": "1.0.5",
-      "sha256": "34f3703f8a1baf5ef59329e8bc141cd9ffe3504ec5708b20bba27a56d8331eac",
-      "size_bytes": 30931
+      "revision": "1.0.6",
+      "sha256": "e03f9b341d2c998a8094916266c04ee5d4d8f0a10f51cda32cc75e46ea64c700",
+      "size_bytes": 31255
     },
     "tests/test_permission_profiles.py": {
       "path": "tests/test_permission_profiles.py",
       "revision": "1.0.6",
-      "sha256": "9cc67a089aca7cc18875b3dc87c6ced218e1b2589b38c58dd6443261e6acdfd0",
-      "size_bytes": 16338
+      "sha256": "94454ba1c6d807057617e2c9d85202b93e7e64616d4fc09a9fa9a3ffa997bcef",
+      "size_bytes": 20293
     },
     "tests/test_postgres_ledger.py": {
       "path": "tests/test_postgres_ledger.py",
@@ -9504,8 +9504,8 @@
     "tests/test_reasoning_escalation.py": {
       "path": "tests/test_reasoning_escalation.py",
       "revision": "1.0.1",
-      "sha256": "96577098f21d3ce45784ca9ec6caea95ca213cc8af6fe5f792e0fb037014a08b",
-      "size_bytes": 6378
+      "sha256": "b32d39f874a8f7cfb573248e710f624404c3f51de285a3e936a986e68ee258fa",
+      "size_bytes": 6917
     },
     "tests/test_repository_knowledge.py": {
       "path": "tests/test_repository_knowledge.py",
@@ -9534,14 +9534,14 @@
     "tests/test_resident_model_router.py": {
       "path": "tests/test_resident_model_router.py",
       "revision": "1.0.21",
-      "sha256": "b9ee4baed4e297072c840898229053dc78a595eca6ee9cd76a45444d5ed00b5a",
-      "size_bytes": 33505
+      "sha256": "dcd4b277effa9044caaf511813193f54ad29f59299438fe93752c36f3e0fbfb0",
+      "size_bytes": 33664
     },
     "tests/test_resident_reasoning.py": {
       "path": "tests/test_resident_reasoning.py",
       "revision": "1.0.24",
-      "sha256": "6a74d00bee0eeecf2dba535442f416e78b9d90bb17674e675913f8d190168a6c",
-      "size_bytes": 51707
+      "sha256": "cd34420e82af24dbc82124f09cac6b1ec3f9f7c1c400a840a56886760758b782",
+      "size_bytes": 52617
     },
     "tests/test_resource_telemetry.py": {
       "path": "tests/test_resource_telemetry.py",
@@ -9558,20 +9558,20 @@
     "tests/test_riverview_doorbell_bridge_node.cjs": {
       "path": "tests/test_riverview_doorbell_bridge_node.cjs",
       "revision": "1.0.1",
-      "sha256": "218beaa7cf136349afaf67348b2a32217fbff5253852b852481ced0cdfda9953",
-      "size_bytes": 5889
+      "sha256": "be0b62370078019f67c432e353f58f03ba1e00d5d5f7d6502e16b5e104ca3f65",
+      "size_bytes": 7080
     },
     "tests/test_runtime_baseline.py": {
       "path": "tests/test_runtime_baseline.py",
       "revision": "1.0.12",
-      "sha256": "8caceaa011f5d66cd7d90c618301e4840a2de09070a7b9008cd42ac2d1b2c3e0",
-      "size_bytes": 37039
+      "sha256": "08cb098ab86c015e4e7c342ead379bf3b0a5fec95eaea1546215fc62299a33b3",
+      "size_bytes": 37587
     },
     "tests/test_snapshot_archive.py": {
       "path": "tests/test_snapshot_archive.py",
       "revision": "1.0.2",
-      "sha256": "ded50a026b70f694f6493d78cada10346bb8e6d59ed5803327e5ab0fa3a67deb",
-      "size_bytes": 11188
+      "sha256": "ce0c4fc8856310536f12f2c0397155733e31f217780a135db28a52d34fdc6333",
+      "size_bytes": 15651
     },
     "tests/test_stackmail_tty_security.py": {
       "path": "tests/test_stackmail_tty_security.py",
@@ -9582,8 +9582,8 @@
     "tests/test_status_dashboard.py": {
       "path": "tests/test_status_dashboard.py",
       "revision": "1.0.74",
-      "sha256": "077fd14242bc4d9e4831e878204c7d06057e79a91f8fd3e25fbe0c870f8dfa73",
-      "size_bytes": 118378
+      "sha256": "557ec24cf8bf354a92336acbb6dbc09df646bf040ccf2db78932b26e78f8d6f0",
+      "size_bytes": 126326
     },
     "tests/test_storage_inventory.py": {
       "path": "tests/test_storage_inventory.py",
@@ -9612,8 +9612,8 @@
     "tests/test_worker_adapter.py": {
       "path": "tests/test_worker_adapter.py",
       "revision": "1.2.18",
-      "sha256": "5f55564d3d8f6b83a967828420b67c9f88c6c3acd5f188bda92fbfb6bb8ed33b",
-      "size_bytes": 111131
+      "sha256": "7c3cfadf69c280ecd8a8d16e6e2ae0245e5e29ce180da32956374d009275a0e9",
+      "size_bytes": 124926
     },
     "tests/test_worker_registration_retirement.py": {
       "path": "tests/test_worker_registration_retirement.py",
@@ -9624,20 +9624,20 @@
     "tests/test_worker_service.py": {
       "path": "tests/test_worker_service.py",
       "revision": "1.1.0",
-      "sha256": "527741f68f9e8a2341a55aff751ee6349d336bc6ee8021791368de891de9489c",
-      "size_bytes": 9172
+      "sha256": "8c5a224bbb3b5d9053126e3490eb6118372020f38ebaba379c61c2026da58e2b",
+      "size_bytes": 14925
     },
     "tools/riverview_browser_runtime.cjs": {
       "path": "tools/riverview_browser_runtime.cjs",
       "revision": "1.0.1",
-      "sha256": "2f8bb58b395dac72dda20fab084366e588387d1b75476625e817419610ebbd7b",
-      "size_bytes": 6392
+      "sha256": "a7eb957e35039daa276acb814cc6f00d9d2dc899c92bd3508f11b56ba8ffd206",
+      "size_bytes": 6422
     },
     "tools/riverview_doorbell_bridge.cjs": {
       "path": "tools/riverview_doorbell_bridge.cjs",
       "revision": "1.0.1",
-      "sha256": "75da3b47937776addb01912e1de1f11dd1b5cf859a4df55850958172cfa3e5c3",
-      "size_bytes": 15190
+      "sha256": "a9fc814e5dfe8e63a9035760317a36d2c18e275a4f7e4c0cdde834b3d79f6f7a",
+      "size_bytes": 16317
     },
     "website/v2/deployed/assets/octominer/controller-feature-reference.png": {
       "path": "website/v2/deployed/assets/octominer/controller-feature-reference.png",
@@ -9658,6 +9658,6 @@
       "size_bytes": 2008940
     }
   },
-  "manifest_revision": "1.1.336",
-  "updated_at": "2026-10-25T17:46:11+00:00"
+  "manifest_revision": "1.1.342",
+  "updated_at": "2026-10-25T23:31:00Z"
 }

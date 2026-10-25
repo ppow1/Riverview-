@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_cme_monitor.py
 # Component: CME
-# Revision: 1.0.7
+# Revision: 1.0.8
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify a later blocked failure sequence emits a fresh Steward escalation after the bounded automatic recovery.
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Apply actual Grace objective migrations and seed all required objective fields in CME tests.
 # Changed: 2026-10-24 UTC | RV-CME-GRACE-BLOCKED-OBJECTIVE-ESCALATION-20261024 | Verify revision-block detection and no automatic recovery.
 # Purpose: Verify concurrent monitoring, durable alerts, health and process restart
@@ -195,6 +196,19 @@ class CMEMonitorTests(unittest.TestCase):
                      if item["objective_id"] == objective_id]
         self.assertEqual(len(duplicate), 1)
         self.assertFalse(duplicate[0]["created"])
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO grace_objective_events
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'execution.reasoning_failed','blocked-test-event-after-recovery',
+                    'service:grace-execution',%s::jsonb)""",
+                (objective_id, '{"status":"BLOCKED","objective_revision":2,'
+                 '"runtime_revision":"test-runtime","detail_code":"PROPOSAL_CRITERIA_BINDING_REJECTED"}'))
+        after_retry = self.monitor.scan_once()
+        next_event = [item for item in after_retry["objective_escalations"]
+                      if item["objective_id"] == objective_id]
+        self.assertEqual(len(next_event),1)
+        self.assertTrue(next_event[0]["created"])
+        self.assertNotEqual(next_event[0]["event_id"],decisions[0]["event_id"])
 
     def test_stall_deadline_and_expired_lease_do_not_block_unrelated_assignment(self):
         from riverview_core.assignment_scheduler import PostgresAssignmentScheduler

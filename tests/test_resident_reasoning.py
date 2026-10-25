@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_resident_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.0.26
+# Revision: 1.0.27
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify the proposal result retains its originating immutable reasoning request for controller recovery validation.
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Return distinct mock query results and the objective snapshot needed by the successful reasoning path.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-SINGLE-WORK-ORDER-CRITERION-20261022 | Cover explicit exactly-one dispatch lifecycle mapping and structural bullets.
@@ -244,6 +245,8 @@ class ResidentReasoningTests(unittest.TestCase):
         first = self._runtime({"provider.a": provider}).propose(
             self.assignments.current["id"], trigger="resident_restore", token_budget=100)
         self.assertEqual(first.status, ReasoningStatus.PROPOSED)
+        self.assertEqual(first.reasoning_request.assignment_id,self.assignments.current["id"])
+        self.assertEqual(first.reasoning_request.trigger,"resident_restore")
         snapshot = self.registry.office_snapshot(self.office_id)
         stored = snapshot["state"]["resident_reasoning_v1"]
         self.assertEqual(stored["plans"][self.assignments.current["id"]]["summary"], "plan one")

@@ -2,7 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.34
+File Revision: 1.1.40
+Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document no-replay behavior for interrupted recovery and month-rollover spend serialization.
+Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document the exact one-shot local proposal recovery and shared monthly Luna reservation ceiling.
+Changed: 2026-10-25 UTC | RV-LOCAL-RELEASE-GATE-20261025 | Record local exact-commit qualification and Grace-only immutable release activation/rollback.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Require exact replayed grade and feedback evidence before S4 exception issuance.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Add read-only diagnostics and recovery steps for consumed-evaluation replay, bounded evidence handoff, and exhausted-rework CME suppression.
 Changed: 2026-10-25 UTC | RV-GRACE-LUNA-CME-JSON-DIAGNOSTICS-20261025 | Document JSON-mode input shape and persisted sanitized Luna HTTP failure fields.
@@ -53,6 +56,50 @@ Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Diagnose latest rejecti
 Changed: 2026-10-20 UTC | RV-GRACE-REASONING-PROPOSAL-RECOVERY-20261020 | Diagnose repeated incomplete resident proposals and resume through the existing persistent reasoning loop
 -->
 # Grace Execution Service — Troubleshooting and Recovery
+
+## Local qualification and Grace release activation
+
+GitHub remains the repository, PR, and issue record. GitHub Actions is
+informational and is not a release prerequisite. Before merge, run the full
+locally controlled checkout and applicable PostgreSQL regressions on the exact
+PR head, record its full commit/tree SHA, commands, versions, results and logs,
+and obtain independent review of that same commit. Keep all existing
+acceptance, security, authorization, and deployment checks. The general local
+qualification evidence contract is in
+[`DEVELOPMENT_LIFECYCLE_STANDARD.md`](../standards/DEVELOPMENT_LIFECYCLE_STANDARD.md).
+
+After merge, build and verify the package from the exact merged commit using
+`scripts/build_camrui_package.py` and `scripts/verify_camrui_package.py`. Stage
+only a new immutable root-owned release under
+`/opt/riverview-grace-execution/releases/<full-commit>`. Before activation,
+record the current `readlink -f /opt/riverview-grace-execution/current`, verify
+that predecessor directory remains present, and preserve the predecessor
+pointer plus candidate archive/checksum in a root-only timestamped backup under
+`/var/backups/riverview/`. Do not overwrite a release directory or change the
+Dashboard release.
+
+Before activation, apply notification migration
+`0011_grace_recovery_supersession.sql` with the existing PostgreSQL migration
+runner after verifying the notification migration ledger and current
+constraint definitions. It only expands the existing recovery-request and
+decision vocabularies; it does not edit objective, assignment, authorization,
+or event-history rows. The predecessor binary remains compatible with the
+added values and can be restored without reverting the additive constraint
+migration. Leave all objective and event records alone.
+
+Switch only the Grace `current` symlink atomically to the verified release,
+then restart only `riverview-grace-execution-owner-session.service` so its
+imported code matches the new pointer. Do not restart the Dashboard, CME, event
+processor, model services, or workers for this Grace change.
+Verify the active release SHA, owner-session health/heartbeat, and the relevant
+authenticated Dashboard projection. Run the change's verifier regression
+against the deployed source to confirm unsupported factual criteria and
+unproven repository-publication claims fail closed.
+
+If activation or health verification fails, atomically restore the recorded
+predecessor pointer and restart only the owner-session service. Confirm the
+predecessor is active and healthy. Keep both immutable release directories,
+the rollback record, and all objective, artifact, and event history.
 
 ## Read-only health check
 
@@ -106,6 +153,41 @@ the persisted advisory-consumption event and retain the ordinary independent
 verifier gate on the same assignment. Treat unknown provider errors and
 unresolved API cost conservatively; do not infer zero spend from a failed
 response without usage data.
+
+## Bounded local proposal recovery and authority limits
+
+For one current \`GROUNDED\` objective revision with no assignment, the owner
+session may perform one local reasoning retry only after the persisted failure
+code \`PROPOSAL_CRITERIA_BINDING_REJECTED\`. The retry prompt uses the original
+criteria and only sanitized criterion-index diagnostics. An append-only
+\`execution.autonomous_recovery_authorized\` event binds the retry to the exact
+failure sequence and revision; the pending Steward retry request is marked
+\`superseded\` with an append-only service decision. The attempt and grant are
+committed together. If the owner process stops after recording the attempt but
+before recording its outcome, the next cycle does not call a model again. It
+records an interrupted-recovery failure and lets CME create a fresh Steward
+attention request; the ambiguous attempt is never replayed. Other failure
+codes, revisions, assignments, and repeated failures do not get another
+automatic reasoning retry. Nothing in this path approves a proposal,
+creates an assignment, changes criteria, spends provider budget, or authorizes
+deployment. Existing exact \`assignment.create\`, execution, and verification
+checks remain in force.
+
+The $5.00 UTC-calendar-month actual-plus-reserved ceiling is enforced across
+the existing Luna supervision and experiment grants under one PostgreSQL
+transaction advisory lock acquired before reading the UTC month, including at
+month rollover. Provider-specific per-request and grant limits remain narrower.
+The current accounting records Luna API costs and estimates;
+it is not a universal meter for subscription-based ChatGPT/Codex use or for
+local inference. Do not report those sources as globally spend-enforced until
+their actual cost and reservation data are present in an existing authoritative
+ledger.
+
+Grace has no registered production-deployment or repository-publication
+capability in this release. Existing institutional grants continue to block
+unapproved assignment creation, destructive data changes, publication, and
+hardware actions. A policy statement does not create a credential or grant;
+newly scoped authority must use the authenticated Steward mechanism.
 
 ## Request one verified-result rereview generation
 

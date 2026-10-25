@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.0.71",
+  "graph_revision": "1.0.73",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -372,13 +372,16 @@
     },
     {
       "id": "rv:grace:operational-integration:waiting-and-failure",
-      "node_revision": "1.0.3",
+      "node_revision": "1.0.4",
       "type": "failure",
-      "label": "IMPLEMENTED \u2014 evidence failures remain pending; incomplete typed proposals remain GROUNDED with a sanitized detail code and resume through the persistent reasoning cycle after the prior plan is explicitly corrected; never bypass proposal or assignment authorization",
+      "label": "IMPLEMENTED \u2014 one current unassigned GROUNDED revision with PROPOSAL_CRITERIA_BINDING_REJECTED may receive one audited local retry using unchanged criteria; its pending duplicate Steward retry is superseded with append-only history; other failures remain gated, and the proposal still cannot authorize assignment or execution",
       "source_references": [
         "src/riverview_core/status_dashboard/server.py",
         "src/riverview_core/resident_execution/pipeline.py",
-        "src/riverview_core/resident_execution/service.py"
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/local_reasoning_provider.py",
+        "src/riverview_core/cme/monitor.py",
+        "src/riverview_core/notifications/migrations/0011_grace_recovery_supersession.sql"
       ],
       "documentation_references": [
         "docs/components/GRACE_EXECUTION_COOKBOOK.md"
@@ -1117,11 +1120,13 @@
     },
     {
       "id": "rv:grace:operational-integration:codex-persisted-criteria-verification",
-      "node_revision": "1.0.2",
+      "node_revision": "1.0.3",
       "type": "verification",
-      "label": "Verify Codex artifacts against the durable dispatch contract; reject authoritative negative JSON outcomes and check explicit content literals while excluding echoed acceptance metadata; missing contract fields fail closed",
+      "label": "Verify Codex artifacts against the durable dispatch contract; check both step and per-artifact criteria separately from integrity; reject unsupported criteria and authoritative negative JSON; explicit GitHub/repository publication requirements fail closed without an authorized publisher and independent remote-content proof",
       "source_references": [
         "src/riverview_core/resident_execution/codex_workflow.py",
+        "src/riverview_core/resident_execution/codex_cli.py",
+        "src/riverview_core/resident_execution/verifier.py",
         "src/riverview_core/resident_execution/pipeline.py",
         "scripts/run_grace_execution_service.py"
       ],

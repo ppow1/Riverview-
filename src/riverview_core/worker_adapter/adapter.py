@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/worker_adapter/adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.24
+# Revision: 1.0.25
+# Changed: 2026-10-25 UTC | RV-GRACE-BASELINE-310-PR311 | Accept persisted assignment evidence preflight observations.
 # Changed: 2026-10-23 UTC | RV-COMFYUI-ROLLBACK-CAPABILITY | Remove only the optional ComfyUI capability through the exact existing worker.register grant.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Add ComfyUI capability to an existing worker only after rechecking its exact registration grant.
 # Purpose: Authenticate fixed engineering-test work under exact assignment grants
@@ -467,6 +468,7 @@ class PostgresWorkerAdapter:
         if not isinstance(result, KnowledgeResult):
             raise TypeError("result must be a KnowledgeResult")
         if operation not in {"ground_assignment", "preflight_action",
+                             "preflight_assignment_evidence",
                              "reground_assignment", "record_learning"}:
             raise ValueError("unknown knowledge operation")
         with self.ledger.db.transaction():

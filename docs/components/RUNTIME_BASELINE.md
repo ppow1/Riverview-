@@ -1,6 +1,6 @@
 # Riverview~ M1.1 runtime baseline commissioning
 
-**Document Revision:** 1.0.12
+**Document Revision:** 1.0.13
 **Component:** RUNTIME-BASELINE
 **Repair task:** RV-M1.1-011
 **Task:** RV-M1.1-001 / GitHub Issue #1
@@ -69,6 +69,33 @@ granted by the owner; do not install a project-specific command broker, package
 registry or competing sudoers rule. Preserve the sudoers file and verify
 `sudo -n id`, `sudo -n -l`, and a root operation after any administrative change.
 
+### Local release qualification (required)
+
+Qualify the exact PR candidate on a Riverview-controlled machine before merge
+and deployment. GitHub Actions is optional and informational; the local record
+and separate independent review are authoritative. Do not reduce the test set
+or treat skipped required PostgreSQL tests as passing.
+
+Use a clean checkout at the full candidate commit, a disposable PostgreSQL 16
+test instance, and the pinned dependencies in
+`deploy/qualification-requirements.txt`. Set `CAPABILITY_DIFF_BASE` to the
+actual PR base ref before running and retain the output of these checks:
+
+```bash
+PYTHONPATH=src RIVERVIEW_TEST_PG_DSN="$DISPOSABLE_TEST_DSN" python3 -m unittest discover -s tests -v
+python3 scripts/validate_capability_declaration_changes.py --base "$CAPABILITY_DIFF_BASE"
+python3 scripts/process_graph.py check
+python3 scripts/revision_control.py check --baseline evidence/checkouts/ENG-REVISION-CONTROL/20261010T1530Z-27a8c55/baseline-inventory.json
+```
+
+The checkout record binds the full commit and Git tree SHA to the environment,
+commands, timestamps, exit codes, test counts, skips, logs, and package hashes.
+Also run focused PostgreSQL-backed tests for changed lifecycle behavior. The
+independent reviewer must review that same full commit and report findings and
+disposition before merge. A different commit, unrecorded local run, or
+author-only review is not sufficient. A hosted Actions result does not override
+the local result in either direction.
+
 Build the package from an exact committed source revision and verify its
 archive digest, source commit, file checksum manifest, safe regular-file members
 and shell compatibility before commissioning. Extract only that verified
@@ -87,6 +114,14 @@ source commit and has its own manifest and archive digest.
 Rollback uses the exact root-owned record emitted by the installer and the
 versioned rollback script; it retains credentials, accounts, releases and prior
 records and does not alter PostgreSQL.
+
+The applicable controlled local qualification report and independent review
+must be linked from the PR before this activation sequence. A red or unavailable
+GitHub Actions status alone is not a reason to block an otherwise passing
+locally qualified candidate; a failed local check, missing review, package
+mismatch, backup/rollback failure, or unsuccessful service acceptance remains a
+stop condition. Do not change branch protection or rulesets except for an
+authorized Actions-specific status check; keep unrelated protections intact.
 
 No database credentials are included in package bytes, command arguments,
 evidence or logs. Commissioning reads only the existing protected passfile.
@@ -310,6 +345,8 @@ deployment and acceptance. Owner-authorized isolated M1.2 engineering may procee
 while that decision is pending; this component contract does not waive acceptance.
 
 ## Revision history
+
+- **1.0.13 — 2026-10-25:** Make locally recorded exact-commit qualification and independent review the required release gate; document package activation only after those gates pass. Predecessor: `.riverview-backups/20261025T203827242610Z/docs/components/RUNTIME_BASELINE.md`.
 
 - 1.0.12 — 2026-10-21: Run unprivileged qualification from a disposable writable copy while preserving the immutable release; predecessor recorded in `.riverview-backups/manifest.jsonl` under RV-180-QUALIFICATION-WORKSPACE-001.
 - 1.0.6 — 2026-10-10: Document systemd source-to-libpq private passfile handling; predecessor is recorded under RV-M1.1-010 in `.riverview-backups/manifest.jsonl`.
