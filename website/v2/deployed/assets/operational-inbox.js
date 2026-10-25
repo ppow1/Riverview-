@@ -8,7 +8,7 @@
   const feeds = {
     notifications: {path: "/api/v1/notifications?limit=50", status: "not checked", lastSuccess: null, items: []},
     attention: {path: "/api/v1/attention?limit=50", status: "not checked", lastSuccess: null, items: []},
-    events: {path: "/api/v1/events?limit=50", status: "not checked", lastSuccess: null, items: []}
+    events: {path: "/api/v1/events?limit=50", status: "not checked", lastSuccess: null, items: [], olderCursor: null, newerCursor: null, canLoadOlder: false, canLoadNewer: false}
   };
   let refreshedAt = null;
 
@@ -55,6 +55,13 @@
       return node("span", `${label}: ${stateLabel(feed)}`, `inbox-source inbox-source-${feed.status.replaceAll("_", "-")}`);
     }));
     const body = $("#inbox-rows");
+    const eventFeed = feeds.events;
+    $("#inbox-events-older").hidden = !eventFeed.canLoadOlder || eventFeed.status !== "available";
+    $("#inbox-events-newer").hidden = !eventFeed.canLoadNewer || eventFeed.status !== "available";
+    const seqs = eventFeed.items.map((event) => Number(event.seq)).filter(Number.isFinite);
+    const seqNote = seqs.length ? `Loaded ${eventFeed.items.length} institutional events · sequence ${Math.min(...seqs)}–${Math.max(...seqs)}${eventFeed.canLoadOlder ? " · older history available" : " · earliest available page reached"}.` :
+      eventFeed.status === "available" ? "No institutional events were returned by the authorized event source." : `Institution event history: ${stateLabel(eventFeed)}.`;
+    $("#inbox-events-page-status").textContent = seqNote;
     const rows = visibleRows();
     body.replaceChildren(...rows.map((row) => {
       const tr = document.createElement("tr");
@@ -67,6 +74,17 @@
       const eventCell = document.createElement("td");
       eventCell.append(node("strong", human(row.eventType)), node("span", row.description, "inbox-description"),
         node("small", row.sources.map((s) => s === "event" ? "Operational event" : s === "attention" ? "Attention" : "Notification").join(" · "), "inbox-meta"));
+      if (row.sources.includes("event")) {
+        const details = document.createElement("details");
+        const summary = node("summary", "Institution event record");
+        const fields = document.createElement("dl");
+        for (const [label, value] of [["Sequence", row.sequence], ["Event ID", row.eventId], ["Occurred", row.occurredAt], ["Recorded", row.recordedAt], ["Actor", row.actorId], ["Correlation ID", row.correlationId], ["Causation ID", row.causationId], ["Payload schema", row.payloadSchema]]) {
+          const term = node("dt", label); const description = node("dd", value == null || value === "" ? "Not recorded" : value);
+          fields.append(term, description);
+        }
+        details.append(summary, fields);
+        eventCell.append(details);
+      }
       tr.append(eventCell);
       const related = document.createElement("td");
       if (row.assignmentId) {
@@ -97,8 +115,8 @@
   async function readFeed(name, feed) {
     try {
       const response = await fetch(feed.path, {method: "GET", credentials: "same-origin", cache: "no-store", headers: {Accept: "application/json"}});
-      if (response.status === 401) { feed.status = "unauthenticated"; feed.items = []; feed.lastSuccess = null; return; }
-      if (response.status === 403) { feed.status = "denied"; feed.items = []; feed.lastSuccess = null; return; }
+      if (response.status === 401) { feed.status = "unauthenticated"; feed.items = []; feed.lastSuccess = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
+      if (response.status === 403) { feed.status = "denied"; feed.items = []; feed.lastSuccess = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
       if (!response.ok) throw new Error(`http_${response.status}`);
       const page = await response.json();
       feed.status = page.status || "available";
@@ -106,13 +124,53 @@
       if (feed.status === "available") {
         feed.items = page.items;
         feed.lastSuccess = page.observed_at || new Date().toISOString();
+        if (name === "events") {
+          feed.olderCursor = page.older_cursor ?? null;
+          const seqs = feed.items.map((item) => Number(item.seq)).filter(Number.isFinite);
+          feed.newerCursor = seqs.length ? Math.max(...seqs) : null;
+          feed.canLoadOlder = Boolean(page.older_cursor);
+          feed.canLoadNewer = seqs.length > 0;
+        }
       } else {
         feed.items = [];
         feed.lastSuccess = null;
+        if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; }
       }
     } catch (_) {
       feed.status = "unavailable";
     }
+  }
+  async function pageEvents(direction) {
+    const feed = feeds.events;
+    const cursor = direction === "older" ? feed.olderCursor : feed.newerCursor;
+    if (!cursor || feed.status !== "available") return;
+    const button = direction === "older" ? $("#inbox-events-older") : $("#inbox-events-newer");
+    button.disabled = true;
+    try {
+      const parameter = direction === "older" ? `before_seq=${encodeURIComponent(cursor)}` : `after_seq=${encodeURIComponent(cursor)}`;
+      const response = await fetch(`/api/v1/events?${parameter}&limit=50`, {method: "GET", credentials: "same-origin", cache: "no-store", headers: {Accept: "application/json"}});
+      if (response.status === 401 || response.status === 403) {
+        feed.status = response.status === 401 ? "unauthenticated" : "denied";
+        feed.items = []; feed.lastSuccess = null; feed.canLoadOlder = false; feed.canLoadNewer = false;
+      } else if (!response.ok) throw new Error(`http_${response.status}`);
+      else {
+        const page = await response.json();
+        if (!Array.isArray(page.items)) throw new Error("invalid_projection");
+        if (page.status !== "available") { feed.status = page.status || "unavailable"; feed.items = []; feed.canLoadOlder = false; feed.canLoadNewer = false; }
+        else {
+          const byId = new Map(feed.items.map((item) => [item.event_id, item]));
+          for (const item of page.items) byId.set(item.event_id, item);
+          feed.items = [...byId.values()].sort((a, b) => Number(a.seq) - Number(b.seq));
+          const seqs = feed.items.map((item) => Number(item.seq)).filter(Number.isFinite);
+          feed.olderCursor = page.older_cursor ?? feed.olderCursor;
+          feed.newerCursor = seqs.length ? Math.max(...seqs) : feed.newerCursor;
+          feed.canLoadOlder = direction === "older" ? Boolean(page.older_cursor) : feed.canLoadOlder;
+          feed.canLoadNewer = direction === "newer" ? Boolean(page.next_cursor) : seqs.length > 0;
+          feed.lastSuccess = page.observed_at || new Date().toISOString();
+        }
+      }
+    } catch (_) { feed.status = "unavailable"; }
+    finally { button.disabled = false; render(); }
   }
   async function refresh() {
     $("#operational-inbox-refresh").disabled = true;
@@ -124,6 +182,8 @@
   }
   document.addEventListener("DOMContentLoaded", () => {
     $("#operational-inbox-refresh").addEventListener("click", refresh);
+    $("#inbox-events-older").addEventListener("click", () => pageEvents("older"));
+    $("#inbox-events-newer").addEventListener("click", () => pageEvents("newer"));
     for (const selector of ["#inbox-search", "#inbox-source", "#inbox-severity", "#inbox-status", "#inbox-sort"]) {
       $(selector).addEventListener(selector === "#inbox-search" ? "input" : "change", render);
     }

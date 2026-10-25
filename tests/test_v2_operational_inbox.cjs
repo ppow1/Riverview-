@@ -20,6 +20,22 @@ test("adapter joins notification, attention, and event history by authoritative 
   assert.equal(rows[0].description, "Service needs review");
 });
 
+test("event adapter preserves the V1 ledger's redacted identity and causal metadata", () => {
+  const [row] = mergeFeeds({events:[{
+    event_id:"e-ledger", event_type:"assignment.updated", seq:81,
+    occurred_at:"2026-10-25T11:59:00Z", recorded_at:"2026-10-25T12:00:00Z",
+    assignment_id:"work-4", actor_id:"resident-2", correlation_id:"corr-5",
+    causation_id:"e-parent", payload_schema:"rv.assignment.updated.v1"
+  }]});
+  assert.equal(row.sequence,81);
+  assert.equal(row.occurredAt,"2026-10-25T11:59:00Z");
+  assert.equal(row.recordedAt,"2026-10-25T12:00:00Z");
+  assert.equal(row.actorId,"resident-2");
+  assert.equal(row.correlationId,"corr-5");
+  assert.equal(row.causationId,"e-parent");
+  assert.equal(row.payloadSchema,"rv.assignment.updated.v1");
+});
+
 test("filters search, source, supplied severity, delivery state, and sort without mutating", () => {
   const rows = mergeFeeds({
     notifications: [
@@ -37,8 +53,11 @@ test("inbox is wired only to the authenticated GET projections and performs no w
   const root = path.resolve(__dirname, "../website/v2/deployed");
   const html = fs.readFileSync(path.join(root,"index.html"),"utf8");
   const js = fs.readFileSync(path.join(root,"assets/operational-inbox.js"),"utf8");
-  for (const id of ["operational-inbox", "inbox-rows", "inbox-search", "inbox-source", "inbox-severity", "inbox-status", "inbox-sort"]) assert.match(html,new RegExp(`id="${id}"`));
+  for (const id of ["operational-inbox", "inbox-rows", "inbox-search", "inbox-source", "inbox-severity", "inbox-status", "inbox-sort", "inbox-events-older", "inbox-events-newer", "inbox-events-page-status"]) assert.match(html,new RegExp(`id="${id}"`));
   for (const endpoint of ["/api/v1/notifications?limit=50", "/api/v1/attention?limit=50", "/api/v1/events?limit=50"]) assert.ok(js.includes(endpoint));
+  assert.match(js,/before_seq=\$\{encodeURIComponent\(cursor\)\}/);
+  assert.match(js,/after_seq=\$\{encodeURIComponent\(cursor\)\}/);
+  assert.match(js,/credentials:\s*"same-origin"/);
   assert.match(js,/method:\s*"GET"/);
   assert.doesNotMatch(js,/method:\s*"(POST|PUT|PATCH|DELETE)"/);
   assert.match(js,/credentials:\s*"same-origin"/);
