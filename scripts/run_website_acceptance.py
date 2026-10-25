@@ -124,6 +124,9 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
                 results.append({"check":"proposal_decisions_hidden_without_institutional_authority",
                     "status":"PASS" if proposal_ok else "FAIL","http":proposal_access.get("http"),
                     "decision_panels":proposal_access.get("controls")})
+                if account_admin_available:
+                    # Restore the view expected by the existing account acceptance below.
+                    js("document.querySelector('[data-view=account-administration]')?.click();return true")
             if role == "steward":
                 stage = "recovery_controls_unlinked_steward"
                 recovery_controls=js("let asset=[...document.scripts].find(s=>s.src.includes('operational-inbox.js'))?.src||'';let applicable=asset.includes('recovery-session-eligibility-20261025');await new Promise(r=>setTimeout(r,700));let r=await fetch('/api/v1/auth/session',{cache:'no-store'});let x=r.ok?await r.json():null;let notes=[...document.querySelectorAll('.inbox-recovery-unavailable')].map(e=>e.textContent||'');let explanation=notes.every(t=>t.toLowerCase().includes('no linked institutional steward authority'));return {status:r.status,applicable,eligible:x?.identity?.can_decide_grace_recovery,controls:document.querySelectorAll('[data-recovery-decision]').length,unavailable:notes.length,explanation}")
