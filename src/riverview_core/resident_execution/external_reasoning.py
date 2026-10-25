@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/external_reasoning.py
 # Component: RESIDENT-REASONING
-# Revision: 1.2.0
-# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Enforce a serialized UTC-month Luna actual-plus-reserved ceiling across existing grants.
+# Revision: 1.2.2
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Serialize provider-budget admission across UTC month rollover before selecting the accounting period.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Bind atomic retry consumption to root assignment and S3 step identity.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Consume the exact S3 retry exception atomically with provider admission.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025-HOTFIX | Avoid row locking on append-only grant events; unique consumption remains the concurrency fence.
@@ -354,17 +354,17 @@ class DurableExternalReasoningExchange:
                 return True
 
     @staticmethod
-    def _reserve_global_monthly_luna_budget(cur, reserved_cost):
-        """Serialize all existing Luna grant paths under one UTC-month ceiling."""
+    def _reserve_global_monthly_luna_budget(cur, reserved_cost, *, month_start=None):
+        """Serialize all existing Luna grant paths before selecting a UTC month."""
         if (not isinstance(reserved_cost, (int, float, Decimal)) or
                 Decimal(str(reserved_cost)) <= 0):
             return False
-        cur.execute("""SELECT date_trunc('month',clock_timestamp() AT TIME ZONE 'UTC')
-                                AT TIME ZONE 'UTC' AS month_start""")
-        month_start = cur.fetchone()["month_start"]
-        month_key = month_start.strftime("%Y-%m")
         cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
-                    ("riverview:ai-monthly-spend:" + month_key,))
+                    ("riverview:ai-monthly-spend:global",))
+        if month_start is None:
+            cur.execute("""SELECT date_trunc('month',clock_timestamp() AT TIME ZONE 'UTC')
+                                    AT TIME ZONE 'UTC' AS month_start""")
+            month_start = cur.fetchone()["month_start"]
         usage = monthly_luna_usage(cur, month_start)
         actual = usage["actual"]
         reserved = usage["estimated"] + usage["open"]

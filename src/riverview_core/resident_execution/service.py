@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.59
-# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Permit one audited local criteria-binding recovery and supersede its exact stale Steward retry request.
+# Revision: 1.0.61
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Fail closed after interrupted one-shot recovery and suppress unauthorized external escalation from that local retry.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Use the durable exchange consumption duplicate flag in consumed performance-evaluation replay.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Queue S4 evaluation from current exhausted rejection evidence without reusing S3 evidence.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Replay consumed Luna evaluations idempotently and retain sanitized correlated consumer diagnostics.
@@ -370,6 +370,12 @@ class GraceExecutionService:
                 objective_id, trigger=trigger,
                 token_budget=self.resident_token_budget)
             if result.status is ReasoningStatus.PROPOSED and result.proposal is not None:
+                if (candidate.get("autonomous_recovery") and
+                        result.proposal.external_escalation is not None):
+                    self._record_autonomous_escalation_suppressed(objective_id,
+                        candidate["autonomous_recovery"], result)
+                    result = replace(result, proposal=replace(
+                        result.proposal, external_escalation=None))
                 if result.proposal.external_escalation is not None:
                     if result.reasoning_request is None:
                         raise RuntimeError("external_escalation_context_missing")
@@ -757,11 +763,28 @@ class GraceExecutionService:
                     if cur.fetchone() is not None:
                         return None
                     prior_payload=prior_recovery["payload"]
-                    prior_indexes=prior_payload.get("missing_criterion_indices",[])
-                    return {"event_id":str(prior_recovery["event_id"]),
-                        "missing_criterion_indices":prior_indexes,
+                    hold_key=f"grace-auto-local-recovery-interrupted:{objective_id}:r{objective_revision}"
+                    hold_payload={"status":"BLOCKED",
+                        "detail_code":"AUTONOMOUS_RECOVERY_INTERRUPTED",
+                        "objective_revision":objective_revision,
+                        "runtime_revision":self._runtime_revision(),
+                        "recovery_event_id":str(prior_recovery["event_id"]),
                         "source_failure_sequence":prior_payload["source_failure_sequence"],
-                        "resumed":True}
+                        "action":"request_steward_review_without_replaying_reasoning"}
+                    cur.execute("""INSERT INTO grace_objective_events
+                        (objective_id,event_type,idempotency_key,actor_id,payload)
+                        VALUES (%s,'execution.reasoning_failed',%s,
+                          'service:grace-execution',%s::jsonb)
+                        ON CONFLICT (idempotency_key) DO NOTHING""",
+                        (objective_id,hold_key,json.dumps(hold_payload,sort_keys=True,
+                            separators=(",",":"))))
+                    LOG.warning(json.dumps({"event":"grace_autonomous_recovery_interrupted",
+                        "objective_id":objective_id,
+                        "objective_revision":objective_revision,
+                        "recovery_event_id":str(prior_recovery["event_id"]),
+                        "next_action":"steward_review",
+                        "reason_code":"AUTONOMOUS_RECOVERY_INTERRUPTED"},sort_keys=True))
+                    return None
                 diagnostic = failure["payload"].get("criteria_binding_diagnostic", {})
                 indexes = diagnostic.get("missing_approved_criterion_indices", [])
                 if (not isinstance(indexes, list) or len(indexes) > 20 or
@@ -827,6 +850,26 @@ class GraceExecutionService:
             LOG.warning(json.dumps({"event":"grace_autonomous_recovery_claim_failed",
                 "objective_id":objective_id,"failure_type":type(exc).__name__},sort_keys=True))
             return None
+
+    def _record_autonomous_escalation_suppressed(self, objective_id, recovery, result):
+        request = getattr(result, "reasoning_request", None)
+        request_id = getattr(request, "request_id", None)
+        intent = result.proposal.external_escalation
+        payload = {"recovery_event_id": recovery["event_id"],
+            "request_id": request_id if isinstance(request_id, str) else None,
+            "target_provider_id": intent.target_provider_id,
+            "reason_code": "LOCAL_RECOVERY_HAS_NO_EXTERNAL_PROVIDER_AUTHORITY",
+            "action": "proposal_processed_without_provider_call"}
+        key = "grace-autonomous-recovery-escalation-suppressed:" + recovery["event_id"]
+        with self.pipeline.ledger.db.transaction():
+            with self.pipeline.ledger.db.cursor() as cur:
+                self.pipeline.ledger._set_search_path(cur)
+                cur.execute("""INSERT INTO grace_objective_events
+                    (objective_id,event_type,idempotency_key,actor_id,payload)
+                    VALUES (%s,'execution.external_escalation_suppressed',%s,
+                      'service:grace-execution',%s::jsonb)
+                    ON CONFLICT (idempotency_key) DO NOTHING""",
+                    (objective_id,key,json.dumps(payload,sort_keys=True,separators=(",",":"))))
 
     def _claim_experiment_recovery(self, objective_id, objective_revision):
         """Atomically consume one exact, non-repeating use of the standing grant."""

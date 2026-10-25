@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_external_reasoning_exchange.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.8
-# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify concurrent monthly Luna actual-plus-reserved admission across existing grants.
+# Revision: 1.1.10
+# Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify global spend admission locking across UTC month rollover.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Verify Steward approval persists against the live parent/child S3 assignment linkage.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Include exact objective assignment and S3 identity in retry fixtures.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Prove exact-event retry admission is single-use under concurrent providers.
@@ -375,6 +375,90 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=2) as pool:
             result=list(pool.map(reserve,range(2)))
         self.assertEqual(sorted(result),[False,True])
+
+    def test_month_boundary_admissions_share_one_lock(self):
+        import psycopg
+        from psycopg.rows import dict_row
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError
+        from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
+        before_boundary=datetime(2026,10,1,tzinfo=timezone.utc)
+        after_boundary=datetime(2026,11,1,tzinfo=timezone.utc)
+        first_holds_lock=threading.Event()
+        allow_first_commit=threading.Event()
+        second_entered=threading.Event()
+
+        def reserve(month_start, *, hold=False):
+            conn=psycopg.connect(DSN,row_factory=dict_row)
+            try:
+                with conn.transaction(),conn.cursor() as cur:
+                    cur.execute(f'SET LOCAL search_path TO "{self.schema}"')
+                    allowed=DurableExternalReasoningExchange._reserve_global_monthly_luna_budget(
+                        cur,Decimal(".05"),month_start=month_start)
+                    if hold:
+                        first_holds_lock.set()
+                        if not allow_first_commit.wait(timeout=5):
+                            raise TimeoutError("first admission transaction was not released")
+                    return allowed
+            finally:
+                conn.close()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first=pool.submit(reserve,before_boundary,hold=True)
+            self.assertTrue(first_holds_lock.wait(timeout=5))
+            def next_month_reservation():
+                second_entered.set()
+                return reserve(after_boundary)
+            second=pool.submit(next_month_reservation)
+            self.assertTrue(second_entered.wait(timeout=5))
+            try:
+                with self.assertRaises(TimeoutError):
+                    second.result(timeout=.1)
+            finally:
+                allow_first_commit.set()
+            self.assertTrue(first.result(timeout=5))
+            self.assertTrue(second.result(timeout=5))
+
+    def test_month_boundary_admissions_share_one_lock(self):
+        import psycopg
+        from psycopg.rows import dict_row
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError
+        from riverview_core.resident_execution.external_reasoning import DurableExternalReasoningExchange
+        before_boundary=datetime(2026,10,1,tzinfo=timezone.utc)
+        after_boundary=datetime(2026,11,1,tzinfo=timezone.utc)
+        first_holds_lock=threading.Event()
+        allow_first_commit=threading.Event()
+        second_entered=threading.Event()
+
+        def reserve(month_start, *, hold=False):
+            conn=psycopg.connect(DSN,row_factory=dict_row)
+            try:
+                with conn.transaction(),conn.cursor() as cur:
+                    cur.execute(f'SET LOCAL search_path TO "{self.schema}"')
+                    allowed=DurableExternalReasoningExchange._reserve_global_monthly_luna_budget(
+                        cur,Decimal(".05"),month_start=month_start)
+                    if hold:
+                        first_holds_lock.set()
+                        if not allow_first_commit.wait(timeout=5):
+                            raise TimeoutError("first admission test transaction was not released")
+                    return allowed
+            finally:
+                conn.close()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first=pool.submit(reserve,before_boundary,hold=True)
+            self.assertTrue(first_holds_lock.wait(timeout=5))
+            def second_reservation():
+                second_entered.set()
+                return reserve(after_boundary)
+            second=pool.submit(second_reservation)
+            self.assertTrue(second_entered.wait(timeout=5))
+            try:
+                with self.assertRaises(TimeoutError):
+                    second.result(timeout=.1)
+            finally:
+                allow_first_commit.set()
+            self.assertTrue(first.result(timeout=5))
+            self.assertTrue(second.result(timeout=5))
     def _service(self, clock=None):
         return DurableExternalReasoningExchange(self.ledger, self.router,
             actor_id=RESIDENT, clock=clock or (lambda: self.clock_value))

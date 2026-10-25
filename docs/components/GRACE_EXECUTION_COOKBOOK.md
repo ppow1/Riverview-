@@ -2,8 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.38
-Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Apply the additive notification migration before activating the new owner-session code.
+File Revision: 1.1.40
+Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document no-replay behavior for interrupted recovery and month-rollover spend serialization.
 Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document the exact one-shot local proposal recovery and shared monthly Luna reservation ceiling.
 Changed: 2026-10-25 UTC | RV-LOCAL-RELEASE-GATE-20261025 | Record local exact-commit qualification and Grace-only immutable release activation/rollback.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Require exact replayed grade and feedback evidence before S4 exception issuance.
@@ -163,17 +163,21 @@ criteria and only sanitized criterion-index diagnostics. An append-only
 \`execution.autonomous_recovery_authorized\` event binds the retry to the exact
 failure sequence and revision; the pending Steward retry request is marked
 \`superseded\` with an append-only service decision. The attempt and grant are
-committed together. A resumed owner session reuses that single recorded attempt;
-other failure codes, revisions, assignments, and repeated failures do not get
-another automatic reasoning retry. Nothing in this path approves a proposal,
+committed together. If the owner process stops after recording the attempt but
+before recording its outcome, the next cycle does not call a model again. It
+records an interrupted-recovery failure and lets CME create a fresh Steward
+attention request; the ambiguous attempt is never replayed. Other failure
+codes, revisions, assignments, and repeated failures do not get another
+automatic reasoning retry. Nothing in this path approves a proposal,
 creates an assignment, changes criteria, spends provider budget, or authorizes
 deployment. Existing exact \`assignment.create\`, execution, and verification
 checks remain in force.
 
 The $5.00 UTC-calendar-month actual-plus-reserved ceiling is enforced across
-the existing Luna supervision and experiment grants under a PostgreSQL
-transaction advisory lock. Provider-specific per-request and grant limits
-remain narrower. The current accounting records Luna API costs and estimates;
+the existing Luna supervision and experiment grants under one PostgreSQL
+transaction advisory lock acquired before reading the UTC month, including at
+month rollover. Provider-specific per-request and grant limits remain narrower.
+The current accounting records Luna API costs and estimates;
 it is not a universal meter for subscription-based ChatGPT/Codex use or for
 local inference. Do not report those sources as globally spend-enforced until
 their actual cost and reservation data are present in an existing authoritative
