@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.35
-# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Deterministically validate reviewer authorization stops and persist exact controller evidence without another review.
+# Revision: 1.1.36
+# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTH-CORRELATION-20261025 | Correlate provider-attempt authorization UUIDs to the active registered grant and append corrected controller evidence.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Pin retry-hold release identity at pipeline construction so an old process cannot adopt a newly switched symlink.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
@@ -1995,6 +1995,7 @@ class GraceExecutionPipeline:
             verification_id = str(verification["verification_id"])
             if any(event["event_type"] == "engineering.rework_controller_validation" and
                     event["payload"].get("verification_id") == verification_id and
+                    event["payload"].get("schema") == "rv.grace.rework-controller-validation.v2" and
                     event["payload"].get("authorization_lookup", {}).get("active") is True
                     for event in events):
                 continue
@@ -2189,6 +2190,7 @@ class GraceExecutionPipeline:
                 "action": "resident.reasoning.escalate",
                 "scope_ref": "provider:gpt-6-luna",
                 "grant_id": controller_facts["luna_escalation_authorization"]["grant_id"],
+                "authorization_id": controller_facts["luna_escalation_authorization"]["authorization_id"],
                 "active": controller_facts["luna_escalation_authorization"]["active"]},
             "prior_provider_requests": controller_facts["request_history"],
             "performance_evaluation_events": controller_facts["performance_evaluation_events"],
@@ -2277,7 +2279,9 @@ class GraceExecutionPipeline:
             "luna_escalation_authorization": {
                 "source": f"{self.authorizer.schema}.active_grace_luna_escalation_grant",
                 "action": "resident.reasoning.escalate", "scope_ref": "provider:gpt-6-luna",
-                "grant_id": grant_id, "active": bool(grant_id)},
+                "grant_id": grant_id,
+                "authorization_id": (supervisory["authorization_id"] if supervisory else None),
+                "active": bool(grant_id)},
             "supervisory_luna_authorization": ({
                 "authorization_id": str(supervisory["authorization_id"]),
                 "authority_grant_id": supervisory["authority_grant_id"],
@@ -2327,7 +2331,7 @@ class GraceExecutionPipeline:
                 facts = self._rework_controller_facts(cur, objective_id, assignment_id)
                 auth_state = facts["luna_escalation_authorization"]
                 idem_suffix = auth_state["grant_id"] or "missing"
-                idem = f"grace-rework-controller-validation:{verification_id}:{idem_suffix}"
+                idem = f"grace-rework-controller-validation-v2:{verification_id}:{idem_suffix}"
                 request_history = facts["request_history"]
                 advisory_requests = [item for item in request_history
                     if item["request_type"] == "cme_diagnostic_recovery"]
@@ -2336,8 +2340,11 @@ class GraceExecutionPipeline:
                 auth = auth_state
                 evaluation_events = facts["performance_evaluation_events"]
                 authorized_advisory_requests = [item for item in advisory_requests
-                    if auth["grant_id"] and
-                    item["attempt_authorization_id"] == auth["grant_id"] and
+                    if auth["active"] and facts["supervisory_luna_authorization"] and
+                    facts["supervisory_luna_authorization"]["active"] and
+                    facts["supervisory_luna_authorization"]["authority_grant_id"] == auth["grant_id"] and
+                    item["attempt_authorization_id"] ==
+                        facts["supervisory_luna_authorization"]["authorization_id"] and
                     item["provider_attempt_count"] > 0]
                 successful_advisory_count = sum(item["delivery_state"] in
                     {"response_received", "grace_consumed"}
@@ -2375,7 +2382,7 @@ class GraceExecutionPipeline:
                     next_action = "retain_rework_required_pending_exact_authorization"
                 reviewer = {key: reviewer_decision.get(key) for key in
                     ("event_id", "decision", "rationale", "request_id", "review_generation")}
-                payload = {"schema": "rv.grace.rework-controller-validation.v1",
+                payload = {"schema": "rv.grace.rework-controller-validation.v2",
                     "objective_id": objective_id, "assignment_id": assignment_id,
                     "objective_status": objective["status"],
                     "objective_revision": int(objective["revision"]),
