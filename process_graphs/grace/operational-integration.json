@@ -1173,6 +1173,24 @@
       ]
     },
     {
+      "id": "rv:grace:operational-integration:s4-rejection-performance-evaluation",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "For the current S4 assignment only, the latest durable retry_limit_exhausted rejection triggers one authorized Luna performance evaluation; its request and feedback retain the exact S4 assignment and rejection event identity.",
+      "source_references": [
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/pipeline.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/EXTERNAL_REASONING_EXCHANGE.md"
+      ],
+      "verification_evidence": [
+        "tests/test_supervisory_evaluation_unit.py",
+        "tests/test_grace_execution.py"
+      ]
+    },
+    {
       "id": "rv:grace:operational-integration:s4-single-use-rework-exception",
       "node_revision": "1.0.0",
       "type": "decision",
@@ -2187,19 +2205,25 @@
       "from": "rv:grace:operational-integration:external-advisory-consumer",
       "to": "rv:grace:operational-integration:s4-performance-evidence-handoff",
       "type": "recovery_route",
-      "label": "Replay a prior consumed evaluation idempotently after consumer validation failure, then expose only verified durable exchange and feedback facts to the exact S4 assignment."
-    },
-    {
-      "from": "rv:grace:operational-integration:s4-performance-evidence-handoff",
-      "to": "rv:grace:operational-integration:same-assignment-governed-rework",
-      "type": "runtime_transition",
-      "label": "The worker receives bounded server-derived evaluation evidence and no database/provider access."
+      "label": "Replay a consumed evaluation idempotently against its immutable original assignment; a prior S3 response cannot qualify as S4 evaluation evidence."
     },
     {
       "from": "rv:grace:operational-integration:rework-escalation-pending",
+      "to": "rv:grace:operational-integration:s4-rejection-performance-evaluation",
+      "type": "runtime_transition",
+      "label": "Only an exact current S4 retry_limit_exhausted event with a latest rejected verification and matching assignment pointer queues the authorized S4 evaluation."
+    },
+    {
+      "from": "rv:grace:operational-integration:s4-rejection-performance-evaluation",
+      "to": "rv:grace:operational-integration:s4-performance-evidence-handoff",
+      "type": "runtime_transition",
+      "label": "After Luna returns and Grace consumes the grade, expose only the durable S4 exchange and feedback evidence."
+    },
+    {
+      "from": "rv:grace:operational-integration:s4-performance-evidence-handoff",
       "to": "rv:grace:operational-integration:s4-single-use-rework-exception",
-      "type": "recovery_route",
-      "label": "Only the exact S4 verification may resume after a matching unexpired Steward authorization event."
+      "type": "runtime_transition",
+      "label": "Only a consumed evaluation bound to the current S4 rejection and current revision may support the exact one-use Steward exception; S3 evidence is rejected."
     },
     {
       "from": "rv:grace:operational-integration:s4-single-use-rework-exception",

@@ -2,8 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.57
+# Revision: 1.0.58
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Use the durable exchange consumption duplicate flag in consumed performance-evaluation replay.
+# Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Queue S4 evaluation from current exhausted rejection evidence without reusing S3 evidence.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Replay consumed Luna evaluations idempotently and retain sanitized correlated consumer diagnostics.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVALUATION-RECOVERY-20261025 | Suppress CME provider admission only for assignments durably held at exhausted rework limit.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-EVENT-RETRY-20261025 | Carry the approved parent assignment separately from the current S3 child pointer.
@@ -1859,6 +1860,28 @@ class GraceExecutionService:
             if not evidence:
                 continue
             latest = evidence[-1]
+            if latest["event_type"] == "engineering.rework_escalation_pending":
+                from .grace_supervisory_authorization import (
+                    S4_REWORK_ASSIGNMENT_ID, S4_REWORK_OBJECTIVE_ID,
+                    S4_REWORK_VERIFICATION_ID)
+                trigger_payload = latest.get("payload") or {}
+                if (objective_id != S4_REWORK_OBJECTIVE_ID or
+                        trigger_payload.get("assignment_id") != S4_REWORK_ASSIGNMENT_ID or
+                        trigger_payload.get("verification_id") != S4_REWORK_VERIFICATION_ID or
+                        trigger_payload.get("step_id") != "s4" or
+                        trigger_payload.get("reason_code") != "retry_limit_exhausted" or
+                        trigger_payload.get("decision") != "ESCALATION_PENDING" or
+                        trigger_payload.get("assignment_id") != objective.get("assignment_id") or
+                        not isinstance(trigger_payload.get("verification_id"), str)):
+                    continue
+                rejected_context = self.pipeline.supervisory_rejected_assignment_context(
+                    objective_id, trigger_payload["assignment_id"],
+                    trigger_payload["verification_id"])
+                if (not isinstance(rejected_context, dict) or
+                        rejected_context.get("step_id") != "s4" or
+                        rejected_context.get("completion", {}).get("verification_id") !=
+                            trigger_payload["verification_id"]):
+                    continue
             trigger_id = str(latest["event_id"])
             if any(event["event_type"] == "resident.performance.evaluation_recorded" and
                     (event.get("payload") or {}).get("evaluation_trigger_event_id") == trigger_id
@@ -1900,7 +1923,8 @@ class GraceExecutionService:
                     "event_type": event["event_type"],
                     "payload": {key: event["payload"].get(key) for key in
                         ("step_id", "decision", "verification_id", "assignment_id",
-                         "recovery_action", "assessment", "rationale", "cme_event_id")
+                         "reason_code", "review_generation", "recovery_action",
+                         "assessment", "rationale", "cme_event_id")
                         if key in event["payload"]}} for event in evidence[-8:]],
                 "reasoning_history": [{"event_id": str(event["event_id"]),
                     "event_type": event["event_type"],
@@ -2044,6 +2068,10 @@ class GraceExecutionService:
         return [event for event in events if
             event["event_type"] == "objective.completed" or
             event["event_type"] == "execution.step_verified" or
+            (event["event_type"] == "engineering.rework_escalation_pending" and
+             (event.get("payload") or {}).get("step_id") == "s4" and
+             (event.get("payload") or {}).get("decision") == "ESCALATION_PENDING" and
+             (event.get("payload") or {}).get("reason_code") == "retry_limit_exhausted") or
             event["event_type"] == "resident.reasoning.cme_recovery_evaluated"]
 
     @staticmethod
