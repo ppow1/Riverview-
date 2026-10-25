@@ -1,4 +1,5 @@
-// Revision: 1.0.0
+// Revision: 1.0.1
+// Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Require the authenticated server's linked-Steward capability hint
 /* Read-only adapters for the existing authenticated Riverview operational APIs. */
 (() => {
   "use strict";
@@ -95,7 +96,7 @@
   }
 
   function canRequestRecoveryDecision(identity) {
-    return Array.isArray(identity?.roles) && identity.roles.includes("steward");
+    return identity?.can_decide_grace_recovery === true;
   }
 
   function filterRows(rows, {query = "", source = "all", severity = "all", status = "all", sort = "newest"} = {}) {
