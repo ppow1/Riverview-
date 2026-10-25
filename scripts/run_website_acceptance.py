@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run authenticated acceptance against the currently served Riverview V2 release.
 
-Revision: 1.2.0
-Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-ROLE-GRANT-20261025 | Verify account controls render and deny viewer mutations without changing production data.
+Revision: 1.3.0
+Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-EMAIL-20261025 | Verify shared email settings read and role denial without changing production configuration.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ PERSONAS = {"steward":"steward", "operator":"operator", "engineering":"operator"
 ACCOUNT_ADMIN_PRE_FEATURE_COMMIT = "f737eb90537ddbc82d2a166b640b7e9f846bc16c"
 ACCOUNT_STATE_PRE_FEATURE_COMMIT = "8c59b5bfcdde0b08efc8b4807c16f37a8595f8a2"
 ACCOUNT_ROLE_GRANT_PRE_FEATURE_COMMIT = "68a05cd0316eccfd2db0b93cf408eac75dd92bfb"
+ACCOUNT_EMAIL_PRE_FEATURE_COMMIT = "3d5401bb47eef13133f7a09d4e6539a74339a62f"
 
 
 def browser_acceptance(credentials: dict, *, account_admin_required: bool,
@@ -134,6 +135,18 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
                     else:
                         results.append({"check":"account_role_grant_controls_visible","status":"SKIPPED",
                                         "reason":"pre_feature_baseline_release"})
+                    if live_source_commit != ACCOUNT_EMAIL_PRE_FEATURE_COMMIT:
+                        stage = "account_email_settings_read"
+                        email_settings=js("let r=await fetch('/api/v1/account/email-settings',{cache:'no-store'});let value=r.ok?await r.json():null;await new Promise(r=>setTimeout(r,250));return {status:r.status,value,configured:value?.configured===true,passwordField:document.querySelector('#smtp-password')?.value||null,saveVisible:!!document.querySelector('#save-email-settings')}")
+                        email_settings_ok=(email_settings.get("status")==200
+                            and email_settings.get("saveVisible")
+                            and email_settings.get("passwordField")=="")
+                        results.append({"check":"account_email_settings_steward_read","status":"PASS" if email_settings_ok else "FAIL",
+                                        "http":email_settings.get("status"),
+                                        "configured":email_settings.get("configured")})
+                    else:
+                        results.append({"check":"account_email_settings_steward_read","status":"SKIPPED",
+                                        "reason":"pre_feature_baseline_release"})
                 else:
                     results.append({"check":"account_admin_steward_read","status":"FAIL" if account_admin_required else "SKIPPED",
                                     "reason":"account_admin_view_missing" if account_admin_required else "pre_feature_baseline_release"})
@@ -165,8 +178,8 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
                 results.append({"check":f"settings_denied_{persona}","status":"PASS" if denied==403 else "FAIL","http":denied})
                 if role == "viewer" and account_admin_available:
                     stage = "account_administration_viewer_denied"
-                    account_denied=js("let paths=['/api/v1/account/enrollments?limit=1','/api/v1/account/users?limit=1'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push(r.status)}let csrf=decodeURIComponent(document.cookie.split('; ').find(x=>x.startsWith('rv_account_csrf='))?.split('=').slice(1).join('=')||'');let id='12345678-1234-4234-8234-123456789abc';for(let [suffix,body] of [['disable',{disabled:true}],['roles',{role:'steward',grant:true}],['grant',{revoked:true}]]){let denied=await fetch(`/api/v1/account/users/${id}/${suffix}`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Riverview-CSRF':csrf},body:JSON.stringify(body)});out.push(denied.status)}document.querySelector('[data-view=account-administration]')?.click();await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s}")
-                    denied_ok=(account_denied.get("out")==[403,403,403,403,403] and account_denied.get("visible")
+                    account_denied=js("let paths=['/api/v1/account/enrollments?limit=1','/api/v1/account/users?limit=1','/api/v1/account/email-settings'];let out=[];for(let p of paths){let r=await fetch(p,{cache:'no-store'});out.push(r.status)}let csrf=decodeURIComponent(document.cookie.split('; ').find(x=>x.startsWith('rv_account_csrf='))?.split('=').slice(1).join('=')||'');let id='12345678-1234-4234-8234-123456789abc';for(let [suffix,body] of [['disable',{disabled:true}],['roles',{role:'steward',grant:true}],['grant',{revoked:true}]]){let denied=await fetch(`/api/v1/account/users/${id}/${suffix}`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Riverview-CSRF':csrf},body:JSON.stringify(body)});out.push(denied.status)}let deniedEmail=await fetch('/api/v1/account/email-settings',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Riverview-CSRF':csrf},body:JSON.stringify({})});out.push(deniedEmail.status);document.querySelector('[data-view=account-administration]')?.click();await new Promise(r=>setTimeout(r,500));let s=document.querySelector('#account-admin-status')?.textContent||'';return {out,visible:!document.querySelector('#account-administration-workspace')?.hidden,status:s}")
+                    denied_ok=(account_denied.get("out")==[403,403,403,403,403,403,403] and account_denied.get("visible")
                                and "does not have the steward role" in account_denied.get("status", "").lower())
                     results.append({"check":"account_admin_viewer_denied","status":"PASS" if denied_ok else "FAIL",
                                     "http":account_denied.get("out")})

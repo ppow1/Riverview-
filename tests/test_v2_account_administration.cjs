@@ -35,7 +35,6 @@ test('account view reuses existing enrollment, account-list, session and account
   assert.match(client, /credentials:"same-origin"/);
   assert.match(client, /cache:"no-store"/);
   assert.match(client, /X-Riverview-CSRF/);
-  assert.doesNotMatch(client, /account\/email-settings/);
 });
 
 test('mutating account operations require explicit confirmation and preserve backend-owned authority', () => {
@@ -53,6 +52,20 @@ test('mutating account operations require explicit confirmation and preserve bac
   assert.match(client, /Steward role, CSRF, and audit checks/);
   assert.match(client, /data-decision="approve"/);
   assert.match(client, /data-decision="deny"/);
+});
+
+test('email configuration reuses protected APIs, never reads the password, and confirms global actions', () => {
+  const client = read('assets/account-administration.js');
+  const html = read('index.html');
+  assert.match(html, /Shared email delivery/);
+  assert.match(client, /\/api\/v1\/account\/email-settings/);
+  assert.match(client, /\/api\/v1\/account\/email-settings\/test/);
+  assert.match(client, /window\.confirm\("Save shared email delivery settings/);
+  assert.match(client, /window\.confirm\(`Send one test email/);
+  assert.match(client, /password_configured/);
+  assert.match(client, /password"\)\.value = ""/);
+  assert.doesNotMatch(client, /password_ciphertext|account-email-config-key/);
+  assert.match(client, /X-Riverview-CSRF/);
 });
 
 test('unauthenticated and non-Steward denials are presented plainly and the view is responsive', () => {

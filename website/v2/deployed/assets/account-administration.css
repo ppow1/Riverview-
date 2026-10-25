@@ -29,5 +29,14 @@ Revision: 1.1.0
 .account-admin-control-note{align-self:center;padding:5px 7px;color:var(--muted);font-size:10px}
 .account-admin-boundary{margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface-soft);font-size:12px}
 .account-admin-boundary p{margin:6px 0 0;color:var(--muted);line-height:1.55}
+.email-settings-heading-actions{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+.email-settings-form{display:grid;grid-template-columns:minmax(160px,220px) minmax(0,1fr);align-items:center;gap:9px 14px;margin-top:14px}
+.email-settings-form>label{color:var(--muted);font-size:11px}
+.email-settings-form>input,.email-settings-form>select{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface-soft);color:var(--ink);font:inherit;font-size:12px}
+.email-settings-actions,.email-settings-form>p{grid-column:1/-1;margin:4px 0 0}
+.email-settings-actions{display:flex;flex-wrap:wrap;gap:8px}
+.email-settings-actions button,.email-settings-heading-actions button{min-height:38px;padding:8px 11px;border:1px solid var(--line);border-radius:6px;background:var(--surface-soft);color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
+.email-settings-actions button:disabled{opacity:.55;cursor:not-allowed}
+.email-settings-form>p{min-height:20px;color:var(--muted);font-size:11px;line-height:1.5}
 @media(max-width:900px){.enrollment-row{display:grid;grid-template-columns:1fr 145px}.enrollment-row .account-admin-actions{grid-column:1/-1;justify-content:flex-start}}
-@media(max-width:600px){.account-admin-heading,.account-admin-section-heading{display:block}.account-admin-heading>button{margin-top:8px;min-height:40px}.account-admin-count{display:block;margin-top:7px}.account-admin-row{align-items:flex-start;flex-direction:column}.account-admin-row>button{min-height:40px}.account-admin-role{width:100%;flex-basis:auto}.enrollment-row{display:grid;grid-template-columns:1fr}.enrollment-row .account-admin-actions{grid-column:auto;display:grid;grid-template-columns:1fr 1fr;width:100%}.account-admin-actions button{min-height:40px}}
+@media(max-width:600px){.account-admin-heading,.account-admin-section-heading{display:block}.account-admin-heading>button{margin-top:8px;min-height:40px}.account-admin-count{display:block;margin-top:7px}.account-admin-row{align-items:flex-start;flex-direction:column}.account-admin-row>button{min-height:40px}.account-admin-role{width:100%;flex-basis:auto}.enrollment-row{display:grid;grid-template-columns:1fr}.enrollment-row .account-admin-actions{grid-column:auto;display:grid;grid-template-columns:1fr 1fr;width:100%}.account-admin-actions button{min-height:40px}.email-settings-heading-actions{margin-top:8px;justify-content:space-between}.email-settings-form{grid-template-columns:1fr;gap:5px}.email-settings-form>label{margin-top:8px}.email-settings-actions,.email-settings-form>p{grid-column:1}.email-settings-actions{display:grid;grid-template-columns:1fr}.email-settings-actions button,.email-settings-heading-actions button{min-height:42px}}
