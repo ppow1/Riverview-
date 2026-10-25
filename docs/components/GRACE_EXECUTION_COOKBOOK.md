@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_EXECUTION_COOKBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.1.36
+File Revision: 1.1.37
+Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document additive notification migration and rollback-compatible release order.
 Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Document the exact one-shot local proposal recovery and shared monthly Luna reservation ceiling.
 Changed: 2026-10-25 UTC | RV-LOCAL-RELEASE-GATE-20261025 | Record local exact-commit qualification and Grace-only immutable release activation/rollback.
 Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Require exact replayed grade and feedback evidence before S4 exception issuance.
@@ -79,9 +80,16 @@ Dashboard release.
 
 Switch only the Grace `current` symlink atomically to the verified release,
 then restart only `riverview-grace-execution-owner-session.service` so its
-imported code matches the new pointer. Do not restart the Dashboard, CME, event
-processor, model services, or workers for a source-only Grace change. This
-change has no database migration; leave all objective and event records alone.
+imported code matches the new pointer. Apply notification migration
+`0011_grace_recovery_supersession.sql` with the existing PostgreSQL migration
+runner after verifying the notification migration ledger and current
+constraint definitions. It only expands the existing recovery-request and
+decision vocabularies; it does not edit objective, assignment, authorization,
+or event-history rows. The predecessor binary remains compatible with the
+added values and can be restored without reverting the additive constraint
+migration. Leave all objective and event records alone. Do not restart the
+Dashboard, CME, event processor, model services, or workers for this Grace
+change.
 Verify the active release SHA, owner-session health/heartbeat, and the relevant
 authenticated Dashboard projection. Run the change's verifier regression
 against the deployed source to confirm unsupported factual criteria and
