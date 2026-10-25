@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_institutional_authority_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.29
+# Revision: 1.0.30
+# Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Verify migration 0015 adds only its private boundary function after application
 # Purpose: Verify isolated M4.1 ownership separation denies runtime SQL bypass
 # Execution Model: PostgreSQL integration test using unique rvtest schema and roles
 # Observability: Protected object owners, runtime denial, manager registry authorization
@@ -47,6 +48,25 @@ DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
 
 
 class PreflightDiagnosticTests(unittest.TestCase):
+    def test_deployment_reconciler_is_allowlisted_only_after_migration_0015(self):
+        from riverview_core.institutional_authority.db_boundary import (
+            DEPLOYMENT_REGISTRATION_FUNCTIONS,
+            _deployment_registration_functions_for_migration,
+        )
+
+        class Cursor:
+            def __init__(self, applied):
+                self.applied = applied
+            def execute(self, *_args):
+                pass
+            def fetchone(self):
+                return {"applied": self.applied}
+
+        self.assertEqual(_deployment_registration_functions_for_migration(
+            Cursor(False), "rvtest_authority"), {})
+        self.assertEqual(_deployment_registration_functions_for_migration(
+            Cursor(True), "rvtest_authority"), DEPLOYMENT_REGISTRATION_FUNCTIONS)
+
     def test_boundary_preflight_reports_safe_static_reason(self):
         from scripts.provision_authority_boundary import _safe_error_detail
         from riverview_core.institutional_authority.db_boundary import BoundaryPreflightError

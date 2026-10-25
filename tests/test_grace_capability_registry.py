@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_capability_registry.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.0
+# Revision: 1.0.1
+# Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Test declaration blockers and dynamic capability metadata
 # Purpose: Verify dynamic institutional capability discovery and exact-grant invocation
 # Execution Model: Isolated database, authority, worker and pipeline fixtures
 # Observability: Assertions over tool schemas, exact authorization, results and updates

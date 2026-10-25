@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/postgres_migrations.py
 # Component: POSTGRES-LEDGER
-# Revision: 1.0.2
+# Revision: 1.0.3
+# Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Reconcile bounded release declarations after authority migration runs, including no-op runs
 # Purpose: Apply ordered, checksum-pinned PostgreSQL schema migrations
 # Execution Model: Request-driven migration CLI/library
 # Observability: Applied versions and checksums in schema_migrations

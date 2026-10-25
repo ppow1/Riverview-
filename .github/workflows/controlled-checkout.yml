@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED CONFIGURATION
 # File: .github/workflows/controlled-checkout.yml
 # Component: ENG-REVISION-CONTROL
-# Revision: 1.0.5
+# Revision: 1.0.6
 # Purpose: Enforce full tests and file revision/backup checkout on GitHub changes
 # Execution Model: Event-driven on pull_request and push
 # Observability: GitHub Actions job result and test output
@@ -10,6 +10,7 @@
 # Authority: Read-only repository checkout; ephemeral test database only
 # Changed: 2026-10-10 UTC | RV-GRAPH-001 | Install graph schema validator and enforce generated graph synchronization
 # Changed: 2026-10-17 UTC | RV-MCP-CHATGPT-OAUTH-RESOURCE-001 | Install pinned PyJWT support for OAuth MCP resource-token validation
+# Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Require declarations or documented exclusions for added website API operations
 # Contracts: docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md
 # Tests: Full unittest discovery and revision-control checkout
 # History: Git and .riverview-backups/manifest.jsonl
@@ -47,6 +48,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -57,6 +60,8 @@ jobs:
         env:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -v
+      - name: Require declarations for added website API operations
+        run: python scripts/validate_capability_declaration_changes.py --base origin/main
       - name: Verify canonical process graphs and generated views
         run: python scripts/process_graph.py check
       - name: Verify controlled revisions and preserved predecessors

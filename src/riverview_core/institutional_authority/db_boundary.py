@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.25
+# Revision: 1.0.26
+# Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Keep the migration-0015 invoker-only function out of older boundary profiles
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-M33-PROFILE | Expose the exact migration-0008 function profile for version-specific verification.
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-SEARCHPATH-COMPAT-20261024 | Validate SECURITY DEFINER functions against their exact pinned search-path policy.
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BOUNDARY-ALLOWLIST-20261024 | Preserve the existing narrowly granted Luna and autonomy authority functions during boundary preflight.
@@ -175,6 +176,15 @@ def _permission_functions_for_migration_profile(cur, schema):
     return functions
 
 
+def _deployment_registration_functions_for_migration(cur, schema):
+    """Require the deployment reconciler only after its migration is recorded."""
+    cur.execute(sql.SQL("SELECT EXISTS(SELECT 1 FROM {}.schema_migrations "
+                        "WHERE version='0015_deployed_capability_declarations') AS applied")
+                .format(sql.Identifier(schema)))
+    return (dict(DEPLOYMENT_REGISTRATION_FUNCTIONS)
+            if cur.fetchone()["applied"] else {})
+
+
 def provision_authority_boundary(connection, *, schema, runtime_role="riverview_core",
                                  manager_role="riverview_authority_manager",
                                  owner_role="riverview_authority_owner", apply=False):
@@ -205,6 +215,8 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
     with connection.transaction():
         with connection.cursor(row_factory=dict_row) as cur:
             runtime_permission_functions_map = _permission_functions_for_migration_profile(cur, schema)
+            deployment_registration_functions_map = (
+                _deployment_registration_functions_for_migration(cur, schema))
             cur.execute("""SELECT current_user, r.rolsuper, r.rolcreaterole
                            FROM pg_roles r WHERE r.rolname=current_user""")
             administrator = cur.fetchone()
@@ -295,7 +307,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 (PRINCIPAL_AUTHORIZATION_FUNCTION, PRINCIPAL_AUTHORIZATION_ARGUMENTS),
                 *RUNTIME_OFFICE_FUNCTIONS.items(),
                 *runtime_permission_functions_map.items(),
-                *DEPLOYMENT_REGISTRATION_FUNCTIONS.items(),
+                *deployment_registration_functions_map.items(),
             }
             observed_functions = {(row["proname"], row["arguments"]) for row in function_rows}
             if observed_functions != expected_functions:
@@ -395,7 +407,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 runtime_permission_functions.append(function_row)
 
             deployment_registration_functions = []
-            for function_name, arguments in DEPLOYMENT_REGISTRATION_FUNCTIONS.items():
+            for function_name, arguments in deployment_registration_functions_map.items():
                 cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
                                       p.prosecdef AS security_definer,
                                       has_function_privilege(%s::name,p.oid,'EXECUTE') AS runtime_execute,
@@ -615,7 +627,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 function_row["function_name"] = function_name
                 runtime_permission_functions.append(function_row)
             deployment_registration_functions = []
-            for function_name, arguments in DEPLOYMENT_REGISTRATION_FUNCTIONS.items():
+            for function_name, arguments in deployment_registration_functions_map.items():
                 cur.execute("""SELECT p.proowner::regrole::text AS function_owner,
                                       p.prosecdef AS security_definer,
                                       has_function_privilege(%s::name,p.oid,'EXECUTE') AS runtime_execute,

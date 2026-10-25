@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/capability_registry.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.1
+# Revision: 1.0.2
+# Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Expose declaration metadata and keep unsupported capabilities non-invocable
 # Purpose: Project the existing institutional capability catalog into Grace's typed tool route
 # Execution Model: Read-only catalog projection; exact-grant-checked typed invocation
 # Observability: Structured discovery, authorization, execution and result envelopes

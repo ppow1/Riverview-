@@ -1,7 +1,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_runtime_baseline.py
 # Component: RUNTIME-BASELINE
-# Revision: 1.0.12
+# Revision: 1.0.14
+# Changed: 2026-10-25 UTC | C3-AUTHORITY-MIGRATION-RELEASE-COMMAND | Verify full-source packages include the fixed-scope authority migration command
+# Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Include migration 0015 in release packaging validation
 # Purpose: Identity/credential security, DB contract, observer and package regression tests
 # Execution Model: Request-driven tests; simulated DB explicitly distinct from live proof
 # Observability: unittest counts and failures
@@ -361,6 +363,7 @@ class RuntimeBaselineTests(unittest.TestCase):
             "src/riverview_core/resident_execution/migrations/0012_resource_selection_policy.sql",
             "src/riverview_core/institutional_authority/migrations/0015_deployed_capability_declarations.sql",
             "src/riverview_core/institutional_authority/capability_declarations/resident_status_read.json",
+            "scripts/migrate_institutional_authority.py",
         )
         with tempfile.TemporaryDirectory() as folder:
             isolated = Path(folder) / "repo"

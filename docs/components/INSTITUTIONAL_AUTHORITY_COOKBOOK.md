@@ -2,9 +2,10 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.33
+File Revision: 1.0.34
 Purpose: Diagnose and safely recover institutional authority registry state
 Authority: Read-only diagnostics first; grant changes require authenticated Steward
+Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Document release declaration validation and the fixed-scope authority migration command
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Keep evidence references as readable paths in safe dashboard renderer
 Changed: 2026-10-11 UTC | RV-M4.1-COOKBOOK-DB-BOUNDARY | Document isolated database boundary provisioning and schema-owner gate
 Changed: 2026-10-11 UTC | RV-M4.1-LEAST-PRIVILEGE | Require dedicated registry schema and deny manager DDL/owner membership
@@ -889,6 +890,24 @@ an explicit disabled declaration with a `registration_blocker`; the record
 stays visible and Grace does not receive it as a selectable tool. Website
 releases declare underlying operations only, never screens. Add the declaration
 to the release package and run the standard authority migration application
-for that release before activating it. Package validation checks that the
-reconciler migration and declarations are included. No grant is created by
-registration.
+for that release before activating it. The controlled-checkout gate verifies
+added dashboard API dispatches have a declaration marker or a documented
+exclusion, and full-source packaging carries the migration and declaration
+files. No grant is created by registration.
+
+The release command is `scripts/migrate_institutional_authority.py`, run from
+the staged release as the local PostgreSQL administrator before activating the
+dashboard package:
+
+```sh
+sudo -u postgres env PYTHONPATH=/opt/riverview-status-dashboard/releases/<commit>/src \
+  python3 /opt/riverview-status-dashboard/releases/<commit>/scripts/migrate_institutional_authority.py
+```
+
+This fixed-scope command calls the existing checksum-pinned
+`apply_migrations()` runner against `riverview_authority` and the staged
+authority migration directory. The runner invokes capability reconciliation
+after schema migrations on every run, including when the applied migration
+list is empty. Confirm the command's `versions` result, then continue with the
+protected release activation and rollback procedure. It does not start or
+restart a service and does not alter grants.
