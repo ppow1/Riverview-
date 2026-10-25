@@ -1,6 +1,6 @@
 """Focused acceptance-system tests.
 
-Revision: 1.0.3
+Revision: 1.0.4
 """
 import importlib.util
 from pathlib import Path
@@ -49,6 +49,13 @@ class WebsiteAcceptanceTests(unittest.TestCase):
         self.assertIn("/api/v1/account/users?limit=100",source)
         self.assertNotIn("/api/v1/account/enrollments/",source)
         self.assertNotIn("/api/v1/account/users/",source)
+
+    def test_predeploy_account_denial_and_nginx_snippet_rollback_are_safe(self):
+        runner=(ROOT/"scripts/run_website_acceptance.py").read_text()
+        deploy=(ROOT/"scripts/deploy_website_acceptance.sh").read_text()
+        self.assertIn("status in {401,403}",runner)
+        self.assertIn("restore_include()",deploy)
+        self.assertIn('"$backup/riverview-website-acceptance.location.conf"',deploy)
 
     def test_verification_report_view_is_same_origin_and_redacted(self):
         page=(ROOT/"website/v2/deployed/index.html").read_text()
