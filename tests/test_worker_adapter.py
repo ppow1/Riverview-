@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_worker_adapter.py
 # Component: WORKER-ADAPTER
-# Revision: 1.0.23
+# Revision: 1.0.24
+# Changed: 2026-10-25 UTC | RV-GRACE-BASELINE-310-PR311 | Cover assignment evidence preflight persistence.
 # Purpose: Verify scoped dispatch, fail-closed knowledge, independent outcomes, and recovery
 # Execution Model: PostgreSQL integration tests using isolated schemas
 # Observability: Durable assignment, worker, attempt, result, and knowledge rows
@@ -438,6 +439,37 @@ class WorkerAdapterTests(unittest.TestCase):
             self.assertEqual(verified["source_revision"], "1.0.0")
             self.assertEqual(verified["source_sha256"].strip(), "a" * 64)
             self.assertIs(verified["retrieval_complete"], True)
+
+    def test_assignment_evidence_preflight_observation_persists(self):
+        """Regression: valid assignment evidence preflight must not block start."""
+        from riverview_core.worker_adapter import KnowledgeResult, KnowledgeStatus
+
+        assignment_id = self.ready_assignment(objective="objective:evidence-preflight")
+        result = KnowledgeResult(
+            KnowledgeStatus.VERIFIED,
+            value="evidence preflight verified",
+            source_references=("repo://test/assignment-evidence",),
+            source_revision="test-1",
+            source_sha256="c" * 64,
+            retrieval_complete=True,
+        )
+        observation_id = self.worker.record_knowledge_observation(
+            assignment_id, self.worker_id, "preflight_assignment_evidence",
+            result, action="assignment evidence preflight",
+        )
+        self.assertIsNotNone(observation_id)
+        with self.worker.ledger.db.cursor() as cur:
+            self.ledger._set_search_path(cur)
+            cur.execute(
+                """SELECT operation,status,source_references
+                   FROM knowledge_observations WHERE observation_id=%s""",
+                (observation_id,),
+            )
+            persisted = cur.fetchone()
+        self.assertEqual(persisted["operation"], "preflight_assignment_evidence")
+        self.assertEqual(persisted["status"], "VERIFIED")
+        self.assertEqual(persisted["source_references"],
+                         ["repo://test/assignment-evidence"])
 
     def test_concurrent_scoped_worker_cycles_progress_independently(self):
         from concurrent.futures import ThreadPoolExecutor
