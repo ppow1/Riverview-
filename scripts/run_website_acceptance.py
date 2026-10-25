@@ -22,6 +22,7 @@ ACCOUNT_ROLE_GRANT_PRE_FEATURE_COMMIT = "68a05cd0316eccfd2db0b93cf408eac75dd92bf
 ACCOUNT_EMAIL_PRE_FEATURE_COMMIT = "3d5401bb47eef13133f7a09d4e6539a74339a62f"
 PROPOSAL_DECISIONS_PRE_FEATURE_COMMIT = "e994af0b79f5ce3a140702e67cb465107bc71987"
 PROPOSAL_LIFECYCLE_PRE_FEATURE_COMMIT = "7eca34b6c6c78689222ee816995d7eb0b85b42f9"
+PROCESS_WORKFLOWS_PRE_FEATURE_COMMIT = "7eca34b6c6c78689222ee816995d7eb0b85b42f9"
 
 
 def browser_acceptance(credentials: dict, *, account_admin_required: bool,
@@ -110,7 +111,9 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
             who=js("let r=await fetch('/api/v1/auth/session',{cache:'no-store'});if(!r.ok)return {status:r.status};let x=await r.json();return {status:r.status,roles:x.identity?.roles||[]}")
             results.append({"check":f"login_role_{persona}","status":"PASS" if role in who.get("roles",[]) else "FAIL","http":who.get("status"),"expected_role":role})
             # Confirm the live route is serving the V2 shell and its current bundle.
-            views=["resources","work","communications","notification-settings","process-workflows","documentation"]
+            views=["resources","work","communications","notification-settings"]
+            process_workflows_available = live_source_commit != PROCESS_WORKFLOWS_PRE_FEATURE_COMMIT
+            if process_workflows_available: views.extend(["process-workflows","documentation"])
             proposal_decisions_available = live_source_commit != PROPOSAL_DECISIONS_PRE_FEATURE_COMMIT
             proposal_lifecycle_available = live_source_commit != PROPOSAL_LIFECYCLE_PRE_FEATURE_COMMIT
             if role == "steward" and proposal_decisions_available: views.append("institutional-proposals")
@@ -134,7 +137,7 @@ def browser_acceptance(credentials: dict, *, account_admin_required: bool,
                 if account_admin_available:
                     # Restore the view expected by the existing account acceptance below.
                     js("document.querySelector('[data-view=account-administration]')?.click();return true")
-            if role == "steward" and proposal_lifecycle_available:
+            if role == "steward" and process_workflows_available:
                 stage = "process_workflow_registry_acceptance"
                 graph_check=js("let nav=document.querySelector('[data-view=process-workflows]');nav?.click();let r=await fetch('/api/v1/graphs',{cache:'no-store'});let index=r.ok?await r.json():null;await new Promise(resolve=>setTimeout(resolve,300));let options=document.querySelectorAll('#graph-select option').length;return {http:r.status,count:index?.items?.length||0,options,visible:!document.querySelector('#process-workflows-workspace')?.hidden}")
                 graph_ok=graph_check.get("http")==200 and graph_check.get("count",0)>0 and graph_check.get("options",0)>0 and graph_check.get("visible")
