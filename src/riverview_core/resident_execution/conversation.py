@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/conversation.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.2.31
+# Revision: 1.2.32
+# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Do not publish or acknowledge a model authorization stop when the execution controller returns a durable hold.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-AUTHORITY-EVIDENCE-20261024 | Guide rework review to use server-verified supervisory grant and prior provider-attempt facts without retrying Luna.
 # Changed: 2026-10-22 UTC | RV-HW-LIVE-STREAM-ACTIVITY-001 | Persist timestamped stream-delta character counts and expose an owner-authorized content-free activity projection.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Request constrained JSON for the fail-closed review contract and clarify supplied authority/evidence boundaries.
@@ -2331,6 +2332,16 @@ class ResidentConversationService:
                 current.get("implementation_revision") != binding.get("implementation_revision")):
             raise ConversationUnavailable("office model binding changed during rejection review")
         persisted = self.rework_handler(context, decision)
+        if (isinstance(persisted, dict) and
+                persisted.get("controller_hold") is True and
+                persisted.get("decision") == "CONTROLLER_HOLD"):
+            validation = persisted.get("controller_validation")
+            if (not isinstance(validation, dict) or
+                    validation.get("verification", {}).get("decision") != "REJECTED"):
+                raise ConversationUnavailable("controller authorization hold evidence is invalid")
+            return {"status": "controller_hold", "request_id": str(request_id),
+                "verification_id": verification_id,
+                "controller_validation": validation}
         if not isinstance(persisted, dict) or persisted.get("verification_id") != verification_id:
             raise ConversationUnavailable("governed rework decision was not durably recorded")
         if proposal_origin:

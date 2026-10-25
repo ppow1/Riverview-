@@ -1,6 +1,6 @@
 # Grace Operational Integration
 
-**Document Revision:** 1.0.69
+**Document Revision:** 1.0.70
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Show lifecycle criteria separately, prioritize ready work, and gate conversation-origin completion on Grace review.
 Changed: 2026-10-20 UTC | RV-C4-GRACE-REASONING-INTEGRATION-20261020 | Combine active Dashboard intake behavior with grounded reasoning retry correction.
 Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Preserve production behavior while integrating the authenticated bounded re-review caller.
@@ -153,6 +153,7 @@ flowchart LR
     g_rv_grace_operational_integration_rework_worker_cycle_8998f04d["The existing assignment lease and worker cycle executes the same assignment under its new fenced generation and records a distinct attempt before verification"]
     g_rv_grace_operational_integration_rework_attempt_verification_ba069bce["Independently verify the new successful attempt only once; preserve prior artifacts and rejection records; latest rejection becomes the next decision target"]
     g_rv_grace_operational_integration_rework_steward_direction_b806bf42[["A bounded STEWARD_AUTHORIZATION_REQUIRED decision keeps work incomplete and records the precise decision boundary"]]
+    g_rv_grace_operational_integration_rework_controller_authorization_check_d989c732["Execution controller checks the exact active Luna grant and correlated request/evaluation ledger before retaining a Steward-authorization hold; failed attempts remain distinct from a recorded grade and verifier rejection remains unchanged"]
     g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0["Authenticated conversation-scoped dashboard projection shows durable receipt, objective/assignment stage, latest event, verifier/rework state and Steward action without transcript bodies"]
     g_rv_grace_operational_integration_verified_result_rereview_request_86251ab8["Append a bounded evidence revision for a verified-result review; exact objective.submit authority, globally unique per-generation idempotency and due-before-batch selection apply, with no automatic dispatch"]
     g_rv_grace_operational_integration_rework_retry_escalation_ac60a32c{"If fewer than three scoped correction proposals exist and the authorized review provider is available, continue rejection review; otherwise persist escalation pending without dispatch or assignment mutation."}
@@ -263,7 +264,9 @@ flowchart LR
   g_rv_grace_operational_integration_latest_verifier_rejection_ca00fc0d -->|The existing owner-session cycle resolves the latest rejection in the originating objective context| g_rv_grace_operational_integration_grace_rejection_review_9f70861f
   g_rv_grace_operational_integration_grace_rejection_review_9f70861f -->|verification: Grace records OBJECTIVE_SATISFIED; no worker retry occurs, and only independent same-attempt verifier recheck may complete it| g_rv_grace_operational_integration_grace_satisfied_verifier_recheck_a1e20956
   g_rv_grace_operational_integration_grace_rejection_review_9f70861f -->|Only Grace's explicit bounded REWORK_PROPOSED decision plus the existing exact assignment.create grant requeues the same assignment| g_rv_grace_operational_integration_same_assignment_governed_rework_9ebc8fcf
-  g_rv_grace_operational_integration_grace_rejection_review_9f70861f -->|escalation: Grace's explicit STEWARD_AUTHORIZATION_REQUIRED decision preserves the verifier rejection and stops automatic execution| g_rv_grace_operational_integration_rework_steward_direction_b806bf42
+  g_rv_grace_operational_integration_grace_rejection_review_9f70861f -->|escalation: A model STEWARD_AUTHORIZATION_REQUIRED decision is sent to deterministic controller validation before it can be accepted or surfaced as an authoritative hold| g_rv_grace_operational_integration_rework_steward_direction_b806bf42
+  g_rv_grace_operational_integration_rework_steward_direction_b806bf42 -->|diagnostic_branch: Resolve the exact grant and request/evaluation state from authoritative registries before accepting the reviewer's blocker| g_rv_grace_operational_integration_rework_controller_authorization_check_d989c732
+  g_rv_grace_operational_integration_rework_controller_authorization_check_d989c732 -->|Append correlated controller evidence and expose the exact hold while leaving rejected work incomplete| g_rv_grace_operational_integration_conversation_engineering_progress_eaa2fbc0
   g_rv_grace_operational_integration_same_assignment_governed_rework_9ebc8fcf -->|recovery_route: Normal worker leasing claims the same assignment under a new fenced generation| g_rv_grace_operational_integration_rework_worker_cycle_8998f04d
   g_rv_grace_operational_integration_rework_worker_cycle_8998f04d -->|After a distinct successful attempt is recorded, existing verifier processing independently evaluates it| g_rv_grace_operational_integration_rework_attempt_verification_ba069bce
   g_rv_grace_operational_integration_rework_attempt_verification_ba069bce -->|diagnostic_branch: A new REJECTED result becomes the latest decision target without rewriting prior history| g_rv_grace_operational_integration_latest_verifier_rejection_ca00fc0d

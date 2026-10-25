@@ -1,7 +1,8 @@
 # Riverview~ controlled test
 # File: tests/test_grace_conversation_result.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.17
+# Revision: 1.0.18
+# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Prove a controller authorization hold is not published as authoritative Grace conversation output.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Verify precise safe scope-failure diagnostics and clarify verifier keys cannot authorize rework.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Assert strict structured-output request and supplied-authority clarification for final reviews.
 # Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Test sanitized review parse metadata and one-shot private response capture
@@ -483,6 +484,32 @@ class GraceConversationResultTests(unittest.TestCase):
         self.assertEqual(repeated["status"], "already_published")
         self.assertEqual(len(self.router.calls), 1)
         self.assertEqual(len(self.rework_decisions), 1)
+
+    def test_controller_authorization_hold_is_not_published_as_model_authority(self):
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s3", "step_objective": "Issue one Luna advisory",
+            "step_acceptance_criteria": ["Exactly one authorized GPT-6 Luna advisory escalation is issued"],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"acceptance_criteria_are_present": False},
+                "summary": "The execution evidence did not meet the persisted criterion."}})
+        self.router.content = json.dumps({"decision": "STEWARD_AUTHORIZATION_REQUIRED",
+            "rationale": "The reviewer claims authorization is absent.",
+            "correction_instruction": None, "criteria_to_address": []})
+        self.service.rework_handler = lambda _context, _decision: {
+            "verification_id": context["completion"]["verification_id"],
+            "decision": "CONTROLLER_HOLD", "controller_hold": True,
+            "controller_validation": {"verification": {"decision": "REJECTED"},
+                "validation_outcome": "reviewer_authorization_stop_rejected_active_exact_grant"}}
+
+        result = self.service.review_rejected_work_order(context)
+
+        self.assertEqual(result["status"], "controller_hold")
+        self.assertEqual(result["controller_validation"]["validation_outcome"],
+            "reviewer_authorization_stop_rejected_active_exact_grant")
+        self.assertEqual(self.store.responses, {})
+        self.assertEqual(self.router.calls[0][3], "grace.reasoning.80b")
 
     def test_proposal_origin_rework_records_durable_receipt_without_fabricating_conversation(self):
         from uuid import NAMESPACE_URL, uuid5

@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED TEST SOURCE
 # File: tests/test_supervisory_evaluation_unit.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.7
+# Revision: 1.0.8
+# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Prove persisted reviewer authorization stops are controller-checked and logged without another 80B call.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Confirm fixed scope-validation codes are operator-visible without model text.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Verify an active pipeline keeps its startup release identity after runtime pointer changes.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-REVIEW-DIAGNOSTICS-20261024 | Assert safe reviewer failure detail is correlated and private text is excluded.
@@ -94,6 +95,52 @@ class SupervisoryEvaluationUnitTests(unittest.TestCase):
             "Grace rework decision exceeded the original assignment scope: criteria_to_address_out_of_scope")),
             "Grace rework decision exceeded the original assignment scope: criteria_to_address_out_of_scope")
         self.assertIsNone(_safe_rework_review_failure_detail(RuntimeError("private text")))
+
+    def test_persisted_authorization_stop_is_controller_checked_without_80b_call(self):
+        objective_id = "objective:test:controller-preflight"
+        assignment_id = "assignment:test:controller-preflight"
+        context = {"objective_id": objective_id, "assignment_id": assignment_id,
+            "origin": None, "prior_review_decision": {
+                "decision": "STEWARD_AUTHORIZATION_REQUIRED",
+                "rationale": "Reviewer claimed authorization was missing.",
+                "review_generation": 2}, "completion": {
+                "verification_id": "verification-test"}, "rework_attempt_count": 0}
+        validation = {"objective_id": objective_id, "assignment_id": assignment_id,
+            "reviewer_decision": context["prior_review_decision"],
+            "authorization_lookup": {"active": True,
+                "action": "resident.reasoning.escalate",
+                "scope_ref": "provider:gpt-6-luna", "grant_id": "grant:test"},
+            "request_history": [{"request_id": "request-failed",
+                "request_type": "performance_evaluation", "provider_attempt_count": 1,
+                "http_status": "400", "provider_error_param": "input"}],
+            "performance_evaluation_events": {"evaluation_recorded": 0,
+                "feedback_consumed": 0},
+            "validation_outcome": "reviewer_authorization_stop_rejected_active_exact_grant",
+            "next_action": "retain_rework_required_without_80b_or_luna_retry",
+            "reason": "Grant is active; evaluation failed and is not a grade.",
+            "verification": {"decision": "REJECTED"}}
+        calls = []
+        pipeline = SimpleNamespace(MAX_GOVERNED_REWORK_ATTEMPTS=3,
+            pending_rejected_work_order_reviews=lambda **_kwargs: [context],
+            record_rework_controller_validation=lambda ctx, decision: validation)
+        service = object.__new__(GraceExecutionService)
+        service.pipeline = pipeline
+        service.dispatch_credential = "synthetic"
+        service.verifiers = {}
+        service.rejected_work_order_publisher = lambda ctx: calls.append(ctx)
+
+        with self.assertLogs("riverview.grace_execution", level="WARNING") as captured:
+            self.assertEqual(service.publish_rejected_work_order_reviews(), 0)
+
+        self.assertEqual(calls, [])
+        record = json.loads(captured.output[0][captured.output[0].find("{"):])
+        self.assertEqual(record["objective_id"], objective_id)
+        self.assertEqual(record["assignment_id"], assignment_id)
+        self.assertTrue(record["authorization_lookup"]["active"])
+        self.assertEqual(record["request_history"][0]["http_status"], "400")
+        self.assertEqual(record["validation_outcome"],
+            "reviewer_authorization_stop_rejected_active_exact_grant")
+        self.assertIn("not a grade", record["reason"])
 
     def test_cme_diagnostic_attempts_have_distinct_escalation_identities(self):
         event_id = "c7558b01-8004-4a44-8344-4bf0fe0ae27e"

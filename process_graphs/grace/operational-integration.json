@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:grace:operational-integration",
-  "graph_revision": "1.0.68",
+  "graph_revision": "1.0.69",
   "component_id": "RESIDENT-ORCHESTRATION",
   "workflow_id": "grace-engineering-objective.v1",
   "diagram_order": 9,
@@ -1347,6 +1347,26 @@
       ]
     },
     {
+      "id": "rv:grace:operational-integration:rework-controller-authorization-check",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Execution controller checks the exact active Luna grant and correlated request/evaluation ledger before retaining a Steward-authorization hold; failed attempts remain distinct from a recorded grade and verifier rejection remains unchanged",
+      "source_references": [
+        "src/riverview_core/resident_execution/pipeline.py",
+        "src/riverview_core/resident_execution/service.py",
+        "src/riverview_core/resident_execution/conversation.py"
+      ],
+      "documentation_references": [
+        "docs/components/GRACE_EXECUTION_PIPELINE.md",
+        "docs/components/GRACE_EXECUTION_COOKBOOK.md"
+      ],
+      "verification_evidence": [
+        "tests/test_grace_execution.py",
+        "tests/test_grace_conversation_result.py",
+        "tests/test_supervisory_evaluation_unit.py"
+      ]
+    },
+    {
       "id": "rv:grace:operational-integration:conversation-engineering-progress",
       "node_revision": "1.0.0",
       "type": "process",
@@ -2005,7 +2025,19 @@
       "from": "rv:grace:operational-integration:grace-rejection-review",
       "to": "rv:grace:operational-integration:rework-steward-direction",
       "type": "escalation",
-      "label": "Grace's explicit STEWARD_AUTHORIZATION_REQUIRED decision preserves the verifier rejection and stops automatic execution"
+      "label": "A model STEWARD_AUTHORIZATION_REQUIRED decision is sent to deterministic controller validation before it can be accepted or surfaced as an authoritative hold"
+    },
+    {
+      "from": "rv:grace:operational-integration:rework-steward-direction",
+      "to": "rv:grace:operational-integration:rework-controller-authorization-check",
+      "type": "diagnostic_branch",
+      "label": "Resolve the exact grant and request/evaluation state from authoritative registries before accepting the reviewer's blocker"
+    },
+    {
+      "from": "rv:grace:operational-integration:rework-controller-authorization-check",
+      "to": "rv:grace:operational-integration:conversation-engineering-progress",
+      "type": "runtime_transition",
+      "label": "Append correlated controller evidence and expose the exact hold while leaving rejected work incomplete"
     },
     {
       "from": "rv:grace:operational-integration:same-assignment-governed-rework",

@@ -1,0 +1,834 @@
+# Riverview~ controlled test
+# File: tests/test_grace_conversation_result.py
+# Component: RESIDENT-CONVERSATION
+# Revision: 1.0.17
+# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Verify precise safe scope-failure diagnostics and clarify verifier keys cannot authorize rework.
+# Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Assert strict structured-output request and supplied-authority clarification for final reviews.
+# Changed: 2026-10-21 UTC | RV-GRACE-VERIFIED-REVIEW-DIAGNOSTICS-001 | Test sanitized review parse metadata and one-shot private response capture
+# Changed: 2026-10-20 UTC | RV-GRACE-DYNAMIC-ARTIFACT-CONTRACT-001 | Cover dynamic assignment artifacts, multi-file persistence, and independent contract verification
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Integrate PostgreSQL qualification and active production regression coverage.
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-ACTIVE-LINE-INTEGRATION-001 | Verify generation-two evidence preserves the active digest-checked artifact-review contract.
+# Changed: 2026-10-19 UTC | RV-C4-GRACE-RESULT-RETURN-DIAGNOSTICS | Verify safe structured-review diagnostics reveal shape only and never generated text
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-RESULT-RECEIPT-001 | Cover publisher receipts without cycle metadata and fail-closed mismatches
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Verify both accepted and rejected review paths provide the actual digest-checked artifact to Grace.
+# Changed: 2026-10-19 UTC | RV-C1-GRACE-REJECTION-ROLE-CLARIFICATION | Prove Grace sees the digest-verified artifact and may decide substantive satisfaction without scheduling rework; reject forged review material before inference.
+# Purpose: Verify 80B result review is authorized, bounded and idempotently linked to chat
+# Changed: 2026-10-19 UTC | RV-GRACE-REREVIEW-PG-QUALIFICATION | Assert expanded typed review never invokes continuation handler
+# Changed: 2026-10-19 UTC | RV-GRACE-REVIEW-GENERATIONS-001 | Cover bounded evidence revision generations and per-generation idempotency
+# Changed: 2026-10-16 UTC | RV-GRACE-STRUCTURED-REVIEW-001 | Cover typed completion decisions and same-scope continuation handoff
+# Changed: 2026-10-16 UTC | RV-GRACE-RESULT-RETURN-DIAGNOSTICS-001 | Verify deferred result-review diagnostics are bounded and content-free
+# Changed: 2026-10-19 UTC | RV-GRACE-GOVERNED-REWORK-001 | Verify bounded 80B rejection decisions, scope rejection and idempotent source-conversation return
+# Execution Model: Deterministic in-memory adapters; no database or inference endpoint
+# Observability: Assert source identity, provider provenance and single durable response
+# Authority: Fakes exact-grant decisions; live authority remains PostgreSQL enforced
+"""Isolated tests for Grace's verified Engineering result return path."""
+
+import unittest
+import json
+import hashlib
+import os
+import stat
+import tempfile
+import time
+from contextlib import nullcontext
+import hashlib
+import json
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from riverview_core.resident_execution.conversation import ResidentConversationService
+from riverview_core.resident_execution.conversation import ConversationUnavailable
+from riverview_core.resident_execution.model_router import GraceModelRouter
+from riverview_core.resident_execution.model_router import ReasoningDeferred
+from riverview_core.resident_execution.service import GraceExecutionService
+
+
+class FakeStore:
+    def __init__(self):
+        self.responses = {}
+
+    def has_assistant_response(self, request_id):
+        return str(request_id) in self.responses
+
+    def assistant_response_receipt(self, request_id):
+        row = self.responses.get(str(request_id))
+        return row.get("receipt") if row else None
+
+    def finish_work_order_review(self, conversation_id, request_id, **fields):
+        key = str(request_id)
+        if key in self.responses:
+            return False
+        self.responses[key] = {"conversation_id": conversation_id, **fields,
+            "receipt": {"provider_id": fields["metadata"]["final_served_provider"],
+                "served_model": fields["model_id"],
+                "implementation_id": fields["implementation"]["implementation_id"],
+                "completion_cycle": fields["metadata"]["completion_cycle"],
+                "review_generation": fields["metadata"].get("review_generation", "1"),
+                "review_evidence_revision": fields["metadata"].get(
+                    "review_evidence_revision", ""),
+                "review_evidence_sha256": fields["metadata"].get(
+                    "review_evidence_sha256", ""),
+                "review_decision": fields["metadata"].get("review_decision")}}
+        return True
+
+
+class FakeRegistry:
+    def __init__(self, binding):
+        self.binding = binding
+
+    def authorize_office_state(self, _credential, _office_id):
+        return dict(self.binding)
+
+
+class FakeRouter:
+    provider_id = GraceModelRouter.provider_id
+    model = "grace-readiness-router"
+    model_sha256 = "r" * 64
+
+    def __init__(self):
+        self.calls = []
+        self.on_complete = None
+        self.failure = None
+
+    def supports_capability(self, capability):
+        return capability == "grace.reasoning.80b"
+
+    def complete_chat(self, messages, *, max_tokens, expected_revision, required_capability,
+                      response_schema=None):
+        self.calls.append((messages, max_tokens, expected_revision, required_capability,
+                           response_schema))
+        if self.failure is not None:
+            raise self.failure
+        if self.on_complete is not None:
+            self.on_complete()
+        return SimpleNamespace(content=getattr(self, "content", json_complete()),
+            served_model="Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+            reasoning_stage="reasoning", finish_reason="stop", completion_tokens=41,
+            provider_attempts=(),
+            provider_id="local.inference.v1")
+
+
+def valid_context():
+    return {"objective_id":"objective:grace-conversation:demo",
+        "assignment_id":"assignment:grace:demo",
+        "request":"Create a short engineering report.",
+        "acceptance_criteria":["The report is readable."],
+        "proposal":{"summary":"Create report", "steps":[]},
+        "submitter_id":"steward:test",
+        "origin":{"conversation_id":"12345678-1234-5678-1234-567812345678",
+            "source_sequence":1},
+        "completion_cycle":1,
+        "completion":{"decision":"ACCEPTED", "assignment_id":"assignment:grace:demo",
+            "verifier_revision":"1.0.0", "evidence_references":["urn:test:verified"],
+            "artifact":{"artifact_path":"/approved/work/report.md",
+                "artifact_sha256":"a" * 64}}}
+
+
+class GraceConversationResultTests(unittest.TestCase):
+    def setUp(self):
+        self.store = FakeStore()
+        self.router = FakeRouter()
+        self.service = object.__new__(ResidentConversationService)
+        self.service.store = self.store
+        self.service.registry = FakeRegistry({"binding_revision":9,
+            "implementation_kind":"model", "implementation_id":"implementation:router",
+            "implementation_revision":self.router.model_sha256,
+            "provider_ref":self.router.provider_id, "occupant_id":"occupant:grace"})
+        self.service.office_id = "office:grace"
+        self.service._resident_credential = "resident-credential"
+        self.service.providers = {self.router.provider_id:self.router}
+        self.service.max_response_tokens = 128
+        self.service.continuation_handler = None
+        self.rework_decisions = []
+        self.service.rework_handler = lambda context, decision: self.rework_decisions.append(
+            (context, decision)) or {"verification_id": context["completion"]["verification_id"]}
+        self.actions = []
+        self.service._authorize = lambda credential, action: self.actions.append((credential, action))
+        self.service._registry_lock = __import__("threading").RLock()
+
+    def test_verified_result_uses_80b_and_persists_once_to_original_conversation(self):
+        context = valid_context()
+        result = self.service.review_verified_work_order(context)
+        self.assertEqual(result["status"], "published")
+        self.assertEqual(result["served_model"], "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf")
+        self.assertEqual(self.actions, [("resident-credential", "resident.conversation.send")])
+        self.assertEqual(self.router.calls[0][3], "grace.reasoning.80b")
+        self.assertEqual(self.router.calls[0][4]["required"], ["decision", "rationale",
+            "additional_evidence", "proposed_step"])
+        review_instructions = self.router.calls[0][0][0]["content"]
+        self.assertIn("already authenticated this review request", review_instructions)
+        self.assertIn("preserve every decision/authorization boundary", review_instructions)
+        request_id = result["request_id"]
+        row = self.store.responses[request_id]
+        self.assertEqual(row["conversation_id"], context["origin"]["conversation_id"])
+        self.assertEqual(row["source_sequence"], context["origin"]["source_sequence"])
+        self.assertEqual(row["principal_id"], context["submitter_id"])
+        self.assertEqual(row["metadata"]["verification_decision"], "ACCEPTED")
+        self.assertEqual(row["metadata"]["artifact"], {
+            "artifact_sha256": context["completion"]["artifact"]["artifact_sha256"]})
+        repeated = self.service.review_verified_work_order(context)
+        self.assertEqual(repeated["status"], "already_published")
+        self.assertEqual(repeated["review_decision"], row["metadata"]["review_decision"])
+        self.assertEqual(len(self.router.calls), 1)
+        self.assertEqual(len(self.store.responses), 1)
+
+    def test_verified_codex_result_gives_digest_checked_artifact_to_grace(self):
+        body = "# Review\n\nThe implementation is present; production activation was not tested.\n"
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        artifact_name = "codex-" + "e" * 64 + "-" + "f" * 12
+        contract = [{"name": "review", "path": "reports/review.txt", "media_type": "text/plain",
+            "acceptance_criteria": ["Review the assigned evidence."], "max_bytes": 32768}]
+        entry = {"name": "review", "path": "reports/review.txt", "media_type": "text/plain",
+            "storage_name": artifact_name, "sha256": digest, "bytes": len(body.encode("utf-8")),
+            "acceptance_criteria": contract[0]["acceptance_criteria"]}
+        context = valid_context()
+        context["completion"]["artifact"] = {"status": "SUCCEEDED",
+            "artifact_schema": "rv.codex-cli.artifacts.v3",
+            "capability": "engineering.codex-cli-artifact.v1",
+            "assignment_id": context["assignment_id"], "source_artifact_name": "reports/review.txt",
+            "changed_files": ["reports/review.txt"], "artifact_name": artifact_name,
+            "artifact_bytes": len(body.encode("utf-8")), "artifact_sha256": digest,
+            "artifacts": [entry], "artifact_contract": contract}
+        context["artifact_review"] = {"artifacts": [{**entry, "body": body}]}
+        review_evidence = ["A newly verified evidence reference was added."]
+        evidence_revision = "steward-evidence-revision-2"
+        evidence_sha256 = hashlib.sha256(json.dumps({"evidence_revision":evidence_revision,
+            "evidence":review_evidence}, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":")).encode()).hexdigest()
+        context.update({"review_generation":2,
+            "review_evidence_revision":evidence_revision,
+            "review_evidence":review_evidence,
+            "review_evidence_sha256":evidence_sha256})
+
+        result = self.service.review_verified_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        self.assertEqual(result["review_generation"], "2")
+        payload = json.loads(self.router.calls[0][0][1]["content"])
+        evidence = payload["verified_work_order_result"]
+        self.assertEqual(evidence["artifact_for_grace_review"]["artifacts"][0]["body"], body)
+        self.assertEqual(evidence["artifact_for_grace_review"]["artifacts"][0]["sha256"], digest)
+
+    def test_verified_codex_result_accepts_unavailable_review_without_trusting_artifact_text(self):
+        context = valid_context()
+        context["completion"]["artifact"].update({
+            "capability": "engineering.codex-cli-artifact.v1",
+            "artifact_name": "codex-" + "e" * 64 + ".md",
+            "artifact_bytes": 128,
+            "changed_files": ["report.md"],
+            "repository_revision": "a" * 40})
+        context["artifact_review_unavailable"] = "integrity_check_failed"
+
+        result = self.service.review_verified_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        payload = json.loads(self.router.calls[0][0][1]["content"])
+        evidence = payload["verified_work_order_result"]
+        self.assertEqual(evidence["artifact_review_unavailable"], "integrity_check_failed")
+        self.assertNotIn("artifact_for_grace_review", evidence)
+        self.assertNotIn("artifact_path", evidence["artifact"])
+
+    def test_verified_result_rejects_unknown_artifact_review_status(self):
+        context = valid_context()
+        context["artifact_review_unavailable"] = "provider_credentials_missing"
+        with self.assertRaises(ValueError):
+            self.service.review_verified_work_order(context)
+        self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.store.responses, {})
+
+    def test_unverified_or_wrong_scope_result_never_reaches_provider(self):
+        context = valid_context()
+        context["completion"]["decision"] = "REJECTED"
+        with self.assertRaises(ValueError):
+            self.service.review_verified_work_order(context)
+        self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.store.responses, {})
+
+    def test_deferred_result_review_logs_only_sanitized_provider_attempt_metadata(self):
+        self.router.failure = ReasoningDeferred("UNAVAILABLE", attempts=({
+            "selected_provider": "local.inference.v1",
+            "selected_model": "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+            "reasoning_stage": "reasoning", "outcome": "failed",
+            "error_code": "response_incomplete", "finish_reason": "length",
+            "completion_tokens": 128, "completion_token_limit": 128,
+            "prompt": "PRIVATE-PROMPT", "response": "PRIVATE-COMPLETION",
+            "credential": "PRIVATE-CREDENTIAL"},))
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            with self.assertRaises(ReasoningDeferred):
+                self.service.review_verified_work_order(valid_context())
+        diagnostic = "\n".join(captured.output)
+        self.assertIn('"event": "grace_result_review_deferred"', diagnostic)
+        self.assertIn('"readiness_state": "UNAVAILABLE"', diagnostic)
+        self.assertIn('"error_code": "response_incomplete"', diagnostic)
+        self.assertIn('"finish_reason": "length"', diagnostic)
+        self.assertIn('"completion_tokens": 128', diagnostic)
+        self.assertNotIn("PRIVATE-PROMPT", diagnostic)
+        self.assertNotIn("PRIVATE-COMPLETION", diagnostic)
+        self.assertNotIn("PRIVATE-CREDENTIAL", diagnostic)
+        self.assertEqual(self.store.responses, {})
+
+    def test_invalid_verified_result_review_logs_shape_without_generated_text(self):
+        from riverview_core.resident_execution.conversation import ConversationUnavailable
+        self.router.content = json.dumps({"decision": "OBJECTIVE_COMPLETE",
+            "rationale": "PRIVATE-GENERATED-RATIONALE", "additional_evidence": [],
+            "proposed_step": None, "unexpected": "PRIVATE-EXTRA"})
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            with self.assertRaises(ConversationUnavailable):
+                self.service.review_verified_work_order(valid_context())
+        self.assertIn('"failure_stage": "decision_shape"', captured.output[0])
+        self.assertIn('"unexpected_field_count": 1', captured.output[0])
+        self.assertNotIn("PRIVATE-GENERATED-RATIONALE", captured.output[0])
+        self.assertNotIn("PRIVATE-EXTRA", captured.output[0])
+
+    def test_invalid_json_review_logs_correlated_parse_metadata_without_response_text(self):
+        from riverview_core.resident_execution.conversation import ConversationUnavailable
+        private_response = '{"decision": OBJECTIVE_COMPLETE, private text'
+        self.router.content = private_response
+        with self.assertLogs("riverview_core.resident_execution.conversation",
+                             level="WARNING") as captured:
+            with self.assertRaises(ConversationUnavailable):
+                self.service.review_verified_work_order(valid_context())
+        diagnostic = captured.output[0]
+        self.assertIn('"request_id":', diagnostic)
+        self.assertIn('"failure_stage": "json_parse"', diagnostic)
+        self.assertIn('"json_error_message": "Expecting value"', diagnostic)
+        self.assertIn('"json_error_position": 13', diagnostic)
+        self.assertIn(f'"response_byte_length": {len(private_response.encode("utf-8"))}',
+                      diagnostic)
+        self.assertIn('"finish_reason": "stop"', diagnostic)
+        self.assertIn('"completion_tokens": 41', diagnostic)
+        self.assertIn('"response_begins_with_json_object": true', diagnostic)
+        self.assertNotIn(private_response, diagnostic)
+        self.assertEqual(self.store.responses, {})
+
+    def test_targeted_review_capture_is_private_single_use_and_expiring(self):
+        from riverview_core.resident_execution import conversation
+        response = '{"decision": OBJECTIVE_COMPLETE, restricted response}'
+        with tempfile.TemporaryDirectory() as directory:
+            os.chmod(directory, 0o700)
+            expires_at = int(time.time()) + 300
+            environment = {
+                "RIVERVIEW_GRACE_REVIEW_CAPTURE_OBJECTIVE_ID": "objective:grace-conversation:demo",
+                "RIVERVIEW_GRACE_REVIEW_CAPTURE_EXPIRES_AT": str(expires_at)}
+            with patch.object(conversation, "_REVIEW_CAPTURE_RUNTIME_DIR", directory), \
+                    patch.object(conversation.threading, "Timer") as timer, \
+                    (patch.object(conversation.os, "stat", return_value=SimpleNamespace(
+                        st_mode=stat.S_IFDIR | 0o700, st_uid=1))
+                     if os.name == "nt" else nullcontext()):
+                captured = conversation._capture_verified_result_review_response(
+                    "objective:grace-conversation:demo", "request-demo", response,
+                    environ=environment)
+                capture = os.path.join(directory, "verified-review-request-demo.response")
+                marker = os.path.join(directory, "verified-review-request-demo.captured")
+                self.assertTrue(captured)
+                with open(capture, "rb") as stream:
+                    self.assertEqual(stream.read(), response.encode("utf-8"))
+                self.assertTrue(os.path.exists(marker))
+                timer.return_value.start.assert_called_once_with()
+                self.assertGreater(timer.call_args.args[0], 298)
+                self.assertLessEqual(timer.call_args.args[0], 300)
+                self.assertFalse(conversation._capture_verified_result_review_response(
+                    "objective:grace-conversation:demo", "request-demo", response,
+                    environ=environment))
+                self.assertFalse(conversation._capture_verified_result_review_response(
+                    "objective:grace-conversation:other", "request-other", response,
+                    environ=environment))
+                self.assertFalse(conversation._capture_verified_result_review_response(
+                    "objective:grace-conversation:demo", "request-expired", response,
+                    environ={**environment,
+                        "RIVERVIEW_GRACE_REVIEW_CAPTURE_EXPIRES_AT": str(int(time.time()) - 1)}))
+                if os.name == "posix":
+                    self.assertEqual(stat.S_IMODE(os.stat(capture).st_mode), 0o600)
+                timer.call_args.args[1]()
+                self.assertFalse(os.path.exists(capture))
+                self.assertFalse(os.path.exists(marker))
+
+    def test_smaller_direct_model_cannot_review_substantive_result(self):
+        small = SimpleNamespace(model="qwen3-0.6b", model_sha256="r" * 64)
+        self.service.providers = {self.router.provider_id:small}
+        with self.assertRaisesRegex(ConversationUnavailable, "80B result review capability unavailable"):
+            self.service.review_verified_work_order(valid_context())
+        self.assertEqual(self.store.responses, {})
+
+    def test_structured_in_scope_continuation_is_sent_to_existing_pipeline_handler(self):
+        import json
+        self.router.content = json.dumps({"decision":"ENGINEERING_STEP_PROPOSED",
+            "rationale":"A bounded follow-up improves the accepted deliverable.",
+            "additional_evidence":[], "proposed_step":{"step_id":"followup",
+                "objective":"Refine the accepted report", "acceptance_criteria":[
+                    "The report is readable."], "depends_on":[]}})
+        handled = []
+        self.service.continuation_handler = lambda context, step: handled.append(
+            (context["objective_id"], step.step_id, step.acceptance_criteria))
+        result = self.service.review_verified_work_order(valid_context())
+        self.assertEqual(handled, [("objective:grace-conversation:demo", "followup",
+                                    ("The report is readable.",))])
+        row = self.store.responses[result["request_id"]]
+        self.assertEqual(row["metadata"]["review_decision"], "ENGINEERING_STEP_PROPOSED")
+        self.assertEqual(row["metadata"]["continuation_status"],
+                         "persisted_for_existing_authorized_dispatch")
+
+    def test_out_of_scope_continuation_becomes_steward_authorization_decision(self):
+        import json
+        self.router.content = json.dumps({"decision":"ENGINEERING_STEP_PROPOSED",
+            "rationale":"I want to add a new requirement.", "additional_evidence":[],
+            "proposed_step":{"step_id":"expanded", "objective":"Expand scope",
+                "acceptance_criteria":["Create an unrelated application"], "depends_on":[]}})
+        handled = []
+        self.service.continuation_handler = lambda *_args: handled.append(True)
+        result = self.service.review_verified_work_order(valid_context())
+        self.assertEqual(handled, [])
+        row = self.store.responses[result["request_id"]]
+        self.assertEqual(row["metadata"]["review_decision"], "STEWARD_AUTHORIZATION_REQUIRED")
+        self.assertEqual(result["review_decision"], "STEWARD_AUTHORIZATION_REQUIRED")
+        self.assertIsNone(row["metadata"]["proposed_step"])
+        self.assertEqual(row["metadata"]["continuation_status"], "not_requested")
+
+    def test_new_evidence_revision_gets_one_bounded_durable_review_generation(self):
+        import json
+        self.router.content = json.dumps({"decision":"ADDITIONAL_EVIDENCE_REQUIRED",
+            "rationale":"More evidence is still required.",
+            "additional_evidence":["A second independent source."], "proposed_step":None})
+        context = valid_context()
+        context.update({"review_generation":2,
+            "review_evidence_revision":"steward-evidence-rev-1",
+            "review_evidence":["Read-only historical assignment aggregates were shared."],
+            "review_evidence_sha256":hashlib.sha256(json.dumps({
+                "evidence_revision":"steward-evidence-rev-1",
+                "evidence":["Read-only historical assignment aggregates were shared."]},
+                ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()})
+        first = self.service.review_verified_work_order(context)
+        self.assertEqual(first["status"], "published")
+        self.assertEqual(first["review_generation"], "2")
+        self.assertNotEqual(first["request_id"], str(__import__("uuid").uuid5(
+            __import__("uuid").NAMESPACE_URL,
+            "riverview:grace-engineering-review:" + context["objective_id"] + ":1")))
+        request_messages = self.router.calls[0][0][1]["content"]
+        self.assertIn("steward-evidence-rev-1", request_messages)
+        self.assertIn("Read-only historical assignment aggregates were shared.", request_messages)
+        self.assertEqual(self.store.responses[first["request_id"]]["metadata"]["review_decision"],
+                         "ADDITIONAL_EVIDENCE_REQUIRED")
+        self.assertEqual(len(self.store.responses), 1)
+
+        repeated = self.service.review_verified_work_order(context)
+        self.assertEqual(repeated["status"], "already_published")
+        self.assertEqual(repeated["request_id"], first["request_id"])
+        self.assertEqual(len(self.router.calls), 1)
+        self.assertEqual(len(self.store.responses), 1)
+
+        changed_same_generation = dict(context)
+        changed_same_generation["review_evidence"] = ["Different evidence in same generation."]
+        changed_same_generation["review_evidence_sha256"] = hashlib.sha256(json.dumps({
+            "evidence_revision":"steward-evidence-rev-1",
+            "evidence":changed_same_generation["review_evidence"]}, ensure_ascii=False,
+            sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        with self.assertRaisesRegex(ConversationUnavailable, "already used"):
+            self.service.review_verified_work_order(changed_same_generation)
+        self.assertEqual(len(self.router.calls), 1)
+
+    def test_re_review_requires_durable_revision_and_generation_is_bounded(self):
+        context = valid_context()
+        context["review_generation"] = 2
+        with self.assertRaisesRegex(ValueError, "evidence revision"):
+            self.service.review_verified_work_order(context)
+        context.update({"review_evidence_revision":"rev-1",
+            "review_evidence":["Additional sourced evidence."],
+            "review_evidence_sha256":"f" * 64})
+        with self.assertRaisesRegex(ValueError, "digest"):
+            self.service.review_verified_work_order(context)
+        context["review_generation"] = 5
+        with self.assertRaisesRegex(ValueError, "generation"):
+            self.service.review_verified_work_order(context)
+        self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.store.responses, {})
+
+    def test_binding_change_during_reasoning_blocks_continuation_mutation(self):
+        import json
+        self.router.content = json.dumps({"decision":"ENGINEERING_STEP_PROPOSED",
+            "rationale":"A bounded follow-up is useful.", "additional_evidence":[],
+            "proposed_step":{"step_id":"followup", "objective":"Refine accepted report",
+                "acceptance_criteria":["The report is readable."], "depends_on":[]}})
+        handled = []
+        self.service.continuation_handler = lambda *_args: handled.append(True)
+        self.router.on_complete = lambda: self.service.registry.binding.update(binding_revision=10)
+        with self.assertRaisesRegex(ConversationUnavailable, "binding changed"):
+            self.service.review_verified_work_order(valid_context())
+        self.assertEqual(handled, [])
+        self.assertEqual(self.store.responses, {})
+
+    def test_rejected_result_uses_80b_and_returns_governed_rework_to_original_conversation_once(self):
+        context = {key: value for key, value in valid_context().items() if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Create deliverable",
+            "step_acceptance_criteria": ["criterion one", "criterion two"],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"acceptance_criteria_are_present": False},
+                "summary": "Required acceptance criteria were absent."}})
+        self.router.content = json.dumps({"decision": "REWORK_PROPOSED",
+            "rationale": "The artifact omitted both required criteria.",
+            "correction_instruction": "Include each selected criterion verbatim in the artifact.",
+            "criteria_to_address": ["criterion one", "criterion two"]})
+        result = self.service.review_rejected_work_order(context)
+        self.assertEqual(result["status"], "published")
+        self.assertEqual(self.router.calls[0][3], "grace.reasoning.80b")
+        self.assertEqual(len(self.rework_decisions), 1)
+        saved = next(iter(self.store.responses.values()))
+        self.assertEqual(saved["conversation_id"], context["origin"]["conversation_id"])
+        self.assertEqual(saved["source_sequence"], context["origin"]["source_sequence"])
+        self.assertEqual(saved["metadata"]["verification_decision"], "REJECTED")
+        self.assertEqual(saved["metadata"]["review_decision"], "REWORK_PROPOSED")
+        repeated = self.service.review_rejected_work_order(context)
+        self.assertEqual(repeated["status"], "already_published")
+        self.assertEqual(len(self.router.calls), 1)
+        self.assertEqual(len(self.rework_decisions), 1)
+
+    def test_proposal_origin_rework_records_durable_receipt_without_fabricating_conversation(self):
+        from uuid import NAMESPACE_URL, uuid5
+        proposal_id = "proposal:18ec0798-a441-494d-b45e-68cf99e72cd2"
+        revision = 2
+        objective_id = ("objective:proposal:" + str(uuid5(NAMESPACE_URL,
+            f"riverview:proposal-work-order:{proposal_id}:r{revision}")) + f":r{revision}")
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"objective_id": objective_id, "origin": None,
+            "proposal_reference": {"proposal_id": proposal_id, "revision": revision,
+                "content_sha256": "a" * 64, "approval_event_key": "proposal-approved:test",
+                "objective_submit_grant_id": "grant:test"},
+            "step_id": "s2", "step_objective": "Write the runtime diagnostic",
+            "rework_attempt_count": 0,
+            "review_generation": 2,
+            "current_authority_evidence": {"schema":"rv.grace-rework-authority-evidence.v1",
+                "read_only":True, "objective_id":objective_id,
+                "assignment_id":"assignment:grace:demo", "objective_status":"WORK_ORDER_CREATED",
+                "proposal_reference":{"proposal_id":proposal_id, "revision":2,
+                    "content_sha256":"a"*64, "approval_event_key":"proposal-approved:test",
+                    "objective_submit_grant_id":"grant:test"},
+                "objective_runtime_evidence":{"schema":"rv.grace-diagnostic-runtime-evidence.v1",
+                    "read_only":True, "objective":{"objective_id":objective_id,
+                        "status":"WORK_ORDER_CREATED", "revision":6,
+                        "event_counts":{"execution.reasoning_attempted":4,
+                            "work_order.proposed":1}, "external_exchange_count":0,
+                        "recent_events":[]}, "referenced_historical_objectives":[]},
+                "assignment_state":"rework_required", "assignment_scope":"work-order:engineering",
+                "work_order_dispatched":True, "assignment_create_grant":{"active":True,
+                    "action":"assignment.create", "scope_ref":"work-order:engineering",
+                    "principal_id":"steward:test", "grant_id":"grant:test"},
+                "same_assignment_rework":{"available":True,
+                    "assignment_id":"assignment:grace:demo", "prior_rework_attempts":0,
+                    "maximum_rework_attempts":3, "scope_changes":False,
+                    "independent_verification_required":True}},
+            "step_acceptance_criteria": ["Include authoritative runtime evidence."],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"runtime_evidence_present": False},
+                "summary": "Runtime evidence was absent."}})
+        recorded = []
+        self.service.proposal_rework_receipt_handler = lambda ctx, request_id: (
+            recorded.append((ctx["objective_id"], request_id)) or True)
+        self.router.content = json.dumps({"decision": "REWORK_PROPOSED",
+            "rationale": "The independent verifier correctly rejected missing runtime evidence.",
+            "correction_instruction": "Use the provided read-only authoritative event evidence.",
+            "criteria_to_address": ["Include authoritative runtime evidence."]})
+
+        result = self.service.review_rejected_work_order(context)
+
+        self.assertEqual(result["status"], "recorded")
+        self.assertEqual(result["verification_id"], context["completion"]["verification_id"])
+        self.assertEqual(recorded[0][0], objective_id)
+        expected_request = str(uuid5(NAMESPACE_URL,
+            "riverview:grace-rework-review:" + objective_id + ":assignment:grace:demo:" +
+            context["completion"]["verification_id"] + ":review:2"))
+        self.assertEqual(result["request_id"], expected_request)
+        self.assertEqual(recorded[0][1], expected_request)
+        review_payload = json.loads(self.router.calls[0][0][1]["content"])
+        self.assertEqual(review_payload["objective"], context["step_objective"])
+        self.assertEqual(review_payload["objective_acceptance_criteria"],
+            context["step_acceptance_criteria"])
+        self.assertEqual(review_payload["current_authority_evidence"]
+            ["objective_runtime_evidence"]["objective"]["status"], "WORK_ORDER_CREATED")
+        self.assertEqual(review_payload["proposal_reference"], context["proposal_reference"])
+        self.assertEqual(review_payload["verifier_criteria"], context["completion"]["criteria"])
+        self.assertEqual(len(self.store.responses), 0)
+        self.assertEqual(self.rework_decisions[0][1]["decision"], "REWORK_PROPOSED")
+
+    def test_proposal_origin_rework_rejects_mismatched_objective_before_reasoning(self):
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"origin": None, "proposal_reference": {
+            "proposal_id": "proposal:18ec0798-a441-494d-b45e-68cf99e72cd2",
+            "revision": 2, "content_sha256": "a" * 64,
+            "approval_event_key": "proposal-approved:test",
+            "objective_submit_grant_id": "grant:test"},
+            "step_id": "s2", "step_objective": "Inspect runtime history",
+            "step_acceptance_criteria": ["criterion"]})
+        with self.assertRaisesRegex(ValueError, "exact objective origin"):
+            self.service.review_rejected_work_order(context)
+        self.assertEqual(self.router.calls, [])
+
+    def test_proposal_origin_re_review_requires_current_read_only_authority_evidence(self):
+        from uuid import NAMESPACE_URL, uuid5
+        proposal_id = "proposal:18ec0798-a441-494d-b45e-68cf99e72cd2"
+        objective_id = ("objective:proposal:" + str(uuid5(NAMESPACE_URL,
+            f"riverview:proposal-work-order:{proposal_id}:r2")) + ":r2")
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"objective_id":objective_id, "origin":None,
+            "proposal_reference":{"proposal_id":proposal_id, "revision":2,
+                "content_sha256":"a"*64, "approval_event_key":"approval:test",
+                "objective_submit_grant_id":"grant:test"},
+            "step_id":"s2", "step_objective":"Correct diagnostic evidence",
+            "step_acceptance_criteria":["Include authoritative runtime evidence."],
+            "review_generation":2,
+            "completion":{"decision":"REJECTED", "assignment_id":"assignment:grace:demo",
+                "verification_id":"275e3c42-1114-4c5a-9e5f-84c437e6fd1f"}})
+        with self.assertRaisesRegex(ValueError, "current proposal-origin authority evidence"):
+            self.service.review_rejected_work_order(context)
+        self.assertEqual(self.router.calls, [])
+
+    def test_rejected_result_cannot_direct_out_of_scope_criteria(self):
+        context = {key: value for key, value in valid_context().items() if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Create deliverable",
+            "step_acceptance_criteria": ["criterion one"],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"failed": True}, "summary": "Rejected."}})
+        self.router.content = json.dumps({"decision": "REWORK_PROPOSED", "rationale": "Fix it.",
+            "correction_instruction": "Change more scope.",
+            "criteria_to_address": ["unapproved criterion"]})
+        with self.assertRaisesRegex(ConversationUnavailable,
+                "criteria_to_address_out_of_scope"):
+            self.service.review_rejected_work_order(context)
+        self.assertEqual(self.rework_decisions, [])
+        self.assertEqual(self.store.responses, {})
+
+    def test_rework_review_prompt_separates_verifier_flags_from_authorized_criteria(self):
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Create deliverable",
+            "step_acceptance_criteria": ["criterion one"],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"artifact_semantic_outcome_not_negative": False},
+                "summary": "Rejected."}})
+        self.router.content = json.dumps({"decision": "REWORK_PROPOSED",
+            "rationale": "The listed criterion needs correction.",
+            "correction_instruction": "Address the exact assigned criterion.",
+            "criteria_to_address": ["criterion one"]})
+
+        result = self.service.review_rejected_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        system_prompt = self.router.calls[0][0][0]["content"]
+        self.assertIn("verifier_criteria keys are diagnostic flags", system_prompt)
+        self.assertIn("copy complete strings only from assignment_acceptance_criteria",
+                      system_prompt)
+
+    def test_grace_reviews_digest_verified_artifact_and_can_accept_substantive_content(self):
+        body = ("# Production evidence\n\nThe checked-in files describe implementation only; "
+                "no live deployment was tested.\n")
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        artifact_name = "codex-" + "a" * 64 + "-" + "b" * 12
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Write the evidence report",
+            "step_acceptance_criteria": [
+                "Explain that source implementation does not establish production commissioning."],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "attempt_id": "attempt:grace:demo", "verifier_id": "verifier:independent",
+                "verifier_revision": "1.0.1",
+                "criteria": {"authorized_acceptance_criteria_bound": True,
+                             "legacy_exact_phrase_check": False},
+                "summary": "Legacy verifier required exact wording.",
+                "artifact_sha256": digest,
+                "artifact": {"status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.artifacts.v3",
+                    "capability": "engineering.codex-cli-artifact.v1",
+                    "assignment_id": "assignment:grace:demo",
+                    "source_artifact_name": "reports/evidence.txt", "changed_files": ["reports/evidence.txt"],
+                    "artifact_name": artifact_name, "artifact_bytes": len(body.encode("utf-8")),
+                    "artifact_sha256": digest, "artifacts": [{"name":"evidence",
+                        "path":"reports/evidence.txt", "media_type":"text/plain",
+                        "storage_name":artifact_name, "sha256":digest,
+                        "bytes":len(body.encode("utf-8")),
+                        "acceptance_criteria":["Explain that source implementation does not establish production commissioning."]}],
+                    "artifact_contract": [{"name":"evidence", "path":"reports/evidence.txt",
+                        "media_type":"text/plain",
+                        "acceptance_criteria":["Explain that source implementation does not establish production commissioning."],
+                        "max_bytes":32768}]}}})
+        context["artifact_review"] = {"artifacts": [{"name":"evidence", "path":"reports/evidence.txt",
+            "media_type":"text/plain", "sha256":digest, "body":body}]}
+        self.router.content = json.dumps({"decision": "OBJECTIVE_SATISFIED",
+            "rationale": "The report addresses the criterion substantively despite using different wording.",
+            "correction_instruction": None, "criteria_to_address": []})
+
+        result = self.service.review_rejected_work_order(context)
+
+        self.assertEqual(result["status"], "published")
+        user_payload = json.loads(self.router.calls[0][0][1]["content"])
+        self.assertEqual(user_payload["artifact"]["artifacts"][0]["body"], body)
+        self.assertEqual(user_payload["artifact"]["artifacts"][0]["sha256"], digest)
+        self.assertEqual(user_payload["independent_rejection"]["criteria"][
+            "legacy_exact_phrase_check"], False)
+        self.assertEqual(self.rework_decisions[0][1]["decision"], "OBJECTIVE_SATISFIED")
+        saved = next(iter(self.store.responses.values()))
+        self.assertEqual(saved["metadata"]["artifact_sha256s_reviewed"], [digest])
+        self.assertEqual(saved["metadata"]["review_decision"], "OBJECTIVE_SATISFIED")
+
+    def test_grace_rejection_review_rejects_forged_artifact_digest_before_reasoning(self):
+        body = "# Report\n\nSubstantive response.\n"
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        artifact_name = "codex-" + "b" * 64 + "-" + "c" * 12
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Write report",
+            "step_acceptance_criteria": ["Address the objective."],
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "artifact": {"capability": "engineering.codex-cli-artifact.v1",
+                    "artifact_name": artifact_name, "artifact_sha256": digest,
+                    "artifact_bytes": len(body.encode("utf-8")),
+                    "artifacts": [{"name":"report","path":"reports/review.txt",
+                        "media_type":"text/plain","sha256":digest,
+                        "acceptance_criteria":["Address the objective."]}],
+                    "artifact_contract": [{"name":"report","path":"reports/review.txt",
+                        "media_type":"text/plain","acceptance_criteria":["Address the objective."],
+                        "max_bytes":32768}]}}})
+        context["artifact_review"] = {"artifacts": [{"name":"report", "path":"reports/review.txt",
+            "media_type":"text/plain", "sha256":digest, "body":body + "tampered"}]}
+        with self.assertRaisesRegex(ConversationUnavailable, "failed its integrity bound"):
+            self.service.review_rejected_work_order(context)
+        self.assertEqual(self.router.calls, [])
+        self.assertEqual(self.rework_decisions, [])
+
+    def test_unreadable_rejected_artifact_is_exposed_as_verifier_evidence_not_trusted_text(self):
+        context = {key: value for key, value in valid_context().items()
+                   if key != "completion_cycle"}
+        context.update({"step_id": "s1", "step_objective": "Write report",
+            "step_acceptance_criteria": ["Address the objective."],
+            "artifact_review_unavailable": "integrity_check_failed",
+            "completion": {"decision": "REJECTED", "assignment_id": "assignment:grace:demo",
+                "verification_id": "275e3c42-1114-4c5a-9e5f-84c437e6fd1f",
+                "criteria": {"artifact_digest_matches": False},
+                "summary": "Artifact digest changed.",
+                "artifact": {"capability": "engineering.codex-cli-artifact.v1",
+                    "artifact_name": "codex-" + "c" * 64 + ".md",
+                    "artifact_sha256": "d" * 64, "artifact_bytes": 20}}})
+        self.router.content = json.dumps({"decision": "OBJECTIVE_SATISFIED",
+            "rationale": "The metadata suggests success.",
+            "correction_instruction": None, "criteria_to_address": []})
+        with self.assertRaisesRegex(ConversationUnavailable, "exceeded the original assignment scope"):
+            self.service.review_rejected_work_order(context)
+        user_payload = json.loads(self.router.calls[0][0][1]["content"])
+        self.assertEqual(user_payload["artifact_review_status"], "integrity_check_failed")
+        self.assertIsNone(user_payload["artifact"])
+        self.assertEqual(user_payload["independent_rejection"]["criteria"][
+            "artifact_digest_matches"], False)
+        self.assertEqual(self.rework_decisions, [])
+
+    def test_execution_service_keeps_verifier_failure_context_when_artifact_cannot_be_reopened(self):
+        class Verifier:
+            def read_artifact_for_grace_review(self, *_args):
+                raise ValueError("artifact digest mismatch")
+
+        service = object.__new__(GraceExecutionService)
+        service.verifiers = {"engineering.codex-cli-artifact.v1": Verifier()}
+        context = {"assignment_id": "assignment:grace:demo", "completion": {
+            "decision": "REJECTED", "summary": "Digest verification failed.",
+            "criteria": {"artifact_digest_matches": False},
+            "artifact": {"capability": "engineering.codex-cli-artifact.v1",
+                "status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.deliverable.v2"}}}
+        forwarded = service._with_grace_artifact_review(context)
+        self.assertEqual(forwarded["artifact_review"], None)
+        self.assertEqual(forwarded["artifact_review_unavailable"], "integrity_check_failed")
+        self.assertEqual(forwarded["completion"], context["completion"])
+
+    def test_persistent_outbox_uses_durable_cycle_when_publisher_omits_it_and_does_not_retry(self):
+        class Pipeline:
+            def __init__(self):
+                self.receipts = []
+
+            def pending_conversation_results(self, *, limit):
+                if self.receipts:
+                    return []
+                return [{"objective_id": "objective:outbox-1", "completion_cycle": 4}]
+
+            def record_conversation_result_published(self, objective_id, receipt):
+                self.receipts.append((objective_id, receipt))
+
+        pipeline = Pipeline()
+        service = object.__new__(GraceExecutionService)
+        service.pipeline = pipeline
+        publisher_calls = []
+        service.conversation_result_publisher = lambda context: (publisher_calls.append(
+            context["completion_cycle"]) or {
+            "status": "published", "request_id": "request-1",
+            "provider_id": "local.inference.v1", "served_model": "qwen-80b",
+            "implementation_id": "implementation:grace:router"})
+        self.assertEqual(service.publish_conversation_results(), 1)
+        self.assertEqual(pipeline.receipts, [("objective:outbox-1", {
+            "request_id": "request-1", "provider_id": "local.inference.v1",
+            "served_model": "qwen-80b", "implementation_id": "implementation:grace:router",
+            "completion_cycle": "4"})])
+        self.assertEqual(publisher_calls, [4])
+        self.assertEqual(service.publish_conversation_results(), 0)
+        self.assertEqual(publisher_calls, [4], "durable acknowledgement must prevent a repeat publish")
+
+    def test_persistent_outbox_rejects_conflicting_publisher_cycle_without_acknowledging(self):
+        class Pipeline:
+            def __init__(self):
+                self.receipts = []
+
+            def pending_conversation_results(self, *, limit):
+                return [{"objective_id": "objective:outbox-cycle-mismatch", "completion_cycle": 4}]
+
+            def record_conversation_result_published(self, objective_id, receipt):
+                self.receipts.append((objective_id, receipt))
+
+        pipeline = Pipeline()
+        service = object.__new__(GraceExecutionService)
+        service.pipeline = pipeline
+        service.conversation_result_publisher = lambda _context: {
+            "status": "published", "request_id": "request-mismatch",
+            "provider_id": "local.inference.v1", "served_model": "qwen-80b",
+            "implementation_id": "implementation:grace:router", "completion_cycle": "3"}
+        self.assertEqual(service.publish_conversation_results(), 0)
+        self.assertEqual(pipeline.receipts, [])
+
+    def test_failed_result_publisher_leaves_durable_outbox_unacknowledged(self):
+        class Pipeline:
+            def __init__(self):
+                self.acks = 0
+
+            def pending_conversation_results(self, *, limit):
+                return [{"objective_id": "objective:retry-1", "completion_cycle": 1}]
+
+            def record_conversation_result_published(self, *_args):
+                self.acks += 1
+
+        pipeline = Pipeline()
+        service = object.__new__(GraceExecutionService)
+        service.pipeline = pipeline
+
+        def unavailable(_context):
+            raise RuntimeError("model unavailable")
+
+        service.conversation_result_publisher = unavailable
+        with self.assertLogs("riverview.grace_execution", level="WARNING") as captured:
+            self.assertEqual(service.publish_conversation_results(), 0)
+        self.assertEqual(pipeline.acks, 0)
+        self.assertIn('"failure_stage": "resident_result_review"', captured.output[0])
+        self.assertIn('"failure_location": "unavailable:', captured.output[0])
+        self.assertNotIn("model unavailable", captured.output[0])
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+def json_complete():
+    import json
+    return json.dumps({"decision":"OBJECTIVE_COMPLETE",
+        "rationale":"The verified file is ready at the recorded path.",
+        "additional_evidence":[], "proposed_step":None})

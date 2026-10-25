@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/service.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.51
+# Revision: 1.0.52
+# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Resolve persisted reviewer authorization stops from authoritative grants and request history before any repeat review.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-SCOPE-DIAGNOSTIC-20261024 | Retain fixed rework decision validation codes while excluding model-provided text.
 # Changed: 2026-10-24 UTC | RV-GRACE-REWORK-REVIEW-DIAGNOSTICS-20261024 | Record a safe review stage and allowlisted ConversationUnavailable detail for bounded same-release recovery diagnosis.
 # Changed: 2026-10-24 UTC | RV-GRACE-PERFORMANCE-MINIMAL-RETRY-20261024 | Permit one minimal-evidence evaluation attempt after a compact retry receives the same exact HTTP 400 input rejection.
@@ -1163,6 +1164,32 @@ class GraceExecutionService:
         """Review rejected work within retry bounds or persist a Steward-action hold."""
         published = 0
         for context in self.pipeline.pending_rejected_work_order_reviews(limit=limit):
+            prior_decision = context.get("prior_review_decision")
+            if (context.get("origin") is None and isinstance(prior_decision, dict) and
+                    prior_decision.get("decision") == "STEWARD_AUTHORIZATION_REQUIRED"):
+                # A persisted authorization stop is not a reason to ask 80B
+                # again. Resolve it from the authority registry and request
+                # ledger, then leave the independently rejected step unchanged.
+                validation = self.pipeline.record_rework_controller_validation(
+                    context, prior_decision)
+                LOG.warning(json.dumps({"event": "grace_rework_controller_validation",
+                    "objective_id": context["objective_id"],
+                    "assignment_id": context["assignment_id"],
+                    "objective_status": validation.get("objective_status"),
+                    "objective_revision": validation.get("objective_revision"),
+                    "assignment_state": validation.get("assignment_state"),
+                    "reviewer_decision": prior_decision,
+                    "authorization_lookup": validation["authorization_lookup"],
+                    "request_history": validation["request_history"],
+                    "acceptance_assessment": validation.get("acceptance_assessment"),
+                    "verification": validation.get("verification"),
+                    "performance_evaluation_events": validation[
+                        "performance_evaluation_events"],
+                    "controller_event_id": validation.get("event_id"),
+                    "validation_outcome": validation["validation_outcome"],
+                    "next_action": validation["next_action"],
+                    "reason": validation["reason"]}, sort_keys=True))
+                continue
             attempts = context.get("rework_attempt_count", 0)
             if attempts >= self.pipeline.MAX_GOVERNED_REWORK_ATTEMPTS:
                 self.pipeline.record_rework_escalation_pending(context, "retry_limit_exhausted")
@@ -1181,6 +1208,26 @@ class GraceExecutionService:
                 failure_stage = "resident_rework_review"
                 receipt = self.rejected_work_order_publisher(review_context)
                 failure_stage = "receipt_validation"
+                if isinstance(receipt, dict) and receipt.get("status") == "controller_hold":
+                    validation = receipt.get("controller_validation", {})
+                    LOG.warning(json.dumps({"event": "grace_rework_controller_validation",
+                        "objective_id": context["objective_id"],
+                        "assignment_id": context["assignment_id"],
+                        "objective_status": validation.get("objective_status"),
+                        "objective_revision": validation.get("objective_revision"),
+                        "assignment_state": validation.get("assignment_state"),
+                        "reviewer_decision": validation.get("reviewer_decision"),
+                        "authorization_lookup": validation.get("authorization_lookup"),
+                        "request_history": validation.get("request_history"),
+                        "acceptance_assessment": validation.get("acceptance_assessment"),
+                        "verification": validation.get("verification"),
+                        "performance_evaluation_events": validation.get(
+                            "performance_evaluation_events"),
+                        "controller_event_id": validation.get("event_id"),
+                        "validation_outcome": validation.get("validation_outcome"),
+                        "next_action": validation.get("next_action"),
+                        "reason": validation.get("reason")}, sort_keys=True))
+                    continue
                 if (not isinstance(receipt, dict) or
                         receipt.get("status") not in {"published", "already_published", "recorded"} or
                         receipt.get("verification_id") !=
@@ -1883,14 +1930,24 @@ class GraceExecutionService:
                 "rationale": value["rationale"], "correction_instruction": None,
                 "criteria_to_address": []}
         context["external_reasoning"] = metadata
-        self.pipeline.record_rework_decision(context, decision,
+        persisted_decision = self.pipeline.record_rework_decision(context, decision,
             credential=self.dispatch_credential)
+        effective_action = ("CONTROLLER_HOLD" if isinstance(persisted_decision, dict) and
+            persisted_decision.get("controller_hold") is True else decision["decision"])
+        controller_validation = (persisted_decision.get("controller_validation")
+            if effective_action == "CONTROLLER_HOLD" else None)
         self.pipeline.record_supervisory_event(objective_id, context["assignment_id"],
             event_type="resident.reasoning.cme_recovery_evaluated",
             request_id=consumed.request_id, correlation_id=consumed.correlation_id,
             idempotency_key=f"cme-recovery-evaluated:{consumed.request_id}",
             payload={"cme_event_id": cme_event_id,
-                "recovery_action": decision["decision"],
+                "recovery_action": effective_action,
+                "reviewer_recovery_action": (decision["decision"]
+                    if effective_action == "CONTROLLER_HOLD" else None),
+                "controller_validation_event_id": (controller_validation.get("event_id")
+                    if isinstance(controller_validation, dict) else None),
+                "controller_validation_outcome": (controller_validation.get("validation_outcome")
+                    if isinstance(controller_validation, dict) else None),
                 "assessment": value["assessment"],
                 "response_sha256": response_sha})
 

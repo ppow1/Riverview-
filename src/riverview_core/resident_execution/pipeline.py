@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.34
-# Changed: 2026-10-24 UTC | RV-GRACE-REWORK-AUTHORITY-EVIDENCE-20261024 | Include bounded read-only Luna grant and prior-attempt facts in same-assignment rework evidence.
+# Revision: 1.1.35
+# Changed: 2026-10-25 UTC | RV-GRACE-REWORK-CONTROLLER-AUTHORITY-20261024 | Deterministically validate reviewer authorization stops and persist exact controller evidence without another review.
 # Changed: 2026-10-24 UTC | RV-GRACE-PIN-RUNTIME-RELEASE-ID-20261024 | Pin retry-hold release identity at pipeline construction so an old process cannot adopt a newly switched symlink.
 # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Persist and revalidate typed ComfyUI requests through durable assignment dispatch.
@@ -1993,6 +1993,11 @@ class GraceExecutionPipeline:
                     verification["result"] is None):
                 continue
             verification_id = str(verification["verification_id"])
+            if any(event["event_type"] == "engineering.rework_controller_validation" and
+                    event["payload"].get("verification_id") == verification_id and
+                    event["payload"].get("authorization_lookup", {}).get("active") is True
+                    for event in events):
+                continue
             receipt_types = {"conversation.rework_review_published",
                              "engineering.rework_review_recorded"}
             review_receipts = [event for event in events if
@@ -2000,27 +2005,24 @@ class GraceExecutionPipeline:
                 event["payload"].get("verification_id") == verification_id]
             review_generation = 1
             reopened_after_release_change = False
+            prior_authorization_stop = False
             if review_receipts:
                 last_receipt = review_receipts[-1]
                 if conversation_origin:
                     continue
-                if (last_receipt["event_type"] != "engineering.rework_review_recorded" or
-                        last_receipt["payload"].get("decision") !=
-                            "STEWARD_AUTHORIZATION_REQUIRED" or
-                        last_receipt["payload"].get("runtime_release_id") ==
-                            self.runtime_release_id()):
+                if (last_receipt["event_type"] == "engineering.rework_review_recorded" and
+                        last_receipt["payload"].get("decision") ==
+                            "STEWARD_AUTHORIZATION_REQUIRED"):
+                    # This is a controller preflight, never another model-review
+                    # opportunity. Validate the exact authority and request ledger
+                    # once, regardless of release churn.
+                    prior_authorization_stop = True
+                    prior_generation = last_receipt["payload"].get("review_generation", 1)
+                    if type(prior_generation) is not int or prior_generation not in {1, 2, 3, 4, 5, 6}:
+                        continue
+                    review_generation = prior_generation
+                else:
                     continue
-                prior_generation = last_receipt["payload"].get("review_generation", 1)
-                # Release changes may reopen this authorization stop only for
-                # a small fixed number of reviews. This prevents deployment
-                # churn from becoming an unbounded reasoning loop.
-                # Five local review generations are terminal for one verifier
-                # result. A release change must not mint generation six and
-                # collide with or preempt a separate authorized CME recovery.
-                if type(prior_generation) is not int or prior_generation not in {1, 2, 3, 4}:
-                    continue
-                review_generation = prior_generation + 1
-                reopened_after_release_change = True
             same_release_hold = any(event["event_type"] ==
                 "engineering.rework_escalation_pending" and
                 event["payload"].get("verification_id") == verification_id and
@@ -2071,6 +2073,28 @@ class GraceExecutionPipeline:
                 "step_acceptance_criteria": list(step["acceptance_criteria"]),
                 "submitter_id": row["submitter_id"], "origin": origin,
                 "completion": completion, "review_generation": review_generation}
+            if prior_authorization_stop:
+                prior_generation = last_receipt["payload"].get("review_generation", 1)
+                prior_key = (f"grace-rework-decision:{verification_id}" if prior_generation == 1 else
+                    f"grace-rework-decision:{verification_id}:review:{prior_generation}")
+                prior_decision_event = next((event for event in reversed(events)
+                    if event.get("idempotency_key") == prior_key and
+                    event["event_type"] == "engineering.rework_decided" and
+                    event["payload"].get("assignment_id") == assignment_id and
+                    event["payload"].get("verification_id") == verification_id), None)
+                if prior_decision_event:
+                    item["prior_review_decision"] = {
+                        "event_id": str(prior_decision_event["event_id"]),
+                        "decision": prior_decision_event["payload"].get("decision"),
+                        "rationale": prior_decision_event["payload"].get("rationale"),
+                        "review_generation": prior_generation,
+                        "request_id": last_receipt["payload"].get("request_id")}
+                else:
+                    item["prior_review_decision"] = {
+                        "decision": "STEWARD_AUTHORIZATION_REQUIRED",
+                        "rationale": "Persisted reviewer stop; controller authorization preflight required.",
+                        "review_generation": prior_generation,
+                        "request_id": last_receipt["payload"].get("request_id")}
             if not conversation_origin:
                 item["proposal_reference"] = proposal_reference
             if decision_event and not reopened_after_release_change:
@@ -2123,6 +2147,8 @@ class GraceExecutionPipeline:
                       AND payload->>'assignment_id'=%s) AS dispatched""",
                     (context["objective_id"], context["assignment_id"]))
                 dispatched = bool(cur.fetchone()["dispatched"])
+                controller_facts = self._rework_controller_facts(cur,
+                    context["objective_id"], context["assignment_id"])
                 cur.execute(sql.SQL("""SELECT a.authorization_id,a.authority_grant_id,
                         a.authorized_by,a.scope,a.status,
                         {}.active_grace_supervisory_luna_grant(a.authority_grant_id) AS active_grant
@@ -2134,23 +2160,6 @@ class GraceExecutionPipeline:
                     ORDER BY a.activated_at DESC LIMIT 1""").format(
                         sql.Identifier(self.authorizer.schema)))
                 authorization = cur.fetchone()
-                cur.execute("""SELECT x.request_id,x.request_payload->>'request_type' AS request_type,
-                        x.provider_id,x.delivery_state,
-                        count(e.event_id) FILTER (WHERE e.event_type='provider_attempt_started') AS attempt_count,
-                        max(e.payload->>'authorization_id') FILTER (
-                            WHERE e.event_type='provider_attempt_started') AS attempt_authorization_id
-                    FROM external_reasoning_exchanges x
-                    LEFT JOIN external_reasoning_exchange_events e
-                      ON e.request_id=x.request_id
-                    WHERE x.objective_id=%s
-                    GROUP BY x.request_id,x.request_payload,x.provider_id,x.delivery_state,x.requested_at
-                    ORDER BY x.requested_at DESC LIMIT 8""", (context["objective_id"],))
-                provider_requests = [{"request_id": str(item["request_id"]),
-                    "request_type": item["request_type"], "provider_id": item["provider_id"],
-                    "delivery_state": item["delivery_state"],
-                    "provider_attempt_count": int(item["attempt_count"] or 0),
-                    "attempt_authorization_id": item["attempt_authorization_id"]}
-                    for item in cur.fetchall()]
         diagnostic_evidence = self.diagnostic_runtime_evidence(context["objective_id"])
         return {"schema": "rv.grace-rework-authority-evidence.v1", "read_only": True,
             "objective_id": context["objective_id"],
@@ -2175,7 +2184,14 @@ class GraceExecutionPipeline:
                 "active": (authorization["status"] == "active" and
                     authorization["active_grant"] == authorization["authority_grant_id"])}
                 if authorization else None),
-            "prior_provider_requests": provider_requests,
+            "luna_escalation_authorization": {
+                "source": f"{self.authorizer.schema}.active_grace_luna_escalation_grant",
+                "action": "resident.reasoning.escalate",
+                "scope_ref": "provider:gpt-6-luna",
+                "grant_id": controller_facts["luna_escalation_authorization"]["grant_id"],
+                "active": controller_facts["luna_escalation_authorization"]["active"]},
+            "prior_provider_requests": controller_facts["request_history"],
+            "performance_evaluation_events": controller_facts["performance_evaluation_events"],
             "same_assignment_rework": {"available": bool(grant is not None and dispatched and
                     row["assignment_state"] == "rework_required"),
                 "assignment_id": row["assignment_id"],
@@ -2183,6 +2199,221 @@ class GraceExecutionPipeline:
                 "maximum_rework_attempts": self.MAX_GOVERNED_REWORK_ATTEMPTS,
                 "scope_changes": False,
                 "independent_verification_required": True}}
+
+    def _rework_controller_facts(self, cur, objective_id, assignment_id):
+        """Read exact Luna authorization and objective-scoped request/evaluation facts."""
+        from psycopg import sql
+        cur.execute("""SELECT o.status AS objective_status,o.revision,
+                o.assignment_id,a.state AS assignment_state
+            FROM grace_objectives o JOIN assignments a ON a.id=o.assignment_id
+            WHERE o.objective_id=%s AND a.id=%s AND a.objective_ref=o.objective_id""",
+            (objective_id, assignment_id))
+        lifecycle = cur.fetchone()
+        if not lifecycle:
+            raise ObjectiveStateError("controller facts require the current objective assignment")
+        cur.execute(sql.SQL("SELECT {}.active_grace_luna_escalation_grant() AS grant_id")
+            .format(sql.Identifier(self.authorizer.schema)))
+        grant_id = cur.fetchone()["grant_id"]
+        cur.execute(sql.SQL("""SELECT a.authorization_id,a.authority_grant_id,
+                a.authorized_by,a.scope,a.status,
+                {}.active_grace_supervisory_luna_grant(a.authority_grant_id) AS active_grant
+            FROM grace_supervisory_authorizations a
+            WHERE a.status='active' AND a.activated_at<=clock_timestamp()
+              AND (a.valid_until IS NULL OR a.valid_until>clock_timestamp())
+              AND a.scope->>'provider_id'='gpt-6-luna'
+              AND a.scope->'functions' ? 'performance_evaluation'
+            ORDER BY a.activated_at DESC LIMIT 1""").format(
+                sql.Identifier(self.authorizer.schema)))
+        supervisory = cur.fetchone()
+        cur.execute("""SELECT min(occurred_at) AS dispatched_at FROM grace_objective_events
+            WHERE objective_id=%s AND event_type='work_order.dispatched'
+              AND payload->>'assignment_id'=%s""", (objective_id, assignment_id))
+        dispatched_at = cur.fetchone()["dispatched_at"]
+        cur.execute("""SELECT x.request_id,x.request_payload->>'request_type' AS request_type,
+                x.provider_id,x.classification,x.delivery_state,x.requested_at,
+                count(e.event_id) FILTER (WHERE e.event_type='provider_attempt_started') AS attempt_count,
+                max(e.payload->>'authorization_id') FILTER (
+                    WHERE e.event_type='provider_attempt_started') AS attempt_authorization_id,
+                max(e.payload->'usage'->>'http_status') FILTER (
+                    WHERE e.event_type='provider_attempt_settled') AS http_status,
+                max(e.payload->'usage'->>'provider_error_type') FILTER (
+                    WHERE e.event_type='provider_attempt_settled') AS provider_error_type,
+                max(e.payload->'usage'->>'provider_error_param') FILTER (
+                    WHERE e.event_type='provider_attempt_settled') AS provider_error_param,
+                max(e.payload->'usage'->>'provider_request_id') FILTER (
+                    WHERE e.event_type='provider_attempt_settled') AS provider_request_id
+            FROM external_reasoning_exchanges x
+            LEFT JOIN external_reasoning_exchange_events e ON e.request_id=x.request_id
+            WHERE x.objective_id=%s AND x.requested_at >= %s
+              AND x.request_payload->>'request_type' IN
+                  ('performance_evaluation','cme_diagnostic_recovery')
+            GROUP BY x.request_id,x.request_payload,x.provider_id,x.classification,
+                x.delivery_state,x.requested_at
+            ORDER BY x.requested_at,x.request_id LIMIT 32""",
+            (objective_id, dispatched_at or datetime.min.replace(tzinfo=timezone.utc)))
+        requests = [{"request_id": str(item["request_id"]),
+            "request_type": item["request_type"], "provider_id": item["provider_id"],
+            "classification": item["classification"],
+            "requested_at": item["requested_at"].isoformat(),
+            "delivery_state": item["delivery_state"],
+            "provider_attempt_count": int(item["attempt_count"] or 0),
+            "attempt_authorization_id": item["attempt_authorization_id"],
+            "http_status": item["http_status"],
+            "provider_error_type": item["provider_error_type"],
+            "provider_error_param": item["provider_error_param"],
+            "provider_request_id": item["provider_request_id"]}
+            for item in cur.fetchall()]
+        cur.execute("""SELECT count(*) FILTER (WHERE event_type=
+                    'resident.performance.evaluation_recorded') AS evaluations,
+                count(*) FILTER (WHERE event_type=
+                    'resident.performance.feedback_consumed') AS feedback_consumed,
+                count(*) FILTER (WHERE event_type=
+                    'resident.performance.evaluation_blocked') AS evaluations_blocked
+            FROM grace_objective_events WHERE objective_id=%s""", (objective_id,))
+        evaluation_events = cur.fetchone()
+        return {"objective_status": lifecycle["objective_status"],
+            "objective_revision": int(lifecycle["revision"]),
+            "assignment_state": lifecycle["assignment_state"],
+            "luna_escalation_authorization": {
+                "source": f"{self.authorizer.schema}.active_grace_luna_escalation_grant",
+                "action": "resident.reasoning.escalate", "scope_ref": "provider:gpt-6-luna",
+                "grant_id": grant_id, "active": bool(grant_id)},
+            "supervisory_luna_authorization": ({
+                "authorization_id": str(supervisory["authorization_id"]),
+                "authority_grant_id": supervisory["authority_grant_id"],
+                "authorized_by": supervisory["authorized_by"],
+                "scope": supervisory["scope"],
+                "active": (supervisory["status"] == "active" and
+                    supervisory["active_grant"] == supervisory["authority_grant_id"])}
+                if supervisory else None),
+            "request_history": requests,
+            "performance_evaluation_events": {
+                "evaluation_recorded": int(evaluation_events["evaluations"]),
+                "feedback_consumed": int(evaluation_events["feedback_consumed"]),
+                "evaluation_blocked": int(evaluation_events["evaluations_blocked"])}}
+
+    def record_rework_controller_validation(self, context, reviewer_decision):
+        """Persist controller-verified disposition of a reviewer authorization stop."""
+        if (not isinstance(context, dict) or not isinstance(reviewer_decision, dict) or
+                reviewer_decision.get("decision") != "STEWARD_AUTHORIZATION_REQUIRED" or
+                not all(isinstance(context.get(key), str) and context[key]
+                    for key in ("objective_id", "assignment_id")) or
+                not isinstance(context.get("completion"), dict) or
+                not isinstance(context["completion"].get("verification_id"), str)):
+            raise ObjectiveStateError("controller authorization validation context is invalid")
+        objective_id, assignment_id = context["objective_id"], context["assignment_id"]
+        verification_id = context["completion"]["verification_id"]
+        review_generation = context.get("review_generation", 1)
+        with self.ledger.db.transaction():
+            with self.ledger.db.cursor() as cur:
+                self.ledger._set_search_path(cur)
+                cur.execute("SELECT status,revision,assignment_id FROM grace_objectives "
+                    "WHERE objective_id=%s FOR UPDATE", (objective_id,))
+                objective = cur.fetchone()
+                cur.execute("SELECT state,objective_ref FROM assignments WHERE id=%s FOR UPDATE",
+                    (assignment_id,))
+                assignment = cur.fetchone()
+                cur.execute("SELECT verification_id,decision,criteria,summary FROM verification_records "
+                    "WHERE assignment_id=%s ORDER BY recorded_at DESC,verification_id DESC LIMIT 1",
+                    (assignment_id,))
+                verification = cur.fetchone()
+                if (not objective or objective["status"] != "WORK_ORDER_CREATED" or
+                        objective["assignment_id"] != assignment_id or not assignment or
+                        assignment["objective_ref"] != objective_id or
+                        assignment["state"] != "rework_required" or not verification or
+                        str(verification["verification_id"]) != verification_id or
+                        verification["decision"] != "REJECTED"):
+                    raise ObjectiveStateError("controller validation requires the current rejected assignment")
+                facts = self._rework_controller_facts(cur, objective_id, assignment_id)
+                auth_state = facts["luna_escalation_authorization"]
+                idem_suffix = auth_state["grant_id"] or "missing"
+                idem = f"grace-rework-controller-validation:{verification_id}:{idem_suffix}"
+                request_history = facts["request_history"]
+                advisory_requests = [item for item in request_history
+                    if item["request_type"] == "cme_diagnostic_recovery"]
+                evaluation_requests = [item for item in request_history
+                    if item["request_type"] == "performance_evaluation"]
+                auth = auth_state
+                evaluation_events = facts["performance_evaluation_events"]
+                authorized_advisory_requests = [item for item in advisory_requests
+                    if auth["grant_id"] and
+                    item["attempt_authorization_id"] == auth["grant_id"] and
+                    item["provider_attempt_count"] > 0]
+                successful_advisory_count = sum(item["delivery_state"] in
+                    {"response_received", "grace_consumed"}
+                    for item in authorized_advisory_requests)
+                acceptance_assessment = {
+                    "criterion": "Exactly one authorized GPT-6 Luna advisory escalation is issued through the durable external reasoning exchange, with no uncontrolled retries.",
+                    "authorized_advisory_exchange_count": len(authorized_advisory_requests),
+                    "authorized_advisory_provider_attempt_count": sum(
+                        item["provider_attempt_count"] for item in authorized_advisory_requests),
+                    "failed_authorized_advisory_exchange_count": sum(
+                        item["delivery_state"] == "failed"
+                        for item in authorized_advisory_requests),
+                    "successful_authorized_advisory_exchange_count": successful_advisory_count,
+                    "performance_evaluation_request_count": len(evaluation_requests),
+                    "evaluation_recorded_count": evaluation_events["evaluation_recorded"],
+                    "feedback_consumed_count": evaluation_events["feedback_consumed"],
+                    "passed": (len(authorized_advisory_requests) == 1 and
+                        sum(item["provider_attempt_count"] for item in authorized_advisory_requests) == 1 and
+                        successful_advisory_count == 1)}
+                if auth["active"]:
+                    outcome = "reviewer_authorization_stop_rejected_active_exact_grant"
+                    reason = ("The exact Luna escalation grant is active, so the reviewer's missing-"
+                        "authorization claim is not supported. The authoritative request ledger shows "
+                        f"{len(authorized_advisory_requests)} authorized advisory exchange(s), "
+                        f"{sum(item['provider_attempt_count'] for item in authorized_advisory_requests)} "
+                        f"provider attempt(s), and {successful_advisory_count} successful advisory "
+                        f"response(s). The independent verifier still records {verification['decision']} "
+                        "for this assignment, so s3 cannot advance; failed provider attempts are not a "
+                        "successful evaluation or verifier acceptance.")
+                    next_action = "retain_rework_required_without_80b_or_luna_retry"
+                else:
+                    outcome = "reviewer_authorization_stop_confirmed_exact_grant_missing"
+                    reason = ("The existing authority registry returned no active "
+                        "resident.reasoning.escalate grant for provider:gpt-6-luna.")
+                    next_action = "retain_rework_required_pending_exact_authorization"
+                reviewer = {key: reviewer_decision.get(key) for key in
+                    ("event_id", "decision", "rationale", "request_id", "review_generation")}
+                payload = {"schema": "rv.grace.rework-controller-validation.v1",
+                    "objective_id": objective_id, "assignment_id": assignment_id,
+                    "objective_status": objective["status"],
+                    "objective_revision": int(objective["revision"]),
+                    "assignment_state": assignment["state"],
+                    "verification_id": verification_id,
+                    "reviewer_decision": reviewer,
+                    "authorization_lookup": auth,
+                    "supervisory_authorization": facts["supervisory_luna_authorization"],
+                    "request_history": request_history,
+                    "acceptance_assessment": acceptance_assessment,
+                    "performance_evaluation_events": evaluation_events,
+                    "verification": {"decision": verification["decision"],
+                        "criteria": verification["criteria"],
+                        "summary": verification["summary"]},
+                    "acceptance_criteria": list(context.get("step_acceptance_criteria", [])),
+                    "validation_outcome": outcome, "next_action": next_action,
+                    "reason": reason, "classification": "institutional",
+                    "source_references": ([f"verification:{verification_id}"] +
+                        ([f"authority-grant:{auth['grant_id']}"] if auth["grant_id"] else []) +
+                        [f"external-reasoning-request:{item['request_id']}"
+                         for item in request_history])}
+                if len(_json(payload).encode("utf-8")) > 24576:
+                    raise ObjectiveStateError("controller validation evidence exceeds its bound")
+                cur.execute("SELECT event_id,payload FROM grace_objective_events WHERE objective_id=%s "
+                    "AND idempotency_key=%s", (objective_id, idem))
+                existing = cur.fetchone()
+                if existing:
+                    if dict(existing["payload"]) != payload:
+                        raise ObjectiveStateError("controller validation idempotency conflict")
+                    return {**payload, "event_id": str(existing["event_id"])}
+                self._event(cur, objective_id, "engineering.rework_controller_validation",
+                    idem, "office:grace-controller", payload)
+                cur.execute("SELECT event_id FROM grace_objective_events WHERE objective_id=%s "
+                    "AND idempotency_key=%s", (objective_id, idem))
+                recorded = cur.fetchone()
+                if not recorded:
+                    raise ObjectiveStateError("controller validation event could not be confirmed")
+        return {**payload, "event_id": str(recorded["event_id"])}
 
     def record_rework_decision(self, context, decision, *, credential):
         """Persist Grace's bounded reject/stop decision and governed same-assignment requeue."""
@@ -2216,6 +2447,13 @@ class GraceExecutionPipeline:
                 raise ObjectiveStateError("bounded corrective instructions are required")
         elif instruction is not None or decision["criteria_to_address"]:
             raise ObjectiveStateError("a non-rework decision cannot carry executable instructions")
+        controller_validation = None
+        if decision["decision"] == "STEWARD_AUTHORIZATION_REQUIRED":
+            controller_validation = self.record_rework_controller_validation(context, decision)
+            if controller_validation["authorization_lookup"]["active"]:
+                return {"verification_id": verification_id,
+                    "decision": "CONTROLLER_HOLD", "controller_hold": True,
+                    "controller_validation": controller_validation}
         payload = {"verification_id": verification_id, "assignment_id": assignment_id,
             "attempt_id": str(context.get("completion", {}).get("attempt_id", "")),
             "decision": decision["decision"], "rationale": decision["rationale"].strip(),
@@ -2223,6 +2461,8 @@ class GraceExecutionPipeline:
             "criteria_to_address": list(decision["criteria_to_address"]),
             "acceptance_criteria_sha256": hashlib.sha256(
                 _json(criteria).encode("utf-8")).hexdigest()}
+        if controller_validation is not None:
+            payload["controller_validation_outcome"] = controller_validation["validation_outcome"]
         if external_reasoning is not None:
             if (not isinstance(external_reasoning, dict) or
                     set(external_reasoning) != {"request_id", "correlation_id", "response_sha256",
