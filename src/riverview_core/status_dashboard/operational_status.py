@@ -1,4 +1,4 @@
-# Revision: 1.0.0
+# Revision: 1.0.1
 """Read-only derived operational status over authoritative persisted evidence."""
 
 from __future__ import annotations
@@ -40,6 +40,8 @@ def _same_revision(value: Any, revision: int) -> bool:
 def derive_operational_status(*, lifecycle_status: str, revision: int,
                               assignment_state: str | None,
                               latest_event: dict | None,
+                              lifecycle_updated_at: datetime | None = None,
+                              assignment_updated_at: datetime | None = None,
                               criteria_failure: dict | None = None,
                               recovery_approval: dict | None = None,
                               supervisor_recovery: dict | None = None,
@@ -55,13 +57,22 @@ def derive_operational_status(*, lifecycle_status: str, revision: int,
     canonical = str(lifecycle_status or "").upper()
     if canonical in _TERMINAL:
         code, label = _TERMINAL[canonical]
+        terminal_event_type = {"COMPLETED": "objective.completed",
+                               "CANCELLED": "objective.cancelled"}.get(canonical)
+        event = latest_event or {}
+        event_matches = event.get("event_type") == terminal_event_type
         return {"code": code, "label": label, "source": "grace_objectives.status",
-                "occurred_at": None, "event_type": None, "event_id": None}
+                "occurred_at": (lifecycle_updated_at.isoformat()
+                                if _time(lifecycle_updated_at) else None),
+                "event_type": terminal_event_type if event_matches else None,
+                "event_id": event.get("event_id") if event_matches else None}
 
     state = str(assignment_state or "").lower()
     if state == "running":
         return {"code": "engineering_executing", "label": _LABELS["engineering_executing"],
-                "source": "assignments.state", "occurred_at": None,
+                "source": "assignments.state",
+                "occurred_at": (assignment_updated_at.isoformat()
+                                if _time(assignment_updated_at) else None),
                 "event_type": None, "event_id": None}
     if state in {"queued", "ready", "awaiting_verification", "rework_required", "completed"}:
         return {"code": "unknown", "label": _LABELS["unknown"],
@@ -69,6 +80,7 @@ def derive_operational_status(*, lifecycle_status: str, revision: int,
                 "event_type": None, "event_id": None}
 
     candidates: list[tuple[datetime, int, str, dict]] = []
+    lifecycle_time = _time(lifecycle_updated_at)
 
     def add(code: str, evidence: dict | None, priority: int = 0) -> None:
         if not isinstance(evidence, dict):
@@ -82,14 +94,21 @@ def derive_operational_status(*, lifecycle_status: str, revision: int,
     if (approval.get("status") == "pending" and
             _time(approval.get("expires_at")) is not None and
             approval["expires_at"] > now and
+            (lifecycle_time is None or (_time(approval.get("occurred_at")) is not None
+                                        and approval["occurred_at"] >= lifecycle_time)) and
             _same_revision(approval.get("objective_revision"), revision)):
         add("recovery_approval_pending", approval, 80)
 
-    add("recovery_in_progress", supervisor_recovery, 90)
+    supervisor = supervisor_recovery or {}
+    if (lifecycle_time is None or (_time(supervisor.get("occurred_at")) is not None
+                                   and supervisor["occurred_at"] >= lifecycle_time)):
+        add("recovery_in_progress", supervisor, 90)
 
     exchange = external_reasoning or {}
     if (exchange.get("active") is True and
-            (_time(exchange.get("deadline_at")) is None or exchange["deadline_at"] > now)):
+            (_time(exchange.get("deadline_at")) is None or exchange["deadline_at"] > now) and
+            (lifecycle_time is None or (_time(exchange.get("occurred_at")) is not None
+                                       and exchange["occurred_at"] >= lifecycle_time))):
         add("reasoning_in_progress", exchange, 60)
 
     activity = latest_event or {}
@@ -97,7 +116,8 @@ def derive_operational_status(*, lifecycle_status: str, revision: int,
     event_time = _time(activity.get("occurred_at"))
     stale_attempt_time = None
     if event_type == "execution.reasoning_attempted" and event_time is not None:
-        if timedelta(0) <= now - event_time <= timedelta(seconds=max(1, active_attempt_seconds)):
+        if (timedelta(0) <= now - event_time <= timedelta(seconds=max(1, active_attempt_seconds)) and
+                (lifecycle_time is None or event_time >= lifecycle_time)):
             add("reasoning_in_progress", activity, 60)
         elif now - event_time > timedelta(seconds=max(1, active_attempt_seconds)):
             stale_attempt_time = event_time
@@ -105,12 +125,15 @@ def derive_operational_status(*, lifecycle_status: str, revision: int,
     failure = criteria_failure or {}
     if (failure.get("detail_code") == "PROPOSAL_CRITERIA_BINDING_REJECTED" and
             failure.get("status") == "BLOCKED" and
+            (lifecycle_time is None or (_time(failure.get("occurred_at")) is not None
+                                        and failure["occurred_at"] >= lifecycle_time)) and
             _same_revision(failure.get("objective_revision"), revision)):
         add("proposal_criteria_blocked", failure, 70)
 
     # A proposal/work-order request that remains grounded and has no current
     # active request is the only positive evidence for an authorization wait.
     if (assignment_state is None and canonical in {"GROUNDED", "PROPOSED"} and
+            (lifecycle_time is None or (event_time is not None and event_time >= lifecycle_time)) and
             event_type in {"objective.grounded", "work_order.proposed"}):
         add("awaiting_authorization", activity, 10)
 

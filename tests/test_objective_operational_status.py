@@ -60,7 +60,8 @@ class ObjectiveOperationalStatusTests(unittest.TestCase):
         self.assertEqual(self.derive(assignment_state="running")["label"],
                          "Engineering executing")
         self.assertEqual(self.derive(lifecycle_status="COMPLETED",
-                                     latest_event=event("execution.reasoning_attempted", 1))["label"],
+                                     latest_event=event("execution.reasoning_attempted", 1),
+                                     lifecycle_updated_at=NOW - timedelta(seconds=1))["label"],
                          "Completed")
         self.assertEqual(self.derive(assignment_state="ready")["label"], "Unknown")
 

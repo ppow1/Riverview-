@@ -1737,9 +1737,8 @@ class DashboardPostgresTests(unittest.TestCase):
                 VALUES (%s,'status projection test','work-order:engineering','steward:test',
                     '[]'::jsonb,'GROUNDED',4)""", (objective_id,))
             cur.execute("""INSERT INTO grace_objective_events
-                (objective_id,event_type,idempotency_key,actor_id,payload,occurred_at)
-                VALUES (%s,'objective.grounded',%s,'service:test','{}'::jsonb,
-                    clock_timestamp()-interval '2 minutes')""",
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'objective.grounded',%s,'service:test','{}'::jsonb)""",
                 (objective_id, "grounded:" + objective_id))
         item = self.projection.objectives(objective_id=objective_id)["items"][0]
         self.assertEqual(item["status"], "GROUNDED")
@@ -1779,11 +1778,14 @@ class DashboardPostgresTests(unittest.TestCase):
                         (assignment_id, objective_id))
         item = self.projection.objectives(objective_id=objective_id)["items"][0]
         self.assertEqual(item["operational_status"]["label"], "Engineering executing")
+        self.assertEqual(item["operational_status"]["source"], "assignments.state")
+        self.assertIsNotNone(item["operational_status"]["occurred_at"])
         with self.admin.cursor() as cur:
             cur.execute("UPDATE grace_objectives SET status='COMPLETED' WHERE objective_id=%s",
                         (objective_id,))
         item = self.projection.objectives(objective_id=objective_id)["items"][0]
         self.assertEqual(item["operational_status"]["label"], "Completed")
+        self.assertIsNotNone(item["operational_status"]["occurred_at"])
         self.assertEqual(item["status"], "COMPLETED")
 
     def test_workers_have_individual_bounded_health_and_summary_counts(self):

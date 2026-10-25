@@ -471,11 +471,14 @@ class DashboardProjection:
                                 SELECT wa.attempt_id,wa.capability,wa.started_at,wa.status AS attempt_status,
                                     wr.result,wr.recorded_at,
                                     row_number() OVER (ORDER BY wa.started_at DESC,wa.attempt_id DESC) AS attempt_rank
+                                    ,bool_or(CASE WHEN jsonb_typeof(wr.result->'artifacts')='array'
+                                          THEN jsonb_array_length(wr.result->'artifacts')>0
+                                          ELSE wr.result ? 'artifact_name' END) OVER () AS has_any_output
                                 FROM worker_attempts wa JOIN worker_results wr USING(attempt_id)
                                 WHERE wa.assignment_id=%s)
                              SELECT ranked.attempt_id,ranked.capability,ranked.started_at,
                                     ranked.attempt_status,ranked.result,ranked.recorded_at,
-                                    {verification_select},ranked.attempt_rank
+                                    {verification_select},ranked.attempt_rank,ranked.has_any_output
                              FROM ranked
                              {verification_join}
                              WHERE ranked.attempt_rank<=9
@@ -491,7 +494,7 @@ class DashboardProjection:
                                           "bytes": result.get("artifact_bytes"),
                                           "sha256": result.get("artifact_sha256")}]
                     if result_row["attempt_rank"] > 8:
-                        outputs_truncated = True
+                        outputs_truncated = bool(result_row["has_any_output"])
                         continue
                     for artifact in artifact_rows[:8]:
                         if not isinstance(artifact, dict):
@@ -789,7 +792,8 @@ class DashboardProjection:
             cur.execute("""SELECT o.objective_id,o.request,o.scope_ref,o.submitter_id,
                     o.acceptance_criteria,o.status,o.assignment_id,o.source_revision,
                     o.source_sha256,o.revision,o.created_at,o.updated_at,
-                    a.state AS assignment_state,wa.attempt_id,wr.result AS artifact,
+                    a.state AS assignment_state,a.updated_at AS assignment_updated_at,
+                    wa.attempt_id,wr.result AS artifact,
                     wr.result_sha256,vr.decision AS verification_decision,
                     vr.verification_id,vr.verifier_revision,vr.summary AS verification_summary,
                     received.payload AS received_payload,
@@ -869,10 +873,14 @@ class DashboardProjection:
                 cur.execute("""WITH ranked AS (
                         SELECT wa.assignment_id,wa.started_at,wa.attempt_id,wr.result,
                             row_number() OVER (PARTITION BY wa.assignment_id
-                                ORDER BY wa.started_at DESC,wa.attempt_id DESC) AS attempt_rank
+                                ORDER BY wa.started_at DESC,wa.attempt_id DESC) AS attempt_rank,
+                            bool_or(CASE WHEN jsonb_typeof(wr.result->'artifacts')='array'
+                                THEN jsonb_array_length(wr.result->'artifacts')>0
+                                ELSE wr.result ? 'artifact_name' END) OVER
+                                (PARTITION BY wa.assignment_id) AS has_any_output
                         FROM worker_attempts wa JOIN worker_results wr USING(attempt_id)
                         WHERE wa.assignment_id=ANY(%s::text[]))
-                    SELECT assignment_id,result,attempt_rank FROM ranked
+                    SELECT assignment_id,result,attempt_rank,has_any_output FROM ranked
                     WHERE attempt_rank<=9 ORDER BY assignment_id,attempt_rank""",
                     (assignment_ids,))
                 for output_row in cur.fetchall():
@@ -881,7 +889,8 @@ class DashboardProjection:
                     if not records and isinstance(result.get("artifact_name"), str):
                         records = [{"name": result["artifact_name"], "summary": result.get("summary")}]
                     if output_row["attempt_rank"] > 8:
-                        outputs_truncated_by_assignment.add(output_row["assignment_id"])
+                        if output_row["has_any_output"]:
+                            outputs_truncated_by_assignment.add(output_row["assignment_id"])
                         continue
                     output_summary = outputs_by_assignment.setdefault(output_row["assignment_id"], [])
                     for record in records[:8]:
@@ -934,13 +943,12 @@ class DashboardProjection:
                     for r in cur.fetchall()}
             if objective_ids and evidence_relations[f"{self.schema}.grace_supervisory_authorization_events"]:
                 cur.execute("""SELECT DISTINCT ON (s.objective_id) s.objective_id,s.event_id,
-                        s.event_type,s.occurred_at,s.request_id,s.payload->>'proposal_revision' AS proposal_revision
+                        s.event_type,s.occurred_at,s.request_id
                     FROM grace_supervisory_authorization_events s
                     JOIN grace_objectives o ON o.objective_id=s.objective_id
                     WHERE s.objective_id=ANY(%s::text[]) AND s.event_type='luna_reserved'
                       AND s.payload->>'request_type'='cme_diagnostic_recovery'
-                      AND s.payload->>'proposal_revision' ~ '^[1-9][0-9]*$'
-                      AND (s.payload->>'proposal_revision')::integer=o.revision
+                      AND s.occurred_at>=o.updated_at
                       AND NOT EXISTS (SELECT 1 FROM grace_supervisory_authorization_events settled
                           WHERE settled.request_id=s.request_id AND settled.event_type='luna_settled')
                     ORDER BY s.objective_id,s.occurred_at DESC,s.event_id DESC""", (objective_ids,))
@@ -948,18 +956,17 @@ class DashboardProjection:
                     "event_id": str(r["event_id"]), "event_type": r["event_type"],
                     "occurred_at": r["occurred_at"],
                     "source": "grace_supervisory_authorization_events"}
-                    for r in cur.fetchall()
-                    if r["proposal_revision"] is not None}
+                    for r in cur.fetchall()}
             if objective_ids and evidence_relations[f"{self.schema}.external_reasoning_exchanges"]:
                 cur.execute("""SELECT DISTINCT ON (exchange.objective_id) exchange.objective_id,exchange.request_id,
                         exchange.delivery_state,exchange.requested_at,exchange.updated_at,exchange.deadline_at
                     FROM external_reasoning_exchanges exchange
+                    JOIN grace_objectives o ON o.objective_id=exchange.objective_id
                     WHERE exchange.objective_id=ANY(%s::text[])
                       AND exchange.delivery_state IN ('awaiting_delivery','awaiting_external_claim',
                                              'awaiting_response','response_received')
                       AND exchange.deadline_at>clock_timestamp()
-                      AND (exchange.proposal_revision IS NULL OR exchange.proposal_revision=(
-                          SELECT revision FROM grace_objectives o WHERE o.objective_id=exchange.objective_id))
+                      AND exchange.requested_at>=o.updated_at
                     ORDER BY exchange.objective_id,exchange.updated_at DESC,exchange.request_id DESC""", (objective_ids,))
                 reasoning_by_objective = {r["objective_id"]: {
                     "event_id": str(r["request_id"]), "event_type": r["delivery_state"],
@@ -1017,6 +1024,8 @@ class DashboardProjection:
                 operational_status = derive_operational_status(
                     lifecycle_status=row["status"], revision=current_revision,
                     assignment_state=assignment_state, latest_event=latest_activity,
+                    lifecycle_updated_at=row["updated_at"],
+                    assignment_updated_at=row["assignment_updated_at"],
                     criteria_failure=criteria_failure,
                     recovery_approval=recovery_by_objective.get(row["objective_id"]),
                     supervisor_recovery=supervisor_by_objective.get(row["objective_id"]),
