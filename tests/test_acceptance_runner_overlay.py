@@ -1,5 +1,5 @@
 """Focused contract checks for the in-place website acceptance extension."""
-# Revision: 1.0.1
+# Revision: 1.0.3
 from pathlib import Path
 import importlib.util
 
@@ -28,6 +28,9 @@ def test_overlay_adds_authenticated_delegation_and_denial_checks_and_is_idempote
     assert overlay.apply(result) == result
     assert 'views.append("resident-permissions")' in result
     assert "delegation_approvals_navigation" in result
+    assert "delegation_registration_interface" in result
+    assert "#chatgpt-principal-register" in result
+    assert '"protected server-side credential store"' in result
     assert "/api/v1/steward/delegation-grant-requests/options" in result
     assert "/api/v1/steward/delegation-grant-requests?status=pending" in result
     assert "/api/v1/steward/delegation-grant-requests?status=approved" in result
@@ -46,3 +49,21 @@ def test_overlay_refuses_unknown_or_partially_patched_runner():
         overlay.apply("unrecognized runner source")
     with pytest.raises(ValueError, match="partial"):
         overlay.apply(RUNNER_FIXTURE + '\n"check":"delegation_approvals_navigation"\n')
+
+
+def test_overlay_upgrades_the_already_deployed_delegation_browser_check():
+    legacy = '''                delegation_page = js("""
+                    return {visible:true,hostField:true,typeField:true,policyCards:true,
+                        refresh:!!document.querySelector('#delegation-refresh')}
+                """)
+                page_ok=(delegation_page.get("visible") and delegation_page.get("hostField")
+                         and delegation_page.get("typeField") and delegation_page.get("policyCards")
+                         and delegation_page.get("refresh"))
+                results.append({"check":"delegation_approvals_navigation",
+                    "status":"PASS" if page_ok else "FAIL"})
+'''
+    result = overlay.apply(legacy)
+    assert "delegation_registration_interface" in result
+    assert "registrationButton" in result
+    assert "identity.manage" in result
+    assert overlay.apply(result) == result

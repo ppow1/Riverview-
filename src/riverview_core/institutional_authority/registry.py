@@ -1,12 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/registry.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.13
+# Revision: 1.0.14
 # Purpose: Persist separated offices, occupants, implementations and scoped grants
 # Execution Model: Synchronous transactional PostgreSQL registry
 # Observability: Append-only authority events and office binding revisions
 # Dependencies: Python 3.10+; Psycopg 3; institutional_authority migration
 # Authority: Exact active credential, principal, action and scope are required
+# Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Accept an optional pre-persisted credential for atomic server-side service identity registration.
 # Changed: 2026-10-11 UTC | RV-M4.1-001 | Validate expiry timestamps and object-shaped office state
 # Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Allow trusted root caller to persist random token before bootstrap transaction
 # Changed: 2026-10-11 UTC | RV-M4.1-BOUND-OCCUPANT-WRITE | Require the exact office-state writer to be the currently bound resident
@@ -195,8 +196,8 @@ class AuthorityRegistry:
             raise AuthorityDenied("no active direct grant for exact action and scope")
         return principal
 
-    def _new_credential(self, cur, principal_id, *, expires_at=None):
-        token = secrets.token_urlsafe(32)
+    def _new_credential(self, cur, principal_id, *, expires_at=None, token=None):
+        token = token or secrets.token_urlsafe(32)
         cur.execute("INSERT INTO principal_credentials(credential_id,principal_id,credential_sha256,expires_at) VALUES (%s,%s,%s,%s)",
                     (uuid4(), principal_id, self._digest(token), expires_at))
         return token
@@ -244,10 +245,14 @@ class AuthorityRegistry:
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
 
-    def create_principal(self, steward_token, principal_id, principal_kind, *, office_id=None):
+    def create_principal(self, steward_token, principal_id, principal_kind, *, office_id=None,
+                         credential=None):
+        """Create a principal; an optional token must already be protected by the trusted caller."""
         allowed = {"resident", "service", "worker", "human"}
         if not principal_id or principal_kind not in allowed:
             raise ValueError("valid principal id and non-Steward kind are required")
+        if credential is not None:
+            self._digest(credential)
         try:
             with self.db.transaction():
                 with self.db.cursor() as cur:
@@ -256,7 +261,7 @@ class AuthorityRegistry:
                     cur.execute("""INSERT INTO institutional_principals
                         (principal_id,principal_kind,office_id) VALUES (%s,%s,%s)""",
                         (principal_id, principal_kind, office_id))
-                    token = self._new_credential(cur, principal_id)
+                    token = self._new_credential(cur, principal_id, token=credential)
                     self._event(cur, event_type="principal_created", actor_id=actor["principal_id"],
                                 subject_id=principal_id,
                                 payload={"principal_kind": principal_kind, "office_id": office_id})

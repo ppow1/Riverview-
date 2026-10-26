@@ -1,5 +1,6 @@
-# Revision: 1.0.0
-"""Protected, fixed-surface adapter for Comms5 delegated grant lifecycle.
+# Revision: 1.1.0
+# Changed: 2026-10-26 UTC | RV-ISSUE343-BASE-INTEGRATION | Preserve protected ChatGPT principal registration and add exact host-scoped delegation pairs.
+"""Protected adapter for Comms5 delegated grant lifecycle and identity registration.
 
 The adapter owns the manager connection and Steward credential. Neither value
 is accepted from MCP arguments or browser requests.
@@ -14,6 +15,9 @@ from pathlib import Path
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from .registry import AuthorityDenied, AuthorityRegistry
+from .service_principal_credentials import (
+    CHATGPT_PRINCIPAL_ID, ProtectedChatGPTCredentialStore,
+)
 
 
 _PROMOTION_ACTION = "comms5.proposal.promote"
@@ -120,7 +124,8 @@ class Comms5DelegationAuthorityAdapter:
     """Expose only fixed Comms5 grant lifecycle operations over AuthorityRegistry."""
 
     def __init__(self, dsn: str, *, schema: str, manager_passfile: str | Path,
-                 steward_token_file: str | Path, manager_role="riverview_authority_manager"):
+                 steward_token_file: str | Path, manager_role="riverview_authority_manager",
+                 chatgpt_credential_store=None):
         self._steward_token = _read_credential(steward_token_file,
             systemd_name="authority-steward-token")
         # psycopg conninfo safely quotes values and does not expose the password.
@@ -134,6 +139,8 @@ class Comms5DelegationAuthorityAdapter:
                                       application_name="comms5-protected-delegation")
         self._registry = AuthorityRegistry(protected_dsn, schema=schema,
                                            runtime_safe=True)
+        self._chatgpt_credential_store = (chatgpt_credential_store or
+                                          ProtectedChatGPTCredentialStore())
         try:
             with self._registry.db.transaction():
                 with self._registry.db.cursor() as cur:
@@ -161,6 +168,33 @@ class Comms5DelegationAuthorityAdapter:
                 row = cur.fetchone()
         return bool(row and row["status"] == "active" and
                     (principal_kind is None or row["principal_kind"] == principal_kind))
+
+    def chatgpt_registration_available(self) -> bool:
+        return self._chatgpt_credential_store.available()
+
+    def register_chatgpt_service_principal(self):
+        """Create only the fixed Comms5 service principal after exact Steward authority.
+
+        Its bearer is written ahead of the registry transaction to the fixed
+        protected server-side store. It is never returned to the browser.
+        """
+        actor_id = self._authenticated_steward()
+        actor = self._registry.authorize(
+            self._steward_token, "identity.manage", "institution")
+        if (actor_id != self._steward_principal_id or
+                actor.get("principal_id") != actor_id or
+                actor.get("principal_kind") != "steward"):
+            raise AuthorityDenied("institutional identity management is not authorized")
+        with self._chatgpt_credential_store.registration_lock():
+            if self.registered_target(CHATGPT_PRINCIPAL_ID, principal_kind="service"):
+                return {"status": "already_registered", "principal_id": CHATGPT_PRINCIPAL_ID,
+                        "principal_kind": "service", "credential_stored": True}
+            credential = self._chatgpt_credential_store.load_or_create()
+            self._registry.create_principal(self._steward_token,
+                CHATGPT_PRINCIPAL_ID, "service", credential=credential)
+            del credential
+            return {"status": "registered", "principal_id": CHATGPT_PRINCIPAL_ID,
+                    "principal_kind": "service", "credential_stored": True}
 
     @staticmethod
     def _validate_action_scope(action, scope_ref, policy_ref):

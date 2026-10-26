@@ -1,5 +1,5 @@
 /*
- * Revision: 1.1.0 | RV-PR342-DELEGATION-POLICY-DISCLOSURE
+ * Revision: 1.2.0 | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION
  */
 .delegation-approvals{display:grid;gap:12px;margin:20px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .delegation-approvals-heading{display:flex;align-items:start;justify-content:space-between;gap:14px}
@@ -27,6 +27,7 @@
 .delegation-empty{padding:12px;border:1px dashed var(--line);border-radius:8px;color:var(--muted)}
 .delegation-create{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--surface-soft)}
 .delegation-create h4{margin:0;color:var(--ink)}.delegation-create>p{margin:0;color:var(--muted);font-size:12px;line-height:1.45;max-width:780px}
+.delegation-principal-registration{display:grid;gap:7px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}.delegation-principal-registration h4{margin:0;color:var(--ink)}.delegation-principal-registration p{margin:0;color:var(--muted);font-size:12px;line-height:1.45;overflow-wrap:anywhere}.delegation-principal-registration button{justify-self:start;min-height:38px}.delegation-principal-registration button:disabled{opacity:.55;cursor:not-allowed}
 .delegation-create form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:end}
 .delegation-create label{display:grid;gap:4px;color:var(--muted);font-size:12px}.delegation-create select,.delegation-create textarea{min-width:0;min-height:38px;padding:7px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);font:inherit}
 .delegation-create textarea{min-height:72px;resize:vertical}.delegation-create label:nth-of-type(3){grid-column:1/-1}.delegation-request-target{grid-column:1/-1}.delegation-create button{justify-self:start;min-height:38px}.delegation-create button:disabled{opacity:.55;cursor:not-allowed}
