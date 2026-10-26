@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.77
+# Revision: 1.0.78
+# Changed: 2026-10-26 UTC | RV-ISSUE268-OBJECTIVE-PROJECTION-REPAIR | Cover outputless completed attempt projection and distinguish canonical objective status from a blocked assignment.
 # Changed: 2026-10-25 UTC | RV-V2-OBJECTIVE-OPERATIONAL-STATUS-OUTPUTS | Cover persisted operational status and safe multi-output assignment projection.
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Build Grace objective, conversation, and step relations from source migrations in Dashboard PostgreSQL tests.
 # Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify dashboard presents correlated blocked-objective recovery guidance without authorizing retry.
@@ -1804,6 +1805,42 @@ class DashboardPostgresTests(unittest.TestCase):
         self.assertEqual(item["operational_status"]["label"], "Completed")
         self.assertIsNotNone(item["operational_status"]["occurred_at"])
         self.assertEqual(item["status"], "COMPLETED")
+
+    def test_objective_projection_handles_attempt_without_outputs_and_keeps_assignment_state_separate(self):
+        """An assignment result may exist without a registered deliverable."""
+        assignment_id = self.create("result-without-output")
+        objective_id = "objective:" + uuid4().hex
+        attempt_id = uuid4()
+        result = {"summary": "Attempt recorded without a registered artifact."}
+        result_digest = hashlib.sha256(json.dumps(result, sort_keys=True,
+            separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+        now = datetime.now(timezone.utc)
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO grace_objectives
+                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,revision,assignment_id)
+                VALUES (%s,'projection regression fixture','work-order:engineering','steward:test',
+                    '[]'::jsonb,'WORK_ORDER_CREATED',1,%s)""", (objective_id, assignment_id))
+            cur.execute("UPDATE assignments SET state='blocked' WHERE id=%s", (assignment_id,))
+            cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
+                        "VALUES ('outputless-executor',%s,'[]','scope')", (b"o" * 32,))
+            cur.execute("""INSERT INTO worker_attempts(attempt_id,assignment_id,worker_id,lease_generation,
+                         capability,idempotency_key,input_sha256,status,started_at,finished_at)
+                         VALUES (%s,%s,'outputless-executor',1,'engineering','outputless-attempt',%s,
+                            'succeeded',%s,%s)""",
+                        (attempt_id, assignment_id, "a" * 64,
+                         now - timedelta(seconds=2), now))
+            cur.execute("INSERT INTO worker_results(attempt_id,result,result_sha256) VALUES (%s,%s,%s)",
+                        (attempt_id, json.dumps(result), result_digest))
+
+        item = self.projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["objective_id"], objective_id)
+        self.assertEqual(item["status"], "WORK_ORDER_CREATED")
+        self.assertEqual(item["lifecycle_status"], "work_order_created")
+        self.assertEqual(item["lifecycle_stage"], "Engineering assignment blocked")
+        self.assertEqual(item["assignment_state"], "blocked")
+        self.assertEqual(item["artifact"]["sha256"], result_digest)
+        self.assertIsNone(item["artifact"]["reference"])
+        self.assertEqual(item["related_outputs"], [])
 
     def test_workers_have_individual_bounded_health_and_summary_counts(self):
         from psycopg import sql

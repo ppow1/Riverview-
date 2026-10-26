@@ -1,5 +1,6 @@
 """Focused contract checks for the in-place website acceptance extension."""
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-26 UTC | RV-ISSUE268-OBJECTIVE-PROJECTION-ACCEPTANCE | Assert browser-runner projection regression coverage and cancellation eligibility evidence.
 from pathlib import Path
 import importlib.util
 
@@ -41,6 +42,10 @@ def test_overlay_adds_authenticated_delegation_and_denial_checks_and_is_idempote
     assert '("BLOCKED" if any(x["status"]=="BLOCKED" for x in checks) else' in result
     assert 'return 1 if report["overall"] in {"FAIL","BLOCKED"} else 0' in result
     assert "delegation_unauthorized_" in result
+    assert '"check":"work_objectives_projection_available"' in result
+    assert "projection_failed" in result
+    assert "source unavailable" in result.lower()
+    assert '"check":"cancel_objective_action_visible_when_eligible"' in result
 
 
 def test_overlay_refuses_unknown_or_partially_patched_runner():

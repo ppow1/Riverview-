@@ -3,7 +3,8 @@
 The runner remains the existing Selenium test program; this idempotent overlay
 is a small release-time patch, not a second test framework.
 """
-# Revision: 1.2.0
+# Revision: 1.3.0
+# Changed: 2026-10-26 UTC | RV-ISSUE268-OBJECTIVE-PROJECTION-ACCEPTANCE | Fail live Steward browser acceptance when Work objective source fails and verify eligible cancel action rendering.
 from __future__ import annotations
 
 import argparse
@@ -120,6 +121,60 @@ STEWARD_INSERT = '''            if role == "steward":
                         "reason":"Delegation list read failed before request detail could be tested."})
                 stage = "live_overview_projection_acceptance"
 '''
+OBJECTIVES_ANCHOR = '''                stage = "live_overview_projection_acceptance"
+'''
+OBJECTIVES_INSERT = '''                stage = "work_objectives_projection_acceptance"
+                work_check=js("""
+                    document.querySelector('[data-view=work]')?.click();
+                    let search=document.querySelector('#work-search');if(search)search.value='';
+                    document.querySelector('#work-refresh')?.click();
+                    let r=await fetch('/api/v1/objectives?limit=25',{cache:'no-store'});
+                    let body=r.ok?await r.json():null;
+                    for(let i=0;i<60;i++){
+                      let badge=document.querySelector('#work-source-state')?.textContent||'';
+                      let rows=document.querySelectorAll('#work-objectives-body tr').length;
+                      if(rows || !['NOT CHECKED','CHECKING'].includes(badge))break;
+                      await new Promise(resolve=>setTimeout(resolve,100));
+                    }
+                    let badge=document.querySelector('#work-source-state')?.textContent||'';
+                    let detail=document.querySelector('#work-refresh-status')?.textContent||'';
+                    let objectiveEmpty=document.querySelector('#work-objectives-empty')?.textContent||'';
+                    let rows=[...document.querySelectorAll('#work-objectives-body tr')];
+                    let eligible=Array.isArray(body?.items)?body.items.filter(x=>
+                      (x.status==='GROUNDED'&&!x.assignment_id)||
+                      (x.status==='WORK_ORDER_CREATED'&&!!x.assignment_id&&['queued','ready'].includes(String(x.assignment_state||'').toLowerCase()))
+                    ).length:0;
+                    let buttons=rows.reduce((n,row)=>n+row.querySelectorAll('button[data-open-objective-cancellation]').length,0);
+                    return {http:r.status,apiStatus:body?.status||body?.error||null,
+                      apiCount:Array.isArray(body?.items)?body.items.length:null,
+                      rowCount:rows.length,cancelButtons:buttons,eligibleCount:eligible,
+                      badge,detail,objectiveEmpty};
+                """)
+                projection_ok=(work_check.get("http")==200 and work_check.get("apiStatus")=="available"
+                    and isinstance(work_check.get("apiCount"),int)
+                    and work_check.get("rowCount")==work_check.get("apiCount")
+                    and (work_check.get("apiCount")>0 or
+                         work_check.get("objectiveEmpty")=="The authoritative objective projection returned no records.")
+                    and "projection_failed" not in work_check.get("detail","")
+                    and "source unavailable" not in work_check.get("detail","").lower()
+                    and "Objective source: unavailable" not in work_check.get("objectiveEmpty", ""))
+                results.append({"check":"work_objectives_projection_available",
+                    "status":"PASS" if projection_ok else "FAIL","http":work_check.get("http"),
+                    "source_status":work_check.get("apiStatus"),"objective_count":work_check.get("apiCount"),
+                    "rendered_rows":work_check.get("rowCount"),"source_badge":work_check.get("badge"),
+                    "objective_source_message":work_check.get("objectiveEmpty","")[:96],
+                    "reason":work_check.get("detail","")[:96]})
+                if projection_ok and work_check.get("eligibleCount",0)==0:
+                    results.append({"check":"cancel_objective_action_visible_when_eligible",
+                        "status":"SKIPPED","reason":"No eligible production objective; mutation coverage uses isolated objectives."})
+                else:
+                    action_ok=(projection_ok and work_check.get("cancelButtons",0)==work_check.get("eligibleCount",0)>0)
+                    results.append({"check":"cancel_objective_action_visible_when_eligible",
+                        "status":"PASS" if action_ok else "FAIL",
+                        "eligible_objectives":work_check.get("eligibleCount"),
+                        "cancel_buttons":work_check.get("cancelButtons")})
+                stage = "live_overview_projection_acceptance"
+'''
 NON_STEWARD_ANCHOR = '''            elif role in {"operator","viewer"}:
                 denied=js("return fetch('/api/v1/notification-settings',{cache:'no-store'}).then(r=>r.status)")
 '''
@@ -183,6 +238,10 @@ def apply(source: str) -> str:
     if marker in source:
         if '"check":"delegation_registration_interface"' in source:
             if LEGACY_FIELDS_ANCHOR not in source and "registrationButton" in source:
+                if '"check":"work_objectives_projection_available"' in source:
+                    return source
+                if OBJECTIVES_ANCHOR in source:
+                    return _once(source, OBJECTIVES_ANCHOR, OBJECTIVES_INSERT, "work_objectives")
                 return source
             raise ValueError("acceptance_runner_delegation_overlay_partial")
         else:
@@ -197,6 +256,7 @@ def apply(source: str) -> str:
     result=_once(result,STEWARD_ANCHOR,STEWARD_INSERT,"steward")
     result=_once(result,NON_STEWARD_ANCHOR,NON_STEWARD_REPLACEMENT,"non_steward")
     result=_once(result,REPORT_ANCHOR,REPORT_REPLACEMENT,"report")
+    result=_once(result,OBJECTIVES_ANCHOR,OBJECTIVES_INSERT,"work_objectives")
     return _once(result,EXIT_ANCHOR,EXIT_REPLACEMENT,"exit")
 
 def write_candidate(source_path: Path, output_path: Path) -> None:
