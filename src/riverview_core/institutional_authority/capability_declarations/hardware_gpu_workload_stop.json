@@ -1,14 +1,38 @@
 {
   "capability_id": "hardware.gpu.workload.stop",
-  "description": "Stop one allowlisted OCTOMINER1 GPU workload only when it has no active request or job",
+  "description": "Stop a registered GPU workload after host-local active-request checks",
   "operation": "hardware.gpu.workload.stop",
   "owner_office": "office:steward",
   "implementation_ref": "dashboard.gpu_workload_routes.stop",
-  "dependencies": ["riverview.status-dashboard", "octominer1.riverview-gpu-workload-control"],
+  "dependencies": [
+    "riverview.status-dashboard"
+  ],
   "approval_default": false,
   "enabled": true,
-  "input_schema": {"type":"object","additionalProperties":false,"required":["service"],"properties":{"service":{"type":"string","enum":["vision","comfyui"]}}},
-  "authorization_contract": {"mode":"exact_grant","action":"hardware.gpu.workload.stop","scope_policy":"exact_scope"},
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "host_id",
+      "service"
+    ],
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{1,62}$"
+      },
+      "service": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    }
+  },
+  "authorization_contract": {
+    "mode": "exact_grant",
+    "action": "hardware.gpu.workload.stop",
+    "scope_policy": "exact_scope"
+  },
   "availability_policy": "executor_and_worker_health",
   "registration_blocker": null
 }

@@ -36,6 +36,26 @@ def job(op):
             "operation":op, "state":"queued"}
 
 
+class Telemetry:
+    def __init__(self, hosts=None, registrations=None):
+        actions=("read","start","stop","switch")
+        self.hosts=hosts or [
+            {"host_id":"octominer1","display_name":"OCTOMINER1","identity_state":"verified",
+             "workload_control":{"state":"registered","controller_id":"ctrl-1"}},
+            {"host_id":"octominer2","display_name":"OctoMiner2","identity_state":"documented_unverified",
+             "workload_control":{"state":"not_registered"}},
+        ]
+        caps=[{"capability_id":f"hardware.gpu.workload.{x}","action":f"hardware.gpu.workload.{x}"} for x in actions]
+        self.registrations=registrations or {"octominer1":{"controller_id":"ctrl-1",
+            "transport_host":"192.0.2.10","transport_port":22,"transport_user":"root",
+            "private_key_path":"/tmp/test-gpu-key","known_hosts_credential":"resource-telemetry-known-hosts",
+            "services":[{"service_id":"vision","display_name":"Vision","controller_service":"vision"},
+                        {"service_id":"comfyui","display_name":"ComfyUI","controller_service":"comfyui"}],
+            "capabilities":caps}}
+    def read(self): return {"hosts":self.hosts}
+    def workload_controller_registrations(self): return self.registrations
+
+
 def test_only_fixed_api_routes_and_ssh_commands_are_supported():
     assert is_route("GET", "/api/v1/hardware/workloads")
     assert is_route("GET", "/api/v1/hardware/workloads/jobs/4e131dde-0794-4847-9f32-a10c52c8e047")
@@ -75,8 +95,9 @@ def test_steward_submission_requires_exact_registered_authority_and_uses_fixed_o
         command = "POST"
         _account_cookie_authenticated = True
         _account_identity = {"roles":["steward"], "authority_principal_id":"steward:camrui"}
-        body = {"service":"vision"}
-        def __init__(self, registry): self.server=SimpleNamespace(_authority_registry=registry, _comms5_operations=None)
+        body = {"host_id":"octominer1","service":"vision"}
+        def __init__(self, registry): self.server=SimpleNamespace(_authority_registry=registry,
+            _comms5_operations=None,_resource_telemetry=Telemetry())
         def _json_body(self, maximum): return self.body
         def _json(self, status, payload, request_id): self.result=(status,payload)
         def _error(self, status, code, request_id): self.result=(status,{"error":code})
@@ -95,7 +116,7 @@ def test_steward_submission_requires_exact_registered_authority_and_uses_fixed_o
         assert handler.result[1]["state"] == "queued"
         assert handler.result[1]["operation"] == "start_vision"
         job_id=handler.result[1]["job_id"]
-        assert registry.calls == [("protected-test-token", action, "host:octominer1") for action in OP_ACTION.values()]
+        assert registry.calls == [("protected-test-token", "hardware.gpu.workload.start", "host:octominer1")]
         assert controller.return_value.call.call_args.args == (f"submit:start_vision:{job_id}:steward:camrui",)
 
         denied=Registry(denied="hardware.gpu.workload.start")
@@ -118,7 +139,8 @@ def test_steward_status_uses_dashboard_authority_registry_without_comms5_facade(
         command = "GET"
         _account_cookie_authenticated = True
         _account_identity = {"roles":["steward"], "authority_principal_id":"steward:camrui"}
-        def __init__(self, registry): self.server=SimpleNamespace(_authority_registry=registry, _comms5_operations=None)
+        def __init__(self, registry): self.server=SimpleNamespace(_authority_registry=registry,
+            _comms5_operations=None,_resource_telemetry=Telemetry())
         def _json(self, status, payload, request_id): self.result=(status,payload)
         def _error(self, status, code, request_id): self.result=(status,{"error":code})
 
@@ -134,7 +156,8 @@ def test_steward_status_uses_dashboard_authority_registry_without_comms5_facade(
             controller.return_value.call.return_value=status
             dispatch(handler, urlsplit("/api/v1/hardware/workloads"), "request")
         assert handler.result[0] == 200
-        assert handler.result[1]["permissions"] == {"read":True,"start":True,"stop":True,"switch":True}
+        host=next(row for row in handler.result[1]["hosts"] if row["host_id"]=="octominer1")
+        assert host["permissions"] == {"read":True,"start":True,"stop":True,"switch":True}
         assert registry.calls == [(action,"host:octominer1") for action in OP_ACTION.values()]
         controller.return_value.call.assert_called_once_with("status")
 
@@ -143,15 +166,102 @@ def test_six_workload_buttons_map_to_the_four_exact_capabilities():
     root=Path(__file__).resolve().parents[1]
     html=(root/"website/v2/deployed/index.html").read_text()
     script=(root/"website/v2/deployed/assets/gpu-workload-controls.js").read_text()
-    buttons=re.findall(r'data-gpu-action="(start|stop|switch)" data-gpu-service="(vision|comfyui)"',html)
-    assert len(buttons) == 6
-    assert set(buttons) == {(action,service) for action in ("start","stop","switch")
-                             for service in ("vision","comfyui")}
+    assert 'id="gpu-workload-host"' in html
+    assert 'data-gpu-action="${action}"' in script
+    assert 'host_id:host.host_id' in script
+    assert "host:octominer1" not in script
     assert all(f'"{action}": "hardware.gpu.workload.{action}"' in
                (root/"src/riverview_core/status_dashboard/gpu_workload_routes.py").read_text()
                for action in ("read","start","stop","switch"))
-    assert 'data-gpu-action="${action}"' not in script
-    assert 'const action = button.dataset.gpuAction, service = button.dataset.gpuService' in script
+
+
+def test_registered_host_mapping_accepts_distinct_simulated_octominer2_service_and_transport():
+    from riverview_core.status_dashboard.gpu_workload_routes import _registration, _service
+    telemetry=Telemetry()
+    telemetry.hosts[1]={"host_id":"octominer2","display_name":"OctoMiner2","identity_state":"verified"}
+    telemetry.registrations["octominer2"]={"controller_id":"ctrl-2","transport_host":"198.51.100.27",
+        "transport_port":2222,"transport_user":"controller","private_key_path":"/tmp/octo2-key",
+        "known_hosts_credential":"octo2-known-hosts","gpu_resource_ids":["gpu:test-device"],
+        "services":[{"service_id":"vision-service-two","display_name":"Host two vision",
+                      "controller_service":"vision"}],"capabilities":[]}
+    class Handler:
+        command="GET";_account_cookie_authenticated=True
+        _account_identity={"roles":["steward"],"authority_principal_id":"steward:camrui"}
+        def __init__(self,registry=None): self.server=SimpleNamespace(_resource_telemetry=telemetry,
+            _authority_registry=registry,_comms5_operations=None)
+        def _json(self,status,payload,request_id): self.result=(status,payload)
+        def _error(self,status,code,request_id): self.result=(status,{"error":code})
+    registration=_registration(Handler(),"octominer2")
+    assert registration["transport_host"]=="198.51.100.27"
+    assert registration["transport_port"]==2222
+    assert _service(registration,"vision-service-two")["service_id"]=="vision-service-two"
+    class Registry:
+        def __init__(self):self.calls=[]
+        def authorize(self,token,action,scope):
+            self.calls.append((action,scope));return {"principal_id":"steward:camrui","principal_kind":"steward"}
+    registry=Registry();handler=Handler(registry)
+    with tempfile.TemporaryDirectory() as root:
+        Path(root,"authority-steward-token").write_text("t"*64)
+        with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}), \
+             patch("riverview_core.status_dashboard.gpu_workload_routes._controller") as controller:
+            controller.return_value.call.return_value={"services":{"vision":{"active":True}},
+                "queues":{"vision":{"state":"available","active_requests":0}},
+                "gpu":{"state":"available","name":"Host two GPU","used_mib":1,"total_mib":2},
+                "observed_at":"now"}
+            dispatch(handler,urlsplit("/api/v1/hardware/workloads?host_id=octominer2"),"r")
+    assert handler.result[0]==200
+    assert registry.calls[0]==("hardware.gpu.workload.read","host:octominer2")
+    assert controller.call_args.args[0]["transport_host"]=="198.51.100.27"
+    telemetry.hosts[1]["identity_state"]="documented_unverified"
+    with _raises(LookupError,"unverified"):
+        _registration(Handler(),"octominer2")
+
+
+def test_delegated_host_grant_is_visible_and_reserved_for_operation_not_status_polling():
+    class Registry:
+        def __init__(self): self.reserved=[]; self.consumed=[]; self.released=[]
+        def authorize(self,token,action,scope):
+            from riverview_core.institutional_authority.registry import AuthorityDenied
+            raise AuthorityDenied("no direct grant")
+        def list_active_delegated_grants(self,token,action,scope):
+            return [{"grant_id":"grant:gpu-test","policy_ref":"policy:delegation.v1"}]
+        def reserve_delegated_grant(self,token,grant_id,action,scope,operation_ref,*,idempotency_key):
+            value={"reservation_id":"resv-gpu-test","status":"reserved"}
+            self.reserved.append((grant_id,action,scope,operation_ref,idempotency_key));return value
+        def consume_delegated_grant(self,token,reservation_id,result_ref):
+            self.consumed.append((reservation_id,result_ref));return {"status":"consumed"}
+        def release_delegated_grant(self,*args): self.released.append(args)
+    class Handler:
+        _account_cookie_authenticated=True
+        _account_identity={"roles":["steward"],"authority_principal_id":"steward:camrui"}
+        def __init__(self,registry,command,body=None):
+            self.command=command;self.body=body or {};self.server=SimpleNamespace(
+                _authority_registry=registry,_comms5_operations=None,_resource_telemetry=Telemetry())
+        def _json_body(self,maximum):return self.body
+        def _json(self,status,payload,request_id):self.result=(status,payload)
+        def _error(self,status,code,request_id):self.result=(status,{"error":code})
+    registry=Registry();job_id="4e131dde-0794-4847-9f32-a10c52c8e047"
+    with tempfile.TemporaryDirectory() as root:
+        Path(root,"authority-steward-token").write_text("t"*64)
+        with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}), \
+             patch("riverview_core.status_dashboard.gpu_workload_routes._controller") as controller:
+            controller.return_value.call.return_value={"job_id":job_id,"state":"queued"}
+            submitted=Handler(registry,"POST",{"host_id":"octominer1","service":"vision"})
+            dispatch(submitted,urlsplit("/api/v1/hardware/workloads/start"),"r")
+            assert submitted.result[0]==202
+            expected=("grant:gpu-test","hardware.gpu.workload.start","host:octominer1",
+                f"gpu-workload:octominer1:{job_id}",job_id)
+            assert registry.reserved==[expected]
+            controller.return_value.call.return_value={"job_id":job_id,"operation":"start_vision","state":"succeeded"}
+            completed=Handler(registry,"GET")
+            dispatch(completed,urlsplit(f"/api/v1/hardware/workloads/jobs/{job_id}?host_id=octominer1"),"r")
+            assert completed.result[0]==200
+            assert registry.reserved==[expected,expected]
+            assert registry.consumed==[("resv-gpu-test",f"gpu-workload-job:{job_id}:succeeded")]
+    from riverview_core.institutional_authority.registry import AuthorityRegistry
+    AuthorityRegistry._validate_delegation_scope("host:octominer1")
+    with _raises(ValueError,"scope"):
+        AuthorityRegistry._validate_delegation_scope("host:OCTOMINER1")
 
 
 def test_stop_refuses_active_comfyui_work_without_stopping_unit():

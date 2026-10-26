@@ -12,6 +12,10 @@
 # History: Initial controlled source
 import subprocess
 import unittest
+import tempfile
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+from urllib.parse import urlsplit
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -129,6 +133,102 @@ class _Handler:
 
     def _json_body(self, maximum):
         return self.body
+
+
+class _RequestTelemetry:
+    def read(self):
+        return {"hosts":[{"host_id":"octominer1","display_name":"OCTOMINER1",
+                          "identity_state":"verified"},
+                         {"host_id":"octominer2","display_name":"OctoMiner2",
+                          "identity_state":"documented_unverified"}]}
+    def workload_controller_registrations(self):
+        return {"octominer1":{"services":[{"service_id":"vision","display_name":"Vision"}],
+                "capabilities":[{"capability_id":f"hardware.gpu.workload.{x}",
+                                  "action":f"hardware.gpu.workload.{x}"}
+                                 for x in ("read","start","stop","switch")]}}
+
+
+class _RequestPermissionStore:
+    def list_profiles(self, principal_id):
+        return {"capabilities":[{"capability_id":f"hardware.gpu.workload.{action}",
+                    "authority_action":f"hardware.gpu.workload.{action}","enabled":True,
+                    "registration_blocker":None,"description":f"Registered {action} operation"}
+                for action in ("read","start","stop","switch")]}
+
+
+class _RequestRegistry:
+    def __init__(self): self.auth=[]; self.created=[]
+    def authorize(self, token, action, scope):
+        self.auth.append((token,action,scope))
+        if action!="authority.grant" or scope!="institution":
+            from riverview_core.institutional_authority.registry import AuthorityDenied
+            raise AuthorityDenied("not allowed")
+        return {"principal_id":"steward:camrui","principal_kind":"steward"}
+    def request_grant(self, **kwargs): self.created.append(kwargs); return {
+        "status":"pending","request_id":"delegation-request:fixture-1","request_sha256":"a"*64}
+
+
+class DelegationRequestCreationTests(unittest.TestCase):
+    def handler(self, registry, body=None, *, roles=("steward",), cookie=True):
+        handler=_Handler(_Adapter())
+        handler.command="POST"
+        handler._account_cookie_authenticated=cookie
+        handler._account_identity={"roles":list(roles),"authority_principal_id":"steward:camrui"}
+        handler.server=SimpleNamespace(_authority_registry=registry,_resource_telemetry=_RequestTelemetry(),
+                                       _permission_store=_RequestPermissionStore(),
+                                       _comms5_operations=None)
+        handler.body=body or {}
+        return handler
+
+    def body(self, **overrides):
+        value={"host_id":"octominer1","action":"hardware.gpu.workload.switch",
+               "purpose":"Operate approved OCTOMINER1 workload switching controls",
+               "valid_until":(datetime.now(timezone.utc)+timedelta(days=7)).isoformat(),
+               "idempotency_key":"test-request-key-0001"}
+        value.update(overrides); return value
+
+    def test_registered_host_options_are_exact_and_unverified_host_is_excluded(self):
+        registry=_RequestRegistry(); handler=self.handler(registry)
+        handler.command="GET"; handler.body={}
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                self.assertTrue(is_route("GET","/api/v1/steward/delegation-grant-requests/options"))
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests/options"),"r")
+        self.assertEqual(handler.response[0],200)
+        self.assertEqual([x["host_id"] for x in handler.response[1]["hosts"]],["octominer1"])
+        self.assertEqual(handler.response[1]["hosts"][0]["scope_ref"],"host:octominer1")
+        self.assertEqual([x["capability_id"] for x in handler.response[1]["hosts"][0]["capabilities"]],
+            [f"hardware.gpu.workload.{x}" for x in ("read","start","stop","switch")])
+        self.assertTrue(all(item["description"].startswith("Registered")
+                            for item in handler.response[1]["hosts"][0]["capabilities"]))
+
+    def test_request_submission_is_pending_exact_scope_and_requires_steward_authority(self):
+        registry=_RequestRegistry(); handler=self.handler(registry,self.body())
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],201)
+        self.assertEqual(handler.response[1]["status"],"pending")
+        self.assertEqual(registry.created[0]["scope_ref"],"host:octominer1")
+        self.assertEqual(registry.created[0]["action"],"hardware.gpu.workload.switch")
+        self.assertEqual(registry.created[0]["principal_id"],"steward:camrui")
+        self.assertEqual(registry.created[0]["request_ref"],self.body()["purpose"])
+        self.assertIsNone(registry.created[0]["max_uses"])
+
+    def test_unregistered_host_and_non_steward_cannot_create_requests(self):
+        registry=_RequestRegistry(); handler=self.handler(registry,self.body(host_id="octominer2"))
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],400)
+        self.assertEqual(registry.created,[])
+        denied=self.handler(_RequestRegistry(),self.body(),roles=("resident",))
+        self.assertEqual(dispatch(denied,urlsplit("/api/v1/steward/delegation-grant-requests"),"r"),True)
+        self.assertEqual(denied.response[0],403)
+        self.assertEqual(denied.server._authority_registry.created,[])
 
 
 class DelegationProjectionTests(unittest.TestCase):

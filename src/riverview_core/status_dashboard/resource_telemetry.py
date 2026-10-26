@@ -77,6 +77,31 @@ _MODEL_SOURCES = (
     },
 )
 
+# Workload controls are registered alongside the verified hardware host
+# projection.  A host is eligible only when its telemetry identity is verified
+# and this registry contains a forced-command controller.  OCTOMINER2 remains
+# in the host inventory but has no controller registration until its real
+# services, GPU resources, transport and readiness probes are verified.
+_WORKLOAD_CONTROLLER_REGISTRY = {
+    "octominer1": {
+        "controller_id": "octominer1.riverview-gpu-workload-control",
+        "transport_host": "192.168.1.160",
+        "transport_port": 22,
+        "transport_user": "root",
+        "private_key_path": "/etc/riverview/gpu-workload-control/id_ed25519",
+        "known_hosts_credential": "resource-telemetry-known-hosts",
+        "services": [
+            {"service_id": "vision", "display_name": "Grace vision 30B", "controller_service": "vision"},
+            {"service_id": "comfyui", "display_name": "ComfyUI", "controller_service": "comfyui"},
+        ],
+        "capabilities": [
+            {"capability_id": f"hardware.gpu.workload.{action}",
+             "action": f"hardware.gpu.workload.{action}"}
+            for action in ("read", "start", "stop", "switch")
+        ],
+    },
+}
+
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
@@ -122,6 +147,11 @@ class DashboardResourceTelemetry:
         self._http_open = http_open
         self._credential_directory = Path(credential_directory) if credential_directory else None
         self._local_storage_reader = local_storage_reader
+
+    @staticmethod
+    def workload_controller_registrations() -> dict:
+        """Return a copy of the registered forced-command workload controllers."""
+        return json.loads(json.dumps(_WORKLOAD_CONTROLLER_REGISTRY))
 
     def _local_storage_source(self, host_id: str) -> dict:
         try:

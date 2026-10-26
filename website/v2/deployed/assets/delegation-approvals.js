@@ -1,6 +1,6 @@
 /*
-Revision: 1.0.0
-Purpose: V2 view over the canonical Steward delegation request and grant APIs.
+Revision: 1.1.0
+Purpose: V2 request, review and revocation view over canonical Steward delegation APIs.
 Authority: The Dashboard account session, CSRF check, and institutional authority registry remain authoritative.
 Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decisions, grant inspection and confirmed revoke controls.
 */
@@ -15,6 +15,7 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
     return value;
   };
   let loading = false;
+  let requestOptions = [];
 
   async function request(path, method = "GET", body) {
     const headers = {Accept:"application/json"};
@@ -45,7 +46,7 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
       const canDecide = item.status === "pending";
       const audits = (item.audit_events || []).map((event) => `<li><code>${esc(event.event_id)}</code> · ${esc(event.event_type)} · ${esc(time(event.recorded_at))}</li>`).join("") || "<li>No linked audit event returned.</li>";
       const expiry = item.valid_until ? time(item.valid_until) : "No recorded expiry";
-      return `<article class="delegation-record"><header><div><strong>${esc(item.request_id)}</strong><span class="delegation-state-chip" data-state="${esc(item.status)}">${esc(item.status === "rejected" ? "denied" : item.status)}</span></div><time>${esc(time(item.created_at))}</time></header><dl><dt>Requester → grantee</dt><dd>${esc(item.requester_id)} → ${esc(item.grantee_id)}</dd><dt>Requested authority</dt><dd><code>${esc(item.action)}</code> · scope <code>${esc(item.scope_ref)}</code> · policy <code>${esc(item.policy_ref)}</code></dd><dt>Justification / source reference</dt><dd>${esc(item.request_ref)}</dd><dt>Expiration / use bound</dt><dd>${esc(expiry)} · ${item.max_uses == null ? "No use-count limit recorded" : `${esc(item.max_uses)} uses`}</dd><dt>Expected request SHA-256</dt><dd><code class="delegation-hash">${esc(item.request_sha256)}</code></dd><dt>Decision / grant</dt><dd>${esc(item.decision || "No decision recorded")} · ${esc(item.grant_id || "No grant")}${item.approval_ref ? ` · ${esc(item.approval_ref)}` : ""}</dd><dt>Decision actor / time</dt><dd>${esc(item.decision_by || "Not recorded")} · ${esc(time(item.decision_at))}</dd></dl><details><summary>Audit references</summary><ul>${audits}</ul></details>${canDecide ? `<div class="delegation-actions"><button type="button" data-delegation-decision="approve" data-request-id="${esc(item.request_id)}" data-request-hash="${esc(item.request_sha256)}">Approve…</button><button type="button" class="account-admin-secondary" data-delegation-decision="reject" data-request-id="${esc(item.request_id)}" data-request-hash="${esc(item.request_sha256)}">Deny…</button></div>` : ""}</article>`;
+      return `<article class="delegation-record" id="delegation-${esc(item.request_id)}"><header><div><strong>${esc(item.request_id)}</strong><span class="delegation-state-chip" data-state="${esc(item.status)}">${esc(item.status === "rejected" ? "denied" : item.status)}</span></div><time>${esc(time(item.created_at))}</time></header><dl><dt>Requester → grantee</dt><dd>${esc(item.requester_id)} → ${esc(item.grantee_id)}</dd><dt>Requested authority</dt><dd><code>${esc(item.action)}</code> · scope <code>${esc(item.scope_ref)}</code> · policy <code>${esc(item.policy_ref)}</code></dd><dt>Justification / source reference</dt><dd>${esc(item.request_ref)}</dd><dt>Expiration / use bound</dt><dd>${esc(expiry)} · ${item.max_uses == null ? "No use-count limit recorded" : `${esc(item.max_uses)} uses`}</dd><dt>Expected request SHA-256</dt><dd><code class="delegation-hash">${esc(item.request_sha256)}</code></dd><dt>Decision / grant</dt><dd>${esc(item.decision || "No decision recorded")} · ${esc(item.grant_id || "No grant")}${item.approval_ref ? ` · ${esc(item.approval_ref)}` : ""}</dd><dt>Decision actor / time</dt><dd>${esc(item.decision_by || "Not recorded")} · ${esc(time(item.decision_at))}</dd></dl><details><summary>Audit references</summary><ul>${audits}</ul></details>${canDecide ? `<div class="delegation-actions"><button type="button" data-delegation-decision="approve" data-request-id="${esc(item.request_id)}" data-request-hash="${esc(item.request_sha256)}">Approve…</button><button type="button" class="account-admin-secondary" data-delegation-decision="reject" data-request-id="${esc(item.request_id)}" data-request-hash="${esc(item.request_sha256)}">Deny…</button></div>` : ""}</article>`;
     }).join("");
     host.querySelectorAll("[data-delegation-decision]").forEach((button) => button.addEventListener("click", () => decide(button)));
   }
@@ -75,11 +76,71 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
       renderRequests(requests.items || []);
       renderGrants(grants.items || []);
       state.textContent = `Loaded ${requests.items.length} ${requestStatus} request(s) and ${grants.items.length} ${grantState} grant(s) from canonical authority. The display is a bounded latest-100 projection.`;
+      await loadRequestOptions();
     } catch (error) {
       $("delegation-request-list").textContent = explain(error);
       $("delegation-grant-list").textContent = explain(error);
       state.textContent = explain(error);
     } finally { loading = false; }
+  }
+
+  async function loadRequestOptions() {
+    const hostSelect = $("delegation-request-host");
+    const capabilitySelect = $("delegation-request-capability");
+    const submit = $("delegation-request-submit");
+    try {
+      const result = await request("/api/v1/steward/delegation-grant-requests/options");
+      requestOptions = Array.isArray(result.hosts) ? result.hosts : [];
+      $("delegation-request-requester").textContent = result.requester_principal_id || "Unavailable";
+      $("delegation-request-target").textContent = result.target_principal_id || "Unavailable";
+      hostSelect.innerHTML = '<option value="">Choose a registered verified host</option>' + requestOptions.map(host =>
+        `<option value="${esc(host.host_id)}">${esc(host.display_name)} · ${esc(host.scope_ref)}</option>`).join("");
+      updateCapabilities();
+      submit.disabled = !requestOptions.length;
+    } catch (error) {
+      hostSelect.innerHTML = '<option value="">Registered targets unavailable</option>';
+      capabilitySelect.innerHTML = '<option value="">No request options loaded</option>';
+      capabilitySelect.disabled = true;
+      submit.disabled = true;
+      $("delegation-request-result").textContent = explain(error);
+    }
+  }
+
+  function updateCapabilities() {
+    const host = requestOptions.find(item => item.host_id === $("delegation-request-host").value);
+    const select = $("delegation-request-capability");
+    select.innerHTML = host ? '<option value="">Choose exact capability and operation</option>' +
+      (host.capabilities || []).map(item => `<option value="${esc(item.action)}">${esc(item.capability_id)} · ${esc(host.scope_ref)}</option>`).join("") :
+      '<option value="">Select a registered host</option>';
+    select.disabled = !host;
+    $("delegation-request-submit").disabled = !host || !(host.capabilities || []).length;
+  }
+
+  async function submitRequest(event) {
+    event.preventDefault();
+    const host = requestOptions.find(item => item.host_id === $("delegation-request-host").value);
+    const action = $("delegation-request-capability").value;
+    const purpose = $("delegation-request-purpose").value.trim();
+    if (!host || !action || purpose.length < 8) return;
+    const days = Number($("delegation-request-expiry").value);
+    const validUntil = new Date(Date.now() + days * 86400000).toISOString();
+    const idempotencyKey = crypto.randomUUID();
+    const button = $("delegation-request-submit");
+    button.disabled = true;
+    $("delegation-request-result").textContent = "Submitting to the canonical delegation registry…";
+    try {
+      const result = await request("/api/v1/steward/delegation-grant-requests", "POST", {
+        host_id:host.host_id, action, purpose, valid_until:validUntil, idempotency_key:idempotencyKey,
+      });
+      const out = $("delegation-request-result");
+      out.textContent = `Pending request recorded: ${result.request_id}. It does not grant authority until explicitly approved.`;
+      $("delegation-request-filter").value = "pending";
+      await refresh();
+      const record = document.getElementById(`delegation-${result.request_id}`);
+      if (record) {record.scrollIntoView({behavior:"smooth",block:"start"});record.focus({preventScroll:true});}
+    } catch (error) {
+      $("delegation-request-result").textContent = explain(error);
+    } finally {button.disabled = false;}
   }
 
   async function decide(button) {
@@ -122,5 +183,7 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
     $("delegation-refresh")?.addEventListener("click", refresh);
     $("delegation-request-filter")?.addEventListener("change", refresh);
     $("delegation-grant-filter")?.addEventListener("change", refresh);
+    $("delegation-request-host")?.addEventListener("change", updateCapabilities);
+    $("delegation-request-form")?.addEventListener("submit", submitRequest);
   });
 })();
