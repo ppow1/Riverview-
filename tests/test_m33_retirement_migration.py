@@ -182,7 +182,9 @@ class M33RetirementMigrationTests(unittest.TestCase):
 
             expected_seed_counts = {
                 "resident_permission_tiers": 4,
-                "capability_catalog": 20,
+                # Four release declarations add fixed OCTOMINER1 workload
+                # operations to the canonical registry seed.
+                "capability_catalog": 24,
                 "resource_catalog": 11,
                 "capability_resources": 28,
                 "resident_permission_profiles": 0,
