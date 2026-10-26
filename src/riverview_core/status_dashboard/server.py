@@ -682,8 +682,8 @@ def make_handler():
             delegation_request_create = (parsed.path == "/api/v1/steward/delegation-grant-requests"
                                          and self.command == "POST")  # capability-exclusion: Steward request creation; not resident-invocable
             chatgpt_principal_registration = (
-                parsed.path == "/api/v1/steward/service-principals/chatgpt/register"
-                and self.command == "POST")  # capability-exclusion: institution-scoped Steward identity management; not resident-invocable
+                parsed.path == "/api/v1/steward/service-principals/chatgpt/register"  # capability-exclusion: institution-scoped Steward identity management; not resident-invocable
+                and self.command == "POST")
             delegation_route = (
                 self.command in {"GET", "HEAD"} and (
                     parsed.path in {"/api/v1/steward/delegation-grant-requests", "/api/v1/steward/delegation-grant-requests/options",  # capability-exclusion: Steward administrative projection; not resident-invocable
