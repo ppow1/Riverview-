@@ -136,7 +136,8 @@ def _request_options(handler, principal_id):
                 "scope_kind": "host", "target_principal_id": principal_id,
                 "max_expiry_days": 365, "max_uses": 1000000,
                 "usage_limits_supported": True, "combined_limits_supported": True,
-                "non_expiring_supported": False,
+                "non_expiring_supported": True,
+                "non_expiring_requires_usage_limit": True,
             }, {
                 "type_id": "comms5_codex", "label": "ChatGPT via Comms5 to existing Codex task submission",
                 "scope_kind": "project", "scope_ref": DELEGATED_PROJECT_SCOPE,
@@ -178,8 +179,6 @@ def _create_request(handler):
         raise ValueError("delegation_request_expiry_invalid") from None
     if valid_until is not None and (valid_until.tzinfo is None or not datetime.now(timezone.utc) < valid_until <= datetime.now(timezone.utc) + timedelta(days=365)):
         raise ValueError("delegation_request_expiry_invalid")
-    if valid_until is None:
-        raise ValueError("delegation_request_expiry_required_by_current_policy")
     if kind == "gpu_host":
         if (not isinstance(host_id, str) or not re.fullmatch(r"[a-z][a-z0-9-]{1,62}", host_id) or
                 action not in {f"hardware.gpu.workload.{value}" for value in ("read", "start", "stop", "switch")}):
@@ -197,13 +196,16 @@ def _create_request(handler):
                    if isinstance(item,dict) and item.get("capability_id") in canonical} if isinstance(registration,dict) else set()
         if (host is None or host.get("identity_state") != "verified" or not registration or action not in allowed):
             raise ValueError("delegation_request_target_unavailable")
+        if valid_until is None and max_uses is None:
+            raise ValueError("delegation_request_requires_use_limit_or_expiry")
         scope_ref, target = f"host:{host_id}", principal_id
         return registry.request_grant(requester_id=principal_id, principal_id=target,
             action=action, scope_ref=scope_ref, policy_ref="policy:delegation.v1",
             request_ref=data["purpose"].strip(), max_uses=max_uses, valid_until=valid_until,
             idempotency_key=idempotency_key)
     if kind == "comms5_codex":
-        if host_id is not None or action != DELEGATED_ACTION or max_uses is not None:
+        if (host_id is not None or action != DELEGATED_ACTION or max_uses is not None
+                or valid_until is None):
             raise ValueError("delegation_request_policy_not_supported")
         if valid_until > datetime.now(timezone.utc) + timedelta(days=1):
             raise ValueError("delegation_request_policy_maximum_expiry_24h")

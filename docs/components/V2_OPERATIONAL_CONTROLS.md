@@ -50,6 +50,19 @@ type as unavailable. Neither a GPU host grant nor this project grant by itself
 authorizes objective submission or Engineering execution. No principal, grant,
 or production request was created during this review.
 
+Registering the target is a separate canonical identity operation:
+`AuthorityRegistry.create_principal(steward_token, "service:chatgpt", "service")`.
+It requires an active Steward credential with `identity.manage` at `institution`
+scope, writes the principal and `principal_created` audit event, and returns a
+bearer credential once. No V2 principal-registration endpoint or approval form
+exists, and the Comms5 OAuth-attested identity does not itself create an active
+Authority Registry principal. The V2 page therefore states this exact unmet
+action and does not create the principal or discard/route its returned
+credential. After registration is completed through an authorized, protected
+identity-management operation, the existing grant request can be submitted
+from Delegation Approvals; its request is still pending until explicitly
+approved by the Steward.
+
 These administrative routes are intentionally marked as capability exclusions:
 they operate on institutional authority and must not become resident/Grace
 invocable tools through automatic website operation discovery.

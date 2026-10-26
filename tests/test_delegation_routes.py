@@ -206,7 +206,8 @@ class DelegationRequestCreationTests(unittest.TestCase):
         self.assertEqual([x["host_id"] for x in handler.response[1]["hosts"]],["octominer1"])
         self.assertEqual(handler.response[1]["hosts"][0]["scope_ref"],"host:octominer1")
         self.assertEqual(handler.response[1]["authorization_types"][0]["max_expiry_days"],365)
-        self.assertFalse(handler.response[1]["authorization_types"][0]["non_expiring_supported"])
+        self.assertTrue(handler.response[1]["authorization_types"][0]["non_expiring_supported"])
+        self.assertTrue(handler.response[1]["authorization_types"][0]["non_expiring_requires_usage_limit"])
         self.assertEqual(handler.response[1]["authorization_types"][1]["status"],"unavailable")
         self.assertEqual(handler.response[1]["authorization_types"][1]["unavailable_reason"],
                          "target_principal_not_registered_active")
@@ -263,6 +264,16 @@ class DelegationRequestCreationTests(unittest.TestCase):
         self.assertEqual(handler.response[0],201)
         self.assertIsNone(registry.created[0]["max_uses"])
         self.assertIsNotNone(registry.created[0]["valid_until"])
+
+    def test_gpu_request_supports_finite_usage_without_expiry(self):
+        registry=_RequestRegistry(); handler=self.handler(registry,self.body(max_uses=1,valid_until=None))
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],201)
+        self.assertEqual(registry.created[0]["max_uses"],1)
+        self.assertIsNone(registry.created[0]["valid_until"])
 
     def test_unlimited_nonexpiring_request_is_rejected_before_registry_write(self):
         registry=_RequestRegistry(); handler=self.handler(registry,self.body(max_uses=None,valid_until=None))

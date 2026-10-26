@@ -48,6 +48,35 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
     return code || "the registered target is unavailable";
   }
 
+  function renderAuthorizationTypeDetails() {
+    const host = $("delegation-authorization-type-details");
+    if (!host) return;
+    host.innerHTML = authorizationTypes.map((type) => {
+      const target = type.target_principal_id || "Unavailable";
+      const scope = type.scope_ref || (type.scope_kind === "host"
+        ? "Select an individually registered host below" : "Unavailable");
+      const authority = type.action ? `<code>${esc(type.action)}</code>` :
+        type.scope_kind === "host" ? "Select one registered capability and operation" : "Unavailable";
+      const usage = type.usage_limits_supported === false
+        ? "Unlimited uses (canonical policy)"
+        : type.non_expiring_requires_usage_limit
+          ? "Finite use count, expiry, or both; no-expiry grants require a finite use count"
+          : "Use policy unavailable";
+      const duration = type.effective_expiry_hours_after_approval
+        ? `${esc(type.effective_expiry_hours_after_approval)} hours after activation`
+        : type.max_expiry_days ? `Optional expiry up to ${esc(type.max_expiry_days)} days` : "Expiry policy unavailable";
+      const additional = Array.isArray(type.additional_authority_required) && type.additional_authority_required.length
+        ? `<p>Separate authorization remains required: ${type.additional_authority_required.map(esc).join(", ")}.</p>` : "";
+      const registration = type.type_id === "comms5_codex" && type.status === "unavailable"
+        ? `<p class="delegation-policy-warning">Required action: register <code>service:chatgpt</code> as an active <code>service</code> principal through canonical identity management. This requires the authenticated Steward's <code>identity.manage</code> authority at <code>institution</code> scope. V2 has no principal-registration action, so none was performed; registration alone does not grant this capability.</p>` : "";
+      const state = type.status === "unavailable"
+        ? `Unavailable: ${esc(unavailableReason(type.unavailable_reason))}` : "Registered authorization type";
+      const hostScopes = type.scope_kind === "host" ? requestOptions.map((item) =>
+        `<li><strong>${esc(item.display_name)}</strong> · <code>${esc(item.scope_ref)}</code>: ${(item.capabilities || []).map((cap) => esc(cap.capability_id)).join(", ") || "no registered operations"}</li>`).join("") : "";
+      return `<article class="delegation-policy-card"><h5>${esc(type.label)} <span>${state}</span></h5><dl><dt>Principal</dt><dd><code>${esc(target)}</code></dd><dt>Capability</dt><dd>${authority}</dd><dt>Scope</dt><dd><code>${esc(scope)}</code></dd><dt>Usage</dt><dd>${usage}</dd><dt>Duration</dt><dd>${duration}</dd></dl>${hostScopes ? `<ul>${hostScopes}</ul>` : ""}${registration}${additional}</article>`;
+    }).join("");
+  }
+
   function renderRequests(items) {
     const host = $("delegation-request-list");
     if (!items.length) { host.innerHTML = '<p class="delegation-empty">No delegation requests match this view.</p>'; return; }
@@ -125,6 +154,7 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
       unavailableTypeNote = unavailable.map(item =>
         `${item.label} unavailable: ${unavailableReason(item.unavailable_reason)}.`).join(" ");
       $("delegation-request-type-note").textContent = unavailableTypeNote;
+      renderAuthorizationTypeDetails();
       updateRequestType();
       submit.disabled = true;
       return result;
@@ -142,14 +172,18 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
   function updateRequestType() {
     const type = authorizationTypes.find(item => item.type_id === $("delegation-request-type").value);
     const gpu = type?.type_id === "gpu_host";
+    const codex = type?.type_id === "comms5_codex";
     $("delegation-request-host-label").hidden = !gpu;
     $("delegation-request-capability-label").hidden = !gpu;
     $("delegation-request-limit-label").hidden = !gpu;
+    $("delegation-request-expiry-label").hidden = codex;
     $("delegation-request-host").required = gpu;
     $("delegation-request-capability").required = gpu;
-    // An empty bound means time-limited authority only. A value of one is the
-    // one-execution policy; the canonical registry enforces bounded use counts.
+    // Either a finite use count or an expiry is required by the canonical API.
+    // A value of one is a single execution; the registry enforces the bound.
     $("delegation-request-max-uses").required = false;
+    $("delegation-request-expiry").disabled = codex;
+    $("delegation-request-expiry").required = !gpu && !codex;
     $("delegation-request-target").textContent = type?.target_principal_id || "Unavailable";
     if (!gpu && type?.type_id === "comms5_codex") {
       $("delegation-request-max-uses").value = "";
@@ -158,11 +192,11 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
       $("delegation-request-expiry").max = maxExpiry.toISOString().slice(0,16);
       if ($("delegation-request-expiry").value > $("delegation-request-expiry").max)
         $("delegation-request-expiry").value = $("delegation-request-expiry").max;
-      $("delegation-request-type-note").textContent = "Project scope: project:Riverview. The current canonical rule requires unlimited use and expires the grant 24 hours after approval; additional objective and assignment authority remains required for task execution.";
+      $("delegation-request-type-note").textContent = "Capability comms5.operations.non_destructive.v1 · scope project:Riverview · principal service:chatgpt · unlimited use · expires 24 hours after activation. Separate objective and assignment authorization remains required for task execution. Service principal registration is a distinct identity.manage action and is not performed here.";
     } else if (gpu) {
       if (!$("delegation-request-max-uses").value) $("delegation-request-max-uses").value = "1";
       $("delegation-request-expiry").removeAttribute("max");
-      $("delegation-request-type-note").textContent = `${unavailableTypeNote} The selected host is validated against the registered controller. Usage and expiry limits are enforced by the canonical delegated-grant reservation path. Current policy does not offer non-expiring grants.`.trim();
+      $("delegation-request-type-note").textContent = `${unavailableTypeNote} The selected host is validated against the registered controller. A finite use count may be used alone, an expiry may be used alone, or both may be combined. The canonical delegated-grant reservation path enforces finite use limits; unlimited non-expiring grants are rejected.`.trim();
     }
     updateCapabilities();
   }
@@ -195,8 +229,12 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
     if (!type || purpose.length < 8) return;
     if (type.type_id === "gpu_host" && (!host || !action)) return;
     const expiryInput = $("delegation-request-expiry").value;
-    if (!expiryInput) return;
-    const validUntil = new Date(expiryInput).toISOString();
+    const maxUsesInput = $("delegation-request-max-uses").value.trim();
+    const maxUses = type.type_id === "gpu_host" && maxUsesInput ? Number(maxUsesInput) : null;
+    if ((!expiryInput && type.type_id !== "gpu_host") || (!expiryInput && maxUses == null)) return;
+    const validUntil = type.type_id === "comms5_codex"
+      ? new Date(Date.now() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000).toISOString()
+      : expiryInput ? new Date(expiryInput).toISOString() : null;
     const idempotencyKey = crypto.randomUUID();
     const button = $("delegation-request-submit");
     button.disabled = true;
@@ -204,8 +242,7 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
     try {
       const body = {authorization_type_id:type.type_id, action:type.type_id === "gpu_host" ? action : type.action,
         purpose, valid_until:validUntil,
-        max_uses:type.type_id === "gpu_host" && $("delegation-request-max-uses").value.trim()
-          ? Number($("delegation-request-max-uses").value) : null,
+        max_uses:maxUses,
         idempotency_key:idempotencyKey};
       if (type.type_id === "gpu_host") body.host_id = host.host_id;
       const result = await request("/api/v1/steward/delegation-grant-requests", "POST", body);

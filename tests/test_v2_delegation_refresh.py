@@ -24,6 +24,12 @@ def test_delegation_ui_distinguishes_authentication_authorization_and_service_fa
     assert "not the institutionally linked Steward" in source
     assert '"delegation_authority_unavailable"' in source
     assert "canonical delegation authority service is unavailable" in source
-    assert "delegation-approvals.js?rev=delegation-policy-runtime-repair-20261026c" in index
-    assert "Maximum executions (leave blank for time-only access)" in index
+    assert "delegation-approvals.js?rev=delegation-policy-runtime-repair-20261026d" in index
+    assert "Maximum executions (optional with expiry; required without expiry)" in index
     assert '$("delegation-request-max-uses").required = false' in source
+    assert '$("delegation-request-expiry-label").hidden = codex' in source
+    assert '23 * 60 * 60 * 1000 + 59 * 60 * 1000' in source
+    assert "register <code>service:chatgpt</code> as an active <code>service</code> principal" in source
+    assert "requires the authenticated Steward's <code>identity.manage</code> authority" in source
+    assert "24 hours after activation" in source
+    assert 'id="delegation-authorization-type-details"' in index
