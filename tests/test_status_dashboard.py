@@ -578,7 +578,7 @@ class DashboardHTTPTests(unittest.TestCase):
         pipeline = Pipeline()
         self.server._objective_pipeline = pipeline
 
-        def post(data, *, token=None, authority=None):
+        def post(data, *, token=None, authority=None, encoded_id=False):
             body = json.dumps(data, separators=(",", ":")).encode()
             headers = {"Content-Type": "application/json", "Content-Length": str(len(body))}
             if token is not None:
@@ -586,7 +586,8 @@ class DashboardHTTPTests(unittest.TestCase):
             if authority is not None:
                 headers["X-Riverview-Authority"] = authority
             conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
-            conn.request("POST", f"/api/v1/objectives/{objective_id}/cancel",
+            route_id = objective_id.replace(":", "%3A") if encoded_id else objective_id
+            conn.request("POST", f"/api/v1/objectives/{route_id}/cancel",
                          body=body, headers=headers)
             response = conn.getresponse()
             status, payload = response.status, json.loads(response.read() or b"{}")
@@ -605,6 +606,26 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(pipeline.calls[-1], (objective_id,
             "assignment-cancel-credential", scope_ref, "Obsolete grounded objective"))
 
+        # V2 uses encodeURIComponent(objective_id), so the colon is sent as
+        # %3A. Confirm that the real HTTP route decodes that single segment
+        # and invokes the same exact-scope cancellation operation.
+        status, payload = post(request, token=self.token,
+                               authority="assignment-cancel-credential", encoded_id=True)
+        self.assertEqual(status, 200, payload)
+        self.assertEqual(payload["status"], "CANCELLED")
+        self.assertEqual(pipeline.calls[-1], (objective_id,
+            "assignment-cancel-credential", scope_ref, "Obsolete grounded objective"))
+
+        # A double-encoded identifier must not be decoded into a valid route.
+        body = json.dumps(request, separators=(",", ":")).encode()
+        conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        conn.request("POST", "/api/v1/objectives/objective%253Adashboard-cancel/cancel",
+                     body=body, headers={"Authorization": "Bearer " + self.token,
+                         "Content-Type": "application/json", "Content-Length": str(len(body)),
+                         "X-Riverview-Authority": "assignment-cancel-credential"})
+        response = conn.getresponse(); response.read(); conn.close()
+        self.assertEqual(response.status, 405)
+
         status, _ = post({"scope_ref": scope_ref}, token=self.token,
                          authority="assignment-cancel-credential")
         self.assertEqual(status, 200)
@@ -613,6 +634,26 @@ class DashboardHTTPTests(unittest.TestCase):
         status, _ = post({"scope_ref": scope_ref, "reason": "x" * 1001},
                          token=self.token, authority="assignment-cancel-credential")
         self.assertEqual(status, 400)
+
+    def test_objective_cancel_route_reports_backend_failure_without_claiming_success(self):
+        scope_ref = "work-order:cancel-error"
+
+        class Pipeline:
+            def get_objective(self, requested_objective):
+                return {"objective_id":requested_objective, "scope_ref":scope_ref}
+            def cancel_work_order(self, *_args, **_kwargs):
+                raise RuntimeError("isolated pipeline failure")
+
+        self.server._objective_pipeline = Pipeline()
+        body = json.dumps({"scope_ref":scope_ref,"reason":"exercise backend failure"}).encode()
+        conn = HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
+        conn.request("POST", "/api/v1/objectives/objective%3Acancel-error/cancel",
+            body=body, headers={"Authorization":"Bearer " + self.token,
+                "X-Riverview-Authority":"assignment-cancel-credential",
+                "Content-Type":"application/json"})
+        response = conn.getresponse(); payload = json.loads(response.read()); conn.close()
+        self.assertEqual(response.status, 503, payload)
+        self.assertEqual(payload["error"], "objective_operation_unavailable")
 
     def test_resource_telemetry_route_uses_dashboard_auth_and_is_read_only(self):
         projection = {"schema_version": "rv.dashboard.resource-telemetry.v1",

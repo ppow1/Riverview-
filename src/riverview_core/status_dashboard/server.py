@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.45
+# Revision: 1.3.46
+# Changed: 2026-10-26 UTC | RV-V2-OBJECTIVE-CANCEL-ENCODED-ID | Match V2's encoded objective identifier against the canonical cancellation route.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Route one confirmed identity.manage registration action through the protected delegation adapter.
 # Changed: 2026-10-26 UTC | RV-PR342-COMMS5-AUTHORITY-EXCLUSION | Classify internal Comms5 authorization ingress as excluded from resident-executable capability registration
 # Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Expose a non-sensitive eligibility hint to hide recovery controls from unlinked sessions
@@ -628,7 +629,14 @@ def make_handler():
                                 self.command == "POST")
             objective_proposal = (_OBJECTIVE_PROPOSAL.fullmatch(parsed.path)
                                   if self.command == "POST" else None)
-            objective_cancel = (_OBJECTIVE_CANCEL.fullmatch(parsed.path)
+            # Browser clients percent-encode the objective id as one path
+            # segment (the colon in ``objective:<id>`` becomes ``%3A``).
+            # Match the once-decoded route path while retaining the strict
+            # identifier regex; otherwise the established V2 Cancel button
+            # falls through to the read-only-method response before the
+            # canonical cancellation pipeline is reached.
+            objective_cancel_path = unquote(parsed.path)
+            objective_cancel = (_OBJECTIVE_CANCEL.fullmatch(objective_cancel_path)
                                 if self.command == "POST" else None)
             objective_rereview = (_OBJECTIVE_REREVIEW.fullmatch(parsed.path)
                                   if self.command == "POST" else None)

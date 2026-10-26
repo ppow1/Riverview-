@@ -129,6 +129,16 @@ def main():
                 self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
             if path == "/api/v1/auth/session":
                 self.send_json(200, {"identity": {"account_id": "fixture-steward", "roles": ["steward"]}}); return
+            if path == "/api/v1/status":
+                self.send_json(200, {"schema_version":"rv.dashboard.status.v1",
+                    "projection_status":"unknown", "freshness":"unknown",
+                    "observed_at":"2026-10-26T00:00:00Z",
+                    "workers":{"status":"unknown","active_workers":None,
+                        "healthy_workers":None,"stale_workers":None,"unknown_workers":None},
+                    "grace_execution":{"status":"unknown"},"cme":{"status":"unknown"}}); return
+            if path == "/api/v1/resources/telemetry":
+                self.send_json(200, {"schema_version":"rv.dashboard.resource-telemetry.v1",
+                    "status":"not_initialized", "observed_at":None, "hosts":[]}); return
             if path == "/api/v1/notification-settings":
                 with state.lock:
                     state.settings_gets += 1
@@ -321,7 +331,10 @@ def main():
             if state.snapshot()["last_objective_id"] != "objective:fixture-grounded":
                 raise RuntimeError("work_table_cancel_used_wrong_objective")
             # Conversational commands resolve exact assignment IDs, show confirmation, then use the same API.
-            js("document.querySelector('[data-view=\"residents\"]').click();document.querySelector('[data-resident-id=\"grace-preview\"]').click()")
+            # Grace is selected from the deployed overview cards. The current
+            # Residents page is a live authority directory and intentionally
+            # does not render the old synthetic ``grace-preview`` fixture.
+            js("document.querySelector('[data-view=\"overview\"]').click();document.querySelector('[data-resident-id=\"grace-preview\"]').click()")
             wait_for("document.getElementById('grace-chat-connected') && !document.getElementById('grace-chat-connected').hidden")
             js("const box=document.getElementById('grace-message');box.value='Grace, cancel work order assignment:fixture-command';document.getElementById('grace-chat-form').requestSubmit()")
             wait_for("document.getElementById('engineering-cancel-dialog').open && document.getElementById('engineering-cancel-target').textContent.includes('objective:fixture-command')")
@@ -343,7 +356,7 @@ def main():
             saved_settings = state.snapshot()["settings"]
             if saved_settings["level"] != "critical_only" or not saved_settings["quiet_hours"]["enabled"] or saved_settings["quiet_hours"]["timezone"] != "America/New_York":
                 raise RuntimeError("v2_notification_settings_form_did_not_persist")
-            js("document.querySelector('[data-view=\\\"residents\\\"]').click();document.querySelector('[data-resident-id=\\\"grace-preview\\\"]').click();const box=document.getElementById('grace-message');box.value='Grace, show notification settings';document.getElementById('grace-chat-form').requestSubmit()")
+            js("document.querySelector('[data-view=\\\"overview\\\"]').click();document.querySelector('[data-resident-id=\\\"grace-preview\\\"]').click();const box=document.getElementById('grace-message');box.value='Grace, show notification settings';document.getElementById('grace-chat-form').requestSubmit()")
             wait_for("document.getElementById('grace-chat-action-status').textContent.includes('critical only')")
             js("window.confirm=()=>true;const box=document.getElementById('grace-message');box.value='Grace, set notification level to Important';document.getElementById('grace-chat-form').requestSubmit()")
             deadline = time.monotonic() + 5
