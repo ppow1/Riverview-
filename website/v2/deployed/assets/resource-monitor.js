@@ -396,10 +396,12 @@ History: Git and .riverview-backups/manifest.jsonl
       if(storage.state==="healthy")for(const volume of volumes){if(!volume||typeof volume.filesystem_id!=="string"||!unique.has(volume.filesystem_id)||rowsSeen.has(volume.filesystem_id))continue; if(unique.get(volume.filesystem_id).host.host_id!==host.host_id)continue;rowsSeen.add(volume.filesystem_id);validRows.push(volume);}
       validRows.forEach(volume=>{
         const key=volume.filesystem_id;let row=existing.get(key);
-        if(!row){row=node("div","storage-volume");row.dataset.volumeKey=key;row.append(node("b","storage-volume-title"),node("span","storage-volume-usage"),node("small","storage-volume-observed"));list.append(row);}
+        if(!row){row=node("div","storage-volume");row.dataset.volumeKey=key;const meter=node("div","storage-capacity-meter");meter.setAttribute("role","meter");meter.setAttribute("aria-valuemin","0");meter.setAttribute("aria-valuemax","100");meter.setAttribute("aria-valuetext","Capacity unavailable");meter.append(node("span","storage-capacity-fill"));row.append(node("b","storage-volume-title"),node("span","storage-volume-usage"),meter,node("small","storage-volume-observed"));list.append(row);}
         const mount=typeof volume.mount_point==="string"?volume.mount_point:"Mount point unavailable",filesystem=typeof volume.filesystem_type==="string"?volume.filesystem_type:"Filesystem unavailable";
         row.querySelector(".storage-volume-title").textContent=`${mount} · ${filesystem}${volume.device_id?` · ${volume.device_id}`:""}`;
-        row.querySelector(".storage-volume-usage").textContent=`${bytes(volume.used_bytes)} used · ${bytes(volume.available_bytes)} available · ${bytes(volume.total_bytes)} total (${Number(volume.percent_used).toFixed(1)}% used)`;
+        const percent=typeof volume.percent_used==="number"&&Number.isFinite(volume.percent_used)&&volume.percent_used>=0&&volume.percent_used<=100?volume.percent_used:volume.used_bytes/volume.total_bytes*100;
+        row.querySelector(".storage-volume-usage").textContent=`${bytes(volume.used_bytes)} used · ${bytes(volume.available_bytes)} available · ${bytes(volume.total_bytes)} total (${percent.toFixed(1)}% used)`;
+        const meter=row.querySelector(".storage-capacity-meter"),fill=row.querySelector(".storage-capacity-fill");meter.dataset.state=state.telemetryError||!hostFresh?"stale":"measured";meter.setAttribute("aria-valuenow",percent.toFixed(1));meter.setAttribute("aria-valuetext",`${percent.toFixed(1)} percent used${hostFresh?"":" · last measurement is stale"}`);meter.setAttribute("aria-label",`${mount} storage capacity`);fill.style.width=`${percent.toFixed(1)}%`;
         row.querySelector(".storage-volume-observed").textContent=`Last successful measurement: ${visibleTime(volume.observed_at||storage.observed_at)}`;
         existing.delete(key);
       });

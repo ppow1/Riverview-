@@ -61,11 +61,13 @@
     if (!live) {
       const facts = node("dl", null, "roadmap-item-facts");
       const addFact = (label, value) => { facts.append(node("dt", label), node("dd", value || "Not recorded in the roadmap summary; consult the linked source.")); };
-      addFact("Priority", item.sourcePriority ? `${item.priority === "unassigned" ? "Unassigned" : item.priority} · source: ${item.sourcePriority}` : item.priority === "unassigned" ? "Unassigned in source" : item.priority);
+      addFact("Priority", item.priorityReason || (item.sourcePriority ? `${item.priority === "unassigned" ? "Unassigned" : item.priority} · source: ${item.sourcePriority}` : item.priority === "unassigned" ? "Unassigned in source" : item.priority));
       addFact("Lifecycle stage", item.stage || "Not recorded in source"); addFact("Dependencies", item.dependencies); addFact("Blockers", item.blockers); body.append(facts);
     } else {
       const facts = node("dl", null, "roadmap-live-facts");
       const addFact = (label, value) => { facts.append(node("dt", label), node("dd", value || "Unavailable in this API projection")); };
+      addFact("Priority", item.priorityReason || "Unassigned — the authenticated objective projection does not expose a priority field.");
+      addFact("Workstream", item.workstreamReason || "Unassigned — no canonical objective-to-workstream relationship is returned by this API.");
       addFact("Authoritative lifecycle stage", item.stage); addFact("Assignment state", item.assignmentState);
       addFact(item.status === "blocked" || item.status === "waiting" ? "Recorded blocker / waiting reason" : "Blocker", item.blocker);
       addFact("Dependencies", item.dependencies || "Not exposed by the authenticated objective API; none inferred.");
@@ -118,7 +120,7 @@
   function renderLive() {
     const target = $("roadmap-live-items");
     target.replaceChildren();
-    const current = state.objectives.map((item) => ({...adapter.objective(item), workstream:"Current Riverview objective", priority:"unassigned", tags:["live", "objective", "engineering"]}));
+    const current = state.objectives.map((item) => ({...adapter.objective(item), workstream:"Current Riverview objective", workstreamReason:"This is an authenticated objective record, but the objective projection has no mapped roadmap workstream.", priority:"unassigned", priorityReason:"Unassigned — the canonical objective projection does not contain a P0–P3 priority field.", tags:["live", "objective", "engineering"]}));
     const currentMatches = adapter.filterItems(current, {
       query: $("roadmap-search")?.value || "",
       tag: $("roadmap-tag")?.value || "",
@@ -128,7 +130,7 @@
       const raw = state.objectives.find((item) => item.objective_id === match.objectiveId) || {};
       const view = adapter.objective(raw);
       const item = {
-        ...view, workstream:"Current Riverview objective", priority:"unassigned", tags:["live", "objective", "engineering"],
+        ...view, workstream:"Current Riverview objective", workstreamReason:"No canonical objective-to-roadmap workstream relation is available in the authenticated objective projection.", priority:"unassigned", priorityReason:"Unassigned — the canonical objective projection does not contain a P0–P3 priority field.", tags:["live", "objective", "engineering"],
         assignmentState:view.assignmentState,
         evidenceLabel:state.status === "available" ? "Verified live operational record · authenticated Riverview objective projection (not a canonical roadmap item)." : "Stale last-read operational record · refresh to verify current status.",
         detail:[view.summary, view.updatedAt ? `Last updated ${new Date(view.updatedAt).toLocaleString()}.` : "Updated time unavailable."].join(" "),

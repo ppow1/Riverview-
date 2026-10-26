@@ -44,12 +44,12 @@
     },
     {
       id: "institutional-proposals", title: "Institutional Proposals in V2", workstream: "Website Visualization",
-      summary: "Bring the existing proposal registry and decision evidence into V2.",
-      detail: "Listed as a high-priority V2 migration in the committed development roadmap and parity matrix. No Planning Lot, elaboration, Design/Specification, Ready Bench, or Active Work lifecycle record is linked here; this is not execution authorization.",
+      summary: "V2 proposal registry, revision history, decision evidence, and existing lifecycle controls.",
+      detail: "The V2 Institutional Proposals interface is deployed through PR #281 and reuses the existing proposal and authenticated decision APIs. This is delivered website functionality; it does not imply an individual proposal is approved or promoted.",
       dependencies: "Existing proposal registry, review, and decision records described in the linked parity and development roadmaps.",
-      priority: "P1", status: "unknown", stage: "Roadmap candidate · lifecycle stage not recorded",
+      priority: "P1", status: "completed", stage: "Complete · V2 interface deployed",
       tags: ["website", "proposals", "governance"],
-      links: [{label:"V1/V2 parity matrix", href:`${repo}/blob/b240cb7dab3a94197a4c8f8eda11aee3a5a981d7/docs/runbooks/riverview_v1_v2_parity.md`},
+      links: [{label:"Open V2 proposals", href:"#institutional-proposals"},{label:"PR #281", href:`${repo}/pull/281`},
         {label:"Development roadmap", href:`${repo}/blob/b240cb7dab3a94197a4c8f8eda11aee3a5a981d7/docs/visualization/RIVERVIEW_DEVELOPMENT_ROADMAP.md`}]
     },
     {

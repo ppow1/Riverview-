@@ -116,9 +116,18 @@
     const nodes = graph.nodes || [], edges = graph.edges || [];
     const map = new Map(nodes.map((item,index) => [item.id,{item,index}]));
     const columns = Math.min(4, Math.max(1,Math.ceil(Math.sqrt(nodes.length))));
-    const cardW=310, cardH=94, gapX=390, gapY=155, marginX=45, marginY=54;
-    const rows=Math.ceil(nodes.length/columns), width=marginX*2+(columns-1)*gapX+cardW, height=marginY*2+(rows-1)*gapY+cardH;
-    const xy = new Map(nodes.map((item,index) => [item.id,{x:marginX+(index%columns)*gapX,y:marginY+Math.floor(index/columns)*gapY}]));
+    const cardW=310, cardH=94, gapX=390, marginX=45, marginY=54;
+    const wrappedDecisionLabels = new Map();
+    for (const item of nodes.filter((entry) => entry.type === "decision")) {
+      const words = String(item.label || "").split(/\s+/); let line="", lines=[];
+      for (const word of words) { const next=line ? `${line} ${word}` : word; if(next.length>21&&line){lines.push(line);line=word;}else line=next; }
+      if(line) lines.push(line);
+      wrappedDecisionLabels.set(item.id, lines);
+    }
+    const decisionHeight = Math.max(130, ...Array.from(wrappedDecisionLabels.values(), (lines) => lines.length * 28));
+    const rowPitch = Math.max(cardH + 61, decisionHeight + 24);
+    const rows=Math.ceil(nodes.length/columns), width=marginX*2+(columns-1)*gapX+cardW, height=marginY*2+(rows-1)*rowPitch+Math.max(cardH,decisionHeight);
+    const xy = new Map(nodes.map((item,index) => [item.id,{x:marginX+(index%columns)*gapX,y:marginY+Math.floor(index/columns)*rowPitch}]));
     const svg=node("svg",{viewBox:`0 0 ${width} ${height}`,width,height,role:"img","aria-label":`${graph.component_id} ${graph.workflow_id} process graph`});svg.style.transformOrigin="top left";
     const title=node("title"); title.textContent=`${graph.component_id} / ${graph.workflow_id} · graph revision ${graph.graph_revision}`; svg.append(title);
     const defs=node("defs"), marker=node("marker",{id:"rv-arrow",viewBox:"0 0 10 10",refX:9,refY:5,markerWidth:7,markerHeight:7,orient:"auto-start-reverse"});
@@ -137,16 +146,23 @@
     for (const item of nodes) {
       const pos=xy.get(item.id), group=node("g",{class:`graph-node graph-${item.type}${position?.status==="current"&&position.node_id===item.id?" graph-live-current":""}`,"data-node-id":item.id,tabindex:0,role:"button","aria-label":`${item.type}: ${item.label}`});
       const rectAttrs={x:pos.x,y:pos.y,width:cardW,height:cardH,rx:12,class:"graph-node-shape"};
+      const itemDecisionHeight = decisionHeight;
       if (item.type === "decision") {
-        group.append(node("polygon",{points:`${pos.x+cardW/2},${pos.y} ${pos.x+cardW},${pos.y+cardH/2} ${pos.x+cardW/2},${pos.y+cardH} ${pos.x},${pos.y+cardH/2}`,class:"graph-node-shape"}));
+        const centerY = pos.y + cardH / 2;
+        group.append(node("polygon",{points:`${pos.x+cardW/2},${centerY-itemDecisionHeight/2} ${pos.x+cardW},${centerY} ${pos.x+cardW/2},${centerY+itemDecisionHeight/2} ${pos.x},${centerY}`,class:"graph-node-shape"}));
       } else if (item.type === "entry" || item.type === "exit") {
         group.append(node("rect",{...rectAttrs,rx:34}));
       } else group.append(node("rect",rectAttrs));
-      const typeLabel=node("text",{x:pos.x+15,y:pos.y+20,class:"graph-node-type"});typeLabel.textContent=`${item.type.toUpperCase()} · r${item.node_revision}`;group.append(typeLabel);
-      const text=node("text",{x:pos.x+15,y:pos.y+46,class:"graph-node-label"});
-      const words=item.label.split(/\s+/);let line="",lineNo=0;
-      for (const word of words) { const next=line ? `${line} ${word}` : word;if(next.length>32&&line){const t=node("tspan",{x:pos.x+15,dy:lineNo?18:0});t.textContent=line;text.append(t);line=word;lineNo++;}else line=next; }
-      const final=node("tspan",{x:pos.x+15,dy:lineNo?18:0});final.textContent=line;text.append(final);group.append(text);
+      const isDecision = item.type === "decision";
+      const centerY=pos.y+cardH/2;
+      const typeLabel=node("text",{x:isDecision?pos.x+cardW/2:pos.x+15,y:isDecision?centerY-itemDecisionHeight/2+18:pos.y+20,class:"graph-node-type","text-anchor":isDecision?"middle":"start"});typeLabel.textContent=`${item.type.toUpperCase()} · r${item.node_revision}`;group.append(typeLabel);
+      const text=node("text",{x:isDecision?pos.x+cardW/2:pos.x+15,y:isDecision?centerY:pos.y+46,class:"graph-node-label","text-anchor":isDecision?"middle":"start"});
+      const maxChars = isDecision ? 21 : 32;
+      let lines=wrappedDecisionLabels.get(item.id);
+      if (!lines) { const words=item.label.split(/\s+/);let line="";lines=[];for (const word of words) { const next=line ? `${line} ${word}` : word;if(next.length>maxChars&&line){lines.push(line);line=word;}else line=next; }if(line)lines.push(line); }
+      const lineHeight = isDecision ? 15 : 18;
+      const firstDy = isDecision ? -((lines.length - 1) * lineHeight) / 2 + 5 : 0;
+      lines.forEach((labelLine,index)=>{const t=node("tspan",{x:isDecision?pos.x+cardW/2:pos.x+15,dy:index===0?firstDy:lineHeight});t.textContent=labelLine;text.append(t);});group.append(text);
       const activate=()=>showNodeDetail(item);group.addEventListener("click",activate);group.addEventListener("keydown",(event)=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();activate();}});svg.append(group);
     }
     host.append(svg);
