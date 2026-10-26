@@ -59,6 +59,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 import ipaddress
+import base64
+import binascii
 import json
 import logging
 import os
@@ -176,6 +178,7 @@ class LocalReasoningProvider:
 
     provider_id = "local.inference.v1"
     MAX_PROMPT_BYTES = 32 * 1024
+    MAX_MULTIMODAL_PROMPT_BYTES = 6 * 1024 * 1024
     MAX_CHAT_MESSAGES = 18
     MAX_RESPONSE_BYTES = 16 * 1024
     APPROVED_PRIVATE_LAN_ENDPOINTS = frozenset({
@@ -222,6 +225,7 @@ class LocalReasoningProvider:
         self.timeout_seconds = timeout_seconds
         self.chat_prefix = chat_prefix
         self.max_concurrency = max_concurrency
+        self.supports_vision = private_lan and normalized_endpoint == "http://192.168.1.160:18080/v1" and model == self.APPROVED_PRIVATE_LAN_MODELS[normalized_endpoint]
         self._capacity = threading.BoundedSemaphore(max_concurrency)
         self._capacity_lock = threading.Lock()
         self._in_flight = 0
@@ -724,7 +728,7 @@ class LocalReasoningProvider:
 
     def complete_chat(self, messages, *, max_tokens: int,
                       expected_revision: str, timeout_seconds: float = 120,
-                      response_schema=None) -> ChatCompletion:
+                      response_schema=None, image_required=False) -> ChatCompletion:
         if not self._capacity.acquire(blocking=False):
             raise LocalReasoningUnavailable("endpoint_busy")
         with self._capacity_lock:
@@ -732,7 +736,7 @@ class LocalReasoningProvider:
         try:
             return self._complete_chat(messages, max_tokens=max_tokens,
                 expected_revision=expected_revision, timeout_seconds=timeout_seconds,
-                response_schema=response_schema)
+                response_schema=response_schema,image_required=image_required)
         finally:
             with self._capacity_lock:
                 self._in_flight -= 1
@@ -886,16 +890,20 @@ class LocalReasoningProvider:
 
     def _complete_chat(self, messages, *, max_tokens: int,
                        expected_revision: str, timeout_seconds: float,
-                       response_schema=None) -> ChatCompletion:
+                       response_schema=None,image_required=False) -> ChatCompletion:
         """Generate ordinary conversation text; this method has no tool or work-order API."""
         if (expected_revision != self.model_sha256 or type(max_tokens) is not int
                 or not 1 <= max_tokens <= 512 or not isinstance(messages, list)
                 or not 1 <= len(messages) <= self.MAX_CHAT_MESSAGES
                 or not 0 < timeout_seconds <= 180):
             raise LocalReasoningUnavailable("request_contract_invalid")
+        if type(image_required) is not bool or (image_required and not self.supports_vision):
+            raise LocalReasoningUnavailable("vision_capability_unavailable")
         if any(not isinstance(item, dict) or set(item) != {"role", "content"}
                or item["role"] not in {"system", "user", "assistant"}
-               or not isinstance(item["content"], str) for item in messages):
+               or (not isinstance(item["content"], str) and not
+                   (image_required and item["role"] == "user" and
+                    self._valid_multimodal_content(item["content"]))) for item in messages):
             raise LocalReasoningUnavailable("request_contract_invalid")
         try:
             request_messages = [dict(message) for message in messages]
@@ -904,11 +912,17 @@ class LocalReasoningProvider:
                                    if request_messages[index]["role"] == "user"), None)
                 if user_index is None:
                     raise LocalReasoningUnavailable("request_contract_invalid")
-                request_messages[user_index]["content"] = (
-                    self.chat_prefix + request_messages[user_index]["content"])
+                if isinstance(request_messages[user_index]["content"],str):
+                    request_messages[user_index]["content"] = self.chat_prefix + request_messages[user_index]["content"]
+                else:
+                    request_messages[user_index]["content"]=[
+                        {"type":"text","text":self.chat_prefix+part["text"]}
+                        if part.get("type")=="text" else part
+                        for part in request_messages[user_index]["content"]]
             content_bytes = json.dumps(request_messages, ensure_ascii=False,
                                        separators=(",", ":")).encode("utf-8")
-            if len(content_bytes) > self.MAX_PROMPT_BYTES:
+            limit=self.MAX_MULTIMODAL_PROMPT_BYTES if image_required else self.MAX_PROMPT_BYTES
+            if len(content_bytes) > limit:
                 raise LocalReasoningUnavailable("prompt_too_large")
             request_body = {"model": self.model, "messages": request_messages,
                 "temperature": 0.2, "max_tokens": max_tokens, "stream": False}
@@ -979,6 +993,28 @@ class LocalReasoningProvider:
             raise
         except Exception:
             raise LocalReasoningUnavailable("response_contract_invalid") from None
+
+    @staticmethod
+    def _valid_multimodal_content(content):
+        if not isinstance(content,list) or not 2<=len(content)<=5:
+            return False
+        texts=0;images=0
+        for part in content:
+            if not isinstance(part,dict):return False
+            if part.get("type")=="text" and set(part)=={"type","text"} and isinstance(part["text"],str):
+                texts+=1
+            elif part.get("type")=="image_url" and set(part)=={"type","image_url"}:
+                image=part["image_url"]
+                if not isinstance(image,dict) or set(image)!={"url"}:return False
+                url=image["url"]
+                if not isinstance(url,str) or not re.fullmatch(r"data:image/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+",url):return False
+                try:
+                    raw=base64.b64decode(url.split(",",1)[1],validate=True)
+                except (ValueError,binascii.Error):return False
+                if not raw or len(raw)>4*1024*1024:return False
+                images+=1
+            else:return False
+        return texts==1 and 1<=images<=4
 
     @staticmethod
     def _normalize_chat_content(content):

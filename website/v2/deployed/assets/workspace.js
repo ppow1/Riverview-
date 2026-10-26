@@ -19,7 +19,7 @@ History: Git and revision/backup manifest
 (() => {
   "use strict";
   const fixtures = window.RIVERVIEW_V2_FIXTURES;
-  const labels = { overview: "Workspace overview", residents: "Residents", work: "Work", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
+  const labels = { overview: "Workspace overview", residents: "Residents", settings: "Settings", work: "Work", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
   const nav = document.getElementById("primary-nav");
   const area = document.getElementById("view-content");
   const title = document.getElementById("page-title");
@@ -99,15 +99,17 @@ History: Git and revision/backup manifest
     const isWork = view === "work";
     const isImageGeneration = view === "image-generation";
     const isNotificationSettings = view === "notification-settings";
-    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings;
+    const isSettings = view === "settings";
+    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isSettings;
     document.getElementById("manual-image-workspace").hidden = !isImageGeneration;
     document.getElementById("grace-workspace").hidden = !isGrace;
     document.getElementById("communications-workspace").hidden = !isCommunications;
     document.getElementById("resource-monitor-workspace").hidden = !isResources;
     document.getElementById("work-monitor-workspace").hidden = !isWork;
     document.getElementById("notification-settings-workspace").hidden = !isNotificationSettings;
+    document.getElementById("settings-workspace").hidden = !isSettings;
     heading.textContent = view === "overview" ? "Resident directory" : isWork ? "Workspace examples" : labels[view] || labels.residents;
-    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings) {
+    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isSettings) {
       area.replaceChildren();
       if (view === "overview" || view === "residents") {
         const list = el("div", "list-stack");
@@ -159,6 +161,10 @@ History: Git and revision/backup manifest
     render(resident.realIdentity ? "grace" : "residents");
     document.dispatchEvent(new CustomEvent("rvv2:resident", { detail: { residentId: resident.id } }));
   };
+  const openGraceConversation = () => selectResident({
+    id: "office:grace", name: "Grace", role: "Authenticated resident workspace",
+    initials: "G", realIdentity: true,
+  });
   nav.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-view]");
     if (button) {
@@ -168,6 +174,7 @@ History: Git and revision/backup manifest
   });
   document.getElementById("selected-resident").addEventListener("click", () => render("residents"));
   document.getElementById("mobile-menu").addEventListener("click", () => document.querySelector(".rail").classList.toggle("mobile-open"));
+  window.RiverviewV2Workspace = Object.freeze({openGraceConversation});
   updateResidentContext(currentResident);
   initTooltips();
   render("overview");

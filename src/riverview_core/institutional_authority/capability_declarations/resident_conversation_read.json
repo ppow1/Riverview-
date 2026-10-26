@@ -1,0 +1,46 @@
+{
+  "capability_id": "resident.conversation.read",
+  "description": "Read, search, switch, and retrieve owner-scoped resident conversation history and authorized image attachments.",
+  "operation": "resident.conversation.read",
+  "owner_office": "office:grace",
+  "implementation_ref": "resident-conversation.api.v2",
+  "dependencies": [
+    "resident-conversation-ledger",
+    "exact-owner-check",
+    "protected-attachment-route"
+  ],
+  "approval_default": false,
+  "enabled": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "conversation_id"
+    ],
+    "properties": {
+      "conversation_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "query": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "archived": {
+        "type": "boolean"
+      },
+      "attachment_id": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  },
+  "authorization_contract": {
+    "mode": "exact_grant",
+    "action": "resident.conversation.read",
+    "scope_policy": "exact_scope"
+  },
+  "availability_policy": "executor_and_worker_health",
+  "registration_blocker": null
+}

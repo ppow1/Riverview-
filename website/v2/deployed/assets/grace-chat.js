@@ -4,6 +4,7 @@ File: website/v2/deployed/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
 Revision: 1.0.11
 Changed: 2026-10-24 UTC | RV-V2-GRACE-CANCELLATION-INTEGRATION | Resolve exact objective/work-order chat commands through the Steward session and shared lifecycle confirmation.
+Changed: 2026-10-25 UTC | RV-V2-V1-PROPOSAL-PARITY-20261025 | Add idempotent proposal drafting from a persisted, selected Steward message through the existing API.
 Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Show live conversation-linked objectives with safe cancellation and preserve a single panel across responsive sidebar transitions.
 Purpose: Connect V2 Grace chat and expose a content-free trace of its durable request lifecycle
 Execution Model: Interactive browser; request-driven reads/sends with durable response polling
@@ -25,7 +26,7 @@ History: Git and revision/backup manifest
   const $ = (id) => document.getElementById(id);
   const root = $("grace-chat-root");
   if (!root) return;
-  const state = {connected: false, historyLoaded: false, conversationId: "", pending: new Set(), history: [], identity: null, workOrderSequence: null, historyInFlight: false, engineeringProgressLoading: false, engineeringProgressItems: null, engineeringProgressStatus: "not_checked", engineeringProgressConversationId: "", engineeringProgressObservedAt: null, engineeringProgressError: "", engineeringProgressTimer: null, cancelObjective: null, cancelInFlight: false};
+  const state = {connected: false, historyLoaded: false, conversationId: "", newConversation:false, archivedView:false, listQuery:"", listInFlight:false, pending: new Set(), history: [], identity: null, workOrderSequence: null, historyInFlight: false, engineeringProgressLoading: false, engineeringProgressItems: null, engineeringProgressStatus: "not_checked", engineeringProgressConversationId: "", engineeringProgressObservedAt: null, engineeringProgressError: "", engineeringProgressTimer: null, cancelObjective: null, cancelInFlight: false, attachments: []};
   const HISTORY_KEY = "rv.grace.conversation";
   const errorNode = $("grace-chat-error");
   const statusNode = $("grace-chat-state");
@@ -66,6 +67,20 @@ History: Git and revision/backup manifest
       throw error;
     }
     return result;
+  }
+
+  async function apiWithTransientRetry(path, options = {}) {
+    const delays = [0, 300, 800, 1500];
+    let lastError;
+    for (const delay of delays) {
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      try { return await api(path, options); }
+      catch (error) {
+        lastError = error;
+        if (![502, 503, 504].includes(error.status)) throw error;
+      }
+    }
+    throw lastError || new Error("notification_settings_unavailable");
   }
 
   function appendProgressField(grid, label, value) {
@@ -120,6 +135,10 @@ History: Git and revision/backup manifest
     const grid = card.querySelector(".engineering-progress-grid");
     grid.replaceChildren();
     fields.forEach(([label, value]) => appendProgressField(grid, label, value));
+    card.querySelector(".work-evidence-details")?.remove();
+    if (window.RiverviewV2WorkEvidence) {
+      card.append(window.RiverviewV2WorkEvidence.createDetails(item));
+    }
     const activeNote = card.querySelector(".engineering-progress-note");
     activeNote.hidden = !(item.status === "WORK_ORDER_CREATED" && ["running", "blocked"].includes(String(item.assignment_state || "").toLowerCase()));
     const cancel = card.querySelector(".engineering-cancel-button");
@@ -327,7 +346,8 @@ History: Git and revision/backup manifest
 
   async function handleConversationalNotificationSettings(message) {
     const text = String(message || "").trim();
-    const read = /^(?:grace\s*[, :]\s*)?(?:show|read|get|what are)\s+(?:my\s+)?notification settings[?.!]*$/i.test(text);
+    const read = /^(?:grace\s*[, :]\s*)?(?:(?:what(?:'s|\s+(?:is|are))|tell me|show|read|get|check|how are)\s+)?(?:(?:the|my)\s+)?(?:(?:current|saved|active|configured)\s+)?notification(?:s)?(?:\s+(?:setting|settings|level|preferences|configuration|configured))?[?.!]*$/i.test(text)
+      || /^(?:grace\s*[, :]\s*)?(?:what(?:'s|\s+(?:is|are))|tell me|show|check)\s+(?:(?:the|my)\s+)?(?:(?:current|saved|active)\s+)?notification\s+(?:setting|settings|level|preferences|configuration)[?.!]*$/i.test(text);
     const levelMatch = /^(?:grace\s*[, :]\s*)?(?:set\s+)?notification(?:\s+level)?\s+(?:to|=)\s*(all|important|critical\s+only|paused)[.!]*$/i.exec(text);
     const quietMatch = /^(?:grace\s*[, :]\s*)?(?:set\s+)?quiet hours\s+(on|off|enabled|disabled)[.!]*$/i.exec(text);
     const hoursMatch = /^(?:grace\s*[, :]\s*)?set quiet hours to (\d{2}:\d{2})\s*(?:-|to)\s*(\d{2}:\d{2})\s+in\s+([A-Za-z_]+(?:\/[A-Za-z0-9_+.-]+)+)[.!]*$/i.exec(text);
@@ -338,8 +358,8 @@ History: Git and revision/backup manifest
       return true;
     }
     try {
-      const current = await api("/api/v1/notification-settings");
-      const description = (settings) => `Level: ${settings.level.replace("_", " ")}. Quiet hours: ${settings.quiet_hours.enabled ? `on, ${settings.quiet_hours.start}–${settings.quiet_hours.end} ${settings.quiet_hours.timezone}` : "off"}. Critical alerts always pass, including during Paused and quiet hours.`;
+      const current = await apiWithTransientRetry("/api/v1/notification-settings");
+      const description = (settings) => `Level: ${settings.level.replaceAll("_", " ")}. Quiet hours: ${settings.quiet_hours.enabled ? "on" : "off"}, ${settings.quiet_hours.start}–${settings.quiet_hours.end}; time zone: ${settings.quiet_hours.timezone}. Critical alerts always pass, including during Paused and quiet hours.`;
       if (read) { status.textContent = description(current); return true; }
       const next = {level: current.level, quiet_hours: {...current.quiet_hours}};
       if (levelMatch) next.level = levelMatch[1].toLowerCase().replace(/\s+/g, "_");
@@ -354,7 +374,7 @@ History: Git and revision/backup manifest
         status.textContent = "Settings change cancelled; current preferences are unchanged.";
         return true;
       }
-      const saved = await api("/api/v1/notification-settings", {method: "PUT", body: {
+      const saved = await apiWithTransientRetry("/api/v1/notification-settings", {method: "PUT", body: {
         level: next.level, quiet_hours: next.quiet_hours
       }});
       status.textContent = `Settings saved to Riverview. ${description(saved)}`;
@@ -415,10 +435,17 @@ History: Git and revision/backup manifest
       const role = item.querySelector("[data-message-role]");
       role.textContent = event.event_type === "user_message" ? "You" : event.event_type === "assistant_message" ? "Grace" : "Response status";
       item.querySelector("[data-message-meta]").textContent = `Event ${Number.isInteger(event.sequence) ? event.sequence : "unknown"} · ${timeLabel(event.occurred_at)}`;
-      item.querySelector("[data-message-content]").textContent = event.body || event.error_code || (event.event_type === "response_deferred" ? "Grace response deferred." : "No response text was recorded.");
+      const content=item.querySelector("[data-message-content]");content.textContent = event.body || event.error_code || (event.event_type === "response_deferred" ? "Grace response deferred." : "No response text was recorded.");
+      for(const attachment of (event.metadata?.attachments||[])){
+        if(!attachment.url||!attachment.attachment_id)continue;
+        const link=document.createElement("a");link.href=attachment.url;link.target="_blank";link.rel="noopener";link.className="grace-message-image-link";
+        const image=document.createElement("img");image.src=attachment.url;image.alt=`Attached image: ${attachment.file_name||"image"}`;image.loading="lazy";image.className="grace-message-image";link.append(image);content.append(link);
+      }
       item.dataset.sequence = Number.isInteger(event.sequence) ? String(event.sequence) : "";
       item.querySelector("[data-create-work-order]").hidden = !(event.event_type === "user_message" && Number.isInteger(event.sequence) && state.identity?.roles?.includes("steward"));
       item.querySelector("[data-create-work-order]").dataset.sequence = Number.isInteger(event.sequence) ? String(event.sequence) : "";
+      item.querySelector("[data-draft-proposal]").hidden = !(event.event_type === "user_message" && Number.isInteger(event.sequence) && state.identity?.roles?.includes("steward"));
+      item.querySelector("[data-draft-proposal]").dataset.sequence = Number.isInteger(event.sequence) ? String(event.sequence) : "";
       if (!keyed.has(key)) historyNode.append(item);
     }
     if (reset) keyed.forEach((item, key) => { if (!wanted.has(key)) item.remove(); });
@@ -429,7 +456,26 @@ History: Git and revision/backup manifest
     } else historyNode.querySelector("[data-history-empty]")?.remove();
     // Preserve the viewport across background reconciliation. New messages only scroll when the user explicitly sent one.
     historyNode.scrollTop = scrollToBottom ? historyNode.scrollHeight : previousScroll;
+    updateJumpLatest();
   }
+
+  function updateJumpLatest(){const button=$("grace-jump-latest");if(!button)return;const atBottom=historyNode.scrollHeight-historyNode.scrollTop-historyNode.clientHeight<48;button.hidden=atBottom;}
+
+  const imageError=$("grace-image-error"), imagePicker=$("grace-image-picker"), imagePreviews=$("grace-image-previews");
+  function clearImageError(){if(imageError){imageError.hidden=true;imageError.textContent="";}}
+  function addImages(files){clearImageError();const input=Array.from(files||[]),accepted=input.filter(f=>f.type.startsWith("image/"));if(accepted.length!==input.length){imageError.textContent="Only PNG, JPEG, or WebP images are supported.";imageError.hidden=false;}
+    for(const file of accepted){if(!["image/png","image/jpeg","image/webp"].includes(file.type)){imageError.textContent="Only PNG, JPEG, or WebP images are supported.";imageError.hidden=false;continue;}if(file.size<1||file.size>4*1024*1024||state.attachments.length>=4||state.attachments.reduce((n,x)=>n+x.size,0)+file.size>4*1024*1024){imageError.textContent="Images must fit within four files and 4 MiB total.";imageError.hidden=false;continue;}state.attachments.push(file);}
+    renderImagePreviews();}
+  function renderImagePreviews(){if(!imagePreviews)return;for(const img of imagePreviews.querySelectorAll("img"))URL.revokeObjectURL(img.src);imagePreviews.replaceChildren();state.attachments.forEach((file,index)=>{const box=document.createElement("span");box.className="grace-image-preview";const img=document.createElement("img");img.src=URL.createObjectURL(file);img.alt=file.name;const remove=document.createElement("button");remove.type="button";remove.textContent="Remove";remove.addEventListener("click",()=>{state.attachments.splice(index,1);renderImagePreviews();});box.append(img,remove);imagePreviews.append(box);});}
+  async function encodeImage(file){const bytes=new Uint8Array(await file.arrayBuffer());let binary="";for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return {file_name:file.name,media_type:file.type,data:btoa(binary)};}
+  $("grace-attach-image")?.addEventListener("click",()=>imagePicker?.click());
+  imagePicker?.addEventListener("change",()=>{addImages(imagePicker.files);imagePicker.value="";});
+  $("grace-message")?.addEventListener("paste",event=>{const files=Array.from(event.clipboardData?.items||[]).filter(i=>i.type.startsWith("image/")).map(i=>i.getAsFile()).filter(Boolean);if(files.length){event.preventDefault();addImages(files);}});
+  $("grace-chat-form")?.addEventListener("dragover",event=>{if(Array.from(event.dataTransfer?.items||[]).some(i=>i.kind==="file"&&i.type.startsWith("image/"))){event.preventDefault();event.currentTarget.classList.add("has-image-drop");}});
+  $("grace-chat-form")?.addEventListener("dragleave",event=>event.currentTarget.classList.remove("has-image-drop"));
+  $("grace-chat-form")?.addEventListener("drop",event=>{event.currentTarget.classList.remove("has-image-drop");const files=Array.from(event.dataTransfer?.files||[]);if(files.some(f=>f.type.startsWith("image/"))){event.preventDefault();addImages(files);}});
+  historyNode.addEventListener("scroll",updateJumpLatest,{passive:true});
+  $("grace-jump-latest")?.addEventListener("click",()=>{historyNode.scrollTop=historyNode.scrollHeight;updateJumpLatest();});
 
   function createMessage(event, key) {
     const item = document.createElement("article"); item.dataset.historyKey = key;
@@ -441,7 +487,8 @@ History: Git and revision/backup manifest
     const menu = document.createElement("div"); menu.className = "grace-message-menu"; menu.setAttribute("role", "menu");
     const copy = document.createElement("button"); copy.type = "button"; copy.setAttribute("role", "menuitem"); copy.setAttribute("data-copy-conversation", "true"); copy.textContent = "Copy Conversation Text";
     const work = document.createElement("button"); work.type = "button"; work.setAttribute("role", "menuitem"); work.setAttribute("data-create-work-order", "true"); work.textContent = "Create Work Order…";
-    menu.append(copy, work); details.append(summary, menu); item.append(role, meta, content, details); return item;
+    const proposal = document.createElement("button"); proposal.type = "button"; proposal.setAttribute("role", "menuitem"); proposal.setAttribute("data-draft-proposal", "true"); proposal.textContent = "Draft Institutional Proposal…";
+    menu.append(copy, work, proposal); details.append(summary, menu); item.append(role, meta, content, details); return item;
   }
 
   function conversationText() {
@@ -460,9 +507,20 @@ History: Git and revision/backup manifest
   historyNode.addEventListener("click", async event => {
     const copy = event.target.closest("[data-copy-conversation]");
     const work = event.target.closest("[data-create-work-order]");
-    if (!copy && !work) return;
+    const proposal = event.target.closest("[data-draft-proposal]");
+    if (!copy && !work && !proposal) return;
     const row = event.target.closest("[data-history-key]");
     if (copy) { try { await copyText(conversationText()); } catch (error) { $("grace-chat-action-status").textContent = `Copy failed (${safeError(error.message)}).`; } closeMenus(); return; }
+    if (proposal) {
+      const sequence = Number(proposal.dataset.sequence);
+      const source = state.history.find(item => item.event_type === "user_message" && item.sequence === sequence);
+      if (!source || !state.identity?.roles?.includes("steward") || !state.conversationId) { $("grace-chat-action-status").textContent = "A persisted Steward message, active conversation, and Steward session are required."; closeMenus(); return; }
+      $("proposal-draft-source").textContent = source.body || "";
+      $("proposal-draft-instruction").value = "Formalize the selected discussion as an institutional proposal";
+      $("proposal-draft-error").textContent = "";
+      $("proposal-draft-dialog").dataset.sourceSequence = String(sequence);
+      $("proposal-draft-dialog").showModal(); closeMenus(); return;
+    }
     const sequence = Number(work.dataset.sequence);
     const source = state.history.find(item => item.event_type === "user_message" && item.sequence === sequence);
     if (!source || !state.identity?.roles?.includes("steward")) { $("grace-chat-action-status").textContent = "A saved Steward message and Steward session are required."; closeMenus(); return; }
@@ -492,6 +550,26 @@ History: Git and revision/backup manifest
     } catch (error) { errorNode.textContent = `${safeError(error.payload?.error || error.message)} · no approval or execution is implied.`; }
     finally { submit.disabled = false; }
   });
+  $("proposal-draft-submit").addEventListener("click", async () => {
+    const sequence = Number($("proposal-draft-dialog").dataset.sourceSequence);
+    if (!Number.isInteger(sequence) || !state.conversationId || !state.identity?.roles?.includes("steward")) return;
+    const button = $("proposal-draft-submit"); button.disabled = true;
+    $("proposal-draft-error").textContent = "Submitting the selected persisted message to the existing proposal drafting service…";
+    try {
+      const result = await api("/api/v1/institutional-proposals", {method:"POST", body:{
+        conversation_id:state.conversationId, source_sequences:[sequence],
+        idempotency_key:`v2-proposal:${state.conversationId}:${sequence}`,
+        instruction:$("proposal-draft-instruction").value.trim()}});
+      if (result.status === "clarification_required") { $("proposal-draft-error").textContent = `Grace needs clarification: ${safeError(result.question || result.message || "review the source and retry")}`; return; }
+      $("proposal-draft-dialog").close(); $("grace-chat-action-status").textContent = "Proposal draft saved. It remains DRAFT and does not authorize objective creation or execution.";
+      document.querySelector('[data-view="institutional-proposals"]')?.click();
+      await window.RiverviewV2InstitutionalProposals?.refresh();
+      const proposalId = result.proposal?.proposal_id || result.proposal_id;
+      if (proposalId) await window.RiverviewV2InstitutionalProposals?.open(proposalId);
+    } catch (error) { $("proposal-draft-error").textContent = `Draft not confirmed (${safeError(error.payload?.error || error.message)}). No proposal was claimed.`; }
+    finally { button.disabled = false; }
+  });
+  document.querySelector('[data-close-proposal-draft]')?.addEventListener("click", () => $("proposal-draft-dialog").close());
   document.querySelector("[data-close-work-order]").addEventListener("click", () => $("grace-work-order-dialog").close());
 
   engineeringProgressList.addEventListener("click", event => {
@@ -608,6 +686,50 @@ History: Git and revision/backup manifest
     }
   }
 
+  async function loadConversationList() {
+    if(!state.connected||state.listInFlight)return;
+    state.listInFlight=true;
+    const host=$("grace-conversation-list"),status=$("grace-conversation-list-status");
+    if(!host||!status){state.listInFlight=false;return;}
+    try{
+      const params=new URLSearchParams({archived:String(state.archivedView),limit:"100"});
+      if(state.listQuery)params.set("q",state.listQuery);
+      const result=await api(`/api/v1/resident/conversations?${params}`);
+      if(result.schema_version!=="rv.resident.conversations.v1"||!Array.isArray(result.items))throw new Error("conversation_list_contract_invalid");
+      host.replaceChildren();
+      for(const item of result.items){
+        const row=document.createElement("article");row.className="grace-conversation-row";row.dataset.selected=item.conversation_id===state.conversationId?"true":"false";
+        const open=document.createElement("button");open.type="button";open.className="grace-conversation-open";open.textContent=item.title||"Untitled conversation";open.setAttribute("aria-current",item.conversation_id===state.conversationId?"true":"false");
+        open.addEventListener("click",async()=>{await openConversation(item.conversation_id);});
+        const meta=document.createElement("small");meta.textContent=`Updated ${timeLabel(item.updated_at)} · ${Number(item.attachment_count)||0} image attachment${Number(item.attachment_count)===1?"":"s"}`;
+        const actions=document.createElement("div");actions.className="grace-conversation-actions";
+        const action=(label,fn)=>{const b=document.createElement("button");b.type="button";b.textContent=label;b.addEventListener("click",async ev=>{ev.stopPropagation();await fn(item);});actions.append(b);};
+        action("Rename",async record=>{const title=window.prompt("Conversation name",record.title||"");if(title===null)return;try{await api(`/api/v1/resident/conversations/${encodeURIComponent(record.conversation_id)}/rename`,{method:"POST",body:{title}});await loadConversationList();}catch(error){status.textContent=`Rename failed (${safeError(error.message)}).`}});
+        if(state.archivedView)action("Restore",async record=>{try{await api(`/api/v1/resident/conversations/${encodeURIComponent(record.conversation_id)}/restore`,{method:"POST",body:{}});await loadConversationList();}catch(error){status.textContent=`Restore failed (${safeError(error.message)}).`}});
+        else action("Archive",async record=>{if(!window.confirm("Archive this conversation? Its history will remain available under Archived."))return;try{await api(`/api/v1/resident/conversations/${encodeURIComponent(record.conversation_id)}/archive`,{method:"POST",body:{}});if(state.conversationId===record.conversation_id){state.conversationId="";state.newConversation=true;localStorage.removeItem(HISTORY_KEY);render([],{reset:true});}await loadConversationList();}catch(error){status.textContent=`Archive failed (${safeError(error.message)}).`}});
+        action("Delete",async record=>{if(!window.confirm("Remove this thread from your workspace? Messages remain in the institutional audit ledger."))return;try{await api(`/api/v1/resident/conversations/${encodeURIComponent(record.conversation_id)}/delete`,{method:"POST",body:{}});if(state.conversationId===record.conversation_id){state.conversationId="";state.newConversation=true;localStorage.removeItem(HISTORY_KEY);render([],{reset:true});}await loadConversationList();}catch(error){status.textContent=`Delete failed (${safeError(error.message)}).`}});
+        row.append(open,meta,actions);host.append(row);
+      }
+      status.textContent=result.items.length?`${result.items.length} ${state.archivedView?"archived":"active"} conversation${result.items.length===1?"":"s"}${state.listQuery?" matching search":""}.`:`No ${state.archivedView?"archived":"active"} conversations${state.listQuery?" match this search":""}.`;
+    }catch(error){status.textContent=`Conversation history unavailable (${safeError(error.message)}).`}
+    finally{state.listInFlight=false;}
+  }
+
+  async function openConversation(conversationId) {
+    state.newConversation = false;
+    state.conversationId = conversationId;
+    localStorage.setItem(HISTORY_KEY, conversationId);
+    const deadline = Date.now() + 10000;
+    while (state.historyInFlight && Date.now() < deadline) {
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+    }
+    if (state.historyInFlight) {
+      setStatus("Conversation switch is waiting for the current history request", "pending");
+      return;
+    }
+    await loadHistory({scrollToBottom: true});
+  }
+
   async function loadHistory({scrollToBottom = false} = {}) {
     if (!state.connected || state.historyInFlight) return;
     state.historyInFlight = true;
@@ -615,13 +737,15 @@ History: Git and revision/backup manifest
     clearError();
     try {
     const previousConversationId = state.conversationId;
-    const page = await api("/api/v1/resident/conversations");
+    const page = await api(`/api/v1/resident/conversations?archived=${state.archivedView}&limit=100`);
     const ids = (page.items || []).map((item) => item.conversation_id);
-    if (!state.conversationId || !ids.includes(state.conversationId)) {
+    if(state.newConversation){state.conversationId="";}
+    else if (!state.conversationId || !ids.includes(state.conversationId)) {
       state.conversationId = ids[0] || "";
       if (state.conversationId) localStorage.setItem(HISTORY_KEY, state.conversationId);
       else localStorage.removeItem(HISTORY_KEY);
     }
+    await loadConversationList();
     if (!state.conversationId) {
       render([], {scrollToBottom, reset: previousConversationId !== ""});
       state.historyLoaded = true;
@@ -648,6 +772,7 @@ History: Git and revision/backup manifest
     setStatus(`Connected · ${state.history.length} durable events loaded`, "connected");
     resumePending(record.events || []);
     await loadEngineeringProgress();
+    await loadConversationList();
     } finally { state.historyInFlight = false; }
   }
 
@@ -753,12 +878,17 @@ History: Git and revision/backup manifest
     } finally { button.disabled = false; }
   });
 
+  let listSearchTimer=null;
+  $("grace-conversation-search")?.addEventListener("input",event=>{state.listQuery=event.target.value.trim();clearTimeout(listSearchTimer);listSearchTimer=setTimeout(loadConversationList,250);});
+  $("grace-conversation-archive-toggle")?.addEventListener("click",async event=>{state.archivedView=!state.archivedView;event.currentTarget.setAttribute("aria-pressed",String(state.archivedView));event.currentTarget.textContent=state.archivedView?"Show active":"Show archived";await loadConversationList();});
+
   $("grace-refresh").addEventListener("click", async () => {
     try { await loadHistory(); }
     catch (error) { showError(error); setStatus("History unavailable", "unavailable"); }
   });
 
   $("grace-new").addEventListener("click", () => {
+    state.newConversation=true;
     state.conversationId = "";
     localStorage.removeItem(HISTORY_KEY);
     render([], {reset:true});
@@ -768,8 +898,9 @@ History: Git and revision/backup manifest
 
   $("grace-chat-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const message = $("grace-message").value.trim();
-    if (!state.connected || !message) return;
+    let message = $("grace-message").value.trim();
+    if (!state.connected || (!message&&!state.attachments.length)) return;
+    if(!message&&state.attachments.length)message="Please describe the attached image.";
     const send = $("grace-send");
     send.disabled = true;
     clearError();
@@ -787,16 +918,17 @@ History: Git and revision/backup manifest
     }
     setStatus("Submitting message to Grace…", "pending");
     try {
-      const result = await api("/api/v1/resident/conversations/stream", {method: "POST", body: {
-        conversation_id: state.conversationId || null,
-        client_message_id: crypto.randomUUID(),
-        message
-      }});
+      const withImages=state.attachments.length>0;
+      const payload={conversation_id:state.conversationId||null,client_message_id:crypto.randomUUID(),message};
+      if(withImages)payload.attachments=await Promise.all(state.attachments.map(encodeImage));
+      const result = await api(withImages?"/api/v1/resident/conversations":"/api/v1/resident/conversations/stream", {method:"POST",body:payload});
       if (!result.conversation_id || !result.request_id) throw new Error("conversation_receipt_incomplete");
+      state.newConversation=false;
       state.conversationId = result.conversation_id;
       localStorage.setItem(HISTORY_KEY, state.conversationId);
       $("grace-message").value = "";
-      setStatus("Message durably accepted · waiting for Grace", "pending");
+      state.attachments=[];renderImagePreviews();clearImageError();
+      setStatus(withImages?"Image and message saved · routed to the vision-capable model":"Message durably accepted · waiting for Grace", "pending");
       await loadHistory({scrollToBottom:true});
       pollResponse(result.conversation_id, result.request_id);
     } catch (error) {
