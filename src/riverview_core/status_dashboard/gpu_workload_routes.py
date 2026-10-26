@@ -36,8 +36,15 @@ def _authority_context(handler):
             "steward" not in identity.get("roles", ()) or
             identity.get("authority_principal_id") != "steward:camrui"):
         return None
-    operations = getattr(handler.server, "_comms5_operations", None)
-    registry = getattr(operations, "authority_registry", None) if operations else None
+    # The Dashboard owns the canonical authority registry independently of
+    # optional Comms5 integrations.  A workload status read must not depend on
+    # whether the Comms5 operations facade happened to be constructed.
+    registry = getattr(handler.server, "_authority_registry", None)
+    if registry is None:
+        # Compatibility for lightweight integrations that inject only the
+        # established Comms5 facade.
+        operations = getattr(handler.server, "_comms5_operations", None)
+        registry = getattr(operations, "authority_registry", None) if operations else None
     credential_dir = os.environ.get("CREDENTIALS_DIRECTORY", "")
     token_path = Path(credential_dir) / "authority-steward-token" if credential_dir else None
     if registry is None or token_path is None or token_path.is_symlink() or not token_path.is_file():

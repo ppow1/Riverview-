@@ -76,7 +76,7 @@ def test_steward_submission_requires_exact_registered_authority_and_uses_fixed_o
         _account_cookie_authenticated = True
         _account_identity = {"roles":["steward"], "authority_principal_id":"steward:camrui"}
         body = {"service":"vision"}
-        def __init__(self, registry): self.server=SimpleNamespace(_comms5_operations=SimpleNamespace(authority_registry=registry))
+        def __init__(self, registry): self.server=SimpleNamespace(_authority_registry=registry, _comms5_operations=None)
         def _json_body(self, maximum): return self.body
         def _json(self, status, payload, request_id): self.result=(status,payload)
         def _error(self, status, code, request_id): self.result=(status,{"error":code})
@@ -105,6 +105,53 @@ def test_steward_submission_requires_exact_registered_authority_and_uses_fixed_o
             dispatch(handler, urlsplit("/api/v1/hardware/workloads/start"), "request")
         assert handler.result == (403, {"error":"steward_gpu_workload_authority_required"})
         controller.assert_not_called()
+
+
+def test_steward_status_uses_dashboard_authority_registry_without_comms5_facade():
+    class Registry:
+        def __init__(self): self.calls=[]
+        def authorize(self, token, action, scope):
+            self.calls.append((action, scope))
+            return {"principal_id":"steward:camrui", "principal_kind":"steward"}
+
+    class Handler:
+        command = "GET"
+        _account_cookie_authenticated = True
+        _account_identity = {"roles":["steward"], "authority_principal_id":"steward:camrui"}
+        def __init__(self, registry): self.server=SimpleNamespace(_authority_registry=registry, _comms5_operations=None)
+        def _json(self, status, payload, request_id): self.result=(status,payload)
+        def _error(self, status, code, request_id): self.result=(status,{"error":code})
+
+    with tempfile.TemporaryDirectory() as root:
+        Path(root, "authority-steward-token").write_text("protected-test-token\n")
+        registry=Registry()
+        handler=Handler(registry)
+        status={"services":{"vision":{"active":False},"comfyui":{"active":True}},
+                "queues":{"vision":{"state":"inactive"},"comfyui":{"state":"available","running":0,"pending":0}},
+                "gpu":{"state":"available","used_mib":4096,"total_mib":24564}}
+        with patch.dict("os.environ", {"CREDENTIALS_DIRECTORY":root}), \
+             patch("riverview_core.status_dashboard.gpu_workload_routes._controller") as controller:
+            controller.return_value.call.return_value=status
+            dispatch(handler, urlsplit("/api/v1/hardware/workloads"), "request")
+        assert handler.result[0] == 200
+        assert handler.result[1]["permissions"] == {"read":True,"start":True,"stop":True,"switch":True}
+        assert registry.calls == [(action,"host:octominer1") for action in OP_ACTION.values()]
+        controller.return_value.call.assert_called_once_with("status")
+
+
+def test_six_workload_buttons_map_to_the_four_exact_capabilities():
+    root=Path(__file__).resolve().parents[1]
+    html=(root/"website/v2/deployed/index.html").read_text()
+    script=(root/"website/v2/deployed/assets/gpu-workload-controls.js").read_text()
+    buttons=re.findall(r'data-gpu-action="(start|stop|switch)" data-gpu-service="(vision|comfyui)"',html)
+    assert len(buttons) == 6
+    assert set(buttons) == {(action,service) for action in ("start","stop","switch")
+                             for service in ("vision","comfyui")}
+    assert all(f'"{action}": "hardware.gpu.workload.{action}"' in
+               (root/"src/riverview_core/status_dashboard/gpu_workload_routes.py").read_text()
+               for action in ("read","start","stop","switch"))
+    assert 'data-gpu-action="${action}"' not in script
+    assert 'const action = button.dataset.gpuAction, service = button.dataset.gpuService' in script
 
 
 def test_stop_refuses_active_comfyui_work_without_stopping_unit():
@@ -256,6 +303,12 @@ class GPUWorkloadControlTests(unittest.TestCase):
 
     def test_exact_registered_authority_is_required(self):
         test_steward_submission_requires_exact_registered_authority_and_uses_fixed_operation()
+
+    def test_status_uses_dashboard_registry_without_comms5(self):
+        test_steward_status_uses_dashboard_authority_registry_without_comms5_facade()
+
+    def test_six_controls_map_to_four_capabilities(self):
+        test_six_workload_buttons_map_to_the_four_exact_capabilities()
 
     def test_active_comfyui_work_refuses_stop(self):
         test_stop_refuses_active_comfyui_work_without_stopping_unit()
