@@ -1,3 +1,15 @@
+// Riverview~ Controlled Source
+// File: tests/test_v2_living_roadmap.cjs
+// Component: RIVERVIEW-V2-LIVING-ROADMAP
+// Revision: 1.0.0
+// Purpose: Check traceable roadmap completion and truthful unknown objective fields
+// Execution Model: Local Node test runner; reads static source modules only
+// Observability: TAP assertions identify mismatched source status/field claims
+// Dependencies: Node.js built-in test/assert modules
+// Inputs/Outputs: Versioned roadmap/objective projection; no live data or writes
+// Authority: Read-only test of UI projection semantics; no permission or lifecycle changes
+// Tests: node --test tests/test_v2_living_roadmap.cjs
+// History: Git and revision/backup manifest
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
