@@ -1,4 +1,8 @@
-/* Authenticated UI for the fixed OCTOMINER1 vision/ComfyUI controller. */
+/*
+ * File: website/v2/deployed/assets/gpu-workload-controls.js
+ * Revision: 1.0.0
+ * Authenticated UI for the fixed OCTOMINER1 vision/ComfyUI controller.
+ */
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);

@@ -681,6 +681,11 @@ class DashboardHTTPTests(unittest.TestCase):
                 self.assertEqual(self.request("GET", "/v2/assets/gpu-workload-controls.css?rev=check")[0], 200)
                 self.assertEqual(self.request("GET", "/v2/assets/gpu-workload-controls.js/extra")[0], 404)
 
+    def test_gpu_workload_state_rejects_dashboard_bearer_without_steward_session(self):
+        status, _, body = self.request("GET", "/api/v1/hardware/workloads", token=self.token)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "steward_gpu_workload_authority_required")
+
     def test_v2_snapshot_mode_is_injected_only_by_dashboard_route(self):
         source = (Path(__file__).resolve().parents[1] / "website/v2/index.html").read_bytes()
         self.assertNotIn(b"rv-v2-snapshot-mode", source)

@@ -5,3 +5,7 @@
 .gpu-workload-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}.gpu-workload-actions section{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--line);border-radius:7px}.gpu-workload-actions h6{width:100%;margin:0 0 2px;color:var(--ink);font-size:10px}.gpu-workload-actions button,#gpu-workload-refresh{min-height:32px;padding:6px 9px;font-size:9px}.gpu-workload-actions button:disabled{opacity:.55;cursor:not-allowed}
 [data-theme="dark"] .gpu-workload-controls,[data-theme="dark"] .gpu-workload-facts>span{background:var(--surface,#202a31)}
 @media(max-width:620px){.gpu-workload-actions{grid-template-columns:1fr}.gpu-workload-actions section button{flex:1}}
+/*
+ * File: website/v2/deployed/assets/gpu-workload-controls.css
+ * Revision: 1.0.0
+ */

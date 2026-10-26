@@ -1,15 +1,28 @@
 from types import SimpleNamespace
+# Revision: 1.0.0
 from unittest.mock import patch
 from urllib.parse import urlsplit
+from contextlib import contextmanager
+import re
+import unittest
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from scripts import rv_gpu_workload_control as gpu
 from riverview_core.status_dashboard.gpu_workload_routes import GpuWorkloadRemote, OP_ACTION, dispatch, is_route
 from scripts.apply_gpu_workload_dashboard_overlay import apply as apply_dashboard_overlay
 from scripts.apply_gpu_workload_ui_overlay import apply as apply_ui_overlay
+
+
+@contextmanager
+def _raises(expected, match):
+    try:
+        yield
+    except expected as exc:
+        if not re.search(match, str(exc)):
+            raise AssertionError(f"{exc!r} did not match {match!r}") from exc
+    else:
+        raise AssertionError(f"expected {expected.__name__}")
 
 
 def unit(active, name):
@@ -30,7 +43,7 @@ def test_only_fixed_api_routes_and_ssh_commands_are_supported():
     assert is_route("POST", "/api/v1/hardware/workloads/switch")
     assert not is_route("POST", "/api/v1/hardware/workloads/exec")
     remote = GpuWorkloadRemote.__new__(GpuWorkloadRemote)
-    with pytest.raises(ValueError, match="allowlisted"):
+    with _raises(ValueError, "allowlisted"):
         remote.call("submit:systemctl:4e131dde-0794-4847-9f32-a10c52c8e047:steward:camrui")
 
 
@@ -102,7 +115,7 @@ def test_stop_refuses_active_comfyui_work_without_stopping_unit():
          patch.object(gpu, "_gpu_identity", return_value=("RTX 4090", '{"used_mib":7000,"total_mib":24564}')), \
          patch.object(gpu, "_queue_state", return_value={"running":1,"pending":0,"active":True}), \
          patch.object(gpu, "_run", side_effect=lambda *args, **kwargs: calls.append(args[0])):
-        with pytest.raises(gpu.ControlError, match="active_requests_or_jobs"):
+        with _raises(gpu.ControlError, "active_requests_or_jobs"):
             gpu._perform(job("stop_comfyui"))
     assert calls == []
 
@@ -151,7 +164,7 @@ def test_switch_does_not_start_target_when_vram_is_not_released():
          patch.object(gpu, "_wait_inactive"), \
          patch.object(gpu, "_verify_vram_release", side_effect=gpu.ControlError("target_gpu_memory_not_released_or_unrelated_process_active")), \
          patch.object(gpu, "_run", side_effect=mocked_run):
-        with pytest.raises(gpu.ControlError, match="target_gpu_memory_not_released"):
+        with _raises(gpu.ControlError, "target_gpu_memory_not_released"):
             gpu._perform(job("switch_to_vision"))
     assert not any(c[:2] == ["/usr/bin/systemctl", "start"] for c in commands)
 
@@ -163,7 +176,7 @@ def test_start_refuses_a_conflicting_active_unit():
          patch.object(gpu, "_unit", side_effect=lambda u: unit(True, "comfyui") if u == gpu.COMFY_UNIT else unit(False, "vision")), \
          patch.object(gpu, "_gpu_identity", return_value=("RTX 4090", '{"used_mib":7000,"total_mib":24564}')), \
          patch.object(gpu, "_run", side_effect=lambda *args, **kwargs: calls.append(args[0])):
-        with pytest.raises(gpu.ControlError, match="conflicting_service_active"):
+        with _raises(gpu.ControlError, "conflicting_service_active"):
             gpu._perform(job("start_vision"))
     assert calls == []
 
@@ -177,6 +190,21 @@ def test_stop_waits_for_exact_systemd_inactive_state_before_memory_check():
          patch.object(gpu.time, "sleep") as sleep:
         gpu._wait_inactive("comfyui", seconds=1)
     sleep.assert_called_once_with(1)
+
+
+def test_audit_record_is_appended_and_fsynced_without_credentials():
+    import json
+    from unittest.mock import Mock
+    job={"job_id":"4e131dde-0794-4847-9f32-a10c52c8e047","actor_id":"steward:camrui",
+         "operation":"switch_to_vision"}
+    with tempfile.TemporaryDirectory() as root, \
+         patch.object(gpu,"ROOT",Path(root)), patch.object(gpu,"JOBS",Path(root)/"jobs"), \
+         patch.object(gpu,"AUDIT",Path(root)/"audit.jsonl"), patch.object(gpu.os,"fsync",Mock()) as sync:
+        gpu._audit(job,"queued","none")
+        row=json.loads((Path(root)/"audit.jsonl").read_text())
+        assert row["actor_id"]=="steward:camrui" and row["event"]=="queued"
+        assert "password" not in row and "token" not in row
+        sync.assert_called_once()
 
 
 def test_composite_dashboard_overlay_is_bounded_valid_and_idempotent():
@@ -216,3 +244,39 @@ def test_deployed_v2_ui_overlay_preserves_existing_page_and_inserts_one_control_
     assert result.count('id="gpu-workload-controls"') == 1
     assert 'id="existing-dashboard-features">preserve existing features' in result
     assert apply_ui_overlay(result,feature) == result
+
+
+class GPUWorkloadControlTests(unittest.TestCase):
+    """Expose the focused cases to the repository's unittest CI runner."""
+    def test_only_fixed_api_routes_and_ssh_commands_are_supported(self):
+        test_only_fixed_api_routes_and_ssh_commands_are_supported()
+
+    def test_bearer_without_steward_cookie_is_denied(self):
+        test_dashboard_bearer_without_steward_cookie_cannot_reach_remote_controller()
+
+    def test_exact_registered_authority_is_required(self):
+        test_steward_submission_requires_exact_registered_authority_and_uses_fixed_operation()
+
+    def test_active_comfyui_work_refuses_stop(self):
+        test_stop_refuses_active_comfyui_work_without_stopping_unit()
+
+    def test_switch_waits_for_release_and_readiness(self):
+        test_switch_waits_for_release_before_start_and_readiness()
+
+    def test_switch_refuses_unreleased_vram(self):
+        test_switch_does_not_start_target_when_vram_is_not_released()
+
+    def test_start_refuses_conflicting_unit(self):
+        test_start_refuses_a_conflicting_active_unit()
+
+    def test_stop_waits_for_exact_inactive_state(self):
+        test_stop_waits_for_exact_systemd_inactive_state_before_memory_check()
+
+    def test_audit_is_durable_and_sanitized(self):
+        test_audit_record_is_appended_and_fsynced_without_credentials()
+
+    def test_dashboard_source_overlay_is_bounded(self):
+        test_composite_dashboard_overlay_is_bounded_valid_and_idempotent()
+
+    def test_ui_overlay_preserves_existing_release(self):
+        test_deployed_v2_ui_overlay_preserves_existing_page_and_inserts_one_control_panel()

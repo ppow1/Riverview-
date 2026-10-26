@@ -1,5 +1,6 @@
 # Riverview~ Controlled Source
 # File: scripts/apply_gpu_workload_ui_overlay.py
+# Revision: 1.0.0
 # Component: V2-GPU-WORKLOAD-CONTROLS
 # Purpose: Add the GPU control panel to an existing deployed V2 index without replacing newer page content
 # Execution Model: Explicit file-in/file-out deployment preparation; never mutates live files

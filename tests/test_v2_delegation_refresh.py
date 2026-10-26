@@ -1,4 +1,5 @@
 from pathlib import Path
+# Revision: 1.0.0
 
 
 def test_delegation_panel_listens_for_workspace_refresh_before_dom_ready():

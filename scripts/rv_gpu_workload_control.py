@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Revision: 1.0.0
 """Allowlisted root-side controller for the OCTOMINER1 RTX 4090 workloads.
 
 SSH access is intended to be restricted to this forced command. This program
@@ -228,7 +229,10 @@ def _audit(job: dict, event: str, result: str):
     fd = os.open(AUDIT, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0o640)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
-        os.write(fd, (json.dumps(item, sort_keys=True) + "\n").encode())
+        record = (json.dumps(item, sort_keys=True) + "\n").encode()
+        if os.write(fd, record) != len(record):
+            raise ControlError("audit_record_write_failed")
+        os.fsync(fd)
     finally:
         os.close(fd)
 

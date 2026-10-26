@@ -25,7 +25,7 @@
       "size_bytes": 1584723
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.346"
+      "revision": "1.1.347"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -8438,6 +8438,30 @@
       "revision": "1.0.2",
       "sha256": "812c4e6c8624d27a465daccdc352d593254ce09eeb7e9f022c12cacf50885c82",
       "size_bytes": 1502
+    },
+    "src/riverview_core/institutional_authority/capability_declarations/hardware_gpu_workload_read.json": {
+      "path": "src/riverview_core/institutional_authority/capability_declarations/hardware_gpu_workload_read.json",
+      "revision": "1.0.0",
+      "sha256": "347f62a26e8324f2f3c00f344dfaa1f8367555cbc9bee7513b45da8adf95a5af",
+      "size_bytes": 742
+    },
+    "src/riverview_core/institutional_authority/capability_declarations/hardware_gpu_workload_start.json": {
+      "path": "src/riverview_core/institutional_authority/capability_declarations/hardware_gpu_workload_start.json",
+      "revision": "1.0.0",
+      "sha256": "beeb8ecfbf10fe8606bd20093f56781932aafadbaaf36149302b3091c2bba6d8",
+      "size_bytes": 816
+    },
+    "src/riverview_core/institutional_authority/capability_declarations/hardware_gpu_workload_stop.json": {
+      "path": "src/riverview_core/institutional_authority/capability_declarations/hardware_gpu_workload_stop.json",
+      "revision": "1.0.0",
+      "sha256": "2dbf75e96e5bc5f8ee3d7e289bc9bd3ac1427dae84fd7be5c94bbafd49e87b88",
+      "size_bytes": 811
+    },
+    "src/riverview_core/institutional_authority/capability_declarations/hardware_gpu_workload_switch.json": {
+      "path": "src/riverview_core/institutional_authority/capability_declarations/hardware_gpu_workload_switch.json",
+      "revision": "1.0.0",
+      "sha256": "e9ee62a0ee3659dc3e1ac3cc852194ad165ccb7c348f2dcc862c27eeafedd7a3",
+      "size_bytes": 830
     },
     "src/riverview_core/institutional_authority/capability_declarations/resident_conversation_read.json": {
       "path": "src/riverview_core/institutional_authority/capability_declarations/resident_conversation_read.json",

@@ -1,5 +1,7 @@
 # OCTOMINER1 GPU workload controls
 
+<!-- Revision: 1.0.0 -->
+
 The Hardware & AI controls address only `grace-vision.service` and
 `riverview-comfyui.service` on OCTOMINER1 (`192.168.1.160`). The 30B vision
 server and ComfyUI are verified against their existing service configuration

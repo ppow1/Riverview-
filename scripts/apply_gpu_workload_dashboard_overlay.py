@@ -1,5 +1,6 @@
 # Riverview~ Controlled Source
 # File: scripts/apply_gpu_workload_dashboard_overlay.py
+# Revision: 1.0.0
 # Component: V2-GPU-WORKLOAD-CONTROLS
 # Purpose: Add GPU route hooks to the currently installed composite Dashboard without replacing newer code
 # Execution Model: Explicit file-in/file-out deployment preparation; never mutates live files
