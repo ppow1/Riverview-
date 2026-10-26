@@ -1,6 +1,6 @@
 {
   "schema_version": "rv.delegation-followup-acceptance.v1",
-  "timestamp": "2026-10-26T14:30:12Z",
+  "timestamp": "2026-10-26T14:33:35Z",
   "candidate_base_commit": "694ce324fcfeece62a01bfafb5ff0a176167f715",
   "production_v2_release": "RV-WEB-V2-GPU-HOSTS-42f76dc5",
   "production_source_commit": "42f76dc521b5ecfcd214274aa6dfcda6146a5bab",
@@ -8,6 +8,7 @@
     {"name": "delegation_routes_ui_and_acceptance_overlay", "status": "PASS", "result": "21 passed"},
     {"name": "institutional_authority_postgresql_isolated", "status": "PASS", "result": "15 passed in a temporary pg_virtualenv PostgreSQL cluster"},
     {"name": "installed_acceptance_runner_overlay_syntax", "status": "PASS", "result": "Idempotent overlay applied to a temporary copy of the installed runner; Python compilation passed; installed runner was not changed."},
+    {"name": "protected_canonical_steward_authority_read", "status": "PASS", "result": "Using the installed protected authority credentials in a read-only call, canonical principal steward:camrui authenticated with authority.grant and identity.manage at institution scope. The registry reports service:chatgpt is not active; 1 approved request, 0 pending requests, 0 denied requests, and 1 delegated grant record. No records were changed."},
     {"name": "anonymous_delegation_route_boundary", "status": "PASS", "result": "Unauthenticated options request returned 401 authentication_required; this verifies only the anonymous denial boundary, not authenticated functionality."},
     {"name": "production_authenticated_steward_read", "status": "BLOCKED", "result": "No authorized Steward browser session is available. The reserved website test Steward is not linked to the canonical institutional Steward identity; no cookie or credential was extracted or borrowed."},
     {"name": "production_service_principal_registration", "status": "BLOCKED", "result": "The canonical registry has no active service:chatgpt principal. V2 has no principal-registration API or UI. Registration requires AuthorityRegistry.create_principal with an active Steward identity.manage grant at institution scope; that operation also returns a one-time bearer credential and was not invoked."},
