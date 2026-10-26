@@ -1,4 +1,4 @@
-<!-- Document Revision: 1.1.0 -->
+<!-- Document Revision: 1.2.0 -->
 
 # Riverview Command Gateway
 
@@ -114,8 +114,11 @@ C2 develops on Camrui/Linux. Install and commission the agent separately on
    listener to the public network. Set `RIVERVIEW_COMMAND_AGENT_BIND` to that
    private address before starting the agent.
 5. In the dashboard systemd credential directory, install the matching agent
-   token, the issuing CA certificate, and the AuthorityRegistry credential for
-   `service:command-gateway`. Install the optional systemd drop-in shown below.
+   token and issuing CA certificate. Register `service:command-gateway` from
+   the Steward Dashboard's authenticated identity-management path; the route
+   stores its AuthorityRegistry credential at the fixed protected
+   `identity-credentials/service-command-gateway.credential` path. Install the
+   optional systemd drop-in shown below.
    Configure `RIVERVIEW_COMMAND_AGENT_URL=https://desktop-ja3rpnq:8443`.
 6. Provision the exact caller and finite execution grants through the existing
    Steward-authorized AuthorityRegistry process. Verify the grants are active,
@@ -125,12 +128,19 @@ The Windows agent's HTTPS bearer, server private key, SSH key, and known-hosts
 file remain on their respective hosts. Comms5 inputs and outputs never contain
 those credentials. Do not use `ssh.exe` with disabled host-key checking.
 
+The fixed Gateway service identity is provisioned only from the authenticated
+Steward session with the institution-scoped `identity.manage` action and the
+exact confirmation `REGISTER service:command-gateway` at
+`POST /api/v1/steward/service-principals/command-gateway/register`. The
+credential is written server-side and is never returned to the browser. This
+identity registration does not create either the caller or executor grant.
+
 Optional Dashboard systemd drop-in (install only after all credential files
 exist):
 
 ```ini
 [Service]
-LoadCredential=command-gateway-grantee:/etc/riverview/command-gateway/grantee.credential
+LoadCredential=command-gateway-grantee:/var/lib/riverview-status-dashboard/identity-credentials/service-command-gateway.credential
 LoadCredential=command-agent-token:/etc/riverview/command-gateway/agent.token
 LoadCredential=command-agent-ca.pem:/etc/riverview/command-gateway/agent-ca.pem
 Environment=RIVERVIEW_COMMAND_AGENT_URL=https://desktop-ja3rpnq:8443

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.46
+# Revision: 1.3.47
+# Changed: 2026-10-26 UTC | COMMS5-COMMAND-GATEWAY-IDENTITY | Route one confirmed service:command-gateway identity.manage registration action.
 # Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Route host-scoped command tools to their independent exact-grant boundary without broad project delegation.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Route one confirmed identity.manage registration action through the protected delegation adapter.
 # Changed: 2026-10-26 UTC | RV-PR342-COMMS5-AUTHORITY-EXCLUSION | Classify internal Comms5 authorization ingress as excluded from resident-executable capability registration
@@ -685,13 +686,16 @@ def make_handler():
             chatgpt_principal_registration = (
                 parsed.path == "/api/v1/steward/service-principals/chatgpt/register"  # capability-exclusion: institution-scoped Steward identity management; not resident-invocable
                 and self.command == "POST")
+            command_gateway_principal_registration = (
+                parsed.path == "/api/v1/steward/service-principals/command-gateway/register"  # capability-exclusion: institution-scoped Steward identity management; not resident-invocable
+                and self.command == "POST")
             delegation_route = (
                 self.command in {"GET", "HEAD"} and (
                     parsed.path in {"/api/v1/steward/delegation-grant-requests", "/api/v1/steward/delegation-grant-requests/options",  # capability-exclusion: Steward administrative projection; not resident-invocable
                                     "/api/v1/steward/delegated-grants"} or
                     re.fullmatch(r"^/api/v1/steward/delegation-grant-requests/"
                                  r"delegation-request:[A-Za-z0-9._:-]{1,128}$", parsed.path))  # capability-exclusion: Steward administrative projection; not resident-invocable
-            ) or delegation_revoke is not None or delegation_request_create or delegation_decision is not None or chatgpt_principal_registration
+            ) or delegation_revoke is not None or delegation_request_create or delegation_decision is not None or chatgpt_principal_registration or command_gateway_principal_registration
             gpu_workload_read = (parsed.path == "/api/v1/hardware/workloads" and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
             gpu_workload_job = (re.fullmatch(r"^/api/v1/hardware/workloads/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", parsed.path) is not None and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
             gpu_workload_start = (parsed.path == "/api/v1/hardware/workloads/start" and self.command == "POST")  # capability-operation: hardware.gpu.workload.start

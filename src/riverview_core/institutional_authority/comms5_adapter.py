@@ -1,5 +1,5 @@
-# Revision: 1.2.0
-# Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Permit explicit host-and-privilege-specific task command grant pairs.
+# Revision: 1.3.0
+# Changed: 2026-10-26 UTC | COMMS5-COMMAND-GATEWAY-IDENTITY | Register the fixed Gateway service principal through protected identity.manage.
 """Protected adapter for Comms5 delegated grant lifecycle and identity registration.
 
 The adapter owns the manager connection and Steward credential. Neither value
@@ -16,7 +16,8 @@ from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from .registry import AuthorityDenied, AuthorityRegistry
 from .service_principal_credentials import (
-    CHATGPT_PRINCIPAL_ID, ProtectedChatGPTCredentialStore,
+    CHATGPT_PRINCIPAL_ID, COMMAND_GATEWAY_PRINCIPAL_ID,
+    ProtectedChatGPTCredentialStore, ProtectedServicePrincipalCredentialStore,
 )
 
 
@@ -128,7 +129,7 @@ class Comms5DelegationAuthorityAdapter:
 
     def __init__(self, dsn: str, *, schema: str, manager_passfile: str | Path,
                  steward_token_file: str | Path, manager_role="riverview_authority_manager",
-                 chatgpt_credential_store=None):
+                 chatgpt_credential_store=None, command_gateway_credential_store=None):
         self._steward_token = _read_credential(steward_token_file,
             systemd_name="authority-steward-token")
         # psycopg conninfo safely quotes values and does not expose the password.
@@ -144,6 +145,8 @@ class Comms5DelegationAuthorityAdapter:
                                            runtime_safe=True)
         self._chatgpt_credential_store = (chatgpt_credential_store or
                                           ProtectedChatGPTCredentialStore())
+        self._command_gateway_credential_store = (command_gateway_credential_store or
+            ProtectedServicePrincipalCredentialStore(COMMAND_GATEWAY_PRINCIPAL_ID))
         try:
             with self._registry.db.transaction():
                 with self._registry.db.cursor() as cur:
@@ -197,6 +200,31 @@ class Comms5DelegationAuthorityAdapter:
                 CHATGPT_PRINCIPAL_ID, "service", credential=credential)
             del credential
             return {"status": "registered", "principal_id": CHATGPT_PRINCIPAL_ID,
+                    "principal_kind": "service", "credential_stored": True}
+
+    def command_gateway_registration_available(self) -> bool:
+        return self._command_gateway_credential_store.available()
+
+    def register_command_gateway_service_principal(self):
+        """Create only the fixed Gateway identity through existing Steward authority."""
+        actor_id = self._authenticated_steward()
+        actor = self._registry.authorize(
+            self._steward_token, "identity.manage", "institution")
+        if (actor_id != self._steward_principal_id or
+                actor.get("principal_id") != actor_id or
+                actor.get("principal_kind") != "steward"):
+            raise AuthorityDenied("institutional identity management is not authorized")
+        with self._command_gateway_credential_store.registration_lock():
+            if self.registered_target(COMMAND_GATEWAY_PRINCIPAL_ID, principal_kind="service"):
+                return {"status": "already_registered",
+                        "principal_id": COMMAND_GATEWAY_PRINCIPAL_ID,
+                        "principal_kind": "service", "credential_stored": True}
+            credential = self._command_gateway_credential_store.load_or_create()
+            self._registry.create_principal(self._steward_token,
+                COMMAND_GATEWAY_PRINCIPAL_ID, "service", credential=credential)
+            del credential
+            return {"status": "registered",
+                    "principal_id": COMMAND_GATEWAY_PRINCIPAL_ID,
                     "principal_kind": "service", "credential_stored": True}
 
     @staticmethod
