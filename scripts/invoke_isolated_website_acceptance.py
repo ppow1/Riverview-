@@ -2,22 +2,82 @@
 # Riverview~ Controlled Script
 # File: scripts/invoke_isolated_website_acceptance.py
 # Component: RIVERVIEW-WEBSITE-ACCEPTANCE
-# Revision: 1.0.0
+# Revision: 1.0.2
 # Purpose: Run isolated canonical browser acceptance against the selected V2 assets.
 # Execution Model: Request-driven pg_virtualenv subprocess.
 # Observability: Machine-readable PASS/FAIL/BLOCKED/SKIPPED report and screenshots.
 # Dependencies: Existing persona file, pg_virtualenv, PostgreSQL 16, Python, Chrome.
 # Authority: Temporary test accounts/schemas only; persistent database DSNs are discarded.
 # Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Bind reserved test persona credentials only to disposable canonical Steward fixtures.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-ACTIVE-V2-ASSET-RESOLUTION | Resolve the actual served immutable V2 assets by content when release.json is absent.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-ASSET-RESOLUTION-REGRESSION | Require exact served-asset match and safely validate release identities.
 # Contracts: Existing website runner and protected systemd LoadCredential persona source.
 # Tests: scripts/run_isolated_website_acceptance_suite.py.
 # History: Git and .riverview-backups/manifest.jsonl.
 """Acceptance-runner entry point for tests in a throw-away PostgreSQL cluster."""
 from __future__ import annotations
-import json, os, shutil, subprocess, sys
+import hashlib, json, os, re, shutil, ssl, subprocess, sys
 from pathlib import Path
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 REPORT=Path(os.environ.get("RIVERVIEW_ACCEPTANCE_REPORT_DIR","/var/lib/riverview-website-acceptance"))
+
+def resolve_served_assets(origin: str, release_root: Path, fetch=None) -> Path:
+    """Resolve a served V2 page to an immutable local package without trusting URL paths."""
+    release_root=Path(release_root)
+    if release_root.is_symlink() or not release_root.is_dir():
+        raise ValueError("served_v2_release_root_invalid")
+    release_root=release_root.resolve()
+    if fetch is None:
+        context=ssl._create_unverified_context()
+        def fetch(url,limit=2_000_000):
+            request=Request(url,headers={"Cache-Control":"no-cache"})
+            with urlopen(request,context=context,timeout=6) as response:
+                data=response.read(limit+1)
+            if len(data)>limit:raise ValueError("served_v2_asset_size_exceeded")
+            return data
+
+    try:
+        release_data=json.loads(fetch(origin+"/v2/release.json",4096))
+    except HTTPError as exc:
+        if exc.code!=404:raise
+        release_data=None
+    if release_data is not None:
+        release_id=release_data.get("release_id","")
+        if not isinstance(release_id,str) or not re.fullmatch(r"[A-Za-z0-9._-]{1,120}",release_id):
+            raise ValueError("served_v2_asset_release_invalid")
+        candidate=release_root/release_id
+        if candidate.is_symlink():raise ValueError("served_v2_asset_release_invalid")
+        resolved=candidate.resolve()
+        if release_root not in resolved.parents or not (resolved/"index.html").is_file():
+            raise ValueError("served_v2_asset_release_invalid")
+        return resolved
+
+    # Older production Nginx aliases the immutable folder but has no release
+    # manifest. Match the page and all assets it declares, never a guessed path.
+    served_index=fetch(origin+"/v2/")
+    declared=re.findall(rb'''(?:src|href)\s*=\s*["'](assets/[^"']+)''',served_index)
+    asset_paths=sorted({"index.html"}|{item.decode("ascii").split("?",1)[0] for item in declared})
+    if len(asset_paths)<2 or any(path.startswith("/") or ".." in Path(path).parts
+                                  or not path.startswith("assets/") and path!="index.html"
+                                  for path in asset_paths):
+        raise ValueError("served_v2_asset_manifest_invalid")
+    served={"index.html":served_index}
+    for rel in asset_paths:
+        if rel!="index.html":served[rel]=fetch(origin+"/v2/"+rel,5_000_000)
+    hashes={rel:hashlib.sha256(data).digest() for rel,data in served.items()}
+    matches=[]
+    for candidate in release_root.iterdir():
+        if not candidate.is_dir() or candidate.is_symlink():continue
+        try:
+            files={rel:candidate/rel for rel in asset_paths}
+            if any(path.is_symlink() or not path.is_file() for path in files.values()):continue
+            if all(hashlib.sha256(files[rel].read_bytes()).digest()==digest
+                   for rel,digest in hashes.items()):matches.append(candidate.resolve())
+        except OSError:continue
+    if not matches:raise ValueError("served_v2_assets_do_not_match_an_immutable_local_release")
+    return sorted(matches,key=lambda item:item.name)[-1]
 
 def main():
     payload=json.dumps(json.load(sys.stdin),separators=(",",":"))
@@ -40,7 +100,6 @@ def main():
     release=Path("/var/www/riverview-v2-preview/releases")
     # The release identity is read from the actual served site; its validated
     # identifier selects only the corresponding immutable local asset folder.
-    import urllib.request, ssl, re
     origin=env.get("RIVERVIEW_ACCEPTANCE_ORIGIN","https://192.168.1.155")
     try:
         supplied_assets=env.get("RIVERVIEW_V2_ASSET_ROOT")
@@ -54,20 +113,15 @@ def main():
         return {"overall":"BLOCKED","counts":{"PASS":0,"FAIL":0,"BLOCKED":1,"SKIPPED":0},
             "checks":[{"check":"isolated_website_acceptance","status":"BLOCKED","reason":"candidate V2 assets could not be resolved safely"}]}
     try:
-        if supplied_assets: raise StopIteration
-        request=urllib.request.Request(origin+"/v2/release.json",headers={"Cache-Control":"no-cache"})
-        with urllib.request.urlopen(request,context=ssl._create_unverified_context(),timeout=5) as response:
-            release_data=json.loads(response.read(4096))
-        release_id=release_data.get("release_id","")
-        asset_root=(release/release_id).resolve()
-        if (not re.fullmatch(r"[A-Za-z0-9._-]{1,120}",release_id) or release not in asset_root.parents
-                or not (asset_root/"index.html").is_file()):raise ValueError("served_v2_asset_release_unavailable")
-        env["RIVERVIEW_V2_ASSET_ROOT"]=str(asset_root)
-    except StopIteration:
-        pass
-    except Exception:
+        if supplied_assets:
+            pass
+        else:
+            asset_root=resolve_served_assets(origin,release)
+            env["RIVERVIEW_V2_ASSET_ROOT"]=str(asset_root)
+    except Exception as exc:
         return {"overall":"BLOCKED","counts":{"PASS":0,"FAIL":0,"BLOCKED":1,"SKIPPED":0},
-            "checks":[{"check":"isolated_website_acceptance","status":"BLOCKED","reason":"active V2 release assets could not be resolved safely"}]}
+            "checks":[{"check":"isolated_website_acceptance","status":"BLOCKED",
+                "reason":"active V2 assets could not be resolved safely ("+type(exc).__name__+")"}]}
     command=[pg_virtualenv,"-t",sys.executable,str(runner)]
     try:
         result=subprocess.run(command,input=payload,text=True,capture_output=True,timeout=600,env=env)

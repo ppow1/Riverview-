@@ -20,9 +20,9 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.36",
-      "sha256": "f5b7c802d1b6790af6278d1f9e675c5e45e3f91c0ab77edcba21c88dd5bc4a6f",
-      "size_bytes": 1616299
+      "revision": "1.0.37",
+      "sha256": "561a81f50db0d9724b5a26e369514af1ff099b46b884def54de3ff1dd63b94cd",
+      "size_bytes": 1616971
     },
     ".riverview-revisions.json": {
       "revision": "1.1.348"
@@ -8063,9 +8063,9 @@
     },
     "scripts/invoke_isolated_website_acceptance.py": {
       "path": "scripts/invoke_isolated_website_acceptance.py",
-      "revision": "1.0.0",
-      "sha256": "d269360d3bffc55bf490dd4cb9cc27d30f35fa867d8d1d69946b5382bd74cc5b",
-      "size_bytes": 5772
+      "revision": "1.0.2",
+      "sha256": "cb21ba4dcb520cd74e226a5f6e32f476359d3e32884c0b6f25b56f49e0d942cf",
+      "size_bytes": 8699
     },
     "scripts/migrate_account_auth.py": {
       "path": "scripts/migrate_account_auth.py",
@@ -9567,6 +9567,12 @@
       "sha256": "d08d18155c0f8e57a7980798c937bba67212dc8d145788649849f31da0e7fa42",
       "size_bytes": 10180
     },
+    "tests/test_invoke_isolated_website_acceptance.py": {
+      "path": "tests/test_invoke_isolated_website_acceptance.py",
+      "revision": "1.0.0",
+      "sha256": "eb9c0ca5b9a017d9ee7b116f3af070e9549b6294928916cecdd94c7ce449afdc",
+      "size_bytes": 2622
+    },
     "tests/test_ledger.py": {
       "path": "tests/test_ledger.py",
       "revision": "1.0.0",
@@ -9851,6 +9857,6 @@
     }
   },
   "manifest_revision": "1.1.340",
-  "revision": "1.1.346",
+  "revision": "1.1.349",
   "updated_at": "2026-10-25T17:46:11+00:00"
 }
