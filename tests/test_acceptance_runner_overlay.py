@@ -1,5 +1,5 @@
 """Focused contract checks for the in-place website acceptance extension."""
-# Revision: 1.0.1
+# Revision: 1.0.2
 from pathlib import Path
 import importlib.util
 
@@ -28,6 +28,9 @@ def test_overlay_adds_authenticated_delegation_and_denial_checks_and_is_idempote
     assert overlay.apply(result) == result
     assert 'views.append("resident-permissions")' in result
     assert "delegation_approvals_navigation" in result
+    assert "delegation_registration_interface" in result
+    assert "#chatgpt-principal-register" in result
+    assert '"protected server-side credential store"' in result
     assert "/api/v1/steward/delegation-grant-requests/options" in result
     assert "/api/v1/steward/delegation-grant-requests?status=pending" in result
     assert "/api/v1/steward/delegation-grant-requests?status=approved" in result

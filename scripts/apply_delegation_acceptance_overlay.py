@@ -3,7 +3,7 @@
 The runner remains the existing Selenium test program; this idempotent overlay
 is a small release-time patch, not a second test framework.
 """
-# Revision: 1.0.1
+# Revision: 1.1.0
 from __future__ import annotations
 
 import argparse
@@ -28,13 +28,22 @@ STEWARD_INSERT = '''            if role == "steward":
                         hostField:!!document.querySelector('#delegation-request-host'),
                         typeField:!!document.querySelector('#delegation-request-type'),
                         policyCards:!!document.querySelector('#delegation-authorization-type-details'),
-                        refresh:!!document.querySelector('#delegation-refresh')}
+                        refresh:!!document.querySelector('#delegation-refresh'),
+                        registrationPanel:!!document.querySelector('#chatgpt-principal-registration'),
+                        registrationButton:!!document.querySelector('#chatgpt-principal-register'),
+                        registrationText:(document.querySelector('#chatgpt-principal-registration-description')?.innerText||'')}
                 """)
                 page_ok=(delegation_page.get("visible") and delegation_page.get("hostField")
                          and delegation_page.get("typeField") and delegation_page.get("policyCards")
-                         and delegation_page.get("refresh"))
+                         and delegation_page.get("refresh") and delegation_page.get("registrationPanel")
+                         and delegation_page.get("registrationButton") and
+                         "identity.manage" in delegation_page.get("registrationText","") and
+                         "protected server-side credential store" in delegation_page.get("registrationText",""))
                 results.append({"check":"delegation_approvals_navigation",
                     "status":"PASS" if page_ok else "FAIL"})
+                results.append({"check":"delegation_registration_interface",
+                    "status":"PASS" if page_ok else "FAIL",
+                    "mutated_production":False})
                 stage = "delegation_authorized_read"
                 delegation=js("""
                     let paths=['/api/v1/steward/delegation-grant-requests/options',
