@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/projection.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.17
+# Revision: 1.0.18
+# Changed: 2026-10-26 UTC | RV-ISSUE268-OBJECTIVE-PROJECTION-REPAIR | Handle recorded worker results with no artifact rows and keep assignment-blocked state separate from objective lifecycle.
 # Changed: 2026-10-25 UTC | RV-V2-OBJECTIVE-OPERATIONAL-STATUS-OUTPUTS | Add evidence-derived objective operations and safe assignment output metadata.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Require active engineering-scope registry and matching capability for live worker health.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Project accepted image downloads beside their assignment verification record.
@@ -1000,8 +1001,15 @@ class DashboardProjection:
                     lifecycle_status, lifecycle_stage = "waiting", "Grace reviewing verifier rejection"
                 elif assignment_state == "awaiting_verification":
                     lifecycle_status, lifecycle_stage = "waiting", "Independent verification"
-                elif assignment_state == "blocked" or row["status"] in {"FAILED", "CANCELLED"}:
-                    lifecycle_status, lifecycle_stage = "blocked", "Blocked"
+                elif row["status"] in {"FAILED", "CANCELLED"}:
+                    lifecycle_status = str(row["status"]).lower()
+                    lifecycle_stage = f"Objective {row['status'].lower()}"
+                elif assignment_state == "blocked":
+                    # Preserve the canonical objective lifecycle. A blocked
+                    # assignment is related work state, not proof that the
+                    # objective itself transitioned to BLOCKED.
+                    lifecycle_status = str(row["status"]).lower()
+                    lifecycle_stage = "Engineering assignment blocked"
                 elif assignment_state in {"queued", "ready", "running"}:
                     lifecycle_status, lifecycle_stage = "working", {
                         "queued": "Queued for Engineering",
@@ -1053,7 +1061,7 @@ class DashboardProjection:
                     "attempt_id": str(row["attempt_id"]) if row["attempt_id"] else None,
                 "artifact": ({"sha256": row["result_sha256"],
                                   "reference": artifact.get("artifact_name") or
-                                      (outputs_by_assignment.get(row["assignment_id"], [{}])[0].get("name")),
+                                      next(iter(outputs_by_assignment.get(row["assignment_id"], [])), {}).get("name"),
                                   "summary": artifact.get("summary"),
                                   "status": artifact.get("status")}
                                  if artifact else None),
