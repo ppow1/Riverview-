@@ -1,13 +1,14 @@
 # Riverview~ Controlled Source
 # File: src/riverview_core/status_dashboard/delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Route authenticated Steward list, detail, grant inspection and revocation requests
 # Execution Model: Same-origin request-driven API
 # Observability: Structured safe status/error codes; no credentials in responses
 # Dependencies: Existing account-session/CSRF validation and protected delegation adapter
 # Authority: Steward role, steward:camrui binding, and authority.grant institution scope
 # Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Expose bounded reads and canonical grant revocation.
+# Changed: 2026-10-26 UTC | RV-PR342-FINITE-USE-WITHOUT-EXPIRY | Permit a finite-use-only GPU delegation request through the canonical bounded-grant policy.
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # Tests: tests/test_delegation_routes.py
 # History: Initial controlled source
@@ -16,16 +17,19 @@
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
 import re
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs
+
+from riverview_core.comms5.delegation_policy import (
+    DELEGATED_ACTION, DELEGATED_POLICY, DELEGATED_PROJECT_SCOPE,
+)
 
 from .delegation_projection import get_request, list_grants, list_requests, revoke_grant
 
 
 _REQUEST = re.compile(r"^/api/v1/steward/delegation-grant-requests/(delegation-request:[A-Za-z0-9._:-]{1,128})$")
+_DECISION = re.compile(r"^/api/v1/steward/delegation-grant-requests/(delegation-request:[A-Za-z0-9._:-]{1,128})/decision$")
 _REVOKE = re.compile(r"^/api/v1/steward/delegated-grants/(grant:[A-Za-z0-9._:-]{1,128})/revoke$")
 _REQUESTS = "/api/v1/steward/delegation-grant-requests"
 _GRANTS = "/api/v1/steward/delegated-grants"
@@ -35,7 +39,8 @@ _OPTIONS = _REQUESTS + "/options"
 def is_route(method: str, path: str) -> bool:
     return ((method in {"GET", "HEAD"} and
              (path in {_REQUESTS, _GRANTS, _OPTIONS} or _REQUEST.fullmatch(path) is not None)) or
-            (method == "POST" and (path == _REQUESTS or _REVOKE.fullmatch(path) is not None)))
+            (method == "POST" and (path == _REQUESTS or _DECISION.fullmatch(path) is not None or
+                                    _REVOKE.fullmatch(path) is not None)))
 
 
 def _request_context(handler):
@@ -44,26 +49,26 @@ def _request_context(handler):
             "steward" not in identity.get("roles", ()) or
             identity.get("authority_principal_id") != "steward:camrui"):
         raise PermissionError("authenticated_steward_required")
-    registry = getattr(handler.server, "_authority_registry", None)
-    if registry is None:
+    operations = getattr(handler.server, "_comms5_operations", None)
+    adapter = getattr(operations, "delegation_grant_requests", None) if operations else None
+    if adapter is None or not callable(getattr(adapter, "_authenticated_steward", None)):
         raise RuntimeError("delegation_authority_unavailable")
-    credential_dir = os.environ.get("CREDENTIALS_DIRECTORY", "")
-    token_path = Path(credential_dir) / "authority-steward-token" if credential_dir else None
-    if registry is None or token_path is None or token_path.is_symlink() or not token_path.is_file():
+    registry = getattr(adapter, "_registry", None)
+    token = getattr(adapter, "_steward_token", None)
+    if registry is None or not isinstance(token, str) or len(token) < 32:
         raise RuntimeError("delegation_authority_unavailable")
-    if token_path.resolve().parent != Path(credential_dir).resolve():
-        raise RuntimeError("delegation_authority_unavailable")
-    token = token_path.read_text(encoding="ascii").strip()
     try:
+        principal_id = adapter._authenticated_steward()
         actor = registry.authorize(token, "authority.grant", "institution")
     except Exception as exc:
         from riverview_core.institutional_authority.registry import AuthorityDenied
         if isinstance(exc, AuthorityDenied):
             raise PermissionError("steward_authority_denied") from None
         raise RuntimeError("delegation_authority_unavailable") from None
-    if actor.get("principal_id") != "steward:camrui" or actor.get("principal_kind") != "steward":
+    if (principal_id != "steward:camrui" or actor.get("principal_id") != principal_id or
+            actor.get("principal_kind") != "steward"):
         raise PermissionError("steward_authority_denied")
-    return identity["authority_principal_id"], registry
+    return principal_id, registry
 
 
 def _registered_control_capabilities(handler, principal_id):
@@ -115,8 +120,39 @@ def _request_options(handler, principal_id):
                       "services": [{"service_id": item["service_id"],
                                     "display_name": item["display_name"]}
                                    for item in services if isinstance(item, dict)]})
+    operations = getattr(handler.server, "_comms5_operations", None)
+    adapter = getattr(operations, "delegation_grant_requests", None) if operations else None
+    codex_target = "service:chatgpt"  # principal emitted by the existing Comms5 OAuth boundary
+    executor_registered = bool(operations and
+        "comms5_submit_direct_engineering_task" in getattr(operations, "SUPPORTED", ()))
+    target_registered = bool(adapter and callable(getattr(adapter, "registered_target", None))
+                             and adapter.registered_target(codex_target, principal_kind="service"))
+    codex_available = executor_registered and target_registered
+    codex_unavailable_reason = (None if codex_available else
+        "codex_task_operation_not_registered" if not executor_registered else
+        "target_principal_not_registered_active")
     return {"status": "available", "hosts": hosts,
-            "expires_in_days": [1, 7, 30],
+            "authorization_types": [{
+                "type_id": "gpu_host", "label": "Registered GPU host operation",
+                "scope_kind": "host", "target_principal_id": principal_id,
+                "max_expiry_days": 365, "max_uses": 1000000,
+                "usage_limits_supported": True, "combined_limits_supported": True,
+                "non_expiring_supported": True,
+                "non_expiring_requires_usage_limit": True,
+            }, {
+                "type_id": "comms5_codex", "label": "ChatGPT via Comms5 to existing Codex task submission",
+                "scope_kind": "project", "scope_ref": DELEGATED_PROJECT_SCOPE,
+                "target_principal_id": codex_target,
+                "action": DELEGATED_ACTION,
+                "policy_ref": DELEGATED_POLICY,
+                "status": "available" if codex_available else "unavailable",
+                "unavailable_reason": codex_unavailable_reason,
+                "max_expiry_days": 1, "effective_expiry_hours_after_approval": 24,
+                "usage_limits_supported": False, "combined_limits_supported": False,
+                "non_expiring_supported": False,
+                "additional_authority_required": ["objective.submit", "assignment.create", "assignment.execute", "assignment.verify"],
+            }],
+            "expires_in_days": [1, 7, 30, 90, 180, 365],
             "requester_principal_id": principal_id,
             "target_principal_id": principal_id}
 
@@ -124,42 +160,67 @@ def _request_options(handler, principal_id):
 def _create_request(handler):
     principal_id, registry = _request_context(handler)
     data = handler._json_body(4096)
-    required = {"host_id", "action", "purpose", "valid_until", "idempotency_key"}
-    if not isinstance(data, dict) or set(data) != required:
+    required = {"authorization_type_id", "action", "purpose", "valid_until", "max_uses", "idempotency_key"}
+    if (not isinstance(data, dict) or
+            (set(data) != required | {"host_id"} and set(data) != required)):
         raise ValueError("delegation_request_fields_invalid")
-    host_id, action = data["host_id"], data["action"]
-    if (not isinstance(host_id, str) or not re.fullmatch(r"[a-z][a-z0-9-]{1,62}", host_id) or
-            action not in {f"hardware.gpu.workload.{value}" for value in ("read", "start", "stop", "switch")}):
-        raise ValueError("delegation_request_capability_invalid")
+    kind, host_id, action = data["authorization_type_id"], data.get("host_id"), data["action"]
+    max_uses = data["max_uses"]
+    if max_uses is not None and (type(max_uses) is not int or not 1 <= max_uses <= 1_000_000):
+        raise ValueError("delegation_request_usage_limit_invalid")
     if (not isinstance(data["purpose"], str) or not 8 <= len(data["purpose"].strip()) <= 500):
         raise ValueError("delegation_request_purpose_invalid")
     idempotency_key = data["idempotency_key"]
     if not isinstance(idempotency_key, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{16,200}", idempotency_key):
         raise ValueError("delegation_request_idempotency_invalid")
     try:
-        valid_until = datetime.fromisoformat(data["valid_until"].replace("Z", "+00:00"))
+        valid_until = (datetime.fromisoformat(data["valid_until"].replace("Z", "+00:00"))
+                       if data["valid_until"] is not None else None)
     except (AttributeError, TypeError, ValueError):
         raise ValueError("delegation_request_expiry_invalid") from None
-    if valid_until.tzinfo is None or not datetime.now(timezone.utc) < valid_until <= datetime.now(timezone.utc) + timedelta(days=30):
+    if valid_until is not None and (valid_until.tzinfo is None or not datetime.now(timezone.utc) < valid_until <= datetime.now(timezone.utc) + timedelta(days=365)):
         raise ValueError("delegation_request_expiry_invalid")
-    telemetry = getattr(handler.server, "_resource_telemetry", None)
-    if telemetry is None:
-        raise RuntimeError("hardware_host_registry_unavailable")
-    snapshot = telemetry.read()
-    registrations = telemetry.workload_controller_registrations()
-    host = next((item for item in snapshot.get("hosts", [])
-                 if isinstance(item, dict) and item.get("host_id") == host_id), None)
-    registration = registrations.get(host_id)
-    canonical = _registered_control_capabilities(handler,principal_id)
-    allowed = {item.get("action") for item in registration.get("capabilities", [])
-               if isinstance(item, dict) and item.get("capability_id") in canonical} if isinstance(registration, dict) else set()
-    if (host is None or host.get("identity_state") != "verified" or not registration or
-            action not in allowed):
-        raise ValueError("delegation_request_target_unavailable")
-    return registry.request_grant(requester_id=principal_id, principal_id=principal_id,
-        action=action, scope_ref=f"host:{host_id}", policy_ref="policy:delegation.v1",
-        request_ref=data["purpose"].strip(), max_uses=None, valid_until=valid_until,
-        idempotency_key=idempotency_key)
+    if kind == "gpu_host":
+        if (not isinstance(host_id, str) or not re.fullmatch(r"[a-z][a-z0-9-]{1,62}", host_id) or
+                action not in {f"hardware.gpu.workload.{value}" for value in ("read", "start", "stop", "switch")}):
+            raise ValueError("delegation_request_capability_invalid")
+        telemetry = getattr(handler.server, "_resource_telemetry", None)
+        if telemetry is None:
+            raise RuntimeError("hardware_host_registry_unavailable")
+        snapshot = telemetry.read()
+        registrations = telemetry.workload_controller_registrations()
+        host = next((item for item in snapshot.get("hosts", [])
+                     if isinstance(item, dict) and item.get("host_id") == host_id), None)
+        registration = registrations.get(host_id)
+        canonical = _registered_control_capabilities(handler,principal_id)
+        allowed = {item.get("action") for item in registration.get("capabilities", [])
+                   if isinstance(item,dict) and item.get("capability_id") in canonical} if isinstance(registration,dict) else set()
+        if (host is None or host.get("identity_state") != "verified" or not registration or action not in allowed):
+            raise ValueError("delegation_request_target_unavailable")
+        if valid_until is None and max_uses is None:
+            raise ValueError("delegation_request_requires_use_limit_or_expiry")
+        scope_ref, target = f"host:{host_id}", principal_id
+        return registry.request_grant(requester_id=principal_id, principal_id=target,
+            action=action, scope_ref=scope_ref, policy_ref="policy:delegation.v1",
+            request_ref=data["purpose"].strip(), max_uses=max_uses, valid_until=valid_until,
+            idempotency_key=idempotency_key)
+    if kind == "comms5_codex":
+        if (host_id is not None or action != DELEGATED_ACTION or max_uses is not None
+                or valid_until is None):
+            raise ValueError("delegation_request_policy_not_supported")
+        if valid_until > datetime.now(timezone.utc) + timedelta(days=1):
+            raise ValueError("delegation_request_policy_maximum_expiry_24h")
+        operations = getattr(handler.server, "_comms5_operations", None)
+        adapter = getattr(operations, "delegation_grant_requests", None) if operations else None
+        if (not operations or "comms5_submit_direct_engineering_task" not in
+                getattr(operations, "SUPPORTED", ()) or not adapter or
+                not adapter.registered_target("service:chatgpt", principal_kind="service")):
+            raise ValueError("delegation_request_target_unavailable")
+        return adapter.request_grant(requester_id=principal_id, principal_id="service:chatgpt",
+            action=action, scope_ref=DELEGATED_PROJECT_SCOPE, policy_ref=DELEGATED_POLICY,
+            request_ref=data["purpose"].strip(), max_uses=None, valid_until=valid_until,
+            idempotency_key=idempotency_key)
+    raise ValueError("delegation_request_type_unavailable")
 
 
 def _one(query, key, default):
@@ -210,6 +271,51 @@ def dispatch(handler, parsed, request_id):
                 handler._error(503, "delegation_authority_unavailable", request_id)
             else:
                 handler._error(503, "delegation_request_unavailable", request_id)
+        return True
+    if handler.command == "POST" and _DECISION.fullmatch(parsed.path):
+        try:
+            principal_id, _ = _request_context(handler)
+            data = handler._json_body(8 * 1024)
+            required = {"decision", "expected_request_sha256", "idempotency_key"}
+            if (not required <= set(data) or set(data) - required - {"approval_ref"} or
+                    data["decision"] not in {"approve", "reject"} or
+                    not isinstance(data["expected_request_sha256"], str) or
+                    not re.fullmatch(r"[0-9a-f]{64}", data["expected_request_sha256"]) or
+                    not isinstance(data["idempotency_key"], str) or
+                    not re.fullmatch(r"[A-Za-z0-9._:-]{16,200}", data["idempotency_key"])):
+                raise ValueError("delegation_decision_fields_invalid")
+            approval_ref = data.get("approval_ref")
+            if data["decision"] == "approve":
+                if not isinstance(approval_ref, str) or not 1 <= len(approval_ref.strip()) <= 256:
+                    raise ValueError("delegation_approval_reference_required")
+                approval_ref = approval_ref.strip()
+            elif approval_ref is not None:
+                raise ValueError("delegation_rejection_must_not_include_approval_reference")
+            operations = getattr(handler.server, "_comms5_operations", None)
+            adapter = getattr(operations, "delegation_grant_requests", None) if operations else None
+            if adapter is None:
+                raise RuntimeError("delegation_authority_unavailable")
+            result = adapter.decide_request(authenticated_steward_id=principal_id,
+                request_id=_DECISION.fullmatch(parsed.path).group(1),
+                decision=data["decision"],
+                expected_request_sha256=data["expected_request_sha256"],
+                idempotency_key=data["idempotency_key"], approval_ref=approval_ref)
+            handler._json(200, result, request_id)
+        except PermissionError:
+            handler._error(403, "steward_authority_denied", request_id)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            handler._error(400, "invalid_delegation_decision", request_id)
+        except Exception as exc:
+            from riverview_core.institutional_authority.registry import (
+                AuthorityDenied, IdentityConflict, RegistryUnavailable)
+            if isinstance(exc, AuthorityDenied):
+                handler._error(403, "steward_authority_denied", request_id)
+            elif isinstance(exc, IdentityConflict):
+                handler._error(409, "delegation_state_conflict", request_id)
+            elif isinstance(exc, RegistryUnavailable):
+                handler._error(503, "delegation_authority_unavailable", request_id)
+            else:
+                handler._error(503, "delegation_decision_unavailable", request_id)
         return True
     operations = getattr(handler.server, "_comms5_operations", None)
     adapter = getattr(operations, "delegation_grant_requests", None) if operations else None

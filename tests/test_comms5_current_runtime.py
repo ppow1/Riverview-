@@ -586,6 +586,87 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
             server.server_close()
             thread.join(timeout=2)
 
+    def test_delegated_comms5_path_requires_canonical_authorization_before_operation(self):
+        from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler
+        from riverview_core.institutional_authority.registry import AuthorityDenied
+        registry = _Registry()
+        class DelegationAuthority:
+            def __init__(self): self.calls=[]; self.allowed=True
+            def authorize_operation(self, *, principal_id, tool, operation_ref):
+                self.calls.append((principal_id,tool,operation_ref))
+                if not self.allowed:
+                    raise AuthorityDenied("no active grant")
+                return {"status":"authorized","principal_id":principal_id}
+        authority=DelegationAuthority()
+        server = _BoundedHTTPServer(("127.0.0.1", 0), make_handler(), token="d" * 48,
+            projection=None, notification_service=None, objective_pipeline=None,
+            conversation_service=None, account_auth_service=None, permission_store=None,
+            static_dir="/nonexistent", proposal_registry=registry,
+            delegation_grant_requests=authority)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            headers={"Content-Type":"application/json","Authorization":"Bearer " + "d"*48,
+                "X-Riverview-Comms5":"1","X-Riverview-Comms5-Principal":"service:chatgpt"}
+            auth_url=f"http://127.0.0.1:{server.server_port}/api/v1/internal/comms5/authorization"
+            auth_body=json.dumps({"operation":"comms5_submit_steward_seed","operation_ref":"safe-readonly-test"}).encode()
+            request=Request(auth_url,data=auth_body,headers=headers)
+            with urlopen(request,timeout=2) as response:
+                self.assertEqual(json.loads(response.read())["status"],"authorized")
+            operation_url=f"http://127.0.0.1:{server.server_port}/api/v1/internal/comms5/operation"
+            operation_body=json.dumps({"tool":"comms5_submit_steward_seed","arguments":self.seed()}).encode()
+            request=Request(operation_url,data=operation_body,headers=headers)
+            with urlopen(request,timeout=2) as response:
+                self.assertEqual(json.loads(response.read())["status"],"draft_saved")
+            self.assertEqual(registry.created[1]["created_by"],"service:chatgpt")
+            created_before_denial=registry.created
+            authority.allowed=False
+            denied_body=json.dumps({"tool":"comms5_submit_steward_seed","arguments":self.seed()}).encode()
+            request=Request(operation_url,data=denied_body,headers=headers)
+            with self.assertRaises(HTTPError) as denied:
+                urlopen(request,timeout=2)
+            self.assertEqual(denied.exception.code,403)
+            self.assertEqual(registry.created,created_before_denial)
+            self.assertEqual(len(authority.calls),3)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+    def test_direct_codex_task_requires_delegation_and_stops_before_execution(self):
+        from riverview_core.resident_execution.pipeline import ObjectiveStateError
+
+        class IsolatedPipeline:
+            authorizer = object()
+            def __init__(self): self.record = None; self.submissions = []
+            def get_objective(self, objective_id): return self.record
+            def submit_objective(self, objective_id, request, criteria, *, scope_ref,
+                                 principal, criteria_source):
+                self.submissions.append((objective_id, principal.principal_id, scope_ref))
+                self.record = {"submitter_id":principal.principal_id,"scope_ref":scope_ref,
+                    "request":request,"acceptance_criteria":criteria,
+                    "status":"WAITING_FOR_EVIDENCE","evidence":{"status":"unavailable"}}
+            def ground_objective(self, objective_id): raise ObjectiveStateError()
+
+        pipeline=IsolatedPipeline()
+        operations=Comms5Operations(self.registry,self.lifecycle,objective_pipeline=pipeline)
+        args={"task":"Prepare an isolated acceptance fixture.",
+            "repository_reference":"repo://ppow1/Riverview-",
+            "repository_revision":"a"*40,"authorized_paths":["tests/test_fixture.py"],
+            "test_targets":["tests/test_fixture.py"],
+            "acceptance_criteria":["No production records are changed."],
+            "evidence_requirements":["Return the isolated fixture identifier."],
+            "idempotency_key":"codex-isolated-acceptance-0001"}
+        with self.assertRaises(PermissionError):
+            operations.execute("comms5_submit_direct_engineering_task",args,
+                principal_id="service:chatgpt")
+        self.assertEqual(pipeline.submissions,[])
+        result=operations.execute("comms5_submit_direct_engineering_task",args,
+            principal_id="service:chatgpt",delegated_authorized=True)
+        self.assertEqual(result["status"],"waiting_for_evidence")
+        self.assertEqual(result["idempotent"],False)
+        self.assertEqual(pipeline.submissions[0][1:],("service:chatgpt","work-order:engineering"))
+
 
 if __name__ == "__main__":
     unittest.main()

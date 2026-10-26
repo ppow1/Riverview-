@@ -1,7 +1,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.21
+# Revision: 1.0.22
 # Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-AUTHORITY-ORDER | Expect the additive conversation capability migration after declaration enforcement.
 # Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Test migration 0015 reconciliation and declaration updates
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
@@ -93,6 +93,8 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0014_resident_status_read_schema",
             "0015_deployed_capability_declarations",
             "0016_resident_conversation_workspace_capability",
+            "0017_reusable_scoped_grants",
+            "0018_delegated_host_scopes",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         with self.admin.cursor() as cur:
@@ -383,6 +385,87 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         self.registry.revoke_grant(self.steward_token, grant)
         with self.assertRaises(AuthorityDenied):
             self.registry.authorize(token, "worker.run", "scope:one")
+
+    def test_codex_delegation_is_exact_scoped_and_expires_after_activation(self):
+        from riverview_core.institutional_authority import AuthorityDenied
+        unprivileged = self.registry.create_principal(self.steward_token,
+            "service:registration-test", "service")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.create_principal(unprivileged, "service:chatgpt", "service")
+        issued_credential = self.registry.create_principal(
+            self.steward_token, "service:chatgpt", "service")
+        self.assertGreaterEqual(len(issued_credential), 32)
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT event_type FROM {self.schema}.institutional_authority_events WHERE subject_id=%s", ("service:chatgpt",))
+            self.assertIn("principal_created", [item[0] for item in cur.fetchall()])
+        request = self.registry.request_grant(requester_id="steward:test",
+            principal_id="service:chatgpt", action="comms5.operations.non_destructive.v1",
+            scope_ref="project:Riverview", policy_ref="policy:delegation.v1",
+            request_ref="Isolated Codex delegation authorization fixture",
+            max_uses=None, valid_until=datetime.now(timezone.utc)+timedelta(hours=20),
+            idempotency_key="codex-integration-request-0001")
+        self.assertEqual(request["status"], "pending")
+        decision = self.registry.decide_request(steward_token=self.steward_token,
+            request_id=request["request_id"], decision="approve",
+            expected_request_sha256=request["request_sha256"],
+            idempotency_key="codex-integration-decision-0001",
+            approval_ref="isolated PostgreSQL acceptance fixture")
+        self.assertEqual(decision["status"], "approved")
+        grant_id = decision["grant_id"]
+        allowed = self.registry.authorize_delegated_principal_operation(
+            "service:chatgpt", "comms5.operations.non_destructive.v1",
+            "project:Riverview", "policy:delegation.v1", "codex-call:fixture-1")
+        self.assertEqual(allowed["grant_id"], grant_id)
+        self.assertEqual(allowed["status"], "authorized")
+        self.assertEqual(allowed["use_limit"], "unlimited")
+        grant = self.registry.get_status(requester_id="steward:test", grant_id=grant_id)
+        activated_for = (datetime.fromisoformat(grant["valid_until"]) -
+                         datetime.fromisoformat(grant["approved_at"]))
+        self.assertLessEqual(abs(activated_for - timedelta(hours=24)), timedelta(seconds=2))
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize_delegated_principal_operation(
+                "service:chatgpt", "comms5.operations.non_destructive.v1",
+                "host:octominer1", "policy:delegation.v1", "codex-call:wrong-scope")
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT event_type FROM {self.schema}.institutional_authority_events WHERE grant_id=%s", (grant_id,))
+            events = [item[0] for item in cur.fetchall()]
+            self.assertIn("authority_grant_used", events)
+            cur.execute(f"UPDATE {self.schema}.authority_grants SET valid_from=clock_timestamp()-interval '2 hours', valid_until=clock_timestamp()-interval '1 hour' WHERE grant_id=%s", (grant_id,))
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize_delegated_principal_operation(
+                "service:chatgpt", "comms5.operations.non_destructive.v1",
+                "project:Riverview", "policy:delegation.v1", "codex-call:expired")
+
+    def test_finite_delegation_use_is_reserved_consumed_exhausted_and_revocable(self):
+        from riverview_core.institutional_authority import AuthorityDenied
+        grantee_token = self.registry.create_principal(self.steward_token,
+            "service:finite-delegation-test", "service")
+        action, scope = "hardware.gpu.workload.start", "host:octominer1"
+        request = self.registry.request_grant(requester_id="steward:test",
+            principal_id="service:finite-delegation-test", action=action,
+            scope_ref=scope, policy_ref="policy:delegation.v1",
+            request_ref="One-use disposable delegated grant fixture", max_uses=1,
+            valid_until=None, idempotency_key="finite-integration-request-0001")
+        decision = self.registry.decide_request(steward_token=self.steward_token,
+            request_id=request["request_id"], decision="approve",
+            expected_request_sha256=request["request_sha256"],
+            idempotency_key="finite-integration-decision-0001",
+            approval_ref="isolated PostgreSQL acceptance fixture")
+        grant_id = decision["grant_id"]
+        reserved = self.registry.reserve_delegated_grant(grantee_token, grant_id,
+            action, scope, "workload-job:fixture-1", idempotency_key="finite-use-0001")
+        self.assertEqual(reserved["status"], "reserved")
+        consumed = self.registry.consume_delegated_grant(grantee_token,
+            reserved["reservation_id"], "fixture-result:started")
+        self.assertEqual(consumed["status"], "consumed")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.reserve_delegated_grant(grantee_token, grant_id,
+                action, scope, "workload-job:fixture-2", idempotency_key="finite-use-0002")
+        self.registry.revoke_grant(self.steward_token, grant_id,
+            reason_code="isolated_acceptance_revoked")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.reserve_delegated_grant(grantee_token, grant_id,
+                action, scope, "workload-job:fixture-3", idempotency_key="finite-use-0003")
 
     def test_credential_rotation_and_revocation_preserve_steward_recovery(self):
         from riverview_core.institutional_authority import AuthorityDenied, IdentityConflict

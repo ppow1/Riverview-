@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify narrow Steward delegation API routing and composite-source overlay
 # Execution Model: Local unittest with fake account and authority adapters
 # Observability: unittest case names, counts and exit status
@@ -96,18 +96,21 @@ class _Registry:
         self.required = (action, scope)
         return {"principal_kind":"steward","principal_id":"steward:camrui"}
 
+    def authorize(self, token, action, scope):
+        return self._require(self, token, action, scope)
+
     def revoke_grant(self, token, grant_id, *, reason_code):
         self.revoked = (grant_id, reason_code)
         return {"status":"revoked"}
 
 
 class _Adapter:
-    def __init__(self, actor="steward"):
-        self._registry = _Registry(actor)
+    def __init__(self, actor="steward", registry=None):
+        self._registry = registry or _Registry(actor)
         self._steward_token = "s" * 64
 
     def _authenticated_steward(self):
-        return "steward:camrui" if self._registry.actor == "steward" else "resident:grace"
+        return "steward:camrui" if getattr(self._registry,"actor","steward") == "steward" else "resident:grace"
 
     def get_status(self, *, requester_id, request_id=None, grant_id=None):
         return dict(self._registry.request)
@@ -170,18 +173,21 @@ class _RequestRegistry:
 
 class DelegationRequestCreationTests(unittest.TestCase):
     def handler(self, registry, body=None, *, roles=("steward",), cookie=True):
-        handler=_Handler(_Adapter())
+        adapter=_Adapter(registry=registry)
+        handler=_Handler(adapter)
         handler.command="POST"
         handler._account_cookie_authenticated=cookie
         handler._account_identity={"roles":list(roles),"authority_principal_id":"steward:camrui"}
+        adapter.registered_target = lambda principal_id, *, principal_kind=None: False
         handler.server=SimpleNamespace(_authority_registry=registry,_resource_telemetry=_RequestTelemetry(),
                                        _permission_store=_RequestPermissionStore(),
-                                       _comms5_operations=None)
+                                       _comms5_operations=SimpleNamespace(delegation_grant_requests=adapter))
         handler.body=body or {}
         return handler
 
     def body(self, **overrides):
-        value={"host_id":"octominer1","action":"hardware.gpu.workload.switch",
+        value={"authorization_type_id":"gpu_host","host_id":"octominer1",
+               "action":"hardware.gpu.workload.switch","max_uses":3,
                "purpose":"Operate approved OCTOMINER1 workload switching controls",
                "valid_until":(datetime.now(timezone.utc)+timedelta(days=7)).isoformat(),
                "idempotency_key":"test-request-key-0001"}
@@ -189,6 +195,7 @@ class DelegationRequestCreationTests(unittest.TestCase):
 
     def test_registered_host_options_are_exact_and_unverified_host_is_excluded(self):
         registry=_RequestRegistry(); handler=self.handler(registry)
+        handler.server._comms5_operations.SUPPORTED={"comms5_submit_direct_engineering_task"}
         handler.command="GET"; handler.body={}
         with tempfile.TemporaryDirectory() as root:
             Path(root,"authority-steward-token").write_text("t"*64)
@@ -198,10 +205,28 @@ class DelegationRequestCreationTests(unittest.TestCase):
         self.assertEqual(handler.response[0],200)
         self.assertEqual([x["host_id"] for x in handler.response[1]["hosts"]],["octominer1"])
         self.assertEqual(handler.response[1]["hosts"][0]["scope_ref"],"host:octominer1")
+        self.assertEqual(handler.response[1]["authorization_types"][0]["max_expiry_days"],365)
+        self.assertTrue(handler.response[1]["authorization_types"][0]["non_expiring_supported"])
+        self.assertTrue(handler.response[1]["authorization_types"][0]["non_expiring_requires_usage_limit"])
+        self.assertEqual(handler.response[1]["authorization_types"][1]["status"],"unavailable")
+        self.assertEqual(handler.response[1]["authorization_types"][1]["unavailable_reason"],
+                         "target_principal_not_registered_active")
         self.assertEqual([x["capability_id"] for x in handler.response[1]["hosts"][0]["capabilities"]],
             [f"hardware.gpu.workload.{x}" for x in ("read","start","stop","switch")])
         self.assertTrue(all(item["description"].startswith("Registered")
                             for item in handler.response[1]["hosts"][0]["capabilities"]))
+
+    def test_codex_request_type_reports_missing_executor_separately_from_identity(self):
+        registry=_RequestRegistry(); handler=self.handler(registry)
+        handler.command="GET"; handler.body={}
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests/options"),"r")
+        self.assertEqual(handler.response[0],200)
+        codex=next(item for item in handler.response[1]["authorization_types"]
+                   if item["type_id"]=="comms5_codex")
+        self.assertEqual(codex["unavailable_reason"],"codex_task_operation_not_registered")
 
     def test_request_submission_is_pending_exact_scope_and_requires_steward_authority(self):
         registry=_RequestRegistry(); handler=self.handler(registry,self.body())
@@ -215,7 +240,129 @@ class DelegationRequestCreationTests(unittest.TestCase):
         self.assertEqual(registry.created[0]["action"],"hardware.gpu.workload.switch")
         self.assertEqual(registry.created[0]["principal_id"],"steward:camrui")
         self.assertEqual(registry.created[0]["request_ref"],self.body()["purpose"])
+        self.assertEqual(registry.created[0]["max_uses"],3)
+
+    def test_gpu_request_supports_one_use_and_combined_expiry_and_usage_bounds(self):
+        registry=_RequestRegistry(); handler=self.handler(registry,self.body(max_uses=1,
+            valid_until=(datetime.now(timezone.utc)+timedelta(days=365)).isoformat()))
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],201)
+        self.assertEqual(registry.created[0]["max_uses"],1)
+        self.assertEqual(registry.created[0]["valid_until"].date(),
+                         datetime.fromisoformat(self.body(valid_until=(datetime.now(timezone.utc)+timedelta(days=365)).isoformat())["valid_until"]).date())
+
+    def test_gpu_request_supports_expiry_without_use_count(self):
+        expiry=(datetime.now(timezone.utc)+timedelta(days=7)).isoformat()
+        registry=_RequestRegistry(); handler=self.handler(registry,self.body(max_uses=None,valid_until=expiry))
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],201)
         self.assertIsNone(registry.created[0]["max_uses"])
+        self.assertIsNotNone(registry.created[0]["valid_until"])
+
+    def test_gpu_request_supports_finite_usage_without_expiry(self):
+        registry=_RequestRegistry(); handler=self.handler(registry,self.body(max_uses=1,valid_until=None))
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],201)
+        self.assertEqual(registry.created[0]["max_uses"],1)
+        self.assertIsNone(registry.created[0]["valid_until"])
+
+    def test_unlimited_nonexpiring_request_is_rejected_before_registry_write(self):
+        registry=_RequestRegistry(); handler=self.handler(registry,self.body(max_uses=None,valid_until=None))
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],400)
+        self.assertEqual(registry.created,[])
+
+    def test_comms5_codex_target_requires_registered_service_identity_and_uses_project_scope(self):
+        class DelegationAdapter:
+            def __init__(self, active, registry):
+                self.active=active; self.created=[]; self._registry=registry
+                self._steward_token="s"*64
+            def _authenticated_steward(self): return "steward:camrui"
+            def registered_target(self, principal_id, *, principal_kind=None):
+                return self.active and principal_id=="service:chatgpt" and principal_kind=="service"
+            def request_grant(self, **kwargs):
+                self.created.append(kwargs)
+                return {"status":"pending","request_id":"delegation-request:codex-test",
+                        "request_sha256":"b"*64}
+        registry=_RequestRegistry(); adapter=DelegationAdapter(True,registry)
+        handler=self.handler(registry,{
+            "authorization_type_id":"comms5_codex","action":"comms5.operations.non_destructive.v1",
+            "purpose":"Allow the existing Comms5 Codex task submission path",
+            "valid_until":(datetime.now(timezone.utc)+timedelta(hours=12)).isoformat(),
+            "max_uses":None,"idempotency_key":"codex-delegation-key-0001"})
+        handler.server._comms5_operations=SimpleNamespace(
+            delegation_grant_requests=adapter,
+            SUPPORTED={"comms5_submit_direct_engineering_task"})
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],201)
+        self.assertEqual(adapter.created[0]["principal_id"],"service:chatgpt")
+        self.assertEqual(adapter.created[0]["scope_ref"],"project:Riverview")
+        self.assertEqual(adapter.created[0]["max_uses"],None)
+
+    def test_comms5_codex_target_is_not_requestable_without_registered_identity(self):
+        class DelegationAdapter:
+            def __init__(self, registry):
+                self._registry=registry; self._steward_token="s"*64
+            def _authenticated_steward(self): return "steward:camrui"
+            def registered_target(self, principal_id, *, principal_kind=None): return False
+            def request_grant(self, **kwargs): raise AssertionError("must not submit")
+        registry=_RequestRegistry(); handler=self.handler(registry,{
+            "authorization_type_id":"comms5_codex","action":"comms5.operations.non_destructive.v1",
+            "purpose":"Allow the existing Comms5 Codex task submission path",
+            "valid_until":(datetime.now(timezone.utc)+timedelta(hours=12)).isoformat(),
+            "max_uses":None,"idempotency_key":"codex-delegation-key-0002"})
+        handler.server._comms5_operations=SimpleNamespace(
+            delegation_grant_requests=DelegationAdapter(registry),
+            SUPPORTED={"comms5_submit_direct_engineering_task"})
+        with tempfile.TemporaryDirectory() as root:
+            Path(root,"authority-steward-token").write_text("t"*64)
+            with patch.dict("os.environ",{"CREDENTIALS_DIRECTORY":root}):
+                dispatch(handler,urlsplit("/api/v1/steward/delegation-grant-requests"),"r")
+        self.assertEqual(handler.response[0],400)
+
+    def test_decision_route_preserves_hash_idempotency_and_confirmation_reference(self):
+        class DecisionAdapter(_Adapter):
+            def __init__(self, registry):
+                super().__init__(registry=registry); self.decisions=[]; self.stale=False
+            def decide_request(self, **kwargs):
+                self.decisions.append(kwargs)
+                if self.stale:
+                    from riverview_core.institutional_authority.registry import IdentityConflict
+                    raise IdentityConflict("request hash changed")
+                return {"status":"approved","request_id":kwargs["request_id"],"grant_id":"grant:fixture"}
+        registry=_RequestRegistry(); adapter=DecisionAdapter(registry)
+        handler=self.handler(registry,{
+            "decision":"approve","expected_request_sha256":"a"*64,
+            "idempotency_key":"decision-idempotency-0001","approval_ref":"acceptance fixture"})
+        handler.server._comms5_operations=SimpleNamespace(delegation_grant_requests=adapter)
+        path="/api/v1/steward/delegation-grant-requests/delegation-request:fixture/decision"
+        self.assertTrue(is_route("POST",path))
+        self.assertTrue(dispatch(handler,urlsplit(path),"r"))
+        self.assertEqual(handler.response[0],200)
+        self.assertEqual(adapter.decisions[0]["expected_request_sha256"],"a"*64)
+        self.assertEqual(adapter.decisions[0]["approval_ref"],"acceptance fixture")
+        adapter.stale=True
+        handler=self.handler(registry,{
+            "decision":"approve","expected_request_sha256":"b"*64,
+            "idempotency_key":"decision-idempotency-0002","approval_ref":"stale fixture"})
+        handler.server._comms5_operations=SimpleNamespace(delegation_grant_requests=adapter)
+        self.assertTrue(dispatch(handler,urlsplit(path),"r"))
+        self.assertEqual(handler.response[0],409)
 
     def test_unregistered_host_and_non_steward_cannot_create_requests(self):
         registry=_RequestRegistry(); handler=self.handler(registry,self.body(host_id="octominer2"))
@@ -267,7 +414,7 @@ class DelegationProjectionTests(unittest.TestCase):
         self.assertTrue(is_route("GET", "/api/v1/steward/delegation-grant-requests/delegation-request:abc"))
         self.assertTrue(is_route("GET", "/api/v1/steward/delegated-grants"))
         self.assertTrue(is_route("POST", "/api/v1/steward/delegated-grants/grant:abc/revoke"))
-        self.assertFalse(is_route("POST", "/api/v1/steward/delegation-grant-requests/delegation-request:abc/decision"))
+        self.assertTrue(is_route("POST", "/api/v1/steward/delegation-grant-requests/delegation-request:abc/decision"))
         self.assertFalse(is_route("POST", "/api/v1/steward/delegated-grants/../revoke"))
 
     def test_route_rejects_unlinked_steward_and_requires_server_confirmation(self):

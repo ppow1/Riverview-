@@ -57,7 +57,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposal-lifecycle-20261025">
   <link rel="stylesheet" href="assets/process-workflows.css?rev=decision-layout-20261027">
   <link rel="stylesheet" href="assets/resident-permissions.css?rev=resident-permissions-20261025">
-  <link rel="stylesheet" href="assets/delegation-approvals.css?rev=steward-delegation-host-request-20261026a">
+  <link rel="stylesheet" href="assets/delegation-approvals.css?rev=delegation-policy-runtime-repair-20261026b">
   <link rel="stylesheet" href="assets/gpu-workload-controls.css?rev=registered-host-controls-20261026a">
   <link rel="stylesheet" href="assets/authority-explorer.css?rev=batch1-20261025">
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
@@ -81,7 +81,7 @@ History: Git and revision/backup manifest
   <script defer src="assets/documentation-catalog.js?rev=v1-parity-20261025"></script>
   <script defer src="assets/resident-permissions-model.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
   <script defer src="assets/resident-permissions.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
-  <script defer src="assets/delegation-approvals.js?rev=steward-delegation-host-request-20261026a"></script>
+  <script defer src="assets/delegation-approvals.js?rev=delegation-policy-runtime-repair-20261026d"></script>
   <script defer src="assets/gpu-workload-controls.js?rev=registered-host-controls-20261026a"></script>
   <script defer src="assets/authority-explorer.js?rev=resident-search-20261027"></script>
   <script defer src="assets/account-administration.js?rev=account-email-20261025"></script>
@@ -216,13 +216,17 @@ History: Git and revision/backup manifest
               <div class="delegation-approvals-heading"><div><p class="eyebrow">CANONICAL INSTITUTIONAL AUTHORITY</p><h3 id="delegation-approvals-title">Delegation approvals</h3><p>Review and decide requests through the existing Steward authority adapter. Discovery and display never grant permission.</p></div><button id="delegation-refresh" type="button">Refresh</button></div>
               <p id="delegation-state" role="status" aria-live="polite">Delegation requests have not been loaded.</p>
               <section class="delegation-create" aria-labelledby="delegation-create-title">
-                <h4 id="delegation-create-title">Request a registered host permission</h4>
-                <p>Requests use the canonical delegation registry and remain pending until the Steward reviews them. The target principal is the institutionally linked Steward account; a request does not grant access.</p>
+                <h4 id="delegation-create-title">Request delegated authority</h4>
+                <p>Requests use the canonical delegation registry and remain pending until the Steward explicitly approves them. Registration and request submission do not grant access.</p>
+                <div id="delegation-authorization-type-details" class="delegation-policy-cards" aria-live="polite"></div>
                 <form id="delegation-request-form">
-                  <label>Registered host<select id="delegation-request-host" required><option value="">Load registered hosts</option></select></label>
-                  <label>Capability and operation<select id="delegation-request-capability" required disabled><option value="">Select a registered host</option></select></label>
-                  <label>Purpose / justification<textarea id="delegation-request-purpose" maxlength="500" minlength="8" required placeholder="Explain the operational need for this host-scoped permission."></textarea></label>
-                  <label>Requested expiration<select id="delegation-request-expiry"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select></label>
+                  <label>Authorization type<select id="delegation-request-type" required><option value="">Load registered authorization types</option></select></label>
+                  <p id="delegation-request-type-note" class="delegation-request-note" role="status"></p>
+                  <label id="delegation-request-host-label">Registered host<select id="delegation-request-host"><option value="">Choose registered host</option></select></label>
+                  <label id="delegation-request-capability-label">Capability and operation<select id="delegation-request-capability" required disabled><option value="">Select a registered host</option></select></label>
+                  <label id="delegation-request-limit-label">Maximum executions (optional with expiry; required without expiry)<input id="delegation-request-max-uses" type="number" min="1" max="1000000" value="1"></label>
+                  <label id="delegation-request-expiry-label">Expiry (local time; optional with a finite use count)<input id="delegation-request-expiry" type="datetime-local" required></label>
+                  <label>Purpose / justification<textarea id="delegation-request-purpose" maxlength="500" minlength="8" required placeholder="Explain the operational need and expected scope."></textarea></label>
                   <p class="delegation-request-target">Requester: <code id="delegation-request-requester">Unavailable</code> · Target principal: <code id="delegation-request-target">Unavailable</code></p>
                   <button type="submit" id="delegation-request-submit" disabled>Submit pending request</button>
                 </form>

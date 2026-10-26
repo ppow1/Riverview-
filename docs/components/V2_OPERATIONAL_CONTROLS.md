@@ -1,6 +1,6 @@
 # V2 Operational Controls
 
-<!-- Revision: 1.0.0 -->
+<!-- Revision: 1.2.0 -->
 
 This document records the shipped boundary for the operational controls increment.
 
@@ -21,6 +21,47 @@ Dashboard's existing CSRF validation. Request lists are limited to 100 rows and
 include audit event references. The browser prompts for confirmation before
 decisions and revocation. The backend remains authoritative for stale request
 hashes, expiration, idempotency, authorization, and audit writes.
+
+The 2026-10-26 production review found that release `42f76dc5` had the browser
+routes but did not construct or inject the protected
+`Comms5DelegationAuthorityAdapter` at Dashboard startup. Consequently the
+delegation projections failed closed as unavailable. The corrective candidate
+restores the adapter using the existing systemd-protected manager passfile and
+Steward token; it does not read either credential from a browser request. It
+also routes the existing hash-bound `/decision` POST to the adapter. This
+change is not considered browser-accepted until an institutionally linked
+Steward session exercises it.
+
+GPU host requests support an exact registered host/action, a finite use count
+and an expiration, either bound alone or together. Blank maximum executions
+means time-limited access; one means a single execution. The existing authority
+reservation path enforces finite-use bounds atomically. Expiration is required
+and capped at one year; current institutional policy does not expose a
+non-expiring choice in this UI.
+
+The existing ChatGPT → Comms5 → Codex path uses action
+`comms5.operations.non_destructive.v1` at `project:Riverview`, for target
+`service:chatgpt`. Its canonical policy requires unlimited uses and ends the
+grant 24 hours after activation; objective and assignment permissions remain
+separate requirements. The active Comms5 release registers
+`comms5_submit_direct_engineering_task`, but the current Authority Registry has
+no active `service:chatgpt` principal, so the website must present this request
+type as unavailable. Neither a GPU host grant nor this project grant by itself
+authorizes objective submission or Engineering execution. No principal, grant,
+or production request was created during this review.
+
+Registering the target is a separate canonical identity operation:
+`AuthorityRegistry.create_principal(steward_token, "service:chatgpt", "service")`.
+It requires an active Steward credential with `identity.manage` at `institution`
+scope, writes the principal and `principal_created` audit event, and returns a
+bearer credential once. No V2 principal-registration endpoint or approval form
+exists, and the Comms5 OAuth-attested identity does not itself create an active
+Authority Registry principal. The V2 page therefore states this exact unmet
+action and does not create the principal or discard/route its returned
+credential. After registration is completed through an authorized, protected
+identity-management operation, the existing grant request can be submitted
+from Delegation Approvals; its request is still pending until explicitly
+approved by the Steward.
 
 These administrative routes are intentionally marked as capability exclusions:
 they operate on institutional authority and must not become resident/Grace
