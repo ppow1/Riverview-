@@ -1,0 +1,111 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Riverview Delegation Grants",
+    "version": "1.0.0",
+    "description": "Canonical grant contract. Comms5 JSON-RPC and the Steward approval projection call the existing AuthorityRegistry; internal callers use the same methods."
+  },
+  "servers": [{"url": "https://riverview.local"}],
+  "paths": {
+    "/mcp": {
+      "post": {
+        "operationId": "comms5GrantLifecycle",
+        "summary": "Request or inspect grants, request a change, or surrender as the authenticated grantee",
+        "description": "Comms5 tool calls use OAuth-verified identity from trusted ingress. Grant arguments never establish caller identity. Steward decisions use the separate account-session and CSRF-protected endpoint below.",
+        "x-riverview-operationIds": ["requestGrant", "inspectGrant", "requestGrantChange", "surrenderGrant"],
+        "security": [{"comms5Bearer": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/JsonRpcGrantCall"}}}},
+        "responses": {"200": {"description": "Pending request, authorized status, or surrender result; see examples.json."}}
+      }
+    },
+    "/api/v1/steward/delegation-grant-requests/{request_id}": {
+      "get": {
+        "operationId": "inspectGrantRequest",
+        "security": [{"stewardSession": [], "csrfToken": [], "authorityCredential": []}],
+        "parameters": [{"$ref": "#/components/parameters/RequestId"}],
+        "responses": {"200": {"description": "Exact request, decision, and linked grant status."}}
+      }
+    },
+    "/api/v1/steward/delegation-grant-requests/{request_id}/decision": {
+      "post": {
+        "operationId": "decideGrantRequest",
+        "summary": "Approve or deny the exact digest-bound request",
+        "security": [{"stewardSession": [], "csrfToken": [], "authorityCredential": []}],
+        "parameters": [{"$ref": "#/components/parameters/RequestId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Decision"}}}},
+        "responses": {"200": {"description": "Durable decision and activated grant ID, if approved."}, "403": {"description": "Steward session, CSRF, or authority validation failed."}, "409": {"description": "Request digest or decision state conflicts."}}
+      }
+    },
+    "/api/v1/steward/delegated-grants": {
+      "get": {
+        "operationId": "inspectDelegatedGrants",
+        "security": [{"stewardSession": [], "csrfToken": [], "authorityCredential": []}],
+        "parameters": [{"name": "state", "in": "query", "schema": {"enum": ["active", "expired", "revoked", "all"], "default": "active"}}, {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}}],
+        "responses": {"200": {"description": "Bounded grant records with quota, duration, predecessor, and audit lineage."}}
+      }
+    },
+    "/api/v1/steward/delegated-grants/{grant_id}/revoke": {
+      "post": {
+        "operationId": "revokeGrant",
+        "security": [{"stewardSession": [], "csrfToken": [], "authorityCredential": []}],
+        "parameters": [{"$ref": "#/components/parameters/GrantId"}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "properties": {"confirm": {"const": true}, "reason_code": {"type": "string", "pattern": "^[a-z0-9_]{1,64}$"}}, "required": ["confirm"], "additionalProperties": false}}},
+        "responses": {"200": {"description": "Revoked; prior audit records remain available."}}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "comms5Bearer": {"type": "http", "scheme": "bearer", "description": "Protected Comms5 ingress credential; principal comes from trusted OAuth attestation."},
+      "stewardSession": {"type": "apiKey", "in": "cookie", "name": "rv_account_session"},
+      "csrfToken": {"type": "apiKey", "in": "header", "name": "X-Riverview-CSRF"},
+      "authorityCredential": {"type": "apiKey", "in": "header", "name": "X-Riverview-Authority", "description": "Protected server credential used only with the authenticated Steward session. Never include in MCP arguments or browser code."}
+    },
+    "parameters": {
+      "RequestId": {"name": "request_id", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^delegation-request:[A-Za-z0-9._:-]{1,128}$"}},
+      "GrantId": {"name": "grant_id", "in": "path", "required": true, "schema": {"type": "string", "pattern": "^grant:[A-Za-z0-9._:-]{1,128}$"}}
+    },
+    "schemas": {
+      "DurationSpec": {"oneOf": [
+        {"type": "object", "properties": {"unit": {"const": "indefinite"}}, "required": ["unit"], "additionalProperties": false},
+        {"type": "object", "properties": {"unit": {"const": "minutes"}, "value": {"type": "integer", "minimum": 1, "maximum": 52560000}}, "required": ["unit", "value"], "additionalProperties": false},
+        {"type": "object", "properties": {"unit": {"const": "hours"}, "value": {"type": "integer", "minimum": 1, "maximum": 876000}}, "required": ["unit", "value"], "additionalProperties": false},
+        {"type": "object", "properties": {"unit": {"const": "days"}, "value": {"type": "integer", "minimum": 1, "maximum": 36500}}, "required": ["unit", "value"], "additionalProperties": false},
+        {"type": "object", "properties": {"unit": {"const": "weeks"}, "value": {"type": "integer", "minimum": 1, "maximum": 5200}}, "required": ["unit", "value"], "additionalProperties": false},
+        {"type": "object", "properties": {"unit": {"const": "months"}, "value": {"type": "integer", "minimum": 1, "maximum": 1200}}, "required": ["unit", "value"], "additionalProperties": false},
+        {"type": "object", "properties": {"unit": {"const": "quarters"}, "value": {"type": "integer", "minimum": 1, "maximum": 400}}, "required": ["unit", "value"], "additionalProperties": false},
+        {"type": "object", "properties": {"unit": {"const": "years"}, "value": {"type": "integer", "minimum": 1, "maximum": 100}}, "required": ["unit", "value"], "additionalProperties": false},
+        {"type": "object", "properties": {"unit": {"const": "custom"}, "seconds": {"type": "integer", "minimum": 1, "maximum": 3153600000}}, "required": ["unit", "seconds"], "additionalProperties": false}
+      ]},
+      "GrantArguments": {"type": "object", "properties": {
+        "principal_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "action": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$"},
+        "scope_ref": {"type": "string", "pattern": "^(project:[A-Za-z0-9._-]{1,128}|issue:[A-Za-z0-9._-]{1,128}/[A-Za-z0-9._-]{1,128})$"},
+        "policy_ref": {"type": "string", "pattern": "^policy:[A-Za-z0-9._:-]{1,128}$"},
+        "max_uses": {"oneOf": [{"type": "integer", "minimum": 1, "maximum": 1000000}, {"type": "null"}]},
+        "duration_spec": {"$ref": "#/components/schemas/DurationSpec"},
+        "valid_until": {"type": "string", "format": "date-time"},
+        "request_ref": {"type": "string", "minLength": 1, "maxLength": 256},
+        "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 200}
+      }, "required": ["principal_id", "action", "scope_ref", "policy_ref", "request_ref", "idempotency_key"], "additionalProperties": false},
+      "GrantChangeArguments": {"type": "object", "properties": {
+        "grant_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "action": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$"},
+        "scope_ref": {"type": "string", "pattern": "^(project:[A-Za-z0-9._-]{1,128}|issue:[A-Za-z0-9._-]{1,128}/[A-Za-z0-9._-]{1,128})$"},
+        "policy_ref": {"type": "string", "pattern": "^policy:[A-Za-z0-9._:-]{1,128}$"},
+        "max_uses": {"oneOf": [{"type": "integer", "minimum": 1, "maximum": 1000000}, {"type": "null"}]},
+        "duration_spec": {"$ref": "#/components/schemas/DurationSpec"},
+        "valid_until": {"type": "string", "format": "date-time"},
+        "change_kind": {"enum": ["extend", "upgrade", "extend_upgrade"]},
+        "request_ref": {"type": "string", "minLength": 1, "maxLength": 256},
+        "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 200}
+      }, "required": ["grant_id", "action", "scope_ref", "policy_ref", "request_ref", "idempotency_key"], "additionalProperties": false},
+      "JsonRpcGrantCall": {"oneOf": [
+        {"type": "object", "properties": {"jsonrpc": {"const": "2.0"}, "id": {}, "method": {"const": "tools/call"}, "params": {"type": "object", "properties": {"name": {"const": "comms5_request_delegation_grant"}, "arguments": {"$ref": "#/components/schemas/GrantArguments"}}, "required": ["name", "arguments"], "additionalProperties": false}}, "required": ["jsonrpc", "id", "method", "params"], "additionalProperties": false},
+        {"type": "object", "properties": {"jsonrpc": {"const": "2.0"}, "id": {}, "method": {"const": "tools/call"}, "params": {"type": "object", "properties": {"name": {"const": "comms5_request_delegation_grant_change"}, "arguments": {"$ref": "#/components/schemas/GrantChangeArguments"}}, "required": ["name", "arguments"], "additionalProperties": false}}, "required": ["jsonrpc", "id", "method", "params"], "additionalProperties": false}
+      ]},
+      "Decision": {"type": "object", "properties": {"decision": {"enum": ["approve", "reject"]}, "expected_request_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 200}, "approval_ref": {"type": "string", "minLength": 1, "maxLength": 256}}, "required": ["decision", "expected_request_sha256", "idempotency_key"], "additionalProperties": false}
+    }
+  }
+}
+}

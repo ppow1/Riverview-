@@ -257,7 +257,7 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
             self.admin, schema=self.schema, runtime_role=self.runtime_role,
             manager_role=self.manager_role, owner_role=self.owner_role, apply=True)
         self.assertEqual(applied["status"], "APPLIED")
-        self.assertEqual(len(applied["authority_tables"]), 18)
+        self.assertEqual(len(applied["authority_tables"]), 20)
 
         # Runtime and manager ACL drift on either resident API function must
         # trigger a repair instead of being missed by table/function checks.
@@ -537,7 +537,7 @@ class InstitutionalAuthorityBoundaryTests(unittest.TestCase):
                                    (self.schema, list(__import__(
                                        "riverview_core.institutional_authority.db_boundary",
                                        fromlist=["AUTHORITY_TABLES"]).AUTHORITY_TABLES))).fetchall()
-        self.assertEqual(len(owners), 18)
+        self.assertEqual(len(owners), 20)
         self.assertTrue(all(row["tableowner"] == self.owner_role for row in owners))
 
         # Demonstrate why the schema-owner gate is mandatory. This is a unique

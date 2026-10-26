@@ -91,13 +91,13 @@ def list_requests(adapter, *, status="pending", limit=50):
                 if status == "all":
                     cur.execute("""SELECT request_id,request_kind,requester_id,grantee_id,
                         change_grant_id,action,scope_ref,policy_ref,request_ref,max_uses,
-                        valid_until,request_sha256,status,decision,decision_by,decision_at,
+                        valid_until,duration_spec,change_kind,request_sha256,status,decision,decision_by,decision_at,
                         approval_ref,grant_id,created_at FROM delegated_grant_requests
                         ORDER BY created_at DESC,request_id DESC LIMIT %s""", (limit,))
                 else:
                     cur.execute("""SELECT request_id,request_kind,requester_id,grantee_id,
                         change_grant_id,action,scope_ref,policy_ref,request_ref,max_uses,
-                        valid_until,request_sha256,status,decision,decision_by,decision_at,
+                        valid_until,duration_spec,change_kind,request_sha256,status,decision,decision_by,decision_at,
                         approval_ref,grant_id,created_at FROM delegated_grant_requests
                         WHERE status=%s ORDER BY created_at DESC,request_id DESC LIMIT %s""",
                         (status, limit))
@@ -146,7 +146,7 @@ def list_grants(adapter, *, state="active", limit=50):
                     "all": "",
                 }[state]
                 cur.execute(f"""SELECT grant_id,principal_id,action,scope_ref,policy_ref,
-                    valid_until,max_uses,used_count,grant_kind,proposal_ref,proposal_digest,
+                    valid_until,duration_spec,supersedes_grant_id,max_uses,used_count,grant_kind,proposal_ref,proposal_digest,
                     approved_by,approved_at,approval_ref,revoked_at
                     FROM authority_grants WHERE grant_kind='delegated'
                     {state_clause}

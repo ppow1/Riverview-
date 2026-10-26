@@ -42,7 +42,7 @@ class Comms5MCPTests(unittest.TestCase):
         canonical = json.dumps(catalog["tools"][:21], separators=(",", ":"), ensure_ascii=False).encode()
         self.assertEqual(hashlib.sha256(canonical).hexdigest(), "d13698b1ad415d152f481c1a5360166ef1519b4ebd74944f0836f3341701a807")
         result = app().handle(rpc("tools/list"))["result"]["tools"]
-        self.assertEqual(len(result), 32)
+        self.assertEqual(len(result), 36)
         self.assertIn("comms5_authorize_grace_experiment", [tool["name"] for tool in result])
         self.assertEqual([tool["name"] for tool in result], [tool["name"] for tool in catalog["tools"]])
         exchange_names = ["reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
@@ -84,7 +84,7 @@ class Comms5MCPTests(unittest.TestCase):
         help_result = application.handle(rpc("tools/call", {"name": "comms5_help", "arguments": {}}))
         help_value = json.loads(help_result["result"]["content"][0]["text"])
         self.assertEqual(help_value["contract"]["contract"], "riverview-comms-contract:5.0")
-        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 23)
+        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 27)
         capabilities = application.handle(rpc("tools/call", {"name": "comms5_capabilities", "arguments": {}}))
         capability_value = json.loads(capabilities["result"]["content"][0]["text"])
         self.assertEqual(sum(op["camrui_implementation_status"] == "IMPLEMENTED" for op in capability_value["operations"]), 5)
@@ -381,7 +381,7 @@ class Comms5MCPTests(unittest.TestCase):
             with urlopen(request, timeout=2) as response:
                 result = json.loads(response.read())
                 self.assertEqual(response.status, 200)
-            self.assertEqual(len(result["result"]["tools"]), 32)
+            self.assertEqual(len(result["result"]["tools"]), 36)
         finally:
             server.shutdown()
             server.server_close()

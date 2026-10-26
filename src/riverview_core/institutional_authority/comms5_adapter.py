@@ -1,5 +1,5 @@
 # Revision: 1.0.0
-"""Protected, fixed-surface adapter for Comms5 delegated proposal promotion.
+"""Protected, fixed-surface adapter for Comms5 delegated grant lifecycle.
 
 The adapter owns the manager connection and Steward credential. Neither value
 is accepted from MCP arguments or browser requests.
@@ -18,6 +18,7 @@ from .registry import AuthorityDenied, AuthorityRegistry
 
 _PROMOTION_ACTION = "comms5.proposal.promote"
 _PROMOTION_POLICY = "policy:delegation.v1"
+_UNCHANGED = object()
 from riverview_core.comms5.delegation_policy import (
     DELEGATED_ACTION, DELEGATED_POLICY, DELEGATED_PROJECT_SCOPE, is_delegable_tool,
 )
@@ -162,7 +163,7 @@ class Comms5DelegationAuthorityAdapter:
 
     def request_grant(self, *, requester_id, principal_id, action, scope_ref,
                       policy_ref, request_ref, max_uses=None, valid_until=None,
-                      idempotency_key):
+                      duration_spec=None, idempotency_key):
         if action == DELEGATED_ACTION:
             if (scope_ref != DELEGATED_PROJECT_SCOPE or policy_ref != DELEGATED_POLICY
                     or max_uses is not None):
@@ -174,18 +175,31 @@ class Comms5DelegationAuthorityAdapter:
         return self._registry.request_grant(requester_id=requester_id,
             principal_id=principal_id, action=action, scope_ref=scope_ref,
             policy_ref=policy_ref, request_ref=request_ref, max_uses=max_uses,
-            valid_until=valid_until, idempotency_key=idempotency_key)
+            valid_until=valid_until, duration_spec=duration_spec,
+            idempotency_key=idempotency_key)
 
     def request_change(self, *, requester_id, grant_id, action, scope_ref,
-                       policy_ref, request_ref, max_uses=None, valid_until=None,
-                       idempotency_key):
-        self._proposal_action(action)
-        if policy_ref != _PROMOTION_POLICY:
-            raise AuthorityDenied("Comms5 delegation policy is fixed")
+                       policy_ref, request_ref, max_uses=_UNCHANGED,
+                       valid_until=_UNCHANGED, duration_spec=None,
+                       change_kind=None, idempotency_key):
+        if action == DELEGATED_ACTION:
+            if (scope_ref != DELEGATED_PROJECT_SCOPE or policy_ref != DELEGATED_POLICY
+                    or (max_uses is not _UNCHANGED and max_uses is not None)):
+                raise AuthorityDenied("Comms5 broad delegation requires Riverview scope and unlimited use")
+        else:
+            self._proposal_action(action)
+            if policy_ref != _PROMOTION_POLICY:
+                raise AuthorityDenied("Comms5 delegation policy is fixed")
+        change = {}
+        if max_uses is not _UNCHANGED:
+            change["max_uses"] = max_uses
+        if valid_until is not _UNCHANGED:
+            change["valid_until"] = valid_until
         return self._registry.request_change(requester_id=requester_id,
             grant_id=grant_id, action=action, scope_ref=scope_ref,
-            policy_ref=policy_ref, request_ref=request_ref, max_uses=max_uses,
-            valid_until=valid_until, idempotency_key=idempotency_key)
+            policy_ref=policy_ref, request_ref=request_ref,
+            duration_spec=duration_spec, change_kind=change_kind,
+            idempotency_key=idempotency_key, **change)
 
     def get_status(self, *, requester_id, request_id=None, grant_id=None):
         return self._registry.get_status(requester_id=requester_id,

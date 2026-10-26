@@ -1,0 +1,360 @@
+{
+  "one_time": {
+    "jsonrpc": "2.0",
+    "id": "grant-one-time",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "request_ref": "one successful promotion",
+        "idempotency_key": "example-one-time",
+        "max_uses": 1,
+        "duration_spec": {
+          "unit": "indefinite"
+        }
+      }
+    }
+  },
+  "fixed_count": {
+    "jsonrpc": "2.0",
+    "id": "grant-count",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "request_ref": "25 successful promotions",
+        "idempotency_key": "example-fixed-count",
+        "max_uses": 25,
+        "duration_spec": {
+          "unit": "indefinite"
+        }
+      }
+    }
+  },
+  "unlimited_count": {
+    "jsonrpc": "2.0",
+    "id": "grant-unlimited",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "request_ref": "unlimited promotions for seven days",
+        "idempotency_key": "example-unlimited-time",
+        "max_uses": null,
+        "duration_spec": {
+          "unit": "days",
+          "value": 7
+        }
+      }
+    }
+  },
+  "time_limited": {
+    "jsonrpc": "2.0",
+    "id": "grant-time",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "request_ref": "five promotions within thirty minutes",
+        "idempotency_key": "example-time-limited",
+        "max_uses": 5,
+        "duration_spec": {
+          "unit": "minutes",
+          "value": 30
+        }
+      }
+    }
+  },
+  "combined_count_and_time": {
+    "jsonrpc": "2.0",
+    "id": "grant-combined",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "request_ref": "100 promotions within twelve hours",
+        "idempotency_key": "example-combined",
+        "max_uses": 100,
+        "duration_spec": {
+          "unit": "hours",
+          "value": 12
+        }
+      }
+    }
+  },
+  "indefinite": {
+    "jsonrpc": "2.0",
+    "id": "grant-indefinite",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "request_ref": "indefinite unlimited promotion authority",
+        "idempotency_key": "example-indefinite",
+        "max_uses": null,
+        "duration_spec": {
+          "unit": "indefinite"
+        }
+      }
+    }
+  },
+  "calendar_duration": {
+    "month": {
+      "jsonrpc": "2.0",
+      "id": "grant-month",
+      "method": "tools/call",
+      "params": {
+        "name": "comms5_request_delegation_grant",
+        "arguments": {
+          "principal_id": "steward:camrui",
+          "action": "comms5.proposal.promote",
+          "scope_ref": "project:Riverview",
+          "policy_ref": "policy:delegation.v1",
+          "request_ref": "unlimited for one calendar month",
+          "idempotency_key": "example-calendar-month",
+          "max_uses": null,
+          "duration_spec": {
+            "unit": "months",
+            "value": 1
+          }
+        }
+      }
+    },
+    "quarter": {
+      "jsonrpc": "2.0",
+      "id": "grant-quarter",
+      "method": "tools/call",
+      "params": {
+        "name": "comms5_request_delegation_grant",
+        "arguments": {
+          "principal_id": "steward:camrui",
+          "action": "comms5.proposal.promote",
+          "scope_ref": "project:Riverview",
+          "policy_ref": "policy:delegation.v1",
+          "request_ref": "unlimited for one calendar quarter",
+          "idempotency_key": "example-calendar-quarter",
+          "max_uses": null,
+          "duration_spec": {
+            "unit": "quarters",
+            "value": 1
+          }
+        }
+      }
+    },
+    "year": {
+      "jsonrpc": "2.0",
+      "id": "grant-year",
+      "method": "tools/call",
+      "params": {
+        "name": "comms5_request_delegation_grant",
+        "arguments": {
+          "principal_id": "steward:camrui",
+          "action": "comms5.proposal.promote",
+          "scope_ref": "project:Riverview",
+          "policy_ref": "policy:delegation.v1",
+          "request_ref": "unlimited for one calendar year",
+          "idempotency_key": "example-calendar-year",
+          "max_uses": null,
+          "duration_spec": {
+            "unit": "years",
+            "value": 1
+          }
+        }
+      }
+    }
+  },
+  "custom_duration": {
+    "jsonrpc": "2.0",
+    "id": "grant-custom",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "request_ref": "unlimited for ninety minutes",
+        "idempotency_key": "example-custom",
+        "max_uses": null,
+        "duration_spec": {
+          "unit": "custom",
+          "seconds": 5400
+        }
+      }
+    }
+  },
+  "request": {
+    "jsonrpc": "2.0",
+    "id": "grant-request-1",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.operations.non_destructive.v1",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "max_uses": null,
+        "duration_spec": {
+          "unit": "days",
+          "value": 7
+        },
+        "request_ref": "steward-approved seven-day delegation",
+        "idempotency_key": "example-broad-seven-day-request"
+      }
+    }
+  },
+  "request_response": {
+    "status": "pending",
+    "request_id": "delegation-request:example",
+    "request_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "approve": {
+    "path": "/api/v1/steward/delegation-grant-requests/delegation-request:example/decision",
+    "method": "POST",
+    "headers": [
+      "authenticated Steward account session",
+      "current CSRF token",
+      "X-Riverview-Authority"
+    ],
+    "body": {
+      "decision": "approve",
+      "expected_request_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "idempotency_key": "example-steward-approve",
+      "approval_ref": "steward:approval:example"
+    }
+  },
+  "deny": {
+    "path": "/api/v1/steward/delegation-grant-requests/delegation-request:example/decision",
+    "method": "POST",
+    "headers": [
+      "authenticated Steward account session",
+      "current CSRF token",
+      "X-Riverview-Authority"
+    ],
+    "body": {
+      "decision": "reject",
+      "expected_request_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "idempotency_key": "example-steward-reject"
+    }
+  },
+  "inspect": {
+    "jsonrpc": "2.0",
+    "id": "grant-status-1",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_get_delegation_grant_status",
+      "arguments": {
+        "grant_id": "grant:example"
+      }
+    }
+  },
+  "extend": {
+    "jsonrpc": "2.0",
+    "id": "grant-change-extend",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant_change",
+      "arguments": {
+        "grant_id": "grant:example",
+        "action": "comms5.operations.non_destructive.v1",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "change_kind": "extend",
+        "duration_spec": {
+          "unit": "weeks",
+          "value": 1
+        },
+        "request_ref": "extend one week",
+        "idempotency_key": "example-extend"
+      }
+    }
+  },
+  "upgrade": {
+    "jsonrpc": "2.0",
+    "id": "grant-change-upgrade",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant_change",
+      "arguments": {
+        "grant_id": "grant:example",
+        "action": "comms5.operations.non_destructive.v1",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "change_kind": "upgrade",
+        "request_ref": "upgrade exact proposal permission to the reviewed broad non-destructive set",
+        "idempotency_key": "example-upgrade"
+      }
+    },
+    "precondition": "The predecessor is active, uses no count limit, and has an absolute expiry; this request preserves both lifetime fields."
+  },
+  "extend_and_upgrade": {
+    "jsonrpc": "2.0",
+    "id": "grant-change-combined",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant_change",
+      "arguments": {
+        "grant_id": "grant:example",
+        "action": "comms5.operations.non_destructive.v1",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "change_kind": "extend_upgrade",
+        "duration_spec": {
+          "unit": "months",
+          "value": 1
+        },
+        "request_ref": "extend and add exact promotion permission",
+        "idempotency_key": "example-combined-change",
+        "max_uses": null
+      }
+    },
+    "precondition": "The predecessor is an exact proposal-promotion grant with a finite use limit and expiry. One approval replaces it with the broad non-destructive permission and extends its lifetime."
+  },
+  "revoke": {
+    "path": "/api/v1/steward/delegated-grants/grant:example/revoke",
+    "method": "POST",
+    "body": {
+      "confirm": true,
+      "reason_code": "steward_revoked"
+    }
+  },
+  "surrender": {
+    "jsonrpc": "2.0",
+    "id": "grant-surrender-1",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_revoke_delegation_grant",
+      "arguments": {
+        "grant_id": "grant:example",
+        "reason_code": "grantee_surrendered",
+        "idempotency_key": "example-surrender"
+      }
+    }
+  }
+}

@@ -46,6 +46,8 @@ AUTHORITY_TABLES = (
     "institutional_principals",
     "principal_credentials",
     "authority_grants",
+    "delegated_grant_requests",
+    "delegated_grant_reservations",
     "resident_occupants",
     "resident_implementations",
     "office_bindings",
