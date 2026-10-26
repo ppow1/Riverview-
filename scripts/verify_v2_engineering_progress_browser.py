@@ -2,7 +2,8 @@
 # Riverview~ Controlled Script
 # File: scripts/verify_v2_engineering_progress_browser.py
 # Component: RIVERVIEW-V2-WORKSPACE-SHELL
-# Revision: 1.0.0
+# Revision: 1.0.1
+# Changed: 2026-10-26 UTC | RV-ISSUE268-WEBSITE-ACCEPTANCE | Align the browser regression fixture with deployed resident navigation and summary APIs.
 # Purpose: Verify Engineering Progress placement, sidebar transitions, and preserved chat state
 # Execution Model: Isolated HTTPS fixture server and headless Firefox WebDriver
 # Observability: Sanitized JSON result, screenshot evidence, and bounded API concurrency counts

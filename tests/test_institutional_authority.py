@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.23
+# Revision: 1.0.24
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Verify unlimited Codex delegation duration begins at canonical activation and finite-use enforcement remains intact.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Verify write-ahead secret persistence with the canonical create_principal transaction in an isolated schema.
 # Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-AUTHORITY-ORDER | Expect the additive conversation capability migration after declaration enforcement.
 # Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Test migration 0015 reconciliation and declaration updates

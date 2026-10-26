@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Riverview~ Controlled Script
+# File: scripts/verify_v2_isolated_delegation_browser.py
+# Component: RIVERVIEW-V2-DELEGATION-ACCEPTANCE
+# Revision: 1.0.0
+# Purpose: Verify complete delegation lifecycle using the reserved persona and an isolated canonical authority schema.
+# Execution Model: Authenticated headless Chrome and ephemeral PostgreSQL-backed V2 API.
+# Observability: Safe per-check JSON, audit assertions, and screenshot evidence.
+# Dependencies: PostgreSQL 16, Psycopg 3, Python, OpenSSL, ChromeDriver.
+# Authority: Isolated steward:test grants and disposable service principals only; never production identity or grants.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Test registration, request/hash approval, policy enforcement, revocation and errors through V2.
+# Contracts: Existing canonical AuthorityRegistry and V2 Delegation Approvals API.
+# Tests: scripts/verify_v2_isolated_delegation_browser.py and tests/test_delegation_routes.py.
+# History: Git and .riverview-backups/manifest.jsonl.
 """Authenticated V2 delegation lifecycle acceptance against a disposable canonical registry.
 
 The reserved acceptance Steward credentials arrive on stdin from the existing runner,

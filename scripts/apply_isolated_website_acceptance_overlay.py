@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Riverview~ Controlled Script
+# File: scripts/apply_isolated_website_acceptance_overlay.py
+# Component: RIVERVIEW-WEBSITE-ACCEPTANCE
+# Revision: 1.0.0
+# Purpose: Integrate isolated delegation and cancellation checks into the existing acceptance runner.
+# Execution Model: Request-driven, local candidate transformation.
+# Observability: Safe success/error status and process exit code.
+# Dependencies: Python 3.10+; existing installed acceptance runner source.
+# Authority: Writes only the specified candidate file; production configuration is untouched.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Add isolated full-mode browser checks and keep production settings acceptance read-only.
+# Contracts: Existing Riverview website acceptance runner and docs/standards/DEVELOPMENT_LIFECYCLE_STANDARD.md.
+# Tests: scripts/apply_isolated_website_acceptance_overlay.py syntax and idempotence checks.
+# History: Git and .riverview-backups/manifest.jsonl.
 """Integrate isolated canonical workflows into the existing acceptance runner."""
 from __future__ import annotations
 import argparse, os, tempfile

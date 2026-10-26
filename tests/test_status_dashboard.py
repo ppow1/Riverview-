@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.77
+# Revision: 1.0.78
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Cover V2 percent-encoded objective cancellation routing, exact authorization and explicit backend failure.
 # Changed: 2026-10-25 UTC | RV-V2-OBJECTIVE-OPERATIONAL-STATUS-OUTPUTS | Cover persisted operational status and safe multi-output assignment projection.
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Build Grace objective, conversation, and step relations from source migrations in Dashboard PostgreSQL tests.
 # Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify dashboard presents correlated blocked-objective recovery guidance without authorizing retry.

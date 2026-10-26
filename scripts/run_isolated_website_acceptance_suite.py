@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Riverview~ Controlled Script
+# File: scripts/run_isolated_website_acceptance_suite.py
+# Component: RIVERVIEW-WEBSITE-ACCEPTANCE
+# Revision: 1.0.0
+# Purpose: Run the existing V2 browser acceptance cases for delegation and objective cancellation.
+# Execution Model: Sequential subprocesses on one disposable PostgreSQL cluster.
+# Observability: Machine-readable consolidated check counts and per-check status.
+# Dependencies: Python 3.10+, PostgreSQL 16, existing browser drivers.
+# Authority: Uses only disposable schemas and synthetic objectives; no production mutations.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Combine isolated delegation and cancellation UI/API acceptance.
+# Contracts: Existing Riverview V2 authenticated browser acceptance architecture.
+# Tests: scripts/verify_v2_isolated_delegation_browser.py; scripts/verify_v2_cancel_objective_browser.py.
+# History: Git and .riverview-backups/manifest.jsonl.
 """Run disposable canonical delegation and V2 cancellation acceptance with one PG cluster."""
 from __future__ import annotations
 import json, os, subprocess, sys

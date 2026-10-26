@@ -1,13 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify narrow Steward delegation API routing and composite-source overlay
 # Execution Model: Local unittest with fake account and authority adapters
 # Observability: unittest case names, counts and exit status
 # Dependencies: Python standard library and isolated Riverview test modules
 # Authority: Synthetic Steward identity and fake canonical registry only
 # Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Cover endpoint method/identity fences and patch idempotence.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Cover isolated Steward principal binding, canonical projection and 24-hour activation policy.
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # History: Initial controlled source
 import subprocess

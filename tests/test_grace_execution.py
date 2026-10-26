@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.82
+# Revision: 1.0.83
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Verify account-session principal cancellation through the V2 route, durable audit, denial, idempotency and lifecycle restrictions.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Cover a legitimately consumed S5 CME-recovery evaluation as runtime evidence for same-assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Exercise S4 rejection-trigger evaluation provenance and remove the historical S3 request pin from the one-use exception path.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Verify historical S3 event persistence after pointer advancement and reject cross-objective assignment references.

@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Riverview~ Controlled Script
+# File: scripts/invoke_isolated_website_acceptance.py
+# Component: RIVERVIEW-WEBSITE-ACCEPTANCE
+# Revision: 1.0.0
+# Purpose: Run isolated canonical browser acceptance against the selected V2 assets.
+# Execution Model: Request-driven pg_virtualenv subprocess.
+# Observability: Machine-readable PASS/FAIL/BLOCKED/SKIPPED report and screenshots.
+# Dependencies: Existing persona file, pg_virtualenv, PostgreSQL 16, Python, Chrome.
+# Authority: Temporary test accounts/schemas only; persistent database DSNs are discarded.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Bind reserved test persona credentials only to disposable canonical Steward fixtures.
+# Contracts: Existing website runner and protected systemd LoadCredential persona source.
+# Tests: scripts/run_isolated_website_acceptance_suite.py.
+# History: Git and .riverview-backups/manifest.jsonl.
 """Acceptance-runner entry point for tests in a throw-away PostgreSQL cluster."""
 from __future__ import annotations
 import json, os, shutil, subprocess, sys

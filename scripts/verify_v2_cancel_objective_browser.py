@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Riverview~ Controlled Script
+# File: scripts/verify_v2_cancel_objective_browser.py
+# Component: RIVERVIEW-V2-OBJECTIVE-CANCELLATION-ACCEPTANCE
+# Revision: 1.0.0
+# Purpose: Verify the V2 Cancel Objective control against durable canonical state.
+# Execution Model: Authenticated headless Chrome against an ephemeral PostgreSQL-backed Dashboard.
+# Observability: Safe per-check JSON, durable audit assertions, and screenshot evidence.
+# Dependencies: PostgreSQL 16, Psycopg 3, Python, OpenSSL, ChromeDriver.
+# Authority: Synthetic Steward and operator identities; only disposable objectives.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Exercise authorized/denied UI cancellation, repeat, completion and backend-error handling.
+# Contracts: Existing Dashboard cancellation API, exact assignment.cancel authority, V2 Objectives view.
+# Tests: tests/test_grace_execution.py; tests/test_status_dashboard.py.
+# History: Git and .riverview-backups/manifest.jsonl.
 """Click V2 Cancel Objective against a disposable PostgreSQL-backed Dashboard pipeline."""
 from __future__ import annotations
 import base64, hashlib, http.cookies, importlib.util, json, os, shutil, socket, ssl, subprocess, sys, tempfile, threading, time
