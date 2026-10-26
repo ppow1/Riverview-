@@ -3,7 +3,7 @@
 The runner remains the existing Selenium test program; this idempotent overlay
 is a small release-time patch, not a second test framework.
 """
-# Revision: 1.1.0
+# Revision: 1.2.0
 from __future__ import annotations
 
 import argparse
@@ -143,6 +143,31 @@ EXIT_ANCHOR = '''    return 1 if report["overall"]=="FAIL" else 0
 EXIT_REPLACEMENT = '''    return 1 if report["overall"] in {"FAIL","BLOCKED"} else 0
 '''
 
+LEGACY_FIELDS_ANCHOR = '''                        refresh:!!document.querySelector('#delegation-refresh')}
+                """)
+                page_ok=(delegation_page.get("visible") and delegation_page.get("hostField")
+                         and delegation_page.get("typeField") and delegation_page.get("policyCards")
+                         and delegation_page.get("refresh"))
+                results.append({"check":"delegation_approvals_navigation",
+                    "status":"PASS" if page_ok else "FAIL"})
+'''
+LEGACY_FIELDS_REPLACEMENT = '''                        refresh:!!document.querySelector('#delegation-refresh'),
+                        registrationPanel:!!document.querySelector('#chatgpt-principal-registration'),
+                        registrationButton:!!document.querySelector('#chatgpt-principal-register'),
+                        registrationText:(document.querySelector('#chatgpt-principal-registration-description')?.innerText||'')}
+                """)
+                page_ok=(delegation_page.get("visible") and delegation_page.get("hostField")
+                         and delegation_page.get("typeField") and delegation_page.get("policyCards")
+                         and delegation_page.get("refresh") and delegation_page.get("registrationPanel")
+                         and delegation_page.get("registrationButton") and
+                         "identity.manage" in delegation_page.get("registrationText","") and
+                         "protected server-side credential store" in delegation_page.get("registrationText",""))
+                results.append({"check":"delegation_approvals_navigation",
+                    "status":"PASS" if page_ok else "FAIL"})
+                results.append({"check":"delegation_registration_interface",
+                    "status":"PASS" if page_ok else "FAIL", "mutated_production":False})
+'''
+
 def _once(source: str, anchor: str, replacement: str, label: str) -> str:
     count=source.count(anchor)
     if count != 1:
@@ -156,6 +181,15 @@ def apply(source: str) -> str:
     expected=(VIEWS_REPLACEMENT,STEWARD_INSERT,NON_STEWARD_REPLACEMENT,
               REPORT_REPLACEMENT,EXIT_REPLACEMENT)
     if marker in source:
+        if '"check":"delegation_registration_interface"' in source:
+            if LEGACY_FIELDS_ANCHOR not in source and "registrationButton" in source:
+                return source
+            raise ValueError("acceptance_runner_delegation_overlay_partial")
+        else:
+            if LEGACY_FIELDS_ANCHOR not in source:
+                raise ValueError("acceptance_runner_delegation_overlay_partial")
+            return _once(source, LEGACY_FIELDS_ANCHOR, LEGACY_FIELDS_REPLACEMENT,
+                         "legacy_registration_interface")
         if all(item in source for item in expected):
             return source
         raise ValueError("acceptance_runner_delegation_overlay_partial")
