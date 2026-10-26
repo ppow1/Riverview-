@@ -2,7 +2,8 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/workspace.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.8
+Revision: 1.4.1
+Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-20261026 | Expose the existing Grace workspace through the canonical resident directory action.
 Purpose: Render workspace navigation, resident selection, and V2 monitor views
 Execution Model: Interactive browser event handlers; page lifecycle is browser-owned
 Observability: Selected view and resident state in DOM; Snapshot reports the active view
@@ -12,6 +13,11 @@ Authority: Presentation only; Grace messages use the separate Dashboard-granted 
 Changed: 2026-10-21 UTC | RV-V2-CAPABILITY-INTEGRATION-P1 | Route the existing Work view to live read-only objective and assignment status
 Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Add the authenticated image-generation workspace navigation state.
 Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deployed V2 source under its explicit production bundle path.
+Changed: 2026-10-25 UTC | RV-V2-INSTITUTIONAL-PROPOSALS-20261025 | Route the read-only proposal registry through the existing authenticated API.
+Changed: 2026-10-25 UTC | RV-V2-RESIDENT-PERMISSIONS-20261025 | Add V2 navigation to the existing resident permission profile API.
+Changed: 2026-10-25 UTC | RV-V2-ACCOUNT-SESSION-ADMIN-20261025 | Route the bounded account administration view through the existing account APIs.
+Changed: 2026-10-25 UTC | RV-V2-BATCH1-20261025 | Add the live authority-backed Residents view and tabbed central Settings workspace.
+Changed: 2026-10-26 UTC | RV-V2-LIVE-OVERVIEW-20261026 | Route Overview to live operational projections and suppress obsolete workspace fixture summaries.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: tests/test_v2_workspace_shell.py, scripts/verify_v2_workspace_mobile.cjs
 History: Git and revision/backup manifest
@@ -19,7 +25,7 @@ History: Git and revision/backup manifest
 (() => {
   "use strict";
   const fixtures = window.RIVERVIEW_V2_FIXTURES;
-  const labels = { overview: "Workspace overview", residents: "Residents", settings: "Settings", work: "Work", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
+  const labels = { overview: "Operational overview", residents: "Residents", settings: "Settings", work: "Work and Engineering Progress", "institutional-proposals": "Institutional proposals", "resident-permissions": "Resident permissions", "account-administration": "Account administration", "process-workflows": "Process workflows", documentation: "Documentation and diagnostics", roadmap: "Living Roadmap", "image-generation": "Manual image generation", resources: "Hardware & AI resources", knowledge: "Knowledge", communications: "Communications activity", "notification-settings": "Notification settings", grace: "Grace conversation" };
   const nav = document.getElementById("primary-nav");
   const area = document.getElementById("view-content");
   const title = document.getElementById("page-title");
@@ -35,11 +41,14 @@ History: Git and revision/backup manifest
     const effective = choice === "system" ? (media.matches ? "dark" : "light") : choice;
     document.documentElement.dataset.theme = effective;
     document.getElementById("theme-select").value = choice;
+    const settingsTheme = document.getElementById("settings-theme-select");
+    if (settingsTheme) settingsTheme.value = choice;
     try { localStorage.setItem("rv.v2.theme", choice); } catch (_) { /* Theme remains active for this page. */ }
   };
   const sidebarStates = ["expanded", "compact", "hidden"];
   const setSidebar = (side, state) => {
     shell.dataset[`${side}State`] = state;
+    try { localStorage.setItem(`rv.v2.sidebar.${side}`, state); } catch (_) { /* Sidebar remains set for this page. */ }
     const sidebar = document.getElementById(`${side}-sidebar`);
     if (sidebar) sidebar.dataset.state = state;
     const restore = document.getElementById(`${side}-restore`);
@@ -55,7 +64,9 @@ History: Git and revision/backup manifest
   applyTheme(readTheme());
   media.addEventListener?.("change", () => { if (readTheme() === "system") applyTheme("system"); });
   document.getElementById("theme-select").addEventListener("change", (event) => applyTheme(event.target.value));
-  setSidebar("left", "expanded"); setSidebar("right", "expanded");
+  const readSidebar = (side) => { try { const value = localStorage.getItem(`rv.v2.sidebar.${side}`); return sidebarStates.includes(value) ? value : "expanded"; } catch (_) { return "expanded"; } };
+  setSidebar("left", readSidebar("left")); setSidebar("right", readSidebar("right"));
+  window.RiverviewV2WorkspacePreferences = Object.freeze({setSidebar, getSidebar:(side) => shell.dataset[`${side}State`] || "expanded", applyTheme});
   for (const side of ["left", "right"]) {
     document.getElementById(`${side}-state`).addEventListener("click", () => {
       const current = shell.dataset[`${side}State`];
@@ -90,6 +101,7 @@ History: Git and revision/backup manifest
     initTooltips();
   };
   const render = (view) => {
+    if (currentView === "settings" && view !== "settings") window.RiverviewV2AuthorityExplorer?.restoreSettingsPanels();
     currentView = view;
     content.dataset.currentView = view;
     title.textContent = labels[view] || labels.residents;
@@ -97,21 +109,42 @@ History: Git and revision/backup manifest
     const isCommunications = view === "communications";
     const isResources = view === "resources";
     const isWork = view === "work";
+    const isRoadmap = view === "roadmap";
+    const isProposals = view === "institutional-proposals";
+    const isResidentPermissions = view === "resident-permissions";
+    const isAccountAdministration = view === "account-administration";
     const isImageGeneration = view === "image-generation";
     const isNotificationSettings = view === "notification-settings";
+    const isProcessWorkflows = view === "process-workflows";
+    const isDocumentation = view === "documentation";
+    const isResidents = view === "residents";
     const isSettings = view === "settings";
-    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isSettings;
+    document.querySelector(".welcome-row").hidden = isRoadmap || isResidents || isSettings;
+    document.getElementById("snapshot-status").hidden = isRoadmap || isResidents || isSettings;
+    document.getElementById("overview-content").hidden = isGrace || isResources || isImageGeneration || isNotificationSettings || isRoadmap || isProposals || isResidentPermissions || isAccountAdministration || isProcessWorkflows || isDocumentation || isResidents || isSettings;
+    document.getElementById("website-verification").hidden = view !== "overview";
+    document.getElementById("overview-live").hidden = view !== "overview";
+    document.getElementById("operational-drilldown-heading").hidden = view === "overview";
     document.getElementById("manual-image-workspace").hidden = !isImageGeneration;
     document.getElementById("grace-workspace").hidden = !isGrace;
     document.getElementById("communications-workspace").hidden = !isCommunications;
     document.getElementById("resource-monitor-workspace").hidden = !isResources;
     document.getElementById("work-monitor-workspace").hidden = !isWork;
     document.getElementById("notification-settings-workspace").hidden = !isNotificationSettings;
+    document.getElementById("living-roadmap-workspace").hidden = !isRoadmap;
+    document.getElementById("institutional-proposals-workspace").hidden = !isProposals;
+    document.getElementById("resident-permissions-workspace").hidden = !isResidentPermissions;
+    document.getElementById("account-administration-workspace").hidden = !isAccountAdministration;
+    document.getElementById("process-workflows-workspace").hidden = !isProcessWorkflows;
+    document.getElementById("documentation-workspace").hidden = !isDocumentation;
+    document.getElementById("resident-directory-workspace").hidden = !isResidents;
+    document.getElementById("capability-registry-workspace").hidden = true;
     document.getElementById("settings-workspace").hidden = !isSettings;
-    heading.textContent = view === "overview" ? "Resident directory" : isWork ? "Workspace examples" : labels[view] || labels.residents;
-    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isSettings) {
+    area.hidden = view === "overview" || isWork;
+    heading.textContent = labels[view] || labels.residents;
+    if (view !== "grace" && !isCommunications && !isResources && !isNotificationSettings && !isRoadmap && !isProposals && !isResidentPermissions && !isAccountAdministration && !isProcessWorkflows && !isDocumentation && !isResidents && !isSettings) {
       area.replaceChildren();
-      if (view === "overview" || view === "residents") {
+      if (view === "overview") {
         const list = el("div", "list-stack");
         fixtures.residents.forEach((resident) => {
           const item = card(resident, "resident-row");
@@ -138,10 +171,23 @@ History: Git and revision/backup manifest
         area.append(list);
       }
     }
+    if (view === "overview") window.RiverviewV2Overview?.render();
     if (isResources) window.RiverviewV2ResourceMonitor?.render();
     if (isWork) window.RiverviewV2WorkMonitor?.render();
+    if (isRoadmap) window.RiverviewV2LivingRoadmap?.render();
+    if (isProposals) window.RiverviewV2InstitutionalProposals?.render();
+    if (isResidentPermissions) window.dispatchEvent(new Event("rv:resident-permissions"));
+    if (isAccountAdministration) window.dispatchEvent(new Event("rv:account-administration"));
     if (isCommunications) window.RiverviewV2Communications?.render();
     if (isNotificationSettings) window.RiverviewV2NotificationSettings?.render();
+    if (isProcessWorkflows || isDocumentation) window.dispatchEvent(new CustomEvent("rvv2:view", { detail: { view } }));
+    if (isResidents) window.RiverviewV2AuthorityExplorer?.renderResidents();
+    if (isSettings) {
+      const settingsTheme = document.getElementById("settings-theme-select");
+      if (settingsTheme) settingsTheme.value = document.getElementById("theme-select").value;
+      const selectedTab = document.querySelector('[role="tab"][aria-selected="true"][data-settings-tab]')?.dataset.settingsTab || "preferences";
+      window.RiverviewV2AuthorityExplorer?.activateSettingsTab(selectedTab);
+    }
     document.querySelectorAll(".nav-item").forEach((button) => {
       const active = button.dataset.view === view || (view === "grace" && button.dataset.view === "residents");
       button.classList.toggle("active", active);
@@ -150,6 +196,10 @@ History: Git and revision/backup manifest
     initTooltips();
     document.dispatchEvent(new CustomEvent("rvv2:view", { detail: { view } }));
   };
+  const dateNode = document.getElementById("v2-current-date");
+  if (dateNode) dateNode.textContent = new Intl.DateTimeFormat(undefined, {
+    weekday: "long", month: "long", day: "numeric", year: "numeric"
+  }).format(new Date()).toUpperCase();
   const selectResident = (resident) => {
     currentResident = resident;
     updateResidentContext(resident);
@@ -171,6 +221,10 @@ History: Git and revision/backup manifest
       render(button.dataset.view);
       document.querySelector(".rail").classList.remove("mobile-open");
     }
+  });
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("button.inline-view-link[data-view]");
+    if (button) render(button.dataset.view);
   });
   document.getElementById("selected-resident").addEventListener("click", () => render("residents"));
   document.getElementById("mobile-menu").addEventListener("click", () => document.querySelector(".rail").classList.toggle("mobile-open"));

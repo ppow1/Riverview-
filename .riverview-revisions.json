@@ -25,7 +25,7 @@
       "size_bytes": 1584723
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.341"
+      "revision": "1.1.345"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -9531,6 +9531,12 @@
       "sha256": "b9491029124aa5eae580b1bf713bff501cab8ec3b93053491e34b2c5778c104a",
       "size_bytes": 110406
     },
+    "tests/test_resident_conversation_vision_input.py": {
+      "path": "tests/test_resident_conversation_vision_input.py",
+      "revision": "1.0.2",
+      "sha256": "72215c7a46493abf782a22bdf30fef71b70fddbc09ca1fe8bbe6b286b644bcb8",
+      "size_bytes": 5942
+    },
     "tests/test_resident_deferred_retry_acl.py": {
       "path": "tests/test_resident_deferred_retry_acl.py",
       "revision": "1.0.0",
@@ -9651,6 +9657,30 @@
       "sha256": "75da3b47937776addb01912e1de1f11dd1b5cf859a4df55850958172cfa3e5c3",
       "size_bytes": 15190
     },
+    "website/v2/deployed/assets/authority-explorer.css": {
+      "path": "website/v2/deployed/assets/authority-explorer.css",
+      "revision": "1.0.1",
+      "sha256": "a676c9fda60c6cbedbe8a4259a9d2e6fa6e09de6fcd7662e3b7e890aa8dbcba1",
+      "size_bytes": 3703
+    },
+    "website/v2/deployed/assets/documentation-catalog.js": {
+      "path": "website/v2/deployed/assets/documentation-catalog.js",
+      "revision": "1.0.1",
+      "sha256": "53e6b9c07fe4d2fd9c4cc5f9bdc45d45e61ca040d0ce3971b90525df24777f37",
+      "size_bytes": 6701
+    },
+    "website/v2/deployed/assets/notification-settings.css": {
+      "path": "website/v2/deployed/assets/notification-settings.css",
+      "revision": "1.0.1",
+      "sha256": "3fe7e088a985adb558da0626f55abedd6890afb6da07d6877413e44b569e9275",
+      "size_bytes": 1761
+    },
+    "website/v2/deployed/assets/notification-settings.js": {
+      "path": "website/v2/deployed/assets/notification-settings.js",
+      "revision": "1.0.1",
+      "sha256": "de238e9241009e80c5d5cd9cd70b0fdc117850d5b8cf929d1204c471150717a3",
+      "size_bytes": 3796
+    },
     "website/v2/deployed/assets/octominer/controller-feature-reference.png": {
       "path": "website/v2/deployed/assets/octominer/controller-feature-reference.png",
       "revision": "1.0.0",
@@ -9669,13 +9699,32 @@
       "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
       "size_bytes": 2008940
     },
+    "website/v2/deployed/assets/operational-inbox.css": {
+      "path": "website/v2/deployed/assets/operational-inbox.css",
+      "revision": "1.0.1",
+      "sha256": "2e38d22b7549aa77cb7e07a49902ca8e2337df72eeba2036327b6e9338657b47",
+      "size_bytes": 4326
+    },
+    "website/v2/deployed/assets/process-workflows.css": {
+      "path": "website/v2/deployed/assets/process-workflows.css",
+      "revision": "1.0.1",
+      "sha256": "673e37d3d7f53f814bf150198bd58e0029a6a14c76c71f3d9935f584635a6a5d",
+      "size_bytes": 4855
+    },
     "website/v2/deployed/assets/resident-history-reference.json": {
       "path": "website/v2/deployed/assets/resident-history-reference.json",
       "revision": "1.0.0",
       "sha256": "250d4f2f200f33766febe95aba1d982a8161e51d02ae4dad247a1a920366cdcd",
       "size_bytes": 3788
+    },
+    "website/v2/deployed/index.html": {
+      "path": "website/v2/deployed/index.html",
+      "revision": "1.0.35",
+      "sha256": "82a51f0b57d1c035b301b5f4b64a5ae50f37e4710f553ff016bc0131c8f2556d",
+      "size_bytes": 84619
     }
   },
   "manifest_revision": "1.1.340",
+  "revision": "1.1.345",
   "updated_at": "2026-10-25T17:46:11+00:00"
 }

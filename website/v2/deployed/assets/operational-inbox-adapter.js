@@ -1,17 +1,5 @@
-// =============================================================================
-// RIVERVIEW~ CONTROLLED SOURCE
-// File: website/v2/deployed/assets/operational-inbox-adapter.js
-// Component: RIVERVIEW-V2-INSTITUTIONAL-ACTIVITY-LEDGER
-// Revision: 1.0.0
-// Purpose: Join read-only notifications, attention, and event projections for the activity ledger.
-// Execution Model: Browser-loaded deterministic adapter
-// Observability: Authenticated dashboard projection status and ledger entries
-// Dependencies: Existing Dashboard notifications, attention, and event API projections
-// Authority: Presentation only; no writes or inferred delivery/receipt state
-// Changed: 2026-10-25 UTC | RV-INTEGRATE-295-297-302-20261025 | Port the reviewed event identity and cursor-page adapter.
-// Tests: tests/test_v2_operational_inbox.cjs
-// History: Git
-// =============================================================================
+// Revision: 1.0.1
+// Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Require the authenticated server's linked-Steward capability hint
 /* Read-only adapters for the existing authenticated Riverview operational APIs. */
 (() => {
   "use strict";
@@ -30,7 +18,7 @@
         timestamp: null, assignmentId: null, notificationId: null, deliveryState: null,
         sources: new Set(), severity: null, sequence: null, occurredAt: null,
         recordedAt: null, actorId: null, correlationId: null, causationId: null,
-        payloadSchema: null
+        payloadSchema: null, notificationDetails: null
       });
       return byEvent.get(key);
     };
@@ -66,9 +54,24 @@
       row.assignmentId = text(item.assignment_id) || row.assignmentId;
       row.notificationId = text(item.notification_id) || null;
       row.deliveryState = text(item.delivery_status) || "unknown";
+      row.notificationDetails = notificationDetails(item);
     }
     return [...byEvent.values()].map((row) => ({...row, sources: [...row.sources]}))
       .sort((a, b) => (isoTime(b.timestamp) ?? -Infinity) - (isoTime(a.timestamp) ?? -Infinity));
+  }
+
+  function notificationDetails(item = {}) {
+    const fields = ["notification_id", "source_event_id", "assignment_id", "event_type", "channel", "delivery_status",
+      "source_recorded_at", "created_at", "delivered_at", "acknowledged_at", "decision_request_id",
+      "decision_status", "assignment_version", "recovery_request_id", "recovery_status",
+      "recovery_objective_id", "recovery_objective_revision", "recovery_action", "attempt_limit",
+      "recovery_expires_at", "summary"];
+    const result = Object.fromEntries(fields.map((key) => [key, item[key] ?? null]));
+    const safeSourceFields = ["objective_id", "objective_revision", "runtime_revision", "failure_count",
+      "last_error_code", "blocked_at", "last_failure_at", "decision", "recommended_action", "automatic_recovery"];
+    const source = item.source_details && typeof item.source_details === "object" ? item.source_details : null;
+    result.source_details = source ? Object.fromEntries(safeSourceFields.map((key) => [key, source[key] ?? null])) : null;
+    return result;
   }
 
   function mergeEventPage(current = {}, page = {}, direction = "latest") {
@@ -83,6 +86,17 @@
       canLoadOlder: direction === "older" ? Boolean(page.older_cursor) : direction === "latest" ? Boolean(page.older_cursor) : Boolean(current.canLoadOlder),
       canLoadNewer: direction === "newer" ? Boolean(page.next_cursor) : seqs.length > 0
     };
+  }
+
+  function notificationReceiptAction(row, canWrite) {
+    if (!canWrite || !row?.notificationId) return null;
+    if (row.deliveryState === "queued") return "delivered";
+    if (row.deliveryState === "delivered") return "acknowledge";
+    return null;
+  }
+
+  function canRequestRecoveryDecision(identity) {
+    return identity?.can_decide_grace_recovery === true;
   }
 
   function filterRows(rows, {query = "", source = "all", severity = "all", status = "all", sort = "newest"} = {}) {
@@ -101,7 +115,7 @@
     });
   }
 
-  const api = Object.freeze({mergeFeeds, mergeEventPage, filterRows});
+  const api = Object.freeze({mergeFeeds, mergeEventPage, notificationReceiptAction, notificationDetails, canRequestRecoveryDecision, filterRows});
   if (typeof window !== "undefined") window.RiverviewV2OperationalInboxAdapter = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

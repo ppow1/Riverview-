@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_resident_conversation_vision_input.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-AUTHORITY-ORDER | Verify exact-grant declaration ordering and contracts.
 # Purpose: Verify multimodal input, model routing, authorization declarations, and V2 controls
 # Authority: Isolated tests only; no production identities or services are changed
@@ -85,9 +85,9 @@ class ConversationVisionInputTests(unittest.TestCase):
         explorer=(base/"website/v2/deployed/assets/authority-explorer.js").read_text()
         html=(base/"website/v2/deployed/index.html").read_text()
         self.assertIn('getElementById("settings-workspace").hidden = !isSettings',workspace)
-        self.assertIn('openGraceConversation',workspace)
+        self.assertIn('window.RiverviewV2Workspace = Object.freeze({openGraceConversation})',workspace)
         self.assertIn('openGraceConversation()',explorer)
-        self.assertIn('rev=chat-navigation-settings-20261026',html)
+        self.assertIn('rev=chat-vision-ae317006',html)
 
     def test_conversation_switch_waits_for_inflight_history_before_reading_selection(self):
         base=Path(__file__).resolve().parents[1]

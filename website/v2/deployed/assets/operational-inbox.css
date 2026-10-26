@@ -1,17 +1,6 @@
-/* =============================================================================
- * RIVERVIEW~ CONTROLLED SOURCE
- * File: website/v2/deployed/assets/operational-inbox.css
- * Component: RIVERVIEW-V2-INSTITUTIONAL-ACTIVITY-LEDGER
- * Revision: 1.0.0
- * Purpose: Style the read-only operational activity ledger and cursor controls.
- * Execution Model: Browser presentation
- * Observability: Accessible source status, event details, and pagination states
- * Dependencies: Riverview V2 workspace design tokens
- * Authority: Presentation only; conveys only facts returned by the authorized API.
- * Changed: 2026-10-25 UTC | RV-INTEGRATE-295-297-302-20261025 | Port the reviewed ledger presentation.
- * Tests: tests/test_v2_operational_inbox.cjs
- * History: Git
- * ============================================================================= */
+/*
+Revision: 1.0.1
+*/
 .operational-inbox{padding:17px;border:1px solid var(--line);border-radius:9px;background:var(--surface,#fff);color:var(--ink)}
 .operational-inbox-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .operational-inbox-heading h3{margin:0 0 6px;font:500 19px Georgia,"Times New Roman",serif}
@@ -19,9 +8,20 @@
 .operational-inbox-heading button,.inbox-work-link{padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
 .operational-inbox-heading button:disabled{opacity:.55;cursor:wait}
 .inbox-freshness{margin:12px 0;color:var(--muted);font-size:10px;line-height:1.5}
+.inbox-action-status{margin:8px 0;color:var(--muted);font-size:10px;line-height:1.5}
+.inbox-dispatcher-health{margin:8px 0;color:var(--muted);font-size:10px;line-height:1.5}
+.inbox-receipt-action{margin-top:6px;padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px;cursor:pointer}
+.inbox-receipt-action:disabled{opacity:.55;cursor:wait}
+.inbox-receipt-note{display:block;margin-top:6px;color:var(--muted);font-size:9px}
 .inbox-source-status{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 14px}
 .inbox-event-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:10px}
 .inbox-table-wrap details{margin-top:6px;font-size:10px}
+.inbox-notification-details{margin-top:7px}
+.inbox-recovery-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px}
+.inbox-recovery-decision{padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px;cursor:pointer}
+.inbox-recovery-decision:disabled{opacity:.55;cursor:wait}
+.inbox-recovery-consequential{border-color:#b7792b}
+.inbox-recovery-actions small,.inbox-recovery-unavailable{flex-basis:100%;color:var(--muted);font-size:9px;line-height:1.45}
 .inbox-table-wrap details summary{cursor:pointer;color:var(--accent,#385c7a)}
 .inbox-table-wrap details dl{display:grid;grid-template-columns:minmax(100px,auto) minmax(0,1fr);gap:3px 9px;margin:8px 0}
 .inbox-table-wrap details dt{font-weight:650}
