@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_m33_retirement_migration.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.2.2
+# Revision: 1.2.4
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-M33-PROFILE | Verify only the five functions belonging to migration 0008 in the prerequisite case.
 # Purpose: Verify 0008 commits atomically with the runtime function ACL boundary
 # Execution Model: Disposable PostgreSQL schemas
@@ -182,9 +182,9 @@ class M33RetirementMigrationTests(unittest.TestCase):
 
             expected_seed_counts = {
                 "resident_permission_tiers": 4,
-                "capability_catalog": 18,
+                "capability_catalog": 20,
                 "resource_catalog": 11,
-                "capability_resources": 26,
+                "capability_resources": 28,
                 "resident_permission_profiles": 0,
                 "resident_permission_profile_drafts": 0,
                 "resident_permission_tier_rules": 50,
