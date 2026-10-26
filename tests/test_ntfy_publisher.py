@@ -1,3 +1,15 @@
+# Riverview~ Controlled Source
+# File: tests/test_ntfy_publisher.py
+# Component: NOTIFICATION-DELIVERY
+# Revision: 1.0.0
+# Purpose: Verify safe ntfy titles, priorities, deep links and view-only actions
+# Execution Model: Local unittest with a fake transport; no live notification
+# Observability: unittest case names, counts and exit status
+# Dependencies: Python standard library and Riverview notification publisher
+# Authority: Synthetic IDs and fake network transport only
+# Changed: 2026-10-26 UTC | RV-V2-NTFY-RICH-LINKS-20261026 | Add focused tests for validated links and actions.
+# Contracts: docs/components/NOTIFICATION_DELIVERY.md
+# History: Initial controlled source
 import json
 import unittest
 from urllib.parse import parse_qs, urlsplit
