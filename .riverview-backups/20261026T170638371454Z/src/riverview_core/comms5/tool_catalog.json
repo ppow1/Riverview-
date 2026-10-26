@@ -1,0 +1,3089 @@
+{
+  "schema": "rv.comms5.tool-catalog.v1",
+  "source_repository": "ppow1/Riverview",
+  "source_commit": "048787f574d42ff073a9f94f571dc79943d60fa4",
+  "contract_version": "riverview-comms-contract:5.0",
+  "tools": [
+    {
+      "name": "comms5_contract_info",
+      "description": "Return the versioned Comms5 contract identity.",
+      "inputSchema": {
+        "properties": {},
+        "title": "comms5_contract_infoArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_help",
+      "description": "Return machine-readable Comms5 discovery and safe-use guidance.",
+      "inputSchema": {
+        "properties": {},
+        "title": "comms5_helpArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_capabilities",
+      "description": "List Comms5 operations, limits, and authorization classes.",
+      "inputSchema": {
+        "properties": {},
+        "title": "comms5_capabilitiesArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_describe_operation",
+      "description": "Describe one Comms5 operation.",
+      "inputSchema": {
+        "properties": {
+          "operation": {
+            "title": "Operation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "title": "comms5_describe_operationArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_examples",
+      "description": "Return bounded examples for public operations.",
+      "inputSchema": {
+        "properties": {},
+        "title": "comms5_examplesArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_submit_steward_seed",
+      "title": "Submit bounded draft",
+      "description": "Submit a bounded draft; this never promotes or creates work.",
+      "inputSchema": {
+        "properties": {
+          "seed_text": {
+            "title": "Seed Text",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "authenticated_principal": {
+            "title": "Authenticated Principal",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          },
+          "causation_id": {
+            "default": "",
+            "title": "Causation Id",
+            "type": "string"
+          },
+          "specification_id": {
+            "default": "",
+            "title": "Specification Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seed_text",
+          "idempotency_key",
+          "client_id",
+          "client_type",
+          "client_name",
+          "authenticated_principal"
+        ],
+        "title": "comms5_submit_steward_seedArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_store_specification",
+      "title": "Store bounded specification reference",
+      "description": "Store a bounded specification and optional typed non-shell formation contract.",
+      "inputSchema": {
+        "$defs": {
+          "FormationContractInput": {
+            "additionalProperties": false,
+            "description": "Bounded schema carrier; authority validation remains server-side.",
+            "properties": {
+              "repository_identity": {
+                "default": "",
+                "title": "Repository Identity",
+                "type": "string"
+              },
+              "repository_root": {
+                "default": "",
+                "title": "Repository Root",
+                "type": "string"
+              },
+              "expected_base_sha": {
+                "default": "",
+                "title": "Expected Base Sha",
+                "type": "string"
+              },
+              "bounded_instruction": {
+                "default": "",
+                "title": "Bounded Instruction",
+                "type": "string"
+              },
+              "allowed_paths": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Allowed Paths",
+                "type": "array"
+              },
+              "acceptance_criteria": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Acceptance Criteria",
+                "type": "array"
+              },
+              "evidence_requirements": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Evidence Requirements",
+                "type": "array"
+              },
+              "capability_name": {
+                "default": "",
+                "title": "Capability Name",
+                "type": "string"
+              },
+              "action_type": {
+                "default": "",
+                "title": "Action Type",
+                "type": "string"
+              },
+              "timeout_seconds": {
+                "default": 0,
+                "title": "Timeout Seconds",
+                "type": "integer"
+              },
+              "write_policy": {
+                "default": "",
+                "title": "Write Policy",
+                "type": "string"
+              }
+            },
+            "title": "FormationContractInput",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "authenticated_principal": {
+            "title": "Authenticated Principal",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          },
+          "formation_contract": {
+            "$ref": "#/$defs/FormationContractInput",
+            "default": {
+              "repository_identity": "",
+              "repository_root": "",
+              "expected_base_sha": "",
+              "bounded_instruction": "",
+              "allowed_paths": [],
+              "acceptance_criteria": [],
+              "evidence_requirements": [],
+              "capability_name": "",
+              "action_type": "",
+              "timeout_seconds": 0,
+              "write_policy": ""
+            }
+          }
+        },
+        "required": [
+          "content",
+          "summary",
+          "idempotency_key",
+          "client_id",
+          "client_type",
+          "client_name",
+          "authenticated_principal"
+        ],
+        "title": "comms5_store_specificationArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_seed_status",
+      "title": "Read bounded seed status",
+      "description": "Return bounded seed, specification, objective linkage, and promotion status metadata.",
+      "inputSchema": {
+        "properties": {
+          "seed_id": {
+            "title": "Seed Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seed_id"
+        ],
+        "title": "comms5_seed_statusArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_seed_lineage",
+      "description": "Return authoritative bounded seed lineage.",
+      "inputSchema": {
+        "properties": {
+          "seed_id": {
+            "title": "Seed Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seed_id"
+        ],
+        "title": "comms5_seed_lineageArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_objective_status",
+      "title": "Read bounded objective status",
+      "description": "Return bounded objective, stages, authority, intent, and work metadata.",
+      "inputSchema": {
+        "properties": {
+          "objective_id": {
+            "title": "Objective Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "objective_id"
+        ],
+        "title": "comms5_objective_statusArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_cme_status",
+      "description": "Return the authoritative CME runtime projection.",
+      "inputSchema": {
+        "properties": {},
+        "title": "comms5_cme_statusArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_recent_steward_submissions",
+      "description": "Return bounded recent submission metadata.",
+      "inputSchema": {
+        "properties": {
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "title": "comms5_recent_steward_submissionsArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_transport_probe",
+      "description": "Run one read-only end-to-end transport correlation probe.",
+      "inputSchema": {
+        "properties": {
+          "probe_id": {
+            "title": "Probe Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "probe_id"
+        ],
+        "title": "comms5_transport_probeArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_resource_policy_status",
+      "description": "Return the durable Codex resource policy and its audit projection.",
+      "inputSchema": {
+        "properties": {},
+        "title": "comms5_resource_policy_statusArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_set_resource_policy",
+      "title": "Set resource policy",
+      "description": "Set policy only from authenticated Steward transport attestation.",
+      "inputSchema": {
+        "$defs": {
+          "ResourcePolicyParameters": {
+            "additionalProperties": false,
+            "description": "Closed schema for the existing resource-policy parameter contract.",
+            "properties": {
+              "target_seat": {
+                "default": "",
+                "title": "Target Seat",
+                "type": "string"
+              },
+              "priority_order": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Priority Order",
+                "type": "array"
+              },
+              "fallback": {
+                "default": true,
+                "title": "Fallback",
+                "type": "boolean"
+              },
+              "consume_reset": {
+                "default": false,
+                "title": "Consume Reset",
+                "type": "boolean"
+              }
+            },
+            "title": "ResourcePolicyParameters",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "parameters": {
+            "$ref": "#/$defs/ResourcePolicyParameters"
+          },
+          "explicit_steward_confirmation": {
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "rationale": {
+            "default": "",
+            "title": "Rationale",
+            "type": "string"
+          },
+          "expected_revision": {
+            "default": -1,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode",
+          "parameters",
+          "explicit_steward_confirmation"
+        ],
+        "title": "comms5_set_resource_policyArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_set_resource_policy_lock",
+      "title": "Lock resource policy",
+      "description": "Lock or unlock policy only from authenticated Steward transport attestation.",
+      "inputSchema": {
+        "properties": {
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "explicit_steward_confirmation": {
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "rationale": {
+            "default": "",
+            "title": "Rationale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "locked",
+          "explicit_steward_confirmation"
+        ],
+        "title": "comms5_set_resource_policy_lockArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_confirm_and_promote_seed",
+      "title": "Confirm Steward-approved draft",
+      "description": "Record Pat's approval and atomically materialize one exact draft objective.\n\n    This governed write verifies transport-attested Steward authority, explicit\n    confirmation, the eligible specification ID/version/hash, and idempotency,\n    then records bounded authority and creates the canonical objective record.\n    It does not execute Codex or other work, run shell commands, cancel or\n    supersede work, grant arbitrary authority, or bypass Grace, Relay,\n    capability, or reconciliation gates. Client identity is provenance only.\n    ",
+      "inputSchema": {
+        "properties": {
+          "seed_id": {
+            "description": "Exact eligible specification-backed draft ID to approve.",
+            "title": "Seed Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Stable retry key for this one approval transition.",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "explicit_steward_confirmation": {
+            "description": "Pat's explicit approval of this exact draft; must be true.",
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "client_id": {
+            "description": "Calling client provenance; not an authority claim.",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "description": "Calling client provenance; not an authority claim.",
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "description": "Calling client provenance; not an authority claim.",
+            "title": "Client Name",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seed_id",
+          "idempotency_key",
+          "explicit_steward_confirmation",
+          "client_id",
+          "client_type",
+          "client_name"
+        ],
+        "title": "comms5_confirm_and_promote_seedArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_form_and_queue_work",
+      "title": "Form and queue approved work",
+      "description": "Form the approved typed intent and enqueue exactly one work order.",
+      "inputSchema": {
+        "properties": {
+          "objective_id": {
+            "description": "Exact already-promoted objective ID; scope is derived server-side.",
+            "title": "Objective Id",
+            "type": "string"
+          },
+          "stage_id": {
+            "description": "Exact ready stage ID bound to the objective.",
+            "title": "Stage Id",
+            "type": "string"
+          },
+          "authority_id": {
+            "description": "Exact active Steward authority grant ID bound to the objective and stage.",
+            "title": "Authority Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Stable retry key for this one formation and enqueue operation.",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "explicit_steward_confirmation": {
+            "description": "Explicit Steward approval to form and enqueue this existing approved lineage; must be true.",
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "objective_id",
+          "stage_id",
+          "authority_id",
+          "idempotency_key",
+          "explicit_steward_confirmation",
+          "client_id",
+          "client_type",
+          "client_name"
+        ],
+        "title": "comms5_form_and_queue_workArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_revalidate_and_queue_work",
+      "title": "Revalidate approved work base",
+      "description": "Revalidate one stale approved base and queue one bounded successor.\n\n    This preserves the original failed attempt and exact authority scope. It\n    never widens paths, changes the capability, or executes Codex; material\n    repository drift fails closed for renewed specification approval.\n    ",
+      "inputSchema": {
+        "properties": {
+          "work_order_id": {
+            "description": "Exact preserved failed work order with RIV-EXE-0008 stale-base evidence.",
+            "title": "Work Order Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "description": "Stable retry key for this one base revalidation and successor attempt.",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "explicit_steward_confirmation": {
+            "description": "Pat's narrow confirmation of the verified new base binding; must be true.",
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "client_id": {
+            "description": "Calling client provenance; not an authority claim.",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "description": "Calling client provenance; not an authority claim.",
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "description": "Calling client provenance; not an authority claim.",
+            "title": "Client Name",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          },
+          "infrastructure_repair_evidence": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Infrastructure Repair Evidence",
+            "type": "array"
+          }
+        },
+        "required": [
+          "work_order_id",
+          "idempotency_key",
+          "explicit_steward_confirmation",
+          "client_id",
+          "client_type",
+          "client_name"
+        ],
+        "title": "comms5_revalidate_and_queue_workArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_cancel_draft",
+      "title": "Cancel draft with Steward confirmation",
+      "description": "Append-only cancel of a draft; never cancels an objective or work order.",
+      "inputSchema": {
+        "properties": {
+          "seed_id": {
+            "title": "Seed Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "explicit_steward_confirmation": {
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "authenticated_principal": {
+            "title": "Authenticated Principal",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seed_id",
+          "reason",
+          "idempotency_key",
+          "explicit_steward_confirmation",
+          "client_id",
+          "client_type",
+          "client_name",
+          "authenticated_principal"
+        ],
+        "title": "comms5_cancel_draftArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_supersede_seed",
+      "title": "Supersede draft with Steward confirmation",
+      "description": "Append an old-draft-to-new-draft replacement relation.",
+      "inputSchema": {
+        "properties": {
+          "seed_id": {
+            "title": "Seed Id",
+            "type": "string"
+          },
+          "replacement_seed_id": {
+            "title": "Replacement Seed Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "explicit_steward_confirmation": {
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "authenticated_principal": {
+            "title": "Authenticated Principal",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seed_id",
+          "replacement_seed_id",
+          "reason",
+          "idempotency_key",
+          "explicit_steward_confirmation",
+          "client_id",
+          "client_type",
+          "client_name",
+          "authenticated_principal"
+        ],
+        "title": "comms5_supersede_seedArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_revise_specification",
+      "title": "Revise exact draft specification",
+      "description": "Create one audited successor revision for the exact current DRAFT specification. Requires authenticated Steward Comms5 transport, expected revision, replacement content, and idempotency key. Does not approve, promote, create an objective, or authorize work.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "content": {
+            "additionalProperties": false,
+            "description": "Complete replacement content for the exact current draft revision.",
+            "properties": {
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "summary": {
+                "title": "Summary",
+                "type": "string"
+              },
+              "objective": {
+                "title": "Objective",
+                "type": "string"
+              },
+              "scope": {
+                "title": "Scope",
+                "type": "string"
+              },
+              "proposed_approach": {
+                "title": "Proposed Approach",
+                "type": "string"
+              },
+              "constraints": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Constraints",
+                "type": "array"
+              },
+              "acceptance_criteria": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Acceptance Criteria",
+                "type": "array"
+              },
+              "tags": {
+                "items": {
+                  "type": "string"
+                },
+                "title": "Tags",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "summary",
+              "objective",
+              "scope",
+              "proposed_approach",
+              "constraints",
+              "acceptance_criteria",
+              "tags"
+            ],
+            "title": "ProposalContent",
+            "type": "object"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "expected_revision",
+          "content",
+          "idempotency_key",
+          "client_id",
+          "client_type",
+          "client_name"
+        ],
+        "title": "comms5_revise_specificationArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_prepare_proposal_for_decision",
+      "title": "Present exact proposal revision for Steward decision",
+      "description": "Move the exact current proposal revision through READY_FOR_REVIEW to READY_FOR_STEWARD_DECISION. Requires authenticated Steward Comms5 transport, explicit confirmation, expected revision, and exact digest. This records no approval and creates no objective or work.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "expected_content_sha256": {
+            "title": "Expected Content Sha256",
+            "type": "string"
+          },
+          "explicit_steward_confirmation": {
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "client_id": {
+            "title": "Client Id",
+            "type": "string"
+          },
+          "client_type": {
+            "title": "Client Type",
+            "type": "string"
+          },
+          "client_name": {
+            "title": "Client Name",
+            "type": "string"
+          },
+          "client_version": {
+            "default": "",
+            "title": "Client Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "protocol_version": {
+            "default": "riverview-comms-contract:5.0",
+            "title": "Protocol Version",
+            "type": "string"
+          },
+          "classification": {
+            "default": "river",
+            "title": "Classification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "expected_revision",
+          "expected_content_sha256",
+          "explicit_steward_confirmation",
+          "idempotency_key",
+          "client_id",
+          "client_type",
+          "client_name"
+        ],
+        "title": "comms5_prepare_proposal_for_decisionArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reasoning_exchange_list_requests",
+      "description": "List bounded durable advisory requests routed to a provider for authenticated Steward review. Returns the exact request/correlation and immutable review subject when present.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reasoning_exchange_claim_request",
+      "description": "Claim one exact routed advisory request with a finite lease and fencing identity. The claim is recorded as authenticated Steward activity.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "correlation_id"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lease_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reasoning_exchange_submit_response",
+      "description": "Submit one bounded advisory against the active correlated Steward claim and exact immutable review digest. Advice grants no proposal approval or execution authority.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "correlation_id",
+          "claim_token",
+          "fence",
+          "idempotency_key",
+          "response"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "claim_token": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36
+          },
+          "fence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "review_subject_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "response": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reasoning_exchange_status",
+      "description": "Read state, sanitized diagnostics, provenance and digests for one exact correlated exchange. Response contents are never returned.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "correlation_id"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "correlation_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_authorize_grace_experiment",
+      "title": "Authorize bounded Grace autonomy experiment",
+      "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution.",
+      "inputSchema": {
+        "properties": {
+          "objective_id": {
+            "description": "Exact approved Grace autonomy objective; other objectives are rejected.",
+            "title": "Objective Id",
+            "type": "string"
+          },
+          "objective_revision": {
+            "description": "Exact approved revision, currently 2.",
+            "title": "Objective Revision",
+            "type": "integer"
+          },
+          "explicit_steward_confirmation": {
+            "description": "Approve the complete 24-hour, $5 total experiment envelope with up to five recoveries and two Luna requests.",
+            "title": "Explicit Steward Confirmation",
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "description": "Stable key for this one standing authorization operation.",
+            "title": "Idempotency Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "objective_id",
+          "objective_revision",
+          "explicit_steward_confirmation",
+          "idempotency_key"
+        ],
+        "title": "comms5_authorize_grace_experimentArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "securitySchemes": [
+        {
+          "type": "oauth2",
+          "scopes": [
+            "comms5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "comms5_amend_grace_experiment",
+      "title": "Amend bounded Grace autonomy experiment",
+      "description": "One authenticated, audited amendment of the existing r2 experiment from two to four total Luna requests. The two new slots are restricted to one CME diagnostic recovery request and one performance evaluation request. Preserves consumed requests, recovery count, original $5 ceiling, objective scope, and exact expiration. Does not create a grant or reset counters.",
+      "inputSchema": {
+        "properties": {
+          "authorization_id": {"description": "Exact active authorization ID to amend.", "type": "string"},
+          "objective_id": {"description": "Exact original r2 objective.", "type": "string"},
+          "objective_revision": {"description": "Exact proposal revision, 2.", "type": "integer"},
+          "expected_max_luna_requests": {"description": "Current total request ceiling, 2.", "type": "integer"},
+          "new_max_luna_requests": {"description": "Amended total ceiling, 4; previously used requests remain counted.", "type": "integer"},
+          "expected_used_luna_requests": {"description": "Expected already reserved requests, 2.", "type": "integer"},
+          "expected_used_recoveries": {"description": "Expected already claimed recoveries, 4.", "type": "integer"},
+          "expected_cumulative_spend_usd": {"description": "Expected cumulative spend at approval, $0.04183460.", "type": "number"},
+          "total_budget_usd": {"description": "Unchanged experiment ceiling, $5.00.", "type": "number"},
+          "expires_at": {"description": "Exact original authorization expiry; this amendment does not extend it.", "type": "string"},
+          "explicit_steward_confirmation": {"description": "Approve this exact amendment through authenticated Steward transport.", "type": "boolean"},
+          "idempotency_key": {"description": "Stable one-use amendment key.", "type": "string"}
+        },
+        "required": ["authorization_id", "objective_id", "objective_revision", "expected_max_luna_requests", "new_max_luna_requests", "expected_used_luna_requests", "expected_used_recoveries", "expected_cumulative_spend_usd", "total_budget_usd", "expires_at", "explicit_steward_confirmation", "idempotency_key"],
+        "additionalProperties": false,
+        "title": "comms5_amend_grace_experimentArguments",
+        "type": "object"
+      },
+      "annotations": {"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+      "securitySchemes": [{"type": "oauth2", "scopes": ["comms5"]}]
+    },
+    {"name":"comms5_authorize_grace_supervision","title":"Authorize continuous Grace Luna supervision","description":"Authenticated Steward approval for exactly CME stall diagnostics/recovery guidance and Grace performance evaluation/feedback using the existing Luna exchange. New $5 operational budget, no fixed lifetime request count, $0.05 maximum reserved cost per request. Does not alter or transfer the r2 experiment grant. Omit expires_at for no time expiry, or provide an ISO-8601 expiry.","inputSchema":{"type":"object","title":"comms5_authorize_grace_supervisionArguments","properties":{"total_budget_usd":{"type":"number","const":5.0,"description":"Fixed new operational ceiling; prior experiment spending is not transferred."},"per_request_limit_usd":{"type":"number","const":0.05,"description":"Maximum reserved cost per Luna request."},"expires_at":{"type":"string","description":"Optional explicit ISO-8601 expiry. Omit for no time expiry."},"explicit_steward_confirmation":{"type":"boolean","const":true,"description":"Confirm this exact standing authorization."},"idempotency_key":{"type":"string","description":"Stable key for this approval; changed scope conflicts."}},"required":["total_budget_usd","per_request_limit_usd","explicit_steward_confirmation","idempotency_key"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]},
+    {"name":"comms5_grace_supervision_status","title":"Inspect Grace supervisory Luna authorization","description":"Return status, exact scope, actual spending, outstanding reservations, remaining budget, and request activity. Steward-authenticated read.","inputSchema":{"type":"object","title":"comms5_grace_supervision_statusArguments","properties":{},"required":[],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]},
+    {"name":"comms5_revoke_grace_supervision","title":"Revoke Grace supervisory Luna authorization","description":"Revoke the exact standing authorization and linked resident:grace Luna grant through the existing AuthorityRegistry. Requires authenticated Steward confirmation. Spending history is retained.","inputSchema":{"type":"object","title":"comms5_revoke_grace_supervisionArguments","properties":{"authorization_id":{"type":"string","description":"Exact standing authorization ID returned by the approval operation."},"explicit_steward_confirmation":{"type":"boolean","const":true,"description":"Confirm revocation of this exact authorization."},"idempotency_key":{"type":"string","description":"Stable key for this revocation."}},"required":["authorization_id","explicit_steward_confirmation","idempotency_key"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":true,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]},
+    {"name":"comms5_request_delegation_grant","title":"Request a reusable delegation grant","description":"Create a pending scoped grant with an optional fixed count and typed duration. Approval/rejection remains on the separate authenticated Steward control path.","inputSchema":{"type":"object","title":"comms5_request_delegation_grantArguments","properties":{"principal_id":{"type":"string","minLength":1,"maxLength":256,"description":"Target grantee principal, not the authenticated caller."},"action":{"type":"string","pattern":"^[A-Za-z0-9._:-]{1,128}$"},"scope_ref":{"type":"string","pattern":"^(project:[A-Za-z0-9._-]{1,128}|issue:[A-Za-z0-9._-]{1,128}/[A-Za-z0-9._-]{1,128}|host:[a-z][a-z0-9-]{1,62})$"},"policy_ref":{"type":"string","pattern":"^policy:[A-Za-z0-9._:-]{1,128}$"},"max_uses":{"oneOf":[{"type":"integer","minimum":1,"maximum":1000000},{"type":"null"}],"description":"Positive value is a total successful-use limit; null is unlimited."},"valid_until":{"type":"string","format":"date-time","maxLength":64},"duration_spec":{"oneOf":[{"type":"object","properties":{"unit":{"const":"indefinite"}},"required":["unit"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"minutes"},"value":{"type":"integer","minimum":1,"maximum":52560000}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"hours"},"value":{"type":"integer","minimum":1,"maximum":876000}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"days"},"value":{"type":"integer","minimum":1,"maximum":36500}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"weeks"},"value":{"type":"integer","minimum":1,"maximum":5200}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"months"},"value":{"type":"integer","minimum":1,"maximum":1200}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"quarters"},"value":{"type":"integer","minimum":1,"maximum":400}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"years"},"value":{"type":"integer","minimum":1,"maximum":100}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"custom"},"seconds":{"type":"integer","minimum":1,"maximum":3153600000}},"required":["unit","seconds"],"additionalProperties":false}],"description":"Typed activation duration; indefinite is explicit and max_uses remains independent."},"request_ref":{"type":"string","minLength":1,"maxLength":256,"description":"Bounded reason or source reference; it is not approval."},"idempotency_key":{"type":"string","minLength":1,"maxLength":200}},"required":["principal_id","action","scope_ref","policy_ref","request_ref","idempotency_key"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]},
+    {"name":"comms5_get_delegation_grant_status","title":"Get delegation grant status","description":"Read a bounded status record by request_id or grant_id. Exactly one identifier is required; visibility is enforced by the authenticated delegation service.","inputSchema":{"type":"object","title":"comms5_get_delegation_grant_statusArguments","properties":{"request_id":{"type":"string","minLength":1,"maxLength":128},"grant_id":{"type":"string","minLength":1,"maxLength":128}},"required":[],"additionalProperties":false},"annotations":{"readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]},
+    {"name":"comms5_revoke_delegation_grant","title":"Surrender your delegated grant","description":"Surrender only the authenticated caller's exact active delegated grant. No principal identity is accepted in the arguments; the backend derives and verifies the grantee from authenticated context.","inputSchema":{"type":"object","title":"comms5_revoke_delegation_grantArguments","properties":{"grant_id":{"type":"string","minLength":1,"maxLength":128},"reason_code":{"type":"string","pattern":"^[a-z0-9_]{1,64}$"},"idempotency_key":{"type":"string","minLength":1,"maxLength":200}},"required":["grant_id","idempotency_key"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":true,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]},
+    {"name":"comms5_request_delegation_grant_change","title":"Request a delegation grant change","description":"Request an audited extension, permission upgrade, or combined change. This creates a pending successor only; separate Steward approval is required.","inputSchema":{"type":"object","title":"comms5_request_delegation_grant_changeArguments","properties":{"grant_id":{"type":"string","minLength":1,"maxLength":128},"action":{"type":"string","pattern":"^[A-Za-z0-9._:-]{1,128}$"},"scope_ref":{"type":"string","pattern":"^(project:[A-Za-z0-9._-]{1,128}|issue:[A-Za-z0-9._-]{1,128}/[A-Za-z0-9._-]{1,128}|host:[a-z][a-z0-9-]{1,62})$"},"policy_ref":{"type":"string","pattern":"^policy:[A-Za-z0-9._:-]{1,128}$"},"max_uses":{"oneOf":[{"type":"integer","minimum":1,"maximum":1000000},{"type":"null"}],"description":"Positive value is a total successful-use limit; null is unlimited."},"valid_until":{"type":"string","format":"date-time","maxLength":64},"duration_spec":{"oneOf":[{"type":"object","properties":{"unit":{"const":"indefinite"}},"required":["unit"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"minutes"},"value":{"type":"integer","minimum":1,"maximum":52560000}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"hours"},"value":{"type":"integer","minimum":1,"maximum":876000}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"days"},"value":{"type":"integer","minimum":1,"maximum":36500}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"weeks"},"value":{"type":"integer","minimum":1,"maximum":5200}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"months"},"value":{"type":"integer","minimum":1,"maximum":1200}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"quarters"},"value":{"type":"integer","minimum":1,"maximum":400}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"years"},"value":{"type":"integer","minimum":1,"maximum":100}},"required":["unit","value"],"additionalProperties":false},{"type":"object","properties":{"unit":{"const":"custom"},"seconds":{"type":"integer","minimum":1,"maximum":3153600000}},"required":["unit","seconds"],"additionalProperties":false}],"description":"Typed activation duration; indefinite is explicit and max_uses remains independent."},"change_kind":{"type":"string","enum":["extend","upgrade","extend_upgrade"],"description":"Choose extension, permission upgrade, or one combined request."},"request_ref":{"type":"string","minLength":1,"maxLength":256,"description":"Bounded change reason; it is not approval."},"idempotency_key":{"type":"string","minLength":1,"maxLength":200}},"required":["grant_id","action","scope_ref","policy_ref","request_ref","idempotency_key"],"additionalProperties":false},"annotations":{"readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},"securitySchemes":[{"type":"oauth2","scopes":["comms5"]}]}
+  ],
+  "read_only_payloads": {
+    "comms5_contract_info": {
+      "contract": "riverview-comms-contract:5.0",
+      "surface": "Riverview_Comms_5",
+      "backward_compatible_with": "Riverview_Comms_4",
+      "breaking_change_policy": "major version only",
+      "authority": "projection_and_governed_ingress"
+    },
+    "comms5_help": {
+      "contract": {
+        "contract": "riverview-comms-contract:5.0",
+        "surface": "Riverview_Comms_5",
+        "backward_compatible_with": "Riverview_Comms_4",
+        "breaking_change_policy": "major version only",
+        "authority": "projection_and_governed_ingress"
+      },
+      "capabilities": {
+        "contract": "riverview-comms-contract:5.0",
+        "operations": [
+          {
+            "name": "contract_info",
+            "authorization": "READ_ONLY",
+            "required": [],
+            "description": "Return the Comms5 contract identity and compatibility policy."
+          },
+          {
+            "name": "help",
+            "authorization": "READ_ONLY",
+            "required": [],
+            "description": "Return machine-readable discovery, limits, errors, examples, and do-not guidance."
+          },
+          {
+            "name": "capabilities",
+            "authorization": "READ_ONLY",
+            "required": [],
+            "description": "List supported Comms5 operations and their authorization classes."
+          },
+          {
+            "name": "describe_operation",
+            "authorization": "READ_ONLY",
+            "required": [
+              "operation"
+            ],
+            "description": "Describe one public operation."
+          },
+          {
+            "name": "examples",
+            "authorization": "READ_ONLY",
+            "required": [],
+            "description": "Return one bounded example for every public operation."
+          },
+          {
+            "name": "submit_steward_seed",
+            "authorization": "DRAFT_WRITE",
+            "required": [
+              "seed_text",
+              "idempotency_key",
+              "client context"
+            ],
+            "description": "Create a bounded draft only; no objective or work is created."
+          },
+          {
+            "name": "store_specification",
+            "authorization": "DRAFT_WRITE",
+            "required": [
+              "content",
+              "summary",
+              "idempotency_key",
+              "client context"
+            ],
+            "optional": [
+              "formation_contract"
+            ],
+            "description": "Store a bounded authoritative specification reference; an optional typed formation_contract enables later Steward-approved Grace formation. read_only is inspection-only; bounded_write permits only the contract's explicitly bounded engineering write."
+          },
+          {
+            "name": "seed_status",
+            "authorization": "READ_ONLY",
+            "required": [
+              "seed_id"
+            ],
+            "description": "Return bounded seed, specification, objective linkage, and promotion status metadata."
+          },
+          {
+            "name": "seed_lineage",
+            "authorization": "READ_ONLY",
+            "required": [
+              "seed_id"
+            ],
+            "description": "Return bounded seed-to-result lineage across existing stores."
+          },
+          {
+            "name": "objective_status",
+            "authorization": "READ_ONLY",
+            "required": [
+              "objective_id"
+            ],
+            "description": "Return bounded objective, stages, authority, intent, and work metadata."
+          },
+          {
+            "name": "cme_status",
+            "authorization": "READ_ONLY",
+            "required": [],
+            "description": "Return the authoritative CME runtime projection."
+          },
+          {
+            "name": "recent_steward_submissions",
+            "authorization": "READ_ONLY",
+            "required": [],
+            "description": "Rediscover recent bounded governed submissions."
+          },
+          {
+            "name": "transport_probe",
+            "authorization": "READ_ONLY",
+            "required": [
+              "probe_id"
+            ],
+            "description": "Run one bounded read-only transport correlation probe and return its opaque probe ID and server request ID."
+          },
+          {
+            "name": "confirm_and_promote_seed",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "seed_id",
+              "explicit_steward_confirmation",
+              "idempotency_key",
+              "client context"
+            ],
+            "description": "Record Pat's explicit approval from the authenticated Steward-controlled Comms5 connector for one eligible exact specification-backed draft, bind durable bounded Steward authority to its exact specification version/hash, and create the canonical objective. Grace and downstream stages consume this state without repeated human approval; this operation does not execute work or bypass downstream gates. Client identity and body-supplied principal are not authority."
+          },
+          {
+            "name": "form_and_queue_work",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "objective_id",
+              "stage_id",
+              "authority_id",
+              "explicit_steward_confirmation",
+              "idempotency_key",
+              "client context"
+            ],
+            "description": "Consume one exact active Steward authority grant to form its stored typed engineering intent and enqueue exactly one idempotent codex.engineering.v1 work order. Scope, capability, repository, instruction, policy, and correlation are derived from the approved specification; this operation does not accept replacement scope or execute Codex."
+          },
+          {
+            "name": "revalidate_and_queue_work",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "work_order_id",
+              "explicit_steward_confirmation",
+              "idempotency_key",
+              "client context"
+            ],
+            "description": "Revalidate one preserved RIV-EXE-0008 stale-base failure and queue one successor attempt against the current verified descendant base. It preserves the original scope, authority, failed attempt, and exact work lineage; material drift remains blocked and requires renewed specification approval. This operation does not execute Codex."
+          },
+          {
+            "name": "cancel_draft",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "seed_id",
+              "reason",
+              "idempotency_key",
+              "explicit_steward_confirmation",
+              "client context"
+            ],
+            "description": "Append-only cancellation of a draft; it never cancels an objective or work order."
+          },
+          {
+            "name": "supersede_seed",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "seed_id",
+              "replacement_seed_id",
+              "reason",
+              "idempotency_key",
+              "explicit_steward_confirmation",
+              "client context"
+            ],
+            "description": "Append an old-draft-to-new-draft replacement relation; active objectives cannot be superseded."
+          },
+          {
+            "name": "resource_policy_status",
+            "authorization": "READ_ONLY",
+            "required": [],
+            "description": "Return the authoritative durable Codex resource policy and audit metadata."
+          },
+          {
+            "name": "set_resource_policy",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "mode",
+              "authenticated Steward transport"
+            ],
+            "description": "Change the durable Codex resource policy; client identity is not authority."
+          },
+          {
+            "name": "set_resource_policy_lock",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "locked",
+              "authenticated Steward transport"
+            ],
+            "description": "Lock or unlock durable resource policy against lower-authority changes."
+          },
+          {"name":"authorize_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["total_budget_usd","per_request_limit_usd","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Create the fixed $5 operational Luna budget and linked exact provider grant for CME diagnostics/recovery and Grace performance evaluation. No fixed request-count limit; existing r2 experiment is separate.","camrui_implementation_status":"IMPLEMENTED"},
+          {"name":"grace_supervision_status","authorization":"STEWARD-AUTHENTICATED_READ","required":["authenticated Steward transport"],"description":"Inspect authorization state, spending, outstanding reservations, and remaining budget.","camrui_implementation_status":"IMPLEMENTED"},
+          {"name":"revoke_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["authorization_id","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Revoke the exact linked standing grant and retain its audit history.","camrui_implementation_status":"IMPLEMENTED"},
+          {"name":"request_delegation_grant","authorization":"REQUEST_ONLY","required":["principal_id","action","scope_ref","policy_ref","request_ref","idempotency_key","authenticated Comms5 transport"],"optional":["max_uses","valid_until","duration_spec"],"description":"Create a pending request for supported project, issue, or exact host/action scope with count, duration, or both; no authority is activated.","authorization_operation":"comms5.delegation_grant.request","camrui_implementation_status":"PARTIALLY_IMPLEMENTED"},
+          {"name":"get_delegation_grant_status","authorization":"AUTHORIZED_REQUESTER_OR_STEWARD_READ","required":["exactly one request_id or grant_id","authenticated Comms5 transport"],"description":"Read bounded request or grant status visible to the authenticated principal.","authorization_operation":"comms5.delegation_grant.status.read","camrui_implementation_status":"PARTIALLY_IMPLEMENTED"},
+          {"name":"revoke_delegation_grant","authorization":"GRANTEE_SELF_SURRENDER","required":["grant_id","idempotency_key","authenticated grantee context"],"optional":["reason_code"],"description":"Surrender only the caller's own exact delegated grant.","authorization_operation":"comms5.delegation_grant.surrender","camrui_implementation_status":"PARTIALLY_IMPLEMENTED"},
+          {"name":"request_delegation_grant_change","authorization":"REQUEST_ONLY","required":["grant_id","action","scope_ref","policy_ref","request_ref","idempotency_key","authenticated Comms5 transport"],"optional":["max_uses","valid_until","duration_spec","change_kind"],"description":"Create a pending extension, permission upgrade, or combined change; no grant changes before Steward approval.","authorization_operation":"comms5.delegation_grant.change.request","camrui_implementation_status":"PARTIALLY_IMPLEMENTED"}
+        ],
+        "classifications": [
+          "internal",
+          "river"
+        ],
+        "limits": {
+          "max_seed_bytes": 8000,
+          "max_specification_bytes": 4194304,
+          "max_summary_bytes": 2000,
+          "max_page_size": 50
+        }
+      },
+      "operations": {
+        "contract_info": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "contract_info",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return the Comms5 contract identity and compatibility policy.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "help": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "help",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return machine-readable discovery, limits, errors, examples, and do-not guidance.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "capabilities": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "capabilities",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "List supported Comms5 operations and their authorization classes.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "describe_operation": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "describe_operation",
+          "authorization": "READ_ONLY",
+          "required": [
+            "operation"
+          ],
+          "description": "Describe one public operation.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "examples": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "examples",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return one bounded example for every public operation.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "submit_steward_seed": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "submit_steward_seed",
+          "authorization": "DRAFT_WRITE",
+          "required": [
+            "seed_text",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Create a bounded draft only; no objective or work is created.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "store_specification": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "store_specification",
+          "authorization": "DRAFT_WRITE",
+          "required": [
+            "content",
+            "summary",
+            "idempotency_key",
+            "client context"
+          ],
+          "optional": [
+            "formation_contract"
+          ],
+          "description": "Store a bounded authoritative specification reference; an optional typed formation_contract enables later Steward-approved Grace formation. read_only is inspection-only; bounded_write permits only the contract's explicitly bounded engineering write.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "seed_status": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "seed_status",
+          "authorization": "READ_ONLY",
+          "required": [
+            "seed_id"
+          ],
+          "description": "Return bounded seed, specification, objective linkage, and promotion status metadata.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "seed_lineage": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "seed_lineage",
+          "authorization": "READ_ONLY",
+          "required": [
+            "seed_id"
+          ],
+          "description": "Return bounded seed-to-result lineage across existing stores.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "objective_status": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "objective_status",
+          "authorization": "READ_ONLY",
+          "required": [
+            "objective_id"
+          ],
+          "description": "Return bounded objective, stages, authority, intent, and work metadata.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "cme_status": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "cme_status",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return the authoritative CME runtime projection.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "recent_steward_submissions": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "recent_steward_submissions",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Rediscover recent bounded governed submissions.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "transport_probe": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "transport_probe",
+          "authorization": "READ_ONLY",
+          "required": [
+            "probe_id"
+          ],
+          "description": "Run one bounded read-only transport correlation probe and return its opaque probe ID and server request ID.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "confirm_and_promote_seed": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "confirm_and_promote_seed",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "seed_id",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Record Pat's explicit approval from the authenticated Steward-controlled Comms5 connector for one eligible exact specification-backed draft, bind durable bounded Steward authority to its exact specification version/hash, and create the canonical objective. Grace and downstream stages consume this state without repeated human approval; this operation does not execute work or bypass downstream gates. Client identity and body-supplied principal are not authority.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "form_and_queue_work": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "form_and_queue_work",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "objective_id",
+            "stage_id",
+            "authority_id",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Consume one exact active Steward authority grant to form its stored typed engineering intent and enqueue exactly one idempotent codex.engineering.v1 work order. Scope, capability, repository, instruction, policy, and correlation are derived from the approved specification; this operation does not accept replacement scope or execute Codex.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "revalidate_and_queue_work": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "revalidate_and_queue_work",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "work_order_id",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Revalidate one preserved RIV-EXE-0008 stale-base failure and queue one successor attempt against the current verified descendant base. It preserves the original scope, authority, failed attempt, and exact work lineage; material drift remains blocked and requires renewed specification approval. This operation does not execute Codex.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "cancel_draft": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "cancel_draft",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "seed_id",
+            "reason",
+            "idempotency_key",
+            "explicit_steward_confirmation",
+            "client context"
+          ],
+          "description": "Append-only cancellation of a draft; it never cancels an objective or work order.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "supersede_seed": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "supersede_seed",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "seed_id",
+            "replacement_seed_id",
+            "reason",
+            "idempotency_key",
+            "explicit_steward_confirmation",
+            "client context"
+          ],
+          "description": "Append an old-draft-to-new-draft replacement relation; active objectives cannot be superseded.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "resource_policy_status": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "resource_policy_status",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return the authoritative durable Codex resource policy and audit metadata.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "set_resource_policy": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "set_resource_policy",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "mode",
+            "authenticated Steward transport"
+          ],
+          "description": "Change the durable Codex resource policy; client identity is not authority.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        },
+        "set_resource_policy_lock": {
+          "contract": "riverview-comms-contract:5.0",
+          "operation": "set_resource_policy_lock",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "locked",
+            "authenticated Steward transport"
+          ],
+          "description": "Lock or unlock durable resource policy against lower-authority changes.",
+          "response": "bounded JSON metadata; protected payloads are omitted",
+          "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+        }
+      },
+      "examples": {
+        "submit_steward_seed": {
+          "client_id": "example-agent",
+          "client_type": "local_ai",
+          "client_name": "Example Agent",
+          "client_version": "1.0",
+          "protocol_version": "riverview-comms-contract:5.0",
+          "authenticated_principal": "authorized-ai-session",
+          "correlation_id": "00000000-0000-4000-8000-000000000001",
+          "classification": "river",
+          "seed_text": "Bounded intent; see specification_id for full acceptance criteria.",
+          "idempotency_key": "example-seed-1"
+        },
+        "store_specification": {
+          "client_id": "example-agent",
+          "client_type": "local_ai",
+          "client_name": "Example Agent",
+          "client_version": "1.0",
+          "protocol_version": "riverview-comms-contract:5.0",
+          "authenticated_principal": "authorized-ai-session",
+          "correlation_id": "00000000-0000-4000-8000-000000000001",
+          "classification": "river",
+          "summary": "Bounded specification summary",
+          "content": "Full authoritative specification content",
+          "idempotency_key": "example-spec-1",
+          "formation_contract": {
+            "repository_identity": "ppow1/Riverview",
+            "repository_root": "A:/Riverview/repo",
+            "expected_base_sha": "0000000000000000000000000000000000000000",
+            "bounded_instruction": "Perform bounded read-only inspection.",
+            "allowed_paths": [
+              "AI_HINTS.md"
+            ],
+            "acceptance_criteria": [
+              "return structured evidence"
+            ],
+            "evidence_requirements": [
+              "exact Git HEAD"
+            ],
+            "capability_name": "codex.engineering.v1",
+            "action_type": "codex.engineering.v1",
+            "timeout_seconds": 300,
+            "write_policy": "read_only"
+          }
+        },
+        "bounded_write_store_specification": {
+          "client_id": "example-agent",
+          "client_type": "local_ai",
+          "client_name": "Example Agent",
+          "client_version": "1.0",
+          "protocol_version": "riverview-comms-contract:5.0",
+          "authenticated_principal": "authorized-ai-session",
+          "correlation_id": "00000000-0000-4000-8000-000000000001",
+          "classification": "river",
+          "summary": "Steward-approved bounded write example",
+          "content": "Create the one approved smoke-test document after explicit Steward approval.",
+          "idempotency_key": "example-spec-bounded-write-1",
+          "formation_contract": {
+            "repository_identity": "ppow1/Riverview",
+            "repository_root": "A:/Riverview/repo",
+            "expected_base_sha": "0000000000000000000000000000000000000000",
+            "bounded_instruction": "Create only docs/engineering-pipeline-smoke-test.md with the approved note; do not change any other path.",
+            "allowed_paths": [
+              "docs/engineering-pipeline-smoke-test.md"
+            ],
+            "acceptance_criteria": [
+              "the one approved file exists and no other path changes"
+            ],
+            "evidence_requirements": [
+              "base SHA, changed paths, validation result, reconciliation record"
+            ],
+            "capability_name": "codex.engineering.v1",
+            "action_type": "codex.engineering.v1",
+            "timeout_seconds": 300,
+            "write_policy": "bounded_write"
+          }
+        },
+        "transport_probe": {
+          "probe_id": "chatgpt-20260820-230000-001"
+        },
+        "seed_status": {
+          "seed_id": "00000000-0000-4000-8000-000000000002"
+        },
+        "seed_lineage": {
+          "seed_id": "00000000-0000-4000-8000-000000000002"
+        },
+        "objective_status": {
+          "objective_id": "00000000-0000-4000-8000-000000000003"
+        },
+        "confirm_and_promote_seed": {
+          "client_id": "example-agent",
+          "client_type": "local_ai",
+          "client_name": "Example Agent",
+          "client_version": "1.0",
+          "protocol_version": "riverview-comms-contract:5.0",
+          "authenticated_principal": "steward",
+          "correlation_id": "00000000-0000-4000-8000-000000000001",
+          "classification": "river",
+          "seed_id": "00000000-0000-4000-8000-000000000002",
+          "idempotency_key": "example-promotion-1",
+          "explicit_steward_confirmation": true
+        },
+        "revalidate_and_queue_work": {
+          "client_id": "example-agent",
+          "client_type": "local_ai",
+          "client_name": "Example Agent",
+          "client_version": "1.0",
+          "protocol_version": "riverview-comms-contract:5.0",
+          "authenticated_principal": "steward",
+          "correlation_id": "00000000-0000-4000-8000-000000000001",
+          "classification": "river",
+          "work_order_id": "00000000-0000-4000-8000-000000000005",
+          "idempotency_key": "example-stale-base-1",
+          "explicit_steward_confirmation": true
+        },
+        "cancel_draft": {
+          "client_id": "example-agent",
+          "client_type": "local_ai",
+          "client_name": "Example Agent",
+          "client_version": "1.0",
+          "protocol_version": "riverview-comms-contract:5.0",
+          "authenticated_principal": "steward",
+          "correlation_id": "00000000-0000-4000-8000-000000000001",
+          "classification": "river",
+          "seed_id": "00000000-0000-4000-8000-000000000002",
+          "reason": "Replaced by a reviewed draft",
+          "idempotency_key": "example-cancel-1",
+          "explicit_steward_confirmation": true
+        },
+        "supersede_seed": {
+          "client_id": "example-agent",
+          "client_type": "local_ai",
+          "client_name": "Example Agent",
+          "client_version": "1.0",
+          "protocol_version": "riverview-comms-contract:5.0",
+          "authenticated_principal": "steward",
+          "correlation_id": "00000000-0000-4000-8000-000000000001",
+          "classification": "river",
+          "seed_id": "00000000-0000-4000-8000-000000000002",
+          "replacement_seed_id": "00000000-0000-4000-8000-000000000004",
+          "reason": "Reviewed replacement draft",
+          "idempotency_key": "example-supersede-1",
+          "explicit_steward_confirmation": true
+        },
+        "steward_attention": {
+          "operation": "seed_lineage",
+          "field": "steward_attention_required",
+          "meaning": "true means do not self-promote or bypass the checkpoint"
+        }
+      },
+      "errors": [
+        "RIV-COMMS5-0001",
+        "RIV-COMMS5-0002",
+        "RIV-COMMS5-0003",
+        "RIV-COMMS5-0004",
+        "RIV-COMMS5-0005",
+        "RIV-COMMS5-0006",
+        "RIV-COMMS5-0007",
+        "RIV-COMMS5-0009",
+        "RIV-COMMS5-0014",
+        "RIV-COMMS5-0015",
+        "RIV-EXE-0008",
+        "RIV-SEC-0001"
+      ],
+      "do_not": [
+        "directly mutate PostgreSQL",
+        "bypass Steward confirmation",
+        "treat client identity as authority",
+        "invent objective/work state",
+        "retry mutations with a new idempotency key blindly",
+        "expose protected payloads",
+        "treat provider completion as global completion",
+        "cancel objectives or work through draft lifecycle operations",
+        "modify Comms/MCP authorization through ordinary ingress"
+      ]
+    },
+    "comms5_capabilities": {
+      "contract": "riverview-comms-contract:5.0",
+      "operations": [
+        {
+          "name": "contract_info",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return the Comms5 contract identity and compatibility policy."
+        },
+        {
+          "name": "help",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return machine-readable discovery, limits, errors, examples, and do-not guidance."
+        },
+        {
+          "name": "capabilities",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "List supported Comms5 operations and their authorization classes."
+        },
+        {
+          "name": "describe_operation",
+          "authorization": "READ_ONLY",
+          "required": [
+            "operation"
+          ],
+          "description": "Describe one public operation."
+        },
+        {
+          "name": "examples",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return one bounded example for every public operation."
+        },
+        {
+          "name": "submit_steward_seed",
+          "authorization": "DRAFT_WRITE",
+          "required": [
+            "seed_text",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Create a bounded draft only; no objective or work is created."
+        },
+        {
+          "name": "store_specification",
+          "authorization": "DRAFT_WRITE",
+          "required": [
+            "content",
+            "summary",
+            "idempotency_key",
+            "client context"
+          ],
+          "optional": [
+            "formation_contract"
+          ],
+          "description": "Store a bounded authoritative specification reference; an optional typed formation_contract enables later Steward-approved Grace formation. read_only is inspection-only; bounded_write permits only the contract's explicitly bounded engineering write."
+        },
+        {
+          "name": "revise_specification",
+          "authorization": "DRAFT_WRITE",
+          "required": [
+            "proposal_id",
+            "expected_revision",
+            "content",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Create one audited successor revision of the exact current DRAFT specification. Does not approve or promote it."
+        },
+        {
+          "name": "prepare_proposal_for_decision",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "proposal_id",
+            "expected_revision",
+            "expected_content_sha256",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Present one exact, digest-bound current proposal revision for explicit Steward decision. Records no approval or work authorization."
+        },
+        {
+          "name": "seed_status",
+          "authorization": "READ_ONLY",
+          "required": [
+            "seed_id"
+          ],
+          "description": "Return bounded seed, specification, objective linkage, and promotion status metadata."
+        },
+        {
+          "name": "seed_lineage",
+          "authorization": "READ_ONLY",
+          "required": [
+            "seed_id"
+          ],
+          "description": "Return bounded seed-to-result lineage across existing stores."
+        },
+        {
+          "name": "objective_status",
+          "authorization": "READ_ONLY",
+          "required": [
+            "objective_id"
+          ],
+          "description": "Return bounded objective, stages, authority, intent, and work metadata."
+        },
+        {
+          "name": "cme_status",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return the authoritative CME runtime projection."
+        },
+        {
+          "name": "recent_steward_submissions",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Rediscover recent bounded governed submissions."
+        },
+        {
+          "name": "transport_probe",
+          "authorization": "READ_ONLY",
+          "required": [
+            "probe_id"
+          ],
+          "description": "Run one bounded read-only transport correlation probe and return its opaque probe ID and server request ID."
+        },
+        {
+          "name": "confirm_and_promote_seed",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "seed_id",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Record Pat's explicit approval from the authenticated Steward-controlled Comms5 connector for one eligible exact specification-backed draft, bind durable bounded Steward authority to its exact specification version/hash, and create the canonical objective. Grace and downstream stages consume this state without repeated human approval; this operation does not execute work or bypass downstream gates. Client identity and body-supplied principal are not authority."
+        },
+        {
+          "name": "form_and_queue_work",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "objective_id",
+            "stage_id",
+            "authority_id",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Consume one exact active Steward authority grant to form its stored typed engineering intent and enqueue exactly one idempotent codex.engineering.v1 work order. Scope, capability, repository, instruction, policy, and correlation are derived from the approved specification; this operation does not accept replacement scope or execute Codex."
+        },
+        {
+          "name": "revalidate_and_queue_work",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "work_order_id",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "client context"
+          ],
+          "description": "Revalidate one preserved RIV-EXE-0008 stale-base failure and queue one successor attempt against the current verified descendant base. It preserves the original scope, authority, failed attempt, and exact work lineage; material drift remains blocked and requires renewed specification approval. This operation does not execute Codex."
+        },
+        {
+          "name": "cancel_draft",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "seed_id",
+            "reason",
+            "idempotency_key",
+            "explicit_steward_confirmation",
+            "client context"
+          ],
+          "description": "Append-only cancellation of a draft; it never cancels an objective or work order."
+        },
+        {
+          "name": "supersede_seed",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "seed_id",
+            "replacement_seed_id",
+            "reason",
+            "idempotency_key",
+            "explicit_steward_confirmation",
+            "client context"
+          ],
+          "description": "Append an old-draft-to-new-draft replacement relation; active objectives cannot be superseded."
+        },
+        {
+          "name": "resource_policy_status",
+          "authorization": "READ_ONLY",
+          "required": [],
+          "description": "Return the authoritative durable Codex resource policy and audit metadata."
+        },
+        {
+          "name": "set_resource_policy",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "mode",
+            "authenticated Steward transport"
+          ],
+          "description": "Change the durable Codex resource policy; client identity is not authority."
+        },
+        {
+          "name": "set_resource_policy_lock",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "locked",
+            "authenticated Steward transport"
+          ],
+          "description": "Lock or unlock durable resource policy against lower-authority changes."
+        },
+        {
+          "name": "authorize_grace_experiment",
+          "authorization": "STEWARD-GATED_WRITE",
+          "required": [
+            "objective_id",
+            "objective_revision",
+            "explicit_steward_confirmation",
+            "idempotency_key",
+            "authenticated Steward transport"
+          ],
+          "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution.",
+          "camrui_implementation_status": "IMPLEMENTED"
+          },
+          {
+            "name": "amend_grace_experiment",
+            "authorization": "STEWARD-GATED_WRITE",
+            "required": [
+              "authorization_id",
+              "objective_id",
+              "objective_revision",
+              "expected_max_luna_requests",
+              "new_max_luna_requests",
+              "expected_used_luna_requests",
+              "expected_used_recoveries",
+              "expected_cumulative_spend_usd",
+              "total_budget_usd",
+              "expires_at",
+              "explicit_steward_confirmation",
+              "idempotency_key",
+              "authenticated Steward transport"
+            ],
+            "description": "Amend only the existing r2 authorization from two to four total requests: one additional CME diagnostic recovery and one performance evaluation. Preserve consumed counts, recovery limit, cumulative $5 ceiling, objective scope, and expiry.",
+            "camrui_implementation_status": "IMPLEMENTED"
+        },
+        {"name":"authorize_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["total_budget_usd","per_request_limit_usd","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Create the fixed $5 operational Luna budget and linked exact provider grant for CME diagnostics/recovery and Grace performance evaluation. No fixed request-count limit; existing r2 experiment is separate.","camrui_implementation_status":"IMPLEMENTED"},
+        {"name":"grace_supervision_status","authorization":"STEWARD-AUTHENTICATED_READ","required":["authenticated Steward transport"],"description":"Inspect authorization state, spending, outstanding reservations, and remaining budget.","camrui_implementation_status":"IMPLEMENTED"},
+        {"name":"revoke_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["authorization_id","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Revoke the exact linked standing grant and retain its audit history.","camrui_implementation_status":"IMPLEMENTED"},
+        {"name":"request_delegation_grant","authorization":"REQUEST_ONLY","required":["principal_id","action","scope_ref","policy_ref","request_ref","idempotency_key","authenticated Comms5 transport"],"optional":["max_uses","valid_until","duration_spec"],"description":"Create a pending request for supported project, issue, or exact host/action scope with count, duration, or both; no authority is activated.","authorization_operation":"comms5.delegation_grant.request","camrui_implementation_status":"PARTIALLY_IMPLEMENTED"},
+        {"name":"get_delegation_grant_status","authorization":"AUTHORIZED_REQUESTER_OR_STEWARD_READ","required":["exactly one request_id or grant_id","authenticated Comms5 transport"],"description":"Read bounded request or grant status visible to the authenticated principal.","authorization_operation":"comms5.delegation_grant.status.read","camrui_implementation_status":"PARTIALLY_IMPLEMENTED"},
+        {"name":"revoke_delegation_grant","authorization":"GRANTEE_SELF_SURRENDER","required":["grant_id","idempotency_key","authenticated grantee context"],"optional":["reason_code"],"description":"Surrender only the caller's own exact delegated grant.","authorization_operation":"comms5.delegation_grant.surrender","camrui_implementation_status":"PARTIALLY_IMPLEMENTED"},
+        {"name":"request_delegation_grant_change","authorization":"REQUEST_ONLY","required":["grant_id","action","scope_ref","policy_ref","request_ref","idempotency_key","authenticated Comms5 transport"],"optional":["max_uses","valid_until","duration_spec","change_kind"],"description":"Create a pending extension, permission upgrade, or combined change; no grant changes before Steward approval.","authorization_operation":"comms5.delegation_grant.change.request","camrui_implementation_status":"PARTIALLY_IMPLEMENTED"}
+      ],
+      "classifications": [
+        "internal",
+        "river"
+      ],
+      "limits": {
+        "max_seed_bytes": 8000,
+        "max_specification_bytes": 4194304,
+        "max_summary_bytes": 2000,
+        "max_page_size": 50
+      }
+    },
+    "comms5_examples": {
+      "submit_steward_seed": {
+        "client_id": "example-agent",
+        "client_type": "local_ai",
+        "client_name": "Example Agent",
+        "client_version": "1.0",
+        "protocol_version": "riverview-comms-contract:5.0",
+        "authenticated_principal": "authorized-ai-session",
+        "correlation_id": "00000000-0000-4000-8000-000000000001",
+        "classification": "river",
+        "seed_text": "Bounded intent; see specification_id for full acceptance criteria.",
+        "idempotency_key": "example-seed-1"
+      },
+      "store_specification": {
+        "client_id": "example-agent",
+        "client_type": "local_ai",
+        "client_name": "Example Agent",
+        "client_version": "1.0",
+        "protocol_version": "riverview-comms-contract:5.0",
+        "authenticated_principal": "authorized-ai-session",
+        "correlation_id": "00000000-0000-4000-8000-000000000001",
+        "classification": "river",
+        "summary": "Bounded specification summary",
+        "content": "Full authoritative specification content",
+        "idempotency_key": "example-spec-1",
+        "formation_contract": {
+          "repository_identity": "ppow1/Riverview",
+          "repository_root": "A:/Riverview/repo",
+          "expected_base_sha": "0000000000000000000000000000000000000000",
+          "bounded_instruction": "Perform bounded read-only inspection.",
+          "allowed_paths": [
+            "AI_HINTS.md"
+          ],
+          "acceptance_criteria": [
+            "return structured evidence"
+          ],
+          "evidence_requirements": [
+            "exact Git HEAD"
+          ],
+          "capability_name": "codex.engineering.v1",
+          "action_type": "codex.engineering.v1",
+          "timeout_seconds": 300,
+          "write_policy": "read_only"
+        }
+      },
+      "bounded_write_store_specification": {
+        "client_id": "example-agent",
+        "client_type": "local_ai",
+        "client_name": "Example Agent",
+        "client_version": "1.0",
+        "protocol_version": "riverview-comms-contract:5.0",
+        "authenticated_principal": "authorized-ai-session",
+        "correlation_id": "00000000-0000-4000-8000-000000000001",
+        "classification": "river",
+        "summary": "Steward-approved bounded write example",
+        "content": "Create the one approved smoke-test document after explicit Steward approval.",
+        "idempotency_key": "example-spec-bounded-write-1",
+        "formation_contract": {
+          "repository_identity": "ppow1/Riverview",
+          "repository_root": "A:/Riverview/repo",
+          "expected_base_sha": "0000000000000000000000000000000000000000",
+          "bounded_instruction": "Create only docs/engineering-pipeline-smoke-test.md with the approved note; do not change any other path.",
+          "allowed_paths": [
+            "docs/engineering-pipeline-smoke-test.md"
+          ],
+          "acceptance_criteria": [
+            "the one approved file exists and no other path changes"
+          ],
+          "evidence_requirements": [
+            "base SHA, changed paths, validation result, reconciliation record"
+          ],
+          "capability_name": "codex.engineering.v1",
+          "action_type": "codex.engineering.v1",
+          "timeout_seconds": 300,
+          "write_policy": "bounded_write"
+        }
+      },
+      "transport_probe": {
+        "probe_id": "chatgpt-20260820-230000-001"
+      },
+      "seed_status": {
+        "seed_id": "00000000-0000-4000-8000-000000000002"
+      },
+      "seed_lineage": {
+        "seed_id": "00000000-0000-4000-8000-000000000002"
+      },
+      "objective_status": {
+        "objective_id": "00000000-0000-4000-8000-000000000003"
+      },
+      "confirm_and_promote_seed": {
+        "client_id": "example-agent",
+        "client_type": "local_ai",
+        "client_name": "Example Agent",
+        "client_version": "1.0",
+        "protocol_version": "riverview-comms-contract:5.0",
+        "authenticated_principal": "steward",
+        "correlation_id": "00000000-0000-4000-8000-000000000001",
+        "classification": "river",
+        "seed_id": "00000000-0000-4000-8000-000000000002",
+        "idempotency_key": "example-promotion-1",
+        "explicit_steward_confirmation": true
+      },
+      "revalidate_and_queue_work": {
+        "client_id": "example-agent",
+        "client_type": "local_ai",
+        "client_name": "Example Agent",
+        "client_version": "1.0",
+        "protocol_version": "riverview-comms-contract:5.0",
+        "authenticated_principal": "steward",
+        "correlation_id": "00000000-0000-4000-8000-000000000001",
+        "classification": "river",
+        "work_order_id": "00000000-0000-4000-8000-000000000005",
+        "idempotency_key": "example-stale-base-1",
+        "explicit_steward_confirmation": true
+      },
+      "cancel_draft": {
+        "client_id": "example-agent",
+        "client_type": "local_ai",
+        "client_name": "Example Agent",
+        "client_version": "1.0",
+        "protocol_version": "riverview-comms-contract:5.0",
+        "authenticated_principal": "steward",
+        "correlation_id": "00000000-0000-4000-8000-000000000001",
+        "classification": "river",
+        "seed_id": "00000000-0000-4000-8000-000000000002",
+        "reason": "Replaced by a reviewed draft",
+        "idempotency_key": "example-cancel-1",
+        "explicit_steward_confirmation": true
+      },
+      "supersede_seed": {
+        "client_id": "example-agent",
+        "client_type": "local_ai",
+        "client_name": "Example Agent",
+        "client_version": "1.0",
+        "protocol_version": "riverview-comms-contract:5.0",
+        "authenticated_principal": "steward",
+        "correlation_id": "00000000-0000-4000-8000-000000000001",
+        "classification": "river",
+        "seed_id": "00000000-0000-4000-8000-000000000002",
+        "replacement_seed_id": "00000000-0000-4000-8000-000000000004",
+        "reason": "Reviewed replacement draft",
+        "idempotency_key": "example-supersede-1",
+        "explicit_steward_confirmation": true
+      },
+      "steward_attention": {
+        "operation": "seed_lineage",
+        "field": "steward_attention_required",
+        "meaning": "true means do not self-promote or bypass the checkpoint"
+      },
+      "authorize_grace_experiment": {
+        "objective_id": "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2",
+        "objective_revision": 2,
+        "explicit_steward_confirmation": true,
+        "idempotency_key": "grace-autonomy-luna-r2-20261023"
+      },
+      "amend_grace_experiment": {
+        "authorization_id": "a38cb2cc-cbd1-5867-ac44-b2721935f324",
+        "objective_id": "objective:proposal:e8b3e6bb-b179-5c4a-90b1-5bf71dd3f7b4:r2",
+        "objective_revision": 2,
+        "expected_max_luna_requests": 2,
+        "new_max_luna_requests": 4,
+        "expected_used_luna_requests": 2,
+        "expected_used_recoveries": 4,
+        "expected_cumulative_spend_usd": 0.04183460,
+        "total_budget_usd": 5.0,
+        "expires_at": "2026-10-25T09:11:16.041229-04:00",
+        "explicit_steward_confirmation": true,
+        "idempotency_key": "grace-autonomy-luna-r2-amend-20261024"
+      },
+      "revise_specification": {
+        "proposal_id": "proposal:00000000-0000-4000-8000-000000000001",
+        "expected_revision": 1,
+        "content": {
+          "title": "Revised bounded specification",
+          "summary": "Updated summary",
+          "objective": "One bounded objective",
+          "scope": "Exact scope",
+          "proposed_approach": "Use existing governed lifecycle",
+          "constraints": [
+            "No execution authority"
+          ],
+          "acceptance_criteria": [
+            "Exact pass condition"
+          ],
+          "tags": [
+            "comms5"
+          ]
+        },
+        "idempotency_key": "example-revision-1",
+        "client_id": "example-agent",
+        "client_type": "cli",
+        "client_name": "Example CLI"
+      },
+      "prepare_proposal_for_decision": {
+        "proposal_id": "proposal:00000000-0000-4000-8000-000000000001",
+        "expected_revision": 1,
+        "expected_content_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "explicit_steward_confirmation": true,
+        "idempotency_key": "example-ready-1",
+        "client_id": "example-agent",
+        "client_type": "cli",
+        "client_name": "Example CLI"
+      },
+      "request_delegation_grant": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "max_uses": null,
+        "duration_spec": {"unit": "days", "value": 7},
+        "request_ref": "issue:343/seven-day-example",
+        "idempotency_key": "delegation-request-1"
+      },
+      "get_delegation_grant_status": {
+        "request_id": "delegation-request:example"
+      },
+      "revoke_delegation_grant": {
+        "grant_id": "grant:example",
+        "reason_code": "no_longer_needed",
+        "idempotency_key": "delegation-surrender-1"
+      },
+      "request_delegation_grant_change": {
+        "grant_id": "grant:example",
+        "action": "comms5.proposal.promote",
+        "scope_ref": "project:Riverview",
+        "policy_ref": "policy:delegation.v1",
+        "change_kind": "extend",
+        "duration_spec": {"unit": "weeks", "value": 1},
+        "request_ref": "issue:343/extension-example",
+        "idempotency_key": "delegation-change-1"
+      }
+    },
+    "describe:contract_info": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "contract_info",
+      "authorization": "READ_ONLY",
+      "required": [],
+      "description": "Return the Comms5 contract identity and compatibility policy.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:help": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "help",
+      "authorization": "READ_ONLY",
+      "required": [],
+      "description": "Return machine-readable discovery, limits, errors, examples, and do-not guidance.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:capabilities": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "capabilities",
+      "authorization": "READ_ONLY",
+      "required": [],
+      "description": "List supported Comms5 operations and their authorization classes.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:examples": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "examples",
+      "authorization": "READ_ONLY",
+      "required": [],
+      "description": "Return one bounded example for every public operation.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:submit_steward_seed": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "submit_steward_seed",
+      "authorization": "DRAFT_WRITE",
+      "required": [
+        "seed_text",
+        "idempotency_key",
+        "client context"
+      ],
+      "description": "Create a bounded draft only; no objective or work is created.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:store_specification": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "store_specification",
+      "authorization": "DRAFT_WRITE",
+      "required": [
+        "content",
+        "summary",
+        "idempotency_key",
+        "client context"
+      ],
+      "optional": [
+        "formation_contract"
+      ],
+      "description": "Store a bounded authoritative specification reference; an optional typed formation_contract enables later Steward-approved Grace formation. read_only is inspection-only; bounded_write permits only the contract's explicitly bounded engineering write.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:seed_status": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "seed_status",
+      "authorization": "READ_ONLY",
+      "required": [
+        "seed_id"
+      ],
+      "description": "Return bounded seed, specification, objective linkage, and promotion status metadata.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:seed_lineage": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "seed_lineage",
+      "authorization": "READ_ONLY",
+      "required": [
+        "seed_id"
+      ],
+      "description": "Return bounded seed-to-result lineage across existing stores.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:objective_status": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "objective_status",
+      "authorization": "READ_ONLY",
+      "required": [
+        "objective_id"
+      ],
+      "description": "Return bounded objective, stages, authority, intent, and work metadata.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:cme_status": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "cme_status",
+      "authorization": "READ_ONLY",
+      "required": [],
+      "description": "Return the authoritative CME runtime projection.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:recent_steward_submissions": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "recent_steward_submissions",
+      "authorization": "READ_ONLY",
+      "required": [],
+      "description": "Rediscover recent bounded governed submissions.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:transport_probe": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "transport_probe",
+      "authorization": "READ_ONLY",
+      "required": [
+        "probe_id"
+      ],
+      "description": "Run one bounded read-only transport correlation probe and return its opaque probe ID and server request ID.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:confirm_and_promote_seed": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "confirm_and_promote_seed",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "seed_id",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "client context"
+      ],
+      "description": "Record Pat's explicit approval from the authenticated Steward-controlled Comms5 connector for one eligible exact specification-backed draft, bind durable bounded Steward authority to its exact specification version/hash, and create the canonical objective. Grace and downstream stages consume this state without repeated human approval; this operation does not execute work or bypass downstream gates. Client identity and body-supplied principal are not authority.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:form_and_queue_work": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "form_and_queue_work",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "objective_id",
+        "stage_id",
+        "authority_id",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "client context"
+      ],
+      "description": "Consume one exact active Steward authority grant to form its stored typed engineering intent and enqueue exactly one idempotent codex.engineering.v1 work order. Scope, capability, repository, instruction, policy, and correlation are derived from the approved specification; this operation does not accept replacement scope or execute Codex.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:revalidate_and_queue_work": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "revalidate_and_queue_work",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "work_order_id",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "client context"
+      ],
+      "description": "Revalidate one preserved RIV-EXE-0008 stale-base failure and queue one successor attempt against the current verified descendant base. It preserves the original scope, authority, failed attempt, and exact work lineage; material drift remains blocked and requires renewed specification approval. This operation does not execute Codex.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:cancel_draft": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "cancel_draft",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "seed_id",
+        "reason",
+        "idempotency_key",
+        "explicit_steward_confirmation",
+        "client context"
+      ],
+      "description": "Append-only cancellation of a draft; it never cancels an objective or work order.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:supersede_seed": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "supersede_seed",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "seed_id",
+        "replacement_seed_id",
+        "reason",
+        "idempotency_key",
+        "explicit_steward_confirmation",
+        "client context"
+      ],
+      "description": "Append an old-draft-to-new-draft replacement relation; active objectives cannot be superseded.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:resource_policy_status": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "resource_policy_status",
+      "authorization": "READ_ONLY",
+      "required": [],
+      "description": "Return the authoritative durable Codex resource policy and audit metadata.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:set_resource_policy": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "set_resource_policy",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "mode",
+        "authenticated Steward transport"
+      ],
+      "description": "Change the durable Codex resource policy; client identity is not authority.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:set_resource_policy_lock": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "set_resource_policy_lock",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "locked",
+        "authenticated Steward transport"
+      ],
+      "description": "Lock or unlock durable resource policy against lower-authority changes.",
+      "response": "bounded JSON metadata; protected payloads are omitted",
+      "idempotency": "mutations require a stable idempotency_key; retrying with the same key is safe, changing it blindly is not"
+    },
+    "describe:authorize_grace_experiment": {
+      "operation": "authorize_grace_experiment",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "objective_id",
+        "objective_revision",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "authenticated Steward transport"
+      ],
+      "description": "Activate one exact, 24-hour Grace/Luna experiment authorization through the existing Steward authority registry. This single approval covers at most five reasoning recoveries and two Luna requests, with a $5 total ceiling including $0.04104010 prior spend. It does not authorize unrelated objectives or unrestricted Engineering execution."
+    },
+    "describe:amend_grace_experiment": {
+      "operation": "amend_grace_experiment",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "authorization_id",
+        "objective_id",
+        "objective_revision",
+        "expected_max_luna_requests",
+        "new_max_luna_requests",
+        "expected_used_luna_requests",
+        "expected_used_recoveries",
+        "expected_cumulative_spend_usd",
+        "total_budget_usd",
+        "expires_at",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "authenticated Steward transport"
+      ],
+      "description": "Append-only Steward authorization to increase the existing r2 grant from two to four total Luna requests, allocating the two new slots to one CME diagnostic recovery and one performance evaluation. No counters, budget, objective scope, recovery limit, or expiry are reset or widened.",
+      "response": "bounded authorization metadata and amendment event ID; no credentials or request content",
+      "idempotency": "One exact idempotency key; replay returns the same amendment and conflicts on changed scope."
+    },
+    "describe:revise_specification": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "revise_specification",
+      "authorization": "DRAFT_WRITE",
+      "required": [
+        "proposal_id",
+        "expected_revision",
+        "content",
+        "idempotency_key",
+        "client context"
+      ],
+      "description": "Create one audited successor revision of the exact current DRAFT specification. Does not approve, promote, create an objective, or authorize work.",
+      "response": "bounded proposal metadata including revision and digest; protected payloads are omitted",
+      "idempotency": "Stable idempotency_key is required; same key and content safely reuses its result."
+    },
+    "describe:prepare_proposal_for_decision": {
+      "contract": "riverview-comms-contract:5.0",
+      "operation": "prepare_proposal_for_decision",
+      "authorization": "STEWARD-GATED_WRITE",
+      "required": [
+        "proposal_id",
+        "expected_revision",
+        "expected_content_sha256",
+        "explicit_steward_confirmation",
+        "idempotency_key",
+        "client context"
+      ],
+      "description": "Advance the exact current DRAFT revision to READY_FOR_STEWARD_DECISION through the existing audited state machine. Does not approve, promote, or queue work.",
+      "response": "bounded proposal metadata including revision and digest; protected payloads are omitted",
+      "idempotency": "Stable idempotency_key is required; same key is safe to replay."
+    },
+    "describe:authorize_grace_supervision": {"contract":"riverview-comms-contract:5.0","operation":"authorize_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["total_budget_usd","per_request_limit_usd","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Create the fixed $5 operational Luna budget and linked exact provider grant for CME diagnostics/recovery and Grace performance evaluation. No fixed request-count limit; existing r2 experiment is separate.","response":"bounded authorization ID, linked authority grant ID, exact scope, financial ceiling, and optional expiry; no secrets or request content","idempotency":"replay with the same key returns the existing grant; changed scope conflicts"},
+    "describe:grace_supervision_status": {"contract":"riverview-comms-contract:5.0","operation":"grace_supervision_status","authorization":"STEWARD-AUTHENTICATED_READ","required":["authenticated Steward transport"],"description":"Inspect authorization state, spending, outstanding reservations, and remaining budget.","response":"authorization status, exact-spend accounting, outstanding reservations, and remaining budget"},
+    "describe:revoke_grace_supervision": {"contract":"riverview-comms-contract:5.0","operation":"revoke_grace_supervision","authorization":"STEWARD-GATED_WRITE","required":["authorization_id","explicit_steward_confirmation","idempotency_key","authenticated Steward transport"],"description":"Revoke the exact linked standing grant and retain its audit history.","response":"revocation status and authorization ID; audit history retained","idempotency":"one stable key for this revoke transition"},
+    "describe:request_delegation_grant": {"contract":"riverview-comms-contract:5.0","operation":"request_delegation_grant","authorization":"REQUEST_ONLY","required":["principal_id","action","scope_ref","policy_ref","request_ref","idempotency_key"],"description":"Submit a scoped request with an optional count limit and typed duration; no authority is activated.","response":"request_id, immutable request digest, pending status; no credential or active grant","idempotency":"same key and identical request reuses the same pending record; changed content conflicts"},
+    "describe:get_delegation_grant_status": {"contract":"riverview-comms-contract:5.0","operation":"get_delegation_grant_status","authorization":"AUTHORIZED_REQUESTER_OR_STEWARD_READ","required":["exactly one request_id or grant_id"],"description":"Read one request or grant visible to its authenticated requester/grantee or to a Steward.","response":"bounded request/grant status; no credential data","idempotency":"same key and identical request reuses the same pending record; changed content conflicts"},
+    "describe:revoke_delegation_grant": {"contract":"riverview-comms-contract:5.0","operation":"revoke_delegation_grant","authorization":"GRANTEE_SELF_SURRENDER","required":["grant_id","idempotency_key"],"description":"Surrender only the authenticated caller's own delegated grant.","response":"surrender status and grant ID; audit history retained","idempotency":"same key and identical request reuses the same pending record; changed content conflicts"},
+    "describe:request_delegation_grant_change": {"contract":"riverview-comms-contract:5.0","operation":"request_delegation_grant_change","authorization":"REQUEST_ONLY","required":["grant_id","action","scope_ref","policy_ref","request_ref","idempotency_key"],"description":"Request an audited extension, permission upgrade, or combined change; no existing grant is altered before separate Steward approval.","response":"request ID, immutable change digest, pending status; existing grant unchanged","idempotency":"same key and identical request reuses the same pending record; changed content conflicts"}
+  }
+}

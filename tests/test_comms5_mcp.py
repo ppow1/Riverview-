@@ -1,12 +1,13 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.6
+File Revision: 1.1.7
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify transport probes return caller and dashboard correlation evidence and reject unauthenticated direct use.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify the Steward queue request uses the attested dashboard operation bridge and preserves its truthful queued state.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Verify the 25-tool catalog, preserved legacy catalog, and authenticated reasoning bridge dispatch.
+Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Verify command tools and restored direct-dispatch catalog on the generalized delegation baseline.
 """
 
 import hashlib
@@ -42,8 +43,11 @@ class Comms5MCPTests(unittest.TestCase):
         canonical = json.dumps(catalog["tools"][:21], separators=(",", ":"), ensure_ascii=False).encode()
         self.assertEqual(hashlib.sha256(canonical).hexdigest(), "d13698b1ad415d152f481c1a5360166ef1519b4ebd74944f0836f3341701a807")
         result = app().handle(rpc("tools/list"))["result"]["tools"]
-        self.assertEqual(len(result), 36)
+        self.assertEqual(len(result), 39)
         self.assertIn("comms5_authorize_grace_experiment", [tool["name"] for tool in result])
+        self.assertIn("comms5_submit_direct_engineering_task", [tool["name"] for tool in result])
+        self.assertIn("comms5_command_submit", [tool["name"] for tool in result])
+        self.assertIn("comms5_command_status", [tool["name"] for tool in result])
         self.assertEqual([tool["name"] for tool in result], [tool["name"] for tool in catalog["tools"]])
         exchange_names = ["reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
             "reasoning_exchange_submit_response", "reasoning_exchange_status"]
@@ -84,7 +88,7 @@ class Comms5MCPTests(unittest.TestCase):
         help_result = application.handle(rpc("tools/call", {"name": "comms5_help", "arguments": {}}))
         help_value = json.loads(help_result["result"]["content"][0]["text"])
         self.assertEqual(help_value["contract"]["contract"], "riverview-comms-contract:5.0")
-        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 27)
+        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 30)
         capabilities = application.handle(rpc("tools/call", {"name": "comms5_capabilities", "arguments": {}}))
         capability_value = json.loads(capabilities["result"]["content"][0]["text"])
         self.assertEqual(sum(op["camrui_implementation_status"] == "IMPLEMENTED" for op in capability_value["operations"]), 5)
@@ -117,6 +121,35 @@ class Comms5MCPTests(unittest.TestCase):
         extra = application.handle(rpc("tools/call", {"name": "comms5_contract_info", "arguments": {"unexpected": True}}))
         self.assertEqual(missing["error"]["code"], -32602)
         self.assertEqual(extra["error"]["code"], -32602)
+
+    def test_command_tools_accept_only_fixed_operations_and_authenticated_steward_route(self):
+        application = app()
+        missing_grant = application.handle(rpc("tools/call", {
+            "name": "comms5_command_submit", "arguments": {
+                "operation": "powershell_identity", "idempotency_key": "acceptance-1"}}))
+        self.assertEqual(missing_grant["error"]["code"], -32602)
+        arbitrary = application.handle(rpc("tools/call", {
+            "name": "comms5_command_submit", "arguments": {
+                "operation": "powershell -Command whoami", "execution_grant_id": "grant-1",
+                "idempotency_key": "acceptance-1"}}))
+        self.assertEqual(arbitrary["error"]["code"], -32602)
+
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("a" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            operation = {"status": "completed", "executed": True, "execution_id": "exec-1"}
+            with patch.object(backend, "_post_operation", return_value=operation) as dispatch:
+                authorized = backend.call_authenticated("comms5_command_submit", {
+                    "operation": "powershell_identity", "execution_grant_id": "grant-1",
+                    "idempotency_key": "acceptance-1"}, principal="steward")
+                self.assertEqual(authorized["execution_id"], "exec-1")
+                dispatch.assert_called_once_with("comms5_command_submit", {
+                    "operation": "powershell_identity", "execution_grant_id": "grant-1",
+                    "idempotency_key": "acceptance-1"})
+            with self.assertRaises(PermissionError):
+                backend.call_authenticated("comms5_command_submit", {}, principal="provider")
 
     def test_initialization_versions_and_notifications(self):
         application = app()
@@ -381,7 +414,7 @@ class Comms5MCPTests(unittest.TestCase):
             with urlopen(request, timeout=2) as response:
                 result = json.loads(response.read())
                 self.assertEqual(response.status, 200)
-            self.assertEqual(len(result["result"]["tools"]), 36)
+            self.assertEqual(len(result["result"]["tools"]), 39)
         finally:
             server.shutdown()
             server.server_close()
