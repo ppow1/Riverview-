@@ -547,9 +547,55 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 35)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 39)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(35 - len(status), 0)
+        self.assertEqual(39 - len(status), 0)
+
+    def test_delegation_tools_route_to_authenticated_dashboard_operation(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from riverview_core.comms5.server import Comms5Application
+        from riverview_core.comms5.dashboard_backend import DashboardReadBackend
+
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("g" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            delegation_tools = {
+                "comms5_request_delegation_grant",
+                "comms5_get_delegation_grant_status",
+                "comms5_revoke_delegation_grant",
+                "comms5_request_delegation_grant_change",
+            }
+            self.assertTrue(delegation_tools <= backend.supported_tools)
+            self.assertTrue(all(backend.IMPLEMENTATION_STATUS[name] == "IMPLEMENTED"
+                                for name in delegation_tools))
+            application = Comms5Application("x" * 48, backend=backend)
+            arguments = {
+                "principal_id": "steward:camrui",
+                "action": "comms5.operations.non_destructive.v1",
+                "scope_ref": "project:Riverview",
+                "policy_ref": "policy:delegation.v1",
+                "duration_spec": {"unit": "days", "value": 7},
+                "request_ref": "seven-day unlimited grant test",
+                "idempotency_key": "seven-day-unlimited-grant-test",
+            }
+            with patch.object(backend, "_post_operation", return_value={
+                    "status": "pending", "request_id": "delegation-request:test"}) as post:
+                result = application.handle({"jsonrpc": "2.0", "id": 1,
+                    "method": "tools/call", "params": {
+                        "name": "comms5_request_delegation_grant",
+                        "arguments": arguments}}, principal="steward")
+            post.assert_called_once_with("comms5_request_delegation_grant", arguments)
+            self.assertEqual(result["result"]["structuredContent"]["status"], "pending")
+            denied = application.handle({"jsonrpc": "2.0", "id": 2,
+                "method": "tools/call", "params": {
+                    "name": "comms5_request_delegation_grant",
+                    "arguments": arguments}}, principal="provider")
+            self.assertEqual(denied["result"]["structuredContent"]["status"],
+                             "NOT_AUTHORIZED")
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler

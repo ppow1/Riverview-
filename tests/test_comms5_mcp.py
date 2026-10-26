@@ -54,6 +54,10 @@ class Comms5MCPTests(unittest.TestCase):
         exchange_names = ["reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
             "reasoning_exchange_submit_response", "reasoning_exchange_status"]
         by_name = {tool["name"]: tool for tool in result}
+        grant_schema = by_name["comms5_request_delegation_grant"]["inputSchema"]
+        self.assertIn("duration_spec", grant_schema["properties"])
+        self.assertTrue(any(option.get("type") == "null"
+                            for option in grant_schema["properties"]["max_uses"]["oneOf"]))
         self.assertTrue(all(tool["securitySchemes"] == [{"type": "oauth2", "scopes": ["comms5"]}] for tool in result))
         from riverview_core.resident_execution.external_reasoning_mcp import ExternalReasoningMCPAdapter
         shared = {tool["name"]: tool["inputSchema"] for tool in ExternalReasoningMCPAdapter.tools()}

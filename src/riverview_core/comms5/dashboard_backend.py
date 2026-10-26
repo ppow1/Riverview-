@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
@@ -10,6 +10,8 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Route stale-base recovery and durable worker policy operations through the existing authenticated operation endpoint.
 # Changed: 2026-10-17 UTC | RV-COMMS5-PR100-CORRELATION-HEADER-20261017 | Keep ordinary status reads compatible with responses lacking optional request-correlation headers.
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Allow only the four review-exchange names through the existing attested Steward dashboard operation route.
+# Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Route fixed read-only command tools and preserve direct Engineering dispatch in the authenticated Comms5 surface.
+# Changed: 2026-10-26 UTC | C1-COMMS5-DELEGATION-ROUTE | Route the four generalized delegation operations through the existing authenticated Dashboard operation contract.
 # Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Register host-scoped task command submit/status operations.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
@@ -52,6 +54,8 @@ _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_revoke_grace_supervision",
     "comms5_submit_direct_engineering_task",
     "comms5_command_submit", "comms5_command_status",
+    "comms5_request_delegation_grant", "comms5_get_delegation_grant_status",
+    "comms5_revoke_delegation_grant", "comms5_request_delegation_grant_change",
     "comms5_command_task_submit", "comms5_command_task_status",
     "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
     "reasoning_exchange_submit_response", "reasoning_exchange_status",
@@ -110,6 +114,10 @@ class DashboardReadBackend:
         "comms5_submit_direct_engineering_task": "IMPLEMENTED",
         "comms5_command_submit": "IMPLEMENTED",
         "comms5_command_status": "IMPLEMENTED",
+        "comms5_request_delegation_grant": "IMPLEMENTED",
+        "comms5_get_delegation_grant_status": "IMPLEMENTED",
+        "comms5_revoke_delegation_grant": "IMPLEMENTED",
+        "comms5_request_delegation_grant_change": "IMPLEMENTED",
         "comms5_command_task_submit": "IMPLEMENTED",
         "comms5_command_task_status": "IMPLEMENTED",
         "reasoning_exchange_list_requests": "IMPLEMENTED",
