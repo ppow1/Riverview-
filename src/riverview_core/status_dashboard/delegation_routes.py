@@ -1,12 +1,13 @@
 # Riverview~ Controlled Source
 # File: src/riverview_core/status_dashboard/delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.1.0
+# Revision: 1.1.1
+# Changed: 2026-10-26 UTC | RV-WEBSITE-ISOLATED-DELEGATION-ACCEPTANCE | Bind authenticated account Steward to the protected canonical Steward token without a production-ID literal.
 # Purpose: Route authenticated Steward delegation and fixed service principal registration requests
 # Execution Model: Same-origin request-driven API
 # Observability: Structured safe status/error codes; no credentials in responses
 # Dependencies: Existing account-session/CSRF validation and protected delegation adapter
-# Authority: Steward role, steward:camrui binding, and authority.grant institution scope
+# Authority: authenticated Steward identity bound to the protected canonical principal and exact institution grant
 # Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Expose bounded reads and canonical grant revocation.
 # Changed: 2026-10-26 UTC | RV-PR342-FINITE-USE-WITHOUT-EXPIRY | Permit a finite-use-only GPU delegation request through the canonical bounded-grant policy.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Require institution-scoped identity.manage and explicit exact-name confirmation for service registration.
@@ -50,7 +51,8 @@ def _steward_context(handler, action):
     identity = getattr(handler, "_account_identity", None)
     if (not getattr(handler, "_account_cookie_authenticated", False) or not identity or
             "steward" not in identity.get("roles", ()) or
-            identity.get("authority_principal_id") != "steward:camrui"):
+            not isinstance(identity.get("authority_principal_id"), str) or
+            not identity["authority_principal_id"]):
         raise PermissionError("authenticated_steward_required")
     operations = getattr(handler.server, "_comms5_operations", None)
     adapter = getattr(operations, "delegation_grant_requests", None) if operations else None
@@ -68,7 +70,8 @@ def _steward_context(handler, action):
         if isinstance(exc, AuthorityDenied):
             raise PermissionError("steward_authority_denied") from None
         raise RuntimeError("delegation_authority_unavailable") from None
-    if (principal_id != "steward:camrui" or actor.get("principal_id") != principal_id or
+    if (identity["authority_principal_id"] != principal_id or
+            actor.get("principal_id") != principal_id or
             actor.get("principal_kind") != "steward"):
         raise PermissionError("steward_authority_denied")
     return principal_id, registry, adapter
@@ -241,10 +244,8 @@ def _create_request(handler):
             idempotency_key=idempotency_key)
     if kind == "comms5_codex":
         if (host_id is not None or action != DELEGATED_ACTION or max_uses is not None
-                or valid_until is None):
+                or valid_until is not None):
             raise ValueError("delegation_request_policy_not_supported")
-        if valid_until > datetime.now(timezone.utc) + timedelta(days=1):
-            raise ValueError("delegation_request_policy_maximum_expiry_24h")
         operations = getattr(handler.server, "_comms5_operations", None)
         adapter = getattr(operations, "delegation_grant_requests", None) if operations else None
         if (not operations or "comms5_submit_direct_engineering_task" not in
@@ -253,7 +254,8 @@ def _create_request(handler):
             raise ValueError("delegation_request_target_unavailable")
         return adapter.request_grant(requester_id=principal_id, principal_id="service:chatgpt",
             action=action, scope_ref=DELEGATED_PROJECT_SCOPE, policy_ref=DELEGATED_POLICY,
-            request_ref=data["purpose"].strip(), max_uses=None, valid_until=valid_until,
+            request_ref=data["purpose"].strip(), max_uses=None, valid_until=None,
+            duration_spec={"unit":"hours", "value":24},
             idempotency_key=idempotency_key)
     raise ValueError("delegation_request_type_unavailable")
 
@@ -274,8 +276,21 @@ def dispatch(handler, parsed, request_id):
     identity = getattr(handler, "_account_identity", None)
     if (not getattr(handler, "_account_cookie_authenticated", False) or not identity or
             "steward" not in identity.get("roles", ()) or
-            identity.get("authority_principal_id") != "steward:camrui"):
+            not isinstance(identity.get("authority_principal_id"), str) or
+            not identity["authority_principal_id"]):
         handler._error(403, "authenticated_steward_required", request_id)
+        return True
+    # Bind every list/detail/revoke path to the protected canonical Steward
+    # represented by the signed-in account, including isolated acceptance
+    # principals. The production token remains steward:camrui; test tokens
+    # live only in their disposable authority schema.
+    try:
+        _steward_context(handler, "authority.grant")
+    except PermissionError:
+        handler._error(403, "steward_authority_denied", request_id)
+        return True
+    except RuntimeError:
+        handler._error(503, "delegation_authority_unavailable", request_id)
         return True
     if handler.command in {"GET", "HEAD"} and parsed.path == _OPTIONS:
         try:
@@ -293,8 +308,6 @@ def dispatch(handler, parsed, request_id):
             if data != {"confirmation": "REGISTER service:chatgpt"}:
                 raise ValueError("explicit_registration_confirmation_required")
             principal_id, _, adapter = _steward_context(handler, "identity.manage")
-            if principal_id != "steward:camrui":
-                raise PermissionError("steward_authority_denied")
             result = adapter.register_chatgpt_service_principal()
             handler._json(201 if result.get("status") == "registered" else 200,
                           result, request_id)

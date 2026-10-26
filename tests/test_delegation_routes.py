@@ -1,13 +1,14 @@
 # Riverview~ Controlled Source
 # File: tests/test_delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Verify narrow Steward delegation API routing and composite-source overlay
 # Execution Model: Local unittest with fake account and authority adapters
 # Observability: unittest case names, counts and exit status
 # Dependencies: Python standard library and isolated Riverview test modules
 # Authority: Synthetic Steward identity and fake canonical registry only
 # Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Cover endpoint method/identity fences and patch idempotence.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Cover isolated Steward principal binding, canonical projection and 24-hour activation policy.
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # History: Initial controlled source
 import subprocess
@@ -279,6 +280,40 @@ class DelegationRequestCreationTests(unittest.TestCase):
         dispatch(denied, urlsplit(path), "r")
         self.assertEqual(denied.response[0], 403)
 
+    def test_isolated_steward_identity_is_bound_to_its_canonical_authority(self):
+        """The reserved browser persona can use a disposable canonical Steward identity."""
+        class IsolatedRegistry(_Registry):
+            def authorize(self, token, action, scope):
+                self.required = (action, scope)
+                if action not in {"authority.grant", "identity.manage"} or scope != "institution":
+                    from riverview_core.institutional_authority.registry import AuthorityDenied
+                    raise AuthorityDenied("missing isolated Steward grant")
+                return {"principal_id":"steward:test", "principal_kind":"steward"}
+
+        registry = IsolatedRegistry()
+        adapter = _Adapter(registry=registry)
+        adapter._authenticated_steward = lambda: "steward:test"
+        adapter.register_chatgpt_service_principal = lambda: {
+            "status":"registered", "principal_id":"service:chatgpt",
+            "principal_kind":"service", "credential_stored":True}
+        handler = _Handler(adapter, identity={"roles":["steward"],
+                            "authority_principal_id":"steward:test"},
+                           body={"confirmation":"REGISTER service:chatgpt"})
+        handler.command = "POST"
+        path = "/api/v1/steward/service-principals/chatgpt/register"
+        self.assertTrue(dispatch(handler, urlsplit(path), "isolated"))
+        self.assertEqual(handler.response[0], 201)
+        self.assertNotIn("credential", handler.response[1])
+        self.assertEqual(registry.required, ("identity.manage", "institution"))
+
+        # The same authority token cannot be paired with a different account principal.
+        mismatched = _Handler(adapter, identity={"roles":["steward"],
+                               "authority_principal_id":"steward:other"},
+                              body={"confirmation":"REGISTER service:chatgpt"})
+        mismatched.command = "POST"
+        self.assertTrue(dispatch(mismatched, urlsplit(path), "isolated-mismatch"))
+        self.assertEqual(mismatched.response[0], 403)
+
     def test_request_submission_is_pending_exact_scope_and_requires_steward_authority(self):
         registry=_RequestRegistry(); handler=self.handler(registry,self.body())
         with tempfile.TemporaryDirectory() as root:
@@ -351,7 +386,7 @@ class DelegationRequestCreationTests(unittest.TestCase):
         handler=self.handler(registry,{
             "authorization_type_id":"comms5_codex","action":"comms5.operations.non_destructive.v1",
             "purpose":"Allow the existing Comms5 Codex task submission path",
-            "valid_until":(datetime.now(timezone.utc)+timedelta(hours=12)).isoformat(),
+            "valid_until":None,
             "max_uses":None,"idempotency_key":"codex-delegation-key-0001"})
         handler.server._comms5_operations=SimpleNamespace(
             delegation_grant_requests=adapter,
@@ -364,6 +399,8 @@ class DelegationRequestCreationTests(unittest.TestCase):
         self.assertEqual(adapter.created[0]["principal_id"],"service:chatgpt")
         self.assertEqual(adapter.created[0]["scope_ref"],"project:Riverview")
         self.assertEqual(adapter.created[0]["max_uses"],None)
+        self.assertIsNone(adapter.created[0]["valid_until"])
+        self.assertEqual(adapter.created[0]["duration_spec"],{"unit":"hours","value":24})
 
     def test_comms5_codex_target_is_not_requestable_without_registered_identity(self):
         class DelegationAdapter:
@@ -375,7 +412,7 @@ class DelegationRequestCreationTests(unittest.TestCase):
         registry=_RequestRegistry(); handler=self.handler(registry,{
             "authorization_type_id":"comms5_codex","action":"comms5.operations.non_destructive.v1",
             "purpose":"Allow the existing Comms5 Codex task submission path",
-            "valid_until":(datetime.now(timezone.utc)+timedelta(hours=12)).isoformat(),
+            "valid_until":None,
             "max_uses":None,"idempotency_key":"codex-delegation-key-0002"})
         handler.server._comms5_operations=SimpleNamespace(
             delegation_grant_requests=DelegationAdapter(registry),
@@ -430,6 +467,21 @@ class DelegationRequestCreationTests(unittest.TestCase):
 
 
 class DelegationProjectionTests(unittest.TestCase):
+    def test_isolated_steward_can_read_only_its_matching_canonical_projection(self):
+        class IsolatedRegistry(_Registry):
+            def _require(self, cur, token, action, scope):
+                self.required = (action, scope)
+                return {"principal_kind":"steward", "principal_id":"steward:test"}
+
+        registry = IsolatedRegistry()
+        adapter = _Adapter(registry=registry)
+        adapter._authenticated_steward = lambda: "steward:test"
+        requests = list_requests(adapter, status="pending", limit=10)
+        grants = list_grants(adapter, state="all", limit=10)
+        self.assertEqual(requests["items"][0]["request_id"], "delegation-request:test-1")
+        self.assertEqual(grants["items"][0]["grant_id"], "grant:test-1")
+        self.assertEqual(registry.required, ("authority.grant", "institution"))
+
     def test_pending_projection_includes_exact_hash_scope_and_audit_event(self):
         adapter = _Adapter()
         result = list_requests(adapter, status="pending", limit=10)
@@ -452,7 +504,8 @@ class DelegationProjectionTests(unittest.TestCase):
             self.assertIn("LIMIT %s", query)
 
     def test_registry_requires_steward_and_revoke_requires_confirmation(self):
-        with self.assertRaises(PermissionError):
+        from riverview_core.institutional_authority.registry import AuthorityDenied
+        with self.assertRaises((PermissionError, AuthorityDenied)):
             list_grants(_Adapter("resident"), state="all")
         with self.assertRaisesRegex(ValueError, "explicit_confirmation_required"):
             revoke_grant(_Adapter(), "grant:test-1", confirm=False)

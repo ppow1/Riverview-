@@ -1,7 +1,8 @@
 # Riverview~ Controlled Source
 # File: src/riverview_core/status_dashboard/delegation_projection.py
 # Component: STEWARD-DELEGATION-APPROVAL-PROJECTION
-# Revision: 1.0.0
+# Revision: 1.1.0
+# Changed: 2026-10-26 UTC | RV-WEBSITE-ISOLATED-DELEGATION-ACCEPTANCE | Resolve the projection identity from the protected canonical Steward principal.
 # Purpose: Read and revoke canonical delegated authority through the protected Steward adapter
 # Execution Model: Request-driven, bounded read projection and explicit revocation
 # Observability: Safe route errors; canonical authority audit events
@@ -33,19 +34,19 @@ def _context(adapter):
     if adapter is None or not callable(getattr(adapter, "_authenticated_steward", None)):
         raise PermissionError("steward_authority_unavailable")
     principal = adapter._authenticated_steward()
-    if principal != "steward:camrui":
+    if not isinstance(principal, str) or not principal:
         raise PermissionError("authenticated_steward_required")
     registry = getattr(adapter, "_registry", None)
     token = getattr(adapter, "_steward_token", None)
     if registry is None or not isinstance(token, str) or len(token) < 32:
         raise RuntimeError("delegation_authority_unavailable")
-    return registry, token
+    return registry, token, principal
 
 
-def _require_authority(cur, registry, token):
+def _require_authority(cur, registry, token, principal_id):
     registry._path(cur)
     actor = registry._require(cur, token, "authority.grant", "institution")
-    if actor.get("principal_kind") != "steward" or actor.get("principal_id") != "steward:camrui":
+    if actor.get("principal_kind") != "steward" or actor.get("principal_id") != principal_id:
         raise PermissionError("steward_authority_denied")
 
 
@@ -83,11 +84,11 @@ def list_requests(adapter, *, status="pending", limit=50):
         raise ValueError("delegation_request_status_invalid")
     if type(limit) is not int or not 1 <= limit <= 100:
         raise ValueError("delegation_request_limit_invalid")
-    registry, token = _context(adapter)
+    registry, token, principal_id = _context(adapter)
     try:
         with registry.db.transaction():
             with registry.db.cursor() as cur:
-                _require_authority(cur, registry, token)
+                _require_authority(cur, registry, token, principal_id)
                 if status == "all":
                     cur.execute("""SELECT request_id,request_kind,requester_id,grantee_id,
                         change_grant_id,action,scope_ref,policy_ref,request_ref,max_uses,
@@ -116,12 +117,11 @@ def list_requests(adapter, *, status="pending", limit=50):
 def get_request(adapter, request_id):
     if not isinstance(request_id, str) or not _REQUEST_ID.fullmatch(request_id):
         raise ValueError("delegation_request_id_invalid")
-    _context(adapter)
-    result = adapter.get_status(requester_id="steward:camrui", request_id=request_id)
-    registry, token = _context(adapter)
+    registry, token, principal_id = _context(adapter)
+    result = adapter.get_status(requester_id=principal_id, request_id=request_id)
     with registry.db.transaction():
         with registry.db.cursor() as cur:
-            _require_authority(cur, registry, token)
+            _require_authority(cur, registry, token, principal_id)
             refs = _event_refs(cur, request_ids=[request_id])
     item = _record(result)
     item["audit_events"] = refs.get(request_id, [])
@@ -134,11 +134,11 @@ def list_grants(adapter, *, state="active", limit=50):
         raise ValueError("delegation_grant_state_invalid")
     if type(limit) is not int or not 1 <= limit <= 100:
         raise ValueError("delegation_grant_limit_invalid")
-    registry, token = _context(adapter)
+    registry, token, principal_id = _context(adapter)
     try:
         with registry.db.transaction():
             with registry.db.cursor() as cur:
-                _require_authority(cur, registry, token)
+                _require_authority(cur, registry, token, principal_id)
                 state_clause = {
                     "active": "AND revoked_at IS NULL AND (valid_until IS NULL OR valid_until > clock_timestamp())",
                     "expired": "AND revoked_at IS NULL AND valid_until <= clock_timestamp()",
@@ -179,5 +179,5 @@ def revoke_grant(adapter, grant_id, *, confirm, reason_code="steward_revoked"):
         raise ValueError("explicit_confirmation_required")
     if not isinstance(reason_code, str) or not re.fullmatch(r"[a-z0-9_]{1,64}", reason_code):
         raise ValueError("delegation_revoke_reason_invalid")
-    registry, token = _context(adapter)
+    registry, token, _principal_id = _context(adapter)
     return registry.revoke_grant(token, grant_id, reason_code=reason_code)

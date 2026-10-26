@@ -1,7 +1,8 @@
 /*
-Revision: 1.3.0
+Revision: 1.3.1
 Purpose: V2 request, review and revocation view over canonical Steward delegation APIs.
 Authority: The Dashboard account session, CSRF check, and institutional authority registry remain authoritative.
+Changed: 2026-10-26 UTC | RV-V2-DELEGATION-ACTIVATION-DURATION | Let the canonical approval transaction start the exact 24-hour grant duration.
 Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Add explicit canonical service identity registration with server-only credential storage.
 */
 (() => {
@@ -278,7 +279,7 @@ Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Add explicit ca
     const maxUses = type.type_id === "gpu_host" && maxUsesInput ? Number(maxUsesInput) : null;
     if ((!expiryInput && type.type_id !== "gpu_host") || (!expiryInput && maxUses == null)) return;
     const validUntil = type.type_id === "comms5_codex"
-      ? new Date(Date.now() + 23 * 60 * 60 * 1000 + 59 * 60 * 1000).toISOString()
+      ? null
       : expiryInput ? new Date(expiryInput).toISOString() : null;
     const idempotencyKey = crypto.randomUUID();
     const button = $("delegation-request-submit");

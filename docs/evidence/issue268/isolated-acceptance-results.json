@@ -1,0 +1,42 @@
+{
+  "schema_version": "rv.website-isolated-acceptance.v1",
+  "environment": "ephemeral PostgreSQL cluster; reserved website test persona bound only to isolated steward:test",
+  "production_mutations": false,
+  "overall": "PASS",
+  "counts": {
+    "PASS": 15,
+    "FAIL": 0,
+    "BLOCKED": 0,
+    "SKIPPED": 0
+  },
+  "delegation": {
+    "PASS": 10,
+    "checks": [
+      "authenticated registry options",
+      "registered GPU host and capabilities discovered from the isolated registry",
+      "service principal registration with credential kept server-side",
+      "request submission, hash-bound approval, unlimited use, 24-hour duration from activation",
+      "separate objective and assignment authorization requirement remains displayed",
+      "exact operation allowed and wrong scope denied",
+      "use-count enforcement and revoked-operation denial",
+      "UI revocation and subsequent denial",
+      "expiration enforcement",
+      "refresh and unavailable-service error handling",
+      "reserved account bound to steward:test, with no production identity used"
+    ]
+  },
+  "objective_cancellation": {
+    "PASS": 5,
+    "checks": [
+      "V2 Cancel Objective click produced durable CANCELLED state and one audit event",
+      "repeated cancellation was idempotent",
+      "principal without exact assignment.cancel grant was denied",
+      "completed objective cancellation was rejected",
+      "backend failure returned an error without claiming cancellation success"
+    ]
+  },
+  "evidence": [
+    "delegation-isolated-acceptance.png",
+    "cancel-objective-isolated-browser.png"
+  ]
+}

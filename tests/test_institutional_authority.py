@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.23
+# Revision: 1.0.24
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Verify unlimited Codex delegation duration begins at canonical activation and finite-use enforcement remains intact.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Verify write-ahead secret persistence with the canonical create_principal transaction in an isolated schema.
 # Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-AUTHORITY-ORDER | Expect the additive conversation capability migration after declaration enforcement.
 # Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Test migration 0015 reconciliation and declaration updates
@@ -546,9 +547,10 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             principal_id="service:chatgpt", action="comms5.operations.non_destructive.v1",
             scope_ref="project:Riverview", policy_ref="policy:delegation.v1",
             request_ref="Isolated Codex delegation authorization fixture",
-            max_uses=None, valid_until=datetime.now(timezone.utc)+timedelta(hours=24),
+            max_uses=None, valid_until=None, duration_spec={"unit":"hours", "value":24},
             idempotency_key="codex-integration-request-0001")
         self.assertEqual(request["status"], "pending")
+        self.assertIsNone(request.get("valid_until"))
         decision = self.registry.decide_request(steward_token=self.steward_token,
             request_id=request["request_id"], decision="approve",
             expected_request_sha256=request["request_sha256"],
@@ -566,6 +568,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         activated_for = (datetime.fromisoformat(grant["valid_until"]) -
                          datetime.fromisoformat(grant["approved_at"]))
         self.assertLessEqual(abs(activated_for - timedelta(hours=24)), timedelta(seconds=2))
+        self.assertEqual(grant["duration_spec"], {"unit":"hours", "value":24})
         with self.assertRaises(AuthorityDenied):
             self.registry.authorize_delegated_principal_operation(
                 "service:chatgpt", "comms5.operations.non_destructive.v1",

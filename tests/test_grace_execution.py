@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.82
+# Revision: 1.0.83
+# Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Verify account-session principal cancellation through the V2 route, durable audit, denial, idempotency and lifecycle restrictions.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Cover a legitimately consumed S5 CME-recovery evaluation as runtime evidence for same-assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Exercise S4 rejection-trigger evaluation provenance and remove the historical S3 request pin from the one-use exception path.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Verify historical S3 event persistence after pointer advancement and reject cross-objective assignment references.
@@ -3652,6 +3653,155 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertEqual(event["payload"]["objective_revision"], initial_revision + 1)
         self.assertTrue(event["payload"]["cancelled_at"])
 
+    def test_encoded_v2_cancel_route_updates_canonical_objective_and_audit(self):
+        """Exercise the same percent-encoded objective URL used by the V2 button."""
+        import json
+        import tempfile
+        import threading
+        from http.client import HTTPConnection
+        from riverview_core.status_dashboard.projection import DashboardProjection
+        from riverview_core.status_dashboard.server import DashboardHTTPServer
+
+        objective_id = "objective:browser-cancel-route"
+        self._create_grounded_reasoning_objective(objective_id)
+        temp = tempfile.TemporaryDirectory()
+        token_path = Path(temp.name) / "dashboard-token"
+        dashboard_token = "D" * 43
+        token_path.write_text(dashboard_token)
+        token_path.chmod(0o600)
+        server = None
+        for port in range(8799, 8699, -1):
+            try:
+                server = DashboardHTTPServer("127.0.0.1", port, token_path,
+                    DashboardProjection.__new__(DashboardProjection),
+                    Path(__file__).resolve().parents[1] / "src/riverview_core/status_dashboard/static",
+                    objective_pipeline=self.pipeline)
+                break
+            except OSError:
+                continue
+        self.assertIsNotNone(server)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            body = json.dumps({"reason":"V2 encoded-route acceptance"}).encode()
+            conn = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+            conn.request("POST", "/api/v1/objectives/objective%3Abrowser-cancel-route/cancel",
+                body=body, headers={"Authorization":"Bearer " + dashboard_token,
+                    "X-Riverview-Authority":self.credentials["steward"],
+                    "Content-Type":"application/json"})
+            response = conn.getresponse(); payload = json.loads(response.read()); conn.close()
+            self.assertEqual(response.status, 200, payload)
+            self.assertEqual(payload["status"], "CANCELLED")
+            objective = self.pipeline.get_objective(objective_id)
+            self.assertEqual(objective["status"], "CANCELLED")
+            events = [event for event in self.pipeline.objective_events(objective_id)
+                      if event["event_type"] == "objective.cancelled"]
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["payload"]["reason"], "V2 encoded-route acceptance")
+            self.assertEqual(events[0]["actor_id"], "steward:test")
+            self.assertNotIn(objective_id, [row["objective_id"] for row in
+                self.pipeline.grounded_objectives(scope_ref=self.scope)])
+        finally:
+            server.shutdown(); server.server_close(); thread.join(timeout=2); temp.cleanup()
+
+    def test_account_authenticated_cancel_route_uses_canonical_principal_grant(self):
+        """The V2 account-cookie route must use the exact principal grant, not a bearer token."""
+        import json
+        import tempfile
+        import threading
+        from http.client import HTTPConnection
+        import psycopg
+        from psycopg import sql
+        from riverview_core.account_auth import AccountAuthService, DisabledEmailTransport
+        from riverview_core.postgres_migrations import apply_migrations
+        from riverview_core.status_dashboard.projection import DashboardProjection
+        from riverview_core.status_dashboard.server import DashboardHTTPServer
+
+        auth_schema = "rvacct_cancel_" + uuid4().hex
+        with psycopg.connect(DSN, autocommit=True) as conn:
+            conn.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(auth_schema)))
+        apply_migrations(DSN, schema=auth_schema,
+            migrations_dir=Path(__file__).resolve().parents[1] /
+                "src/riverview_core/account_auth/migrations")
+        account = AccountAuthService(lambda: psycopg.connect(DSN), DisabledEmailTransport(),
+            schema=auth_schema, public_origin="https://127.0.0.1")
+        account_rows = [
+            ("cancel-steward@riverview.invalid", "steward:test", "steward",
+             "isolated-cancel-steward-password"),
+            ("cancel-ungranted@riverview.invalid", "resident:cancel-denied", "operator",
+             "isolated-cancel-ungranted-password"),
+        ]
+        with psycopg.connect(DSN) as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL("INSERT INTO {}.institutional_principals(principal_id,principal_kind) "
+                    "VALUES ('resident:cancel-denied','resident') ON CONFLICT DO NOTHING")
+                    .format(sql.Identifier(self.schema)))
+                for email, principal_id, role, password in account_rows:
+                    cur.execute(sql.SQL("INSERT INTO {}.accounts(email,email_verified_at,created_at,"
+                        "password_hash,grant_type,authority_principal_id) VALUES (%s,clock_timestamp(),"
+                        "clock_timestamp(),%s,'permanent',%s) RETURNING account_id")
+                        .format(sql.Identifier(auth_schema)),
+                        (email, AccountAuthService._password_hash(password), principal_id))
+                    account_id = cur.fetchone()[0]
+                    cur.execute(sql.SQL("INSERT INTO {}.account_roles(account_id,role) VALUES (%s,%s)")
+                        .format(sql.Identifier(auth_schema)), (account_id, role))
+        sessions = {principal: account.authenticate_password(email, password,
+            source_key="isolated-cancel-acceptance")
+            for email, principal, _role, password in account_rows}
+        objective_id = "objective:account-cookie-cancel"
+        self._create_grounded_reasoning_objective(objective_id)
+        temp = tempfile.TemporaryDirectory()
+        token_path = Path(temp.name) / "dashboard-token"
+        token_path.write_text("D" * 43); token_path.chmod(0o600)
+        server = None
+        for port in range(8799, 8699, -1):
+            try:
+                server = DashboardHTTPServer("127.0.0.1", port, token_path,
+                    DashboardProjection.__new__(DashboardProjection),
+                    Path(__file__).resolve().parents[1] /
+                        "src/riverview_core/status_dashboard/static",
+                    objective_pipeline=self.pipeline, account_auth_service=account)
+                break
+            except OSError:
+                continue
+        self.assertIsNotNone(server)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+
+        def cancel(session, target=objective_id):
+            body = json.dumps({"reason":"isolated account-session cancellation"}).encode()
+            conn = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+            conn.request("POST", f"/api/v1/objectives/{target.replace(':','%3A')}/cancel",
+                body=body, headers={"Cookie":f"rv_account_session={session.session_token}; "
+                    f"rv_account_csrf={session.csrf_token}",
+                    "X-Riverview-CSRF":session.csrf_token,
+                    "Content-Type":"application/json"})
+            response = conn.getresponse(); payload = json.loads(response.read()); conn.close()
+            return response.status, payload
+
+        try:
+            denied, denial = cancel(sessions["resident:cancel-denied"])
+            self.assertEqual(denied, 403, denial)
+            self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
+            status, payload = cancel(sessions["steward:test"])
+            self.assertEqual(status, 200, payload)
+            self.assertEqual(payload["status"], "CANCELLED")
+            self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "CANCELLED")
+            events = [event for event in self.pipeline.objective_events(objective_id)
+                      if event["event_type"] == "objective.cancelled"]
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["actor_id"], "steward:test")
+            self.assertNotIn(objective_id, [row["objective_id"] for row in
+                self.pipeline.grounded_objectives(scope_ref=self.scope)])
+            repeated, repeated_payload = cancel(sessions["steward:test"])
+            self.assertEqual(repeated, 200, repeated_payload)
+            self.assertEqual(len([event for event in self.pipeline.objective_events(objective_id)
+                if event["event_type"] == "objective.cancelled"]), 1)
+        finally:
+            server.shutdown(); server.server_close(); thread.join(timeout=2)
+            temp.cleanup()
+            self.admin.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                sql.Identifier(auth_schema)))
+
     def test_grounded_objective_cancellation_requires_reason_and_is_idempotent(self):
         objective_id = "objective:grounded-cancel-idempotent"
         grounded = self._create_grounded_reasoning_objective(objective_id)
@@ -3693,6 +3843,22 @@ class GraceExecutionTests(unittest.TestCase):
                 reason="Obsolete")
         self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
         self.assertEqual(self.ledger.get(assignment_id)["state"], "queued")
+
+    def test_completed_objective_cancellation_is_rejected_without_new_audit(self):
+        from riverview_core.resident_execution import ObjectiveStateError
+
+        objective_id = "objective:completed-cancel-rejected"
+        self._create_grounded_reasoning_objective(objective_id)
+        self.admin.execute(
+            f"UPDATE {self.schema}.grace_objectives SET status='COMPLETED' WHERE objective_id=%s",
+            (objective_id,))
+        with self.assertRaises(ObjectiveStateError):
+            self.pipeline.cancel_work_order(objective_id,
+                credential=self.credentials["steward"], authority_ref=self.scope,
+                reason="must not cancel completed work")
+        self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "COMPLETED")
+        self.assertFalse(any(event["event_type"] in {"objective.cancelled", "work_order.cancelled"}
+            for event in self.pipeline.objective_events(objective_id)))
 
     def test_running_engineering_work_remains_uncancellable(self):
         from riverview_core.resident_reasoning import ArtifactRequirement
