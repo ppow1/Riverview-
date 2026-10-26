@@ -96,6 +96,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0016_resident_conversation_workspace_capability",
             "0017_reusable_scoped_grants",
             "0018_delegated_host_scopes",
+            "0019_generalized_delegation_lifecycle",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         with self.admin.cursor() as cur:
@@ -123,6 +124,136 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         else:
             with self.assertRaises(IdentityConflict):
                 self.registry.bootstrap_steward("steward:second")
+
+    def test_generalized_grant_activation_extension_and_lineage(self):
+        """Typed lifetimes and successor changes persist through the real authority API."""
+        from datetime import datetime, timedelta, timezone
+
+        grantee_token = self.registry.create_principal(
+            self.steward_token, "chatgpt:issue343-test", "service")
+        pending = self.registry.request_grant(
+            requester_id="steward:test", principal_id="chatgpt:issue343-test",
+            action="comms5.proposal.promote", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:test",
+            max_uses=1, duration_spec={"unit": "minutes", "value": 30},
+            idempotency_key="issue343:initial")
+        approved = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=pending["request_id"],
+            decision="approve", expected_request_sha256=pending["request_sha256"],
+            idempotency_key="issue343:approve-initial", approval_ref="steward:issue343:initial")
+        original_id = approved["grant_id"]
+        original = self.registry.get_status(
+            requester_id="steward:test", grant_id=original_id)
+        self.assertEqual(original["duration_spec"], {"unit": "minutes", "value": 30})
+        activation = datetime.fromisoformat(original["approved_at"])
+        expiry = datetime.fromisoformat(original["valid_until"])
+        self.assertGreaterEqual(expiry - activation, timedelta(minutes=29, seconds=59))
+        self.assertLessEqual(expiry - activation, timedelta(minutes=30, seconds=1))
+
+        reservation = self.registry.reserve_delegated_grant(
+            grantee_token, original_id, "comms5.proposal.promote", "project:Riverview",
+            "work-order:issue343:test", idempotency_key="issue343:use-1")
+        self.registry.consume_delegated_grant(
+            grantee_token, reservation["reservation_id"], "result:issue343:test")
+
+        change = self.registry.request_change(
+            requester_id="steward:test", grant_id=original_id,
+            action="objective.submit", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:combined-change",
+            max_uses=None, duration_spec={"unit": "days", "value": 7},
+            change_kind="extend_upgrade", idempotency_key="issue343:combined-change")
+        changed = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=change["request_id"],
+            decision="approve", expected_request_sha256=change["request_sha256"],
+            idempotency_key="issue343:approve-change", approval_ref="steward:issue343:change")
+        successor = self.registry.get_status(
+            requester_id="steward:test", grant_id=changed["grant_id"])
+        predecessor = self.registry.get_status(
+            requester_id="steward:test", grant_id=original_id)
+        self.assertEqual(successor["supersedes_grant_id"], original_id)
+        self.assertEqual(successor["used_count"], 1)
+        self.assertEqual(successor["max_uses"], None)
+        self.assertEqual(successor["duration_spec"], {"unit": "days", "value": 7})
+        self.assertEqual(successor["action"], "objective.submit")
+        successor_expiry = datetime.fromisoformat(successor["valid_until"])
+        self.assertGreater(successor_expiry, expiry + timedelta(days=6, hours=23))
+        self.assertEqual(predecessor["status"], "revoked")
+
+        indefinite_request = self.registry.request_grant(
+            requester_id="steward:test", principal_id="chatgpt:issue343-test",
+            action="comms5.proposal.promote", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:indefinite-upgrade",
+            max_uses=None, duration_spec={"unit": "indefinite"},
+            idempotency_key="issue343:indefinite-upgrade-source")
+        indefinite_approval = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=indefinite_request["request_id"],
+            decision="approve", expected_request_sha256=indefinite_request["request_sha256"],
+            idempotency_key="issue343:indefinite-upgrade-source-approve",
+            approval_ref="steward:issue343:indefinite-source")
+        indefinite_change = self.registry.request_change(
+            requester_id="steward:test", grant_id=indefinite_approval["grant_id"],
+            action="objective.submit", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:indefinite-upgrade",
+            change_kind="upgrade", idempotency_key="issue343:indefinite-upgrade")
+        indefinite_successor = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=indefinite_change["request_id"],
+            decision="approve", expected_request_sha256=indefinite_change["request_sha256"],
+            idempotency_key="issue343:indefinite-upgrade-approve",
+            approval_ref="steward:issue343:indefinite-upgraded")
+        indefinite_status = self.registry.get_status(
+            requester_id="steward:test", grant_id=indefinite_successor["grant_id"])
+        self.assertIsNone(indefinite_status["valid_until"])
+        self.assertIsNone(indefinite_status["max_uses"])
+        self.assertEqual(indefinite_status["duration_spec"], {"unit": "indefinite"})
+
+        outstanding = self.registry.reserve_delegated_grant(
+            grantee_token, changed["grant_id"], "objective.submit", "project:Riverview",
+            "work-order:issue343:revoke", idempotency_key="issue343:pending-revocation")
+        self.registry.revoke_grant(self.steward_token, changed["grant_id"],
+                                   reason_code="issue343_verified")
+        self.assertEqual(self.registry.consume_delegated_grant(
+            grantee_token, outstanding["reservation_id"], "result:after-revoke")["status"],
+            "released")
+        self.assertEqual(self.registry.get_status(
+            requester_id="steward:test", grant_id=changed["grant_id"])["status"], "revoked")
+
+        rejected_request = self.registry.request_grant(
+            requester_id="steward:test", principal_id="chatgpt:issue343-test",
+            action="comms5.proposal.promote", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:denial-example",
+            max_uses=1, duration_spec={"unit": "indefinite"},
+            idempotency_key="issue343:rejected-request")
+        rejected = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=rejected_request["request_id"],
+            decision="reject", expected_request_sha256=rejected_request["request_sha256"],
+            idempotency_key="issue343:reject", approval_ref=None)
+        self.assertEqual(rejected["status"], "rejected")
+        self.assertIsNone(rejected["grant_id"])
+
+        surrender_request = self.registry.request_grant(
+            requester_id="steward:test", principal_id="chatgpt:issue343-test",
+            action="comms5.proposal.promote", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:surrender-example",
+            max_uses=1, duration_spec={"unit": "indefinite"},
+            idempotency_key="issue343:surrender-request")
+        surrender_approval = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=surrender_request["request_id"],
+            decision="approve", expected_request_sha256=surrender_request["request_sha256"],
+            idempotency_key="issue343:surrender-approve", approval_ref="steward:issue343:surrender")
+        surrendered = self.registry.surrender_grant(
+            grantee_id="chatgpt:issue343-test", grant_id=surrender_approval["grant_id"],
+            idempotency_key="issue343:surrender")
+        self.assertEqual(surrendered["status"], "surrendered")
+        self.assertEqual(self.registry.surrender_grant(
+            grantee_id="chatgpt:issue343-test", grant_id=surrender_approval["grant_id"],
+            idempotency_key="issue343:surrender"), surrendered)
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT count(*) FROM {self.schema}.institutional_authority_events "
+                        "WHERE grant_id=%s AND event_type IN "
+                        "('authority_delegation_grant_extended','authority_delegation_grant_upgraded')",
+                        (changed["grant_id"],))
+            self.assertEqual(cur.fetchone()[0], 2)
+
 
     def test_deployed_declarations_register_update_and_record_blockers(self):
         import psycopg
@@ -415,7 +546,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             principal_id="service:chatgpt", action="comms5.operations.non_destructive.v1",
             scope_ref="project:Riverview", policy_ref="policy:delegation.v1",
             request_ref="Isolated Codex delegation authorization fixture",
-            max_uses=None, valid_until=datetime.now(timezone.utc)+timedelta(hours=20),
+            max_uses=None, valid_until=datetime.now(timezone.utc)+timedelta(hours=24),
             idempotency_key="codex-integration-request-0001")
         self.assertEqual(request["status"], "pending")
         decision = self.registry.decide_request(steward_token=self.steward_token,

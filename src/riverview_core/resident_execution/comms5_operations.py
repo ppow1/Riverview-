@@ -28,6 +28,9 @@ import re
 from datetime import datetime, timezone
 
 from ..institutional_authority.grants import InstitutionalPrincipal
+
+
+_UNSET = object()
 from ..comms5.delegation_policy import is_delegable_tool
 
 from .proposals import ProposalConflict
@@ -139,12 +142,15 @@ class Comms5Operations:
         return value
 
     @staticmethod
-    def _delegation_validity(arguments):
-        max_uses = arguments.get("max_uses")
-        if max_uses is not None and (type(max_uses) is not int or not 1 <= max_uses <= 1_000_000):
+    def _delegation_validity(arguments, *, allow_preserve=False):
+        max_uses = (_UNSET if allow_preserve and "max_uses" not in arguments
+                    else arguments.get("max_uses"))
+        if (max_uses is not _UNSET and max_uses is not None and
+                (type(max_uses) is not int or not 1 <= max_uses <= 1_000_000)):
             raise ValueError("delegation_max_uses_invalid")
-        valid_until = arguments.get("valid_until")
-        if valid_until is not None:
+        valid_until = (_UNSET if allow_preserve and "valid_until" not in arguments
+                       else arguments.get("valid_until"))
+        if valid_until is not None and valid_until is not _UNSET:
             if not isinstance(valid_until, str) or len(valid_until) > 64:
                 raise ValueError("delegation_expiry_invalid")
             try:
@@ -153,9 +159,16 @@ class Comms5Operations:
                 raise ValueError("delegation_expiry_invalid") from None
             if valid_until.tzinfo is None or valid_until <= datetime.now(timezone.utc):
                 raise ValueError("delegation_expiry_must_be_future_and_timezone_aware")
-        if max_uses is None and valid_until is None:
+        duration_spec = arguments.get("duration_spec")
+        if duration_spec is not None:
+            from ..institutional_authority.registry import normalize_grant_duration
+            duration_spec = normalize_grant_duration(duration_spec)
+            if valid_until is not None and valid_until is not _UNSET:
+                raise ValueError("delegation_duration_and_absolute_expiry_are_mutually_exclusive")
+        if (max_uses is None and valid_until is None and duration_spec is None
+                and not allow_preserve):
             raise ValueError("delegation_grant_requires_use_limit_or_expiry")
-        return max_uses, valid_until
+        return max_uses, valid_until, duration_spec
 
     def _delegation_request_service(self):
         if self.delegation_grant_requests is None:
@@ -255,7 +268,7 @@ class Comms5Operations:
                 idempotency_key=self._idempotency(arguments["idempotency_key"]))
         if tool == "comms5_request_delegation_grant":
             required = {"principal_id", "action", "scope_ref", "policy_ref", "request_ref", "idempotency_key"}
-            optional = {"max_uses", "valid_until"}
+            optional = {"max_uses", "valid_until", "duration_spec"}
             if not required <= set(arguments) or set(arguments) - required - optional:
                 raise ValueError("delegation_grant_request_fields_invalid")
             if (not isinstance(arguments["principal_id"], str) or
@@ -263,13 +276,14 @@ class Comms5Operations:
                     not isinstance(arguments["policy_ref"], str) or
                     not re.fullmatch(r"policy:[A-Za-z0-9._:-]{1,128}", arguments["policy_ref"])):
                 raise ValueError("delegation_grant_request_identity_invalid")
-            max_uses, valid_until = self._delegation_validity(arguments)
+            max_uses, valid_until, duration_spec = self._delegation_validity(arguments)
             return self._delegation_request_service().request_grant(
                 requester_id=actor, principal_id=arguments["principal_id"],
                 action=self._delegation_action(arguments["action"]),
                 scope_ref=self._delegation_scope(arguments["scope_ref"]),
                 policy_ref=arguments["policy_ref"], max_uses=max_uses,
-                valid_until=valid_until, request_ref=self._delegation_reason(arguments["request_ref"]),
+                valid_until=valid_until, duration_spec=duration_spec,
+                request_ref=self._delegation_reason(arguments["request_ref"]),
                 idempotency_key=self._idempotency(arguments["idempotency_key"]))
         if tool == "comms5_get_delegation_grant_status":
             if set(arguments) not in ({"request_id"}, {"grant_id"}):
@@ -296,7 +310,7 @@ class Comms5Operations:
                 idempotency_key=self._idempotency(arguments["idempotency_key"]))
         if tool == "comms5_request_delegation_grant_change":
             required = {"grant_id", "action", "scope_ref", "policy_ref", "request_ref", "idempotency_key"}
-            optional = {"max_uses", "valid_until"}
+            optional = {"max_uses", "valid_until", "duration_spec", "change_kind"}
             if not required <= set(arguments) or set(arguments) - required - optional:
                 raise ValueError("delegation_grant_change_fields_invalid")
             if (not isinstance(arguments["grant_id"], str) or
@@ -304,14 +318,21 @@ class Comms5Operations:
                     not isinstance(arguments["policy_ref"], str) or
                     not re.fullmatch(r"policy:[A-Za-z0-9._:-]{1,128}", arguments["policy_ref"])):
                 raise ValueError("delegation_grant_change_identity_invalid")
-            max_uses, valid_until = self._delegation_validity(arguments)
+            max_uses, valid_until, duration_spec = self._delegation_validity(
+                arguments, allow_preserve=True)
+            change = {}
+            if max_uses is not _UNSET:
+                change["max_uses"] = max_uses
+            if valid_until is not _UNSET:
+                change["valid_until"] = valid_until
             return self._delegation_request_service().request_change(
                 requester_id=actor, grant_id=arguments["grant_id"],
                 action=self._delegation_action(arguments["action"]),
                 scope_ref=self._delegation_scope(arguments["scope_ref"]),
-                policy_ref=arguments["policy_ref"], max_uses=max_uses,
-                valid_until=valid_until, request_ref=self._delegation_reason(arguments["request_ref"]),
-                idempotency_key=self._idempotency(arguments["idempotency_key"]))
+                policy_ref=arguments["policy_ref"], duration_spec=duration_spec,
+                change_kind=arguments.get("change_kind"),
+                request_ref=self._delegation_reason(arguments["request_ref"]),
+                idempotency_key=self._idempotency(arguments["idempotency_key"]), **change)
         if tool.startswith("reasoning_exchange_"):
             if self.steward_review_bridge is None:
                 raise RuntimeError("external_reasoning_exchange_unavailable")

@@ -1,3 +1,4 @@
+// File Revision: 1.0.0
 /* Dynamic host-scoped controls over the registered hardware controller API. */
 (() => {
   "use strict";
