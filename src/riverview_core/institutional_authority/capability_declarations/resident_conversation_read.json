@@ -1,6 +1,6 @@
 {
   "capability_id": "resident.conversation.read",
-  "description": "Read, search, switch, and retrieve owner-scoped resident conversation history and authorized image attachments.",
+  "description": "List, search, and read owner-scoped resident conversation history and authorized image attachments.",
   "operation": "resident.conversation.read",
   "owner_office": "office:grace",
   "implementation_ref": "resident-conversation.api.v2",
@@ -14,9 +14,7 @@
   "input_schema": {
     "type": "object",
     "additionalProperties": false,
-    "required": [
-      "conversation_id"
-    ],
+    "required": [],
     "properties": {
       "conversation_id": {
         "type": "string",
@@ -29,6 +27,11 @@
       },
       "archived": {
         "type": "boolean"
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
       },
       "attachment_id": {
         "type": "string",
