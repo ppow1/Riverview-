@@ -1,3 +1,8 @@
+# RIVERVIEW~ Controlled Source
+# File: tests/test_service_principal_credentials.py
+# Component: INSTITUTIONAL-AUTHORITY
+# Revision: 1.0.0
+# Purpose: Verify protected ChatGPT principal credential storage and fixed registration authorization.
 """Tests for the fixed-path, server-only ChatGPT principal credential sink."""
 
 import os
