@@ -68,6 +68,8 @@
 from __future__ import annotations
 
 import hmac
+import base64
+import binascii
 import ipaddress
 import json
 import logging
@@ -106,6 +108,9 @@ _OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-
 _OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
 _OBJECTIVE_REREVIEW = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/result-rereview$")
 _CONVERSATION_ID = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})$")
+_CONVERSATION_MANAGE = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/(rename|archive|restore|delete)$")
+_CONVERSATION_ATTACHMENT = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/attachments/([0-9a-fA-F-]{36})$")
+_CONVERSATION_SEARCH = "/api/v1/resident/conversations/search"
 _CONVERSATION_STREAM_ACTIVITY = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/stream-activity$")
 _CONVERSATION_SESSION = "/api/v1/resident/conversation-session"
@@ -132,6 +137,7 @@ class WorkOrderOriginConflict(Exception):
 
 
 _MAX_CHAT_BODY = 12 * 1024
+_MAX_MULTIMODAL_CHAT_BODY = 6 * 1024 * 1024
 _MAX_OBJECTIVE_BODY = 16 * 1024
 _MAX_ACCOUNT_BODY = 8 * 1024
 _ACCOUNT_SESSION_COOKIE = "rv_account_session"
@@ -639,6 +645,10 @@ def make_handler():
                                  and self.command == "POST")
             conversation_stream_send = (parsed.path == "/api/v1/resident/conversations/stream"
                                         and self.command == "POST")
+            conversation_manage = (_CONVERSATION_MANAGE.fullmatch(parsed.path)  # capability-operation: resident.conversation.send
+                                   if self.command == "POST" else None)
+            conversation_attachment = (_CONVERSATION_ATTACHMENT.fullmatch(parsed.path)  # capability-operation: resident.conversation.read
+                                       if self.command in {"GET","HEAD"} else None)
             conversation_work_order = (_CONVERSATION_WORK_ORDER.fullmatch(parsed.path)
                                        if self.command == "POST" else None)
             proposal_create = (parsed.path == _PROPOSAL_COLLECTION and self.command == "POST")
@@ -665,6 +675,7 @@ def make_handler():
                     and not objective_submit and not objective_proposal and not objective_cancel
                     and not objective_rereview
                     and not conversation_send and not conversation_stream_send and not conversation_session and not public_auth
+                    and not conversation_manage
                     and not conversation_work_order and not proposal_create
                     and not proposal_revision and not proposal_decision
                     and not proposal_work_orders and not proposal_command
@@ -1852,17 +1863,77 @@ def make_handler():
                                 self._error(503, "notification_settings_unavailable", request_id)
                             else:
                                 raise
-                elif parsed.path == "/api/v1/resident/conversations" and self.command in {"GET", "HEAD"}:
+                elif conversation_attachment:
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        item=service.get_attachment(self._conversation_authority(),
+                            conversation_attachment.group(1),conversation_attachment.group(2))
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
+                        return
+                    self._send(200,item["image_bytes"],item["media_type"],request_id,
+                        extra_headers=(("Content-Disposition","inline; filename=\""+
+                            item["file_name"].replace('"',"")+"\""),
+                            ("Cache-Control","private, no-store"),
+                            ("X-Content-Type-Options","nosniff")))
+                elif parsed.path == "/api/v1/resident/conversations" and self.command in {"GET", "HEAD"}:  # capability-operation: resident.conversation.read
                     service = self.server._conversation_service
                     if service is None:
                         self._error(503, "resident_conversation_unavailable", request_id)
                         return
                     try:
-                        result = service.list_conversations(self._conversation_authority())
+                        if set(query)-{"q","archived","limit"} or any(len(v)!=1 for v in query.values()):
+                            raise ValueError("invalid conversation query")
+                        archived_value=query.get("archived",["false"])[0]
+                        if archived_value not in {"true","false"}:
+                            raise ValueError("invalid archive filter")
+                        raw_limit=query.get("limit",["50"])[0]
+                        if not raw_limit.isdigit() or len(raw_limit)>3:
+                            raise ValueError("invalid conversation limit")
+                        result = service.list_conversations(self._conversation_authority(),
+                            archived=archived_value=="true",query=query.get("q",[""])[0],
+                            limit=int(raw_limit))
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
                         return
                     self._json(200, result, request_id)
+                elif parsed.path == _CONVERSATION_SEARCH and self.command in {"GET","HEAD"}:  # capability-operation: resident.conversation.read
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        if set(query)-{"q","limit"} or any(len(v)!=1 for v in query.values()):
+                            raise ValueError("invalid conversation search query")
+                        raw_limit=query.get("limit",["50"])[0]
+                        if not raw_limit.isdigit() or len(raw_limit)>3:
+                            raise ValueError("invalid conversation search limit")
+                        result=service.search_conversations(self._conversation_authority(),
+                            query.get("q",[""])[0],limit=int(raw_limit))
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
+                        return
+                    self._json(200,result,request_id)
+                elif conversation_manage:
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        data=self._json_body(4096)
+                        expected={"title"} if conversation_manage.group(2)=="rename" else set()
+                        if not isinstance(data,dict) or set(data)!=expected:
+                            raise ValueError("invalid conversation management request")
+                        result=service.manage_conversation(self._conversation_authority(),
+                            conversation_manage.group(1),action=conversation_manage.group(2),
+                            title=data.get("title"))
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
+                        return
+                    self._json(200,result,request_id)
                 elif conversation_send:
                     service = self.server._conversation_service
                     if service is None:
@@ -1872,19 +1943,31 @@ def make_handler():
                         self._error(400, "conversation_request_length_required", request_id)
                         return
                     length = int(self.headers["Content-Length"])
-                    if not 1 <= length <= _MAX_CHAT_BODY:
+                    if not 1 <= length <= _MAX_MULTIMODAL_CHAT_BODY:
                         self._error(413, "conversation_request_too_large", request_id)
                         return
                     try:
                         data = json.loads(self.rfile.read(length))
                         if (not isinstance(data, dict)
-                                or set(data) - {"conversation_id", "client_message_id", "message"}
-                                or not isinstance(data.get("message"), str)):
+                                or set(data) - {"conversation_id", "client_message_id", "message","attachments"}
+                                or not isinstance(data.get("message"), str)
+                                or not isinstance(data.get("attachments",[]),list)):
                             raise ValueError("invalid conversation request")
+                        attachments=[]
+                        for item in data.get("attachments",[]):
+                            if not isinstance(item,dict) or set(item)!={"file_name","media_type","data"} or not isinstance(item["data"],str):
+                                raise ValueError("invalid image attachment")
+                            if len(item["data"])>5_600_000:
+                                raise ValueError("image attachment is too large")
+                            try:
+                                raw=base64.b64decode(item["data"],validate=True)
+                            except (ValueError,binascii.Error):
+                                raise ValueError("image attachment encoding is invalid") from None
+                            attachments.append({"file_name":item["file_name"],"media_type":item["media_type"],"image_bytes":raw})
                         result = service.send(
                             self._conversation_authority(),
                             message=data["message"], conversation_id=data.get("conversation_id"),
-                            client_message_id=data.get("client_message_id"))
+                            client_message_id=data.get("client_message_id"),attachments=attachments)
                         status = (201 if result.get("status") == "completed" else
                                   202 if result.get("status") == "deferred" else 503)
                         self._json(status, result, request_id)

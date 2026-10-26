@@ -1,0 +1,74 @@
+{
+  "capability_id": "resident.conversation.send",
+  "description": "Send resident conversation messages, including bounded image attachments routed only to an authorized vision-capable model; manage conversations through the same Steward-scoped send authority.",
+  "operation": "resident.conversation.send",
+  "owner_office": "office:grace",
+  "implementation_ref": "resident-conversation.api.v2",
+  "dependencies": [
+    "resident-conversation-ledger",
+    "exact-owner-check",
+    "vision-provider-allowlist"
+  ],
+  "approval_default": false,
+  "enabled": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "message"
+    ],
+    "properties": {
+      "conversation_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "client_message_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "message": {
+        "type": "string",
+        "maxLength": 8192
+      },
+      "attachments": {
+        "type": "array",
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file_name",
+            "media_type",
+            "data_base64"
+          ],
+          "properties": {
+            "file_name": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "media_type": {
+              "type": "string",
+              "enum": [
+                "image/png",
+                "image/jpeg",
+                "image/webp"
+              ]
+            },
+            "data_base64": {
+              "type": "string",
+              "maxLength": 5600000
+            }
+          }
+        }
+      }
+    }
+  },
+  "authorization_contract": {
+    "mode": "exact_grant",
+    "action": "resident.conversation.send",
+    "scope_policy": "exact_scope"
+  },
+  "availability_policy": "executor_and_worker_health",
+  "registration_blocker": null
+}

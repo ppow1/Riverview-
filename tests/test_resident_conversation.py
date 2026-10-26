@@ -447,6 +447,59 @@ class ResidentConversationTests(unittest.TestCase):
         self.admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(self.schema)))
         self.admin.close()
 
+    def test_conversation_workspace_management_search_and_owner_denial(self):
+        from riverview_core.resident_execution.conversation import ConversationDenied, ConversationNotFound
+        created=self.service.send(self.steward_token,message="independent history marker",client_message_id=str(uuid4()))
+        conversation_id=created["conversation_id"]
+        self.service.manage_conversation(self.steward_token,conversation_id,action="rename",title="Roadmap discussion")
+        self.assertEqual(self.service.list_conversations(self.steward_token,query="marker")["items"][0]["title"],"Roadmap discussion")
+        self.service.manage_conversation(self.steward_token,conversation_id,action="archive")
+        self.assertEqual(self.service.list_conversations(self.steward_token)["items"],[])
+        self.assertEqual(len(self.service.list_conversations(self.steward_token,archived=True)["items"]),1)
+        self.service.manage_conversation(self.steward_token,conversation_id,action="restore")
+        self.assertEqual(len(self.service.list_conversations(self.steward_token)["items"]),1)
+        outsider="test-ungranted-token"
+        with self.assertRaises(ConversationDenied):
+            self.service.manage_conversation(outsider,conversation_id,action="delete")
+        self.service.manage_conversation(self.steward_token,conversation_id,action="delete")
+        with self.assertRaises(ConversationNotFound):
+            self.service.history(self.steward_token,conversation_id)
+        with self.store.db.cursor() as cur:
+            self.store._path(cur)
+            cur.execute("SELECT count(*) FROM resident_conversation_management_events WHERE conversation_id=%s",(conversation_id,))
+            self.assertEqual(cur.fetchone()["count"],4)
+
+    def test_image_attachment_is_stored_owner_scoped_and_routed_to_vision_provider(self):
+        from riverview_core.local_reasoning_provider import ChatCompletion,ProviderReadiness
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+        class VisionProvider(_ChatProvider):
+            supports_vision=True
+            def complete_chat(self,messages,*,max_tokens,expected_revision,timeout_seconds=120,
+                              response_schema=None,image_required=False):
+                self.asserted=image_required
+                self.payload=messages[-1]["content"]
+                return ChatCompletion("The image contains a red square.",self.model,10,7,"stop")
+        small=_ChatProvider("small","c"*64); small.readiness=lambda:ProviderReadiness("READY",small.model,"ready")
+        vision=VisionProvider("vision","d"*64); vision.readiness=lambda:ProviderReadiness("READY",vision.model,"ready")
+        large=_ChatProvider("large","e"*64); large.readiness=lambda:ProviderReadiness("READY",large.model,"ready")
+        router=GraceModelRouter(autonomic=small,vision=vision,reasoning=large)
+        impl="implementation:vision:"+uuid4().hex
+        self.registry.create_implementation(self.steward_token,impl,kind="model",provider_ref=router.provider_id,revision=router.model_sha256)
+        self.registry.update_office_implementation(self.steward_token,self.office_id,impl,expected_binding_revision=1)
+        self.service.providers={router.provider_id:router}
+        png=b"\x89PNG\r\n\x1a\n"+b"synthetic-test-image"
+        result=self.service.send(self.steward_token,message="What is shown?",client_message_id=str(uuid4()),attachments=[{"file_name":"red.png","media_type":"image/png","image_bytes":png}])
+        self.assertEqual(result["status"],"completed")
+        self.assertTrue(vision.asserted)
+        self.assertTrue(any(part.get("type")=="image_url" for part in vision.payload))
+        history=self.service.history(self.steward_token,result["conversation_id"])
+        attachment=history["events"][0]["metadata"]["attachments"][0]
+        stored=self.service.get_attachment(self.steward_token,result["conversation_id"],attachment["attachment_id"])
+        self.assertEqual(stored["image_bytes"],png)
+        self.assertTrue(attachment["url"].endswith(attachment["attachment_id"]))
+        with self.assertRaises(Exception):
+            self.service.get_attachment("ungranted",result["conversation_id"],attachment["attachment_id"])
+
     def test_authorized_chat_persists_and_reloads_by_human_and_office(self):
         result = self.service.send(self.steward_token, message="Hello Grace.",
                                    client_message_id=str(uuid4()))
