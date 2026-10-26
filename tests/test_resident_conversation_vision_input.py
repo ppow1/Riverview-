@@ -1,7 +1,8 @@
 # Riverview~ Controlled Source
 # File: tests/test_resident_conversation_vision_input.py
 # Component: RESIDENT-CONVERSATION
-# Revision: 1.0.0
+# Revision: 1.0.1
+# Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-AUTHORITY-ORDER | Verify exact-grant declaration ordering and contracts.
 # Purpose: Verify multimodal input, model routing, authorization declarations, and V2 controls
 # Authority: Isolated tests only; no production identities or services are changed
 """Focused contracts for owner-chat multimodal routing and V2 input controls."""
@@ -71,10 +72,12 @@ class ConversationVisionInputTests(unittest.TestCase):
         self.assertEqual(send["authorization_contract"], {
             "mode":"exact_grant","action":"resident.conversation.send","scope_policy":"exact_scope"})
         self.assertIn("attachments",send["input_schema"]["properties"])
-        migration=(base/"src/riverview_core/institutional_authority/migrations/0010_resident_conversation_workspace_capability.sql").read_text()
+        migration=(base/"src/riverview_core/institutional_authority/migrations/0016_resident_conversation_workspace_capability.sql").read_text()
         self.assertNotIn("authority_grants",migration)
         self.assertIn("resident.conversation.read",migration)
         self.assertIn("resident.conversation.send",migration)
+        self.assertIn("authorization_contract",migration)
+        self.assertIn('"scope_policy":"exact_scope"',migration)
 
     def test_v2_settings_and_resident_entry_reach_chat_workspace(self):
         base=Path(__file__).resolve().parents[1]
