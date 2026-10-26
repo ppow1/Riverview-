@@ -645,9 +645,9 @@ def make_handler():
                                  and self.command == "POST")
             conversation_stream_send = (parsed.path == "/api/v1/resident/conversations/stream"
                                         and self.command == "POST")
-            conversation_manage = (_CONVERSATION_MANAGE.fullmatch(parsed.path)
+            conversation_manage = (_CONVERSATION_MANAGE.fullmatch(parsed.path)  # capability-operation: resident.conversation.send
                                    if self.command == "POST" else None)
-            conversation_attachment = (_CONVERSATION_ATTACHMENT.fullmatch(parsed.path)
+            conversation_attachment = (_CONVERSATION_ATTACHMENT.fullmatch(parsed.path)  # capability-operation: resident.conversation.read
                                        if self.command in {"GET","HEAD"} else None)
             conversation_work_order = (_CONVERSATION_WORK_ORDER.fullmatch(parsed.path)
                                        if self.command == "POST" else None)
@@ -1879,7 +1879,7 @@ def make_handler():
                             item["file_name"].replace('"',"")+"\""),
                             ("Cache-Control","private, no-store"),
                             ("X-Content-Type-Options","nosniff")))
-                elif parsed.path == "/api/v1/resident/conversations" and self.command in {"GET", "HEAD"}:
+                elif parsed.path == "/api/v1/resident/conversations" and self.command in {"GET", "HEAD"}:  # capability-operation: resident.conversation.read
                     service = self.server._conversation_service
                     if service is None:
                         self._error(503, "resident_conversation_unavailable", request_id)
@@ -1900,7 +1900,7 @@ def make_handler():
                         self._conversation_error(exc, request_id)
                         return
                     self._json(200, result, request_id)
-                elif parsed.path == _CONVERSATION_SEARCH and self.command in {"GET","HEAD"}:
+                elif parsed.path == _CONVERSATION_SEARCH and self.command in {"GET","HEAD"}:  # capability-operation: resident.conversation.read
                     service=self.server._conversation_service
                     if service is None:
                         self._error(503,"resident_conversation_unavailable",request_id)
