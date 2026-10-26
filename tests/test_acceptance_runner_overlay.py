@@ -1,5 +1,5 @@
 """Focused contract checks for the in-place website acceptance extension."""
-# Revision: 1.0.4
+# Revision: 1.0.5
 # Changed: 2026-10-26 UTC | RV-ISSUE268-OBJECTIVE-PROJECTION-ACCEPTANCE | Assert browser-runner projection regression coverage and cancellation eligibility evidence.
 from pathlib import Path
 import importlib.util
@@ -43,6 +43,7 @@ def test_overlay_adds_authenticated_delegation_and_denial_checks_and_is_idempote
     assert 'return 1 if report["overall"] in {"FAIL","BLOCKED"} else 0' in result
     assert "delegation_unauthorized_" in result
     assert '"check":"work_objectives_projection_available"' in result
+    assert "!['NOT CHECKED','CHECKING'].includes(badge)" in result
     assert "projection_failed" in result
     assert "source unavailable" in result.lower()
     assert '"check":"cancel_objective_action_visible_when_eligible"' in result
@@ -72,3 +73,16 @@ def test_overlay_upgrades_the_already_deployed_delegation_browser_check():
     assert "registrationButton" in result
     assert "identity.manage" in result
     assert overlay.apply(result) == result
+
+
+def test_overlay_upgrades_previous_objective_check_to_wait_for_fresh_page_state():
+    previous = overlay.apply(RUNNER_FIXTURE)
+    previous = previous.replace(
+        "if(!['NOT CHECKED','CHECKING'].includes(badge))break;",
+        "if(rows || !['NOT CHECKED','CHECKING'].includes(badge))break;")
+    previous = previous.replace(
+        '                    and work_check.get("badge") not in {"NOT CHECKED", "CHECKING"}\n', "")
+    upgraded = overlay.apply(previous)
+    assert "!['NOT CHECKED','CHECKING'].includes(badge)" in upgraded
+    assert 'work_check.get("badge") not in {"NOT CHECKED", "CHECKING"}' in upgraded
+    assert overlay.apply(upgraded) == upgraded

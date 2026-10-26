@@ -3,7 +3,7 @@
 The runner remains the existing Selenium test program; this idempotent overlay
 is a small release-time patch, not a second test framework.
 """
-# Revision: 1.3.0
+# Revision: 1.3.1
 # Changed: 2026-10-26 UTC | RV-ISSUE268-OBJECTIVE-PROJECTION-ACCEPTANCE | Fail live Steward browser acceptance when Work objective source fails and verify eligible cancel action rendering.
 from __future__ import annotations
 
@@ -123,6 +123,13 @@ STEWARD_INSERT = '''            if role == "steward":
 '''
 OBJECTIVES_ANCHOR = '''                stage = "live_overview_projection_acceptance"
 '''
+OBJECTIVES_WAIT_OLD = "if(rows || !['NOT CHECKED','CHECKING'].includes(badge))break;"
+OBJECTIVES_WAIT_NEW = "if(!['NOT CHECKED','CHECKING'].includes(badge))break;"
+OBJECTIVES_BADGE_OLD = '''                    and work_check.get("rowCount")==work_check.get("apiCount")
+                    and (work_check.get("apiCount")>0 or'''
+OBJECTIVES_BADGE_NEW = '''                    and work_check.get("rowCount")==work_check.get("apiCount")
+                    and work_check.get("badge") not in {"NOT CHECKED", "CHECKING"}
+                    and (work_check.get("apiCount")>0 or'''
 OBJECTIVES_INSERT = '''                stage = "work_objectives_projection_acceptance"
                 work_check=js("""
                     document.querySelector('[data-view=work]')?.click();
@@ -132,8 +139,7 @@ OBJECTIVES_INSERT = '''                stage = "work_objectives_projection_accep
                     let body=r.ok?await r.json():null;
                     for(let i=0;i<60;i++){
                       let badge=document.querySelector('#work-source-state')?.textContent||'';
-                      let rows=document.querySelectorAll('#work-objectives-body tr').length;
-                      if(rows || !['NOT CHECKED','CHECKING'].includes(badge))break;
+                      if(!['NOT CHECKED','CHECKING'].includes(badge))break;
                       await new Promise(resolve=>setTimeout(resolve,100));
                     }
                     let badge=document.querySelector('#work-source-state')?.textContent||'';
@@ -153,6 +159,7 @@ OBJECTIVES_INSERT = '''                stage = "work_objectives_projection_accep
                 projection_ok=(work_check.get("http")==200 and work_check.get("apiStatus")=="available"
                     and isinstance(work_check.get("apiCount"),int)
                     and work_check.get("rowCount")==work_check.get("apiCount")
+                    and work_check.get("badge") not in {"NOT CHECKED", "CHECKING"}
                     and (work_check.get("apiCount")>0 or
                          work_check.get("objectiveEmpty")=="The authoritative objective projection returned no records.")
                     and "projection_failed" not in work_check.get("detail","")
@@ -239,7 +246,14 @@ def apply(source: str) -> str:
         if '"check":"delegation_registration_interface"' in source:
             if LEGACY_FIELDS_ANCHOR not in source and "registrationButton" in source:
                 if '"check":"work_objectives_projection_available"' in source:
-                    return source
+                    if OBJECTIVES_WAIT_NEW in source and OBJECTIVES_BADGE_NEW in source:
+                        return source
+                    if OBJECTIVES_WAIT_OLD in source and OBJECTIVES_BADGE_OLD in source:
+                        source = _once(source, OBJECTIVES_WAIT_OLD, OBJECTIVES_WAIT_NEW,
+                                       "work_objectives_wait")
+                        return _once(source, OBJECTIVES_BADGE_OLD, OBJECTIVES_BADGE_NEW,
+                                     "work_objectives_badge")
+                    raise ValueError("acceptance_runner_work_objectives_overlay_partial")
                 if OBJECTIVES_ANCHOR in source:
                     return _once(source, OBJECTIVES_ANCHOR, OBJECTIVES_INSERT, "work_objectives")
                 return source
