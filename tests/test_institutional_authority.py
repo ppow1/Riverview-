@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.20
+# Revision: 1.0.21
+# Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-AUTHORITY-ORDER | Expect the additive conversation capability migration after declaration enforcement.
 # Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Test migration 0015 reconciliation and declaration updates
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
@@ -86,12 +87,12 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0008_resident_permission_profiles",
             "0009_worker_registration_retirement_event",
             "0010_grace_autonomy_experiment_grant",
-            "0010_resident_conversation_workspace_capability",
-            "0011_exact_grace_luna_escalation_check",
+                        "0011_exact_grace_luna_escalation_check",
             "0012_grace_supervisory_authority",
             "0013_grace_capability_registry_read",
             "0014_resident_status_read_schema",
             "0015_deployed_capability_declarations",
+            "0016_resident_conversation_workspace_capability",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         with self.admin.cursor() as cur:
