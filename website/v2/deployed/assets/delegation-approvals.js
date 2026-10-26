@@ -32,7 +32,7 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
   }
 
   function explain(error) {
-    if (error.message === "http_401") return "Sign in with an authenticated Steward account to review delegation requests.";
+    if (error.message === "http_401" || error.message === "authentication_required") return "Sign in with an authenticated Steward account to review delegation requests.";
     if (error.message === "http_403" || error.message === "authenticated_steward_required" || error.message === "steward_authority_denied") return "Unavailable: this account is not the institutionally linked Steward with authority.grant at institution scope.";
     if (error.message === "http_503" || error.message === "delegation_authority_unavailable") return "The canonical delegation authority service is unavailable. No decision or revocation was made.";
     return `Request failed (${error.message}). No authority change is reported.`;
