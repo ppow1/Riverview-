@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/NOTIFICATION_DELIVERY.md
 Component: NOTIFICATION-DELIVERY
-File Revision: 1.0.3
+File Revision: 1.0.4
+Changed: 2026-10-26 UTC | RV-V2-NTFY-DEEP-LINKS-20261026 | Document NTFY event titles and read-only links/actions to authenticated V2 records.
 Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Document Grace block escalation visual delivery and receipt boundaries.
 Changed: 2026-10-24 UTC | RV-GRACE-BOUNDED-RECOVERY-DECISION-20261024 | Document exact Steward-bound single-use recovery decisions.
 Purpose: Define durable notifications and exact-bound Grace recovery decisions
@@ -97,6 +98,15 @@ not-found; database errors return unavailable. Recovery decisions do not change
 work orders, or execution grants. Grace atomically marks an exact unexpired
 approval `dispatched` before making the one bounded reasoning call; the existing
 revision failure fence remains unless that claim succeeds.
+
+The private NTFY publisher may include an HTTPS `Click` URL and a `view`
+action. The link is built only from the configured Riverview V2 base URL and
+validated notification/assignment identifiers. It opens the authenticated
+V2 Communications record or filters Work to the exact assignment; it does
+not record display/acknowledgment receipts or invoke a consequential action.
+The dispatcher continues to apply the existing notification level and quiet
+hours policy before publishing. Attached files are not enabled by this
+increment; no protected attachment source/URL contract is wired here.
 
 ## Persistence and migration
 

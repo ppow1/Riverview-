@@ -305,7 +305,7 @@ class NotificationPostgresTests(unittest.TestCase):
     def test_paused_level_suppresses_routine_phone_delivery(self):
         class Phone:
             messages = []
-            def publish(self, event_type):
+            def publish(self, event_type, **_context):
                 self.messages.append(event_type)
                 return "test-message-id"
         self.service.update_settings({"level": "paused", "quiet_hours": {

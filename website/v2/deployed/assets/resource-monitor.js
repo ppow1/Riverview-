@@ -2,7 +2,7 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/resource-monitor.js
 Component: RIVERVIEW-V2-HARDWARE-AI-RESOURCE-MONITOR
-Revision: 1.4.7
+Revision: 1.4.8
 Purpose: Present an interactive manufacturer chassis reference with OCTO1 telemetry and a sanitized Grace request trace
 Execution Model: Same-origin authenticated GETs; five-second polling only while the Resources view is open and visible
 Observability: Source timestamps, freshness, bounded five-minute hardware and model-rate timelines, and request-correlated conversation events
@@ -20,6 +20,7 @@ Changed: 2026-10-24 UTC | RV-V2-OCTOMINER-PHYSICAL-BAYS-20261024 | Show twelve m
 Changed: 2026-10-24 UTC | RV-V2-OCTO-BAY-ALIGN-20261024 | Align markers to source-image bay coordinates and support narrow-screen bay selection.
 Changed: 2026-10-24 UTC | RV-V2-OCTO-GPU-BAY-ASSIGNMENT | Render separately maintained Steward-reported bay inventory without live device attribution.
 Changed: 2026-10-23 UTC | RV-V2-MANUAL-IMAGE-GENERATION-248 | Preserve the deployed V2 source under its explicit production bundle path.
+Changed: 2026-10-26 UTC | RV-V2-COMFYUI-RUNTIME-READOUT-20261026 | Show sanitized authenticated ComfyUI service, queue-count, device, and VRAM readings.
 Contracts: docs/components/RIVERVIEW_V2_WORKSPACE_SHELL.md
 Tests: scripts/verify_v2_resource_monitor.cjs; scripts/verify_v2_octo1_browser.cjs
 History: Git and .riverview-backups/manifest.jsonl
@@ -416,11 +417,22 @@ History: Git and .riverview-backups/manifest.jsonl
     summary.textContent=count?`${bytes(totals.available)} available · ${bytes(totals.used)} used · ${bytes(totals.total)} total across ${count} unique measured filesystem(s). Duplicate views are excluded; unavailable hosts are not counted.`:"No supported mounted volumes were measured. Offline hosts and unavailable capacity are not treated as zero.";
   };
   const applyFilters=()=>{const filter=$("resource-filter")?.value||"all",search=($("resource-search")?.value||"").trim().toLowerCase();document.querySelectorAll("[data-resource-card]").forEach(card=>{const kind=filter==="all"||card.dataset.resourceKind===filter,match=!search||`${card.dataset.search||""} ${card.textContent||""}`.toLowerCase().includes(search);card.hidden=!(kind&&match);});};
+  const renderComfyUI=()=>{
+    const runtime=state.telemetry?.comfyui,ready=runtime?.state==="ready";
+    tag("comfyui-runtime-state",ready?"ready":"unavailable",ready?"Endpoint responding":"Unavailable");
+    text("comfyui-runtime-version",ready?runtime.version:"Unavailable");
+    const queue=runtime?.queue;
+    text("comfyui-runtime-queue",queue?.state==="measured"&&Number.isSafeInteger(queue.running)&&Number.isSafeInteger(queue.pending)?`${queue.running} running · ${queue.pending} pending`:"Unavailable · queue counts not verified");
+    const devices=Array.isArray(runtime?.devices)?runtime.devices:[];
+    text("comfyui-runtime-devices",devices.length?devices.map(device=>`${device.name} · ComfyUI ${device.type.toUpperCase()} ${device.index} · ${bytes(device.vram_free_bytes)} free / ${bytes(device.vram_total_bytes)}`).join("; "):"Unavailable");
+    text("comfyui-runtime-observed",ready?visibleTime(runtime.observed_at):"No successful reading");
+    text("comfyui-runtime-summary",ready?"ComfyUI answered its system and queue APIs. Queue entries are counted only; prompt contents are not projected.":`ComfyUI runtime unavailable${runtime?.error_code?` (${safeError(runtime.error_code)})`:""}. No state is inferred.`);
+  };
   const render=()=>{
     const labels={"not-checked":"NOT CHECKED",checking:"CHECKING",partial:"PARTIAL","authentication-required":"SIGN-IN REQUIRED",unavailable:"UNAVAILABLE",denied:"ACCESS DENIED"};tag("resource-source-state",state.status,labels[state.status]||state.status.toUpperCase());const root=$("resource-monitor-workspace");if(root)root.dataset.state=state.status;const refresh=$("resource-refresh");if(refresh)refresh.disabled=state.inFlight;
     const projection=state.dashboardStatus?.projection_status,source=$("resource-dashboard-state");if(source){const label=projection==="healthy"?"AVAILABLE":projection==="not_initialized"?"NOT INITIALIZED":projection==="unavailable"?"UNAVAILABLE":state.status==="checking"?"CHECKING":state.status==="authentication-required"?"SIGN-IN REQUIRED":state.status==="denied"?"ACCESS DENIED":"NOT CHECKED";source.textContent=label;source.dataset.state=projection||state.status;}
     text("resource-refresh-status",state.status==="not-checked"?"Open Resources to read current host and model-server telemetry through the authenticated Dashboard.":state.status==="checking"?"Refreshing authenticated host and model-server readings…":state.status==="partial"?"Authorized sources responded. The OCTO1 view shows measured, stale, and unavailable states separately.":state.status==="authentication-required"?"Sign in through the existing Dashboard account session. No credentials are requested here.":state.status==="denied"?"The Dashboard denied this read. Existing access controls remain in force.":state.status==="unavailable"?`Dashboard telemetry is unavailable (${state.error||"source_error"}). No values are inferred.`:"Resource telemetry is not available in this context.");
-    text("resource-dashboard-observed",state.observedAt?`Dashboard projection observed at ${visibleTime(state.observedAt)} · freshness ${state.freshness}.`:"No Dashboard observation has been received.");text("resource-worker-summary",state.dashboardStatus?workerSummary(state.dashboardStatus.workers):"Unavailable");text("resource-assignment-summary",state.dashboardStatus?assignmentSummary(state.dashboardStatus):"Unavailable");text("resource-cme-summary",state.dashboardStatus?safeState(state.dashboardStatus.cme?.status).replaceAll("_"," "):"Unavailable");text("resource-grace-summary",state.dashboardStatus?safeState(state.dashboardStatus.grace_execution?.status).replaceAll("_"," "):"Unavailable");text("resource-diagnostic-source",state.telemetry?"authenticated same-origin Dashboard telemetry API · read-only GET":"not connected");text("resource-diagnostic-freshness",state.freshness);text("resource-diagnostic-checked",visibleTime(state.checkedAt));text("resource-diagnostic-error",state.error||state.telemetryError||"none");renderOctoConsole();renderTelemetry();renderStorage();applyFilters();
+    text("resource-dashboard-observed",state.observedAt?`Dashboard projection observed at ${visibleTime(state.observedAt)} · freshness ${state.freshness}.`:"No Dashboard observation has been received.");text("resource-worker-summary",state.dashboardStatus?workerSummary(state.dashboardStatus.workers):"Unavailable");text("resource-assignment-summary",state.dashboardStatus?assignmentSummary(state.dashboardStatus):"Unavailable");text("resource-cme-summary",state.dashboardStatus?safeState(state.dashboardStatus.cme?.status).replaceAll("_"," "):"Unavailable");text("resource-grace-summary",state.dashboardStatus?safeState(state.dashboardStatus.grace_execution?.status).replaceAll("_"," "):"Unavailable");text("resource-diagnostic-source",state.telemetry?"authenticated same-origin Dashboard telemetry API · read-only GET":"not connected");text("resource-diagnostic-freshness",state.freshness);text("resource-diagnostic-checked",visibleTime(state.checkedAt));text("resource-diagnostic-error",state.error||state.telemetryError||"none");renderOctoConsole();renderComfyUI();renderTelemetry();renderStorage();applyFilters();
   };
   const refreshData=async()=>{
     if(state.inFlight)return;if(location.protocol!=="https:"||!location.pathname.startsWith("/v2/")){state.status="unavailable";state.error="lan_https_preview_required";state.inFlight=false;render();return;}

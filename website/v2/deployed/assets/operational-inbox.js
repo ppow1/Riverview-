@@ -1,5 +1,6 @@
-// Revision: 1.0.1
+// Revision: 1.1.0
 // Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Hide decision controls when server session says authority binding is unavailable
+// Changed: 2026-10-26 UTC | RV-V2-NTFY-DEEP-LINKS-20261026 | Open an exact notification record from a same-origin authenticated view link without writing receipts.
 /* Read-only V2 presentation for existing notification and event projections. */
 (() => {
   "use strict";
@@ -16,6 +17,9 @@
   let canRequestRecoveryDecision = false;
   let recoveryAccessMessage = "Sign in with a Steward account linked to institutional Steward authority to decide recovery requests.";
   const receiptRequests = new Set();
+  const rawFocusNotificationId = new URLSearchParams(location.search).get("notification_id");
+  const focusNotificationId = /^[0-9a-f-]{36}$/i.test(rawFocusNotificationId || "") ? rawFocusNotificationId : null;
+  let focusedDeepLink = false;
 
   const node = (tag, value, className) => {
     const item = document.createElement(tag);
@@ -71,6 +75,7 @@
     const rows = visibleRows();
     body.replaceChildren(...rows.map((row) => {
       const tr = document.createElement("tr");
+      if (row.notificationId) tr.dataset.notificationId = row.notificationId;
       const sourceState = row.deliveryState || "recorded";
       tr.append(
         node("td", dateLabel(row.timestamp)),
@@ -104,7 +109,11 @@
         details.append(summary, fields);
         eventCell.append(details);
       }
-      if (row.notificationDetails) eventCell.append(renderNotificationDetails(row.notificationDetails));
+      if (row.notificationDetails) {
+        const details = renderNotificationDetails(row.notificationDetails);
+        if (focusNotificationId && row.notificationId === focusNotificationId) details.open = true;
+        eventCell.append(details);
+      }
       tr.append(eventCell);
       const related = document.createElement("td");
       if (row.assignmentId) {
@@ -124,6 +133,12 @@
       if (row.notificationId) evidence.append(node("code", `notice ${row.notificationId}`));
       if (!row.eventId && !row.notificationId) evidence.append(node("span", "No evidence identifier supplied."));
       tr.append(evidence);
+      if (focusNotificationId && !focusedDeepLink && row.notificationId === focusNotificationId) {
+        focusedDeepLink = true;
+        tr.tabIndex = -1;
+        tr.classList.add("inbox-deep-link-target");
+        requestAnimationFrame(() => { tr.scrollIntoView({behavior: "smooth", block: "center"}); tr.focus({preventScroll: true}); });
+      }
       return tr;
     }));
     const empty = $("#inbox-empty");
