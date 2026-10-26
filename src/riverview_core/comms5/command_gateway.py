@@ -1,13 +1,12 @@
 """Bounded Windows PowerShell/SSH command gateway for Comms5.
 
-File Revision: 1.0.0
+File Revision: 1.1.0
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY
 Authority: Existing AuthorityRegistry grants and systemd-loaded service credential.
-Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Add bounded authorized Windows and SSH read-only probes.
+Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Add host-scoped standard/elevated task commands and durable result attribution.
 
-The only executable operations are fixed read-only probes. Authorization remains
-in Riverview's AuthorityRegistry; the Windows agent persists execution records
-and never receives a credential-bearing command from ChatGPT.
+Authorization remains in Riverview's AuthorityRegistry; the Windows agent
+persists bounded execution records and never receives credentials from Comms5.
 """
 
 from __future__ import annotations
@@ -30,14 +29,24 @@ from urllib.request import Request, build_opener, HTTPSHandler
 from uuid import uuid4
 
 
-MAX_BODY_BYTES = 16_384
+MAX_BODY_BYTES = 512 * 1024
 MAX_OUTPUT_BYTES = 32_768
+MAX_COMMAND_CHARS = 8_000
 AGENT_HTTP_TIMEOUT = 20.0
 COMMAND_TIMEOUT_SECONDS = 12
 HOSTS = {
     "powershell_identity": ("desktop-ja3rpnq", "host:desktop-ja3rpnq", "standard"),
     "ssh_camrui_hostname": ("camrui", "host:camrui", "standard"),
 }
+TASK_HOSTS = {
+    # These identifiers are fixed server-side mappings. SSH aliases must be
+    # provisioned with pinned host keys on the Windows executor before use.
+    "desktop-ja3rpnq": ("desktop-ja3rpnq", "host:desktop-ja3rpnq", "powershell"),
+    "camrui": ("camrui", "host:camrui", "ssh"),
+    "octominer1": ("octominer1", "host:octominer1", "ssh"),
+    "octominer2": ("octominer2", "host:octominer2", "ssh"),
+}
+TASK_PRIVILEGES = frozenset({"standard", "elevated"})
 CALLER_ACTIONS = {
     name: "comms5.command.submit." + name for name in HOSTS
 }
@@ -202,9 +211,145 @@ class WindowsCommandGateway:
                             result.get("reservation_id", ""), operation, target, privilege)
 
     @staticmethod
+    def _task_target(host_id: object, privilege: object):
+        if not isinstance(host_id, str) or host_id not in TASK_HOSTS:
+            raise ValueError("command_host_not_registered")
+        if privilege not in TASK_PRIVILEGES:
+            raise ValueError("command_privilege_invalid")
+        target, scope, transport = TASK_HOSTS[host_id]
+        operation = "command_task_" + privilege
+        return operation, target, scope, transport, privilege
+
+    @staticmethod
+    def _task_actions(host_id: str, privilege: str):
+        # Caller and executor authorities are separate, exact, and host-scoped.
+        return (f"comms5.command.submit.task.{host_id}.{privilege}",
+                f"comms5.command.execute.task.{host_id}.{privilege}")
+
+    def submit_task(self, principal: str, arguments: dict) -> dict:
+        expected = {"host_id", "command", "privilege_level", "execution_grant_id",
+                    "idempotency_key"}
+        if not isinstance(arguments, dict) or set(arguments) != expected:
+            raise ValueError("command_task_submit_fields_invalid")
+        operation, target, scope, transport, privilege = self._task_target(
+            arguments["host_id"], arguments["privilege_level"])
+        if transport == "powershell" and privilege == "elevated":
+            raise CommandAgentUnavailable("windows_elevated_executor_not_configured")
+        command = arguments["command"]
+        if (not isinstance(command, str) or not command.strip() or
+                len(command.encode("utf-8")) > MAX_COMMAND_CHARS or "\x00" in command):
+            raise ValueError("command_task_text_invalid")
+        execution_grant_id = arguments["execution_grant_id"]
+        if not isinstance(execution_grant_id, str) or not 1 <= len(execution_grant_id) <= 128:
+            raise ValueError("execution_grant_id_invalid")
+        caller_action, execution_action = self._task_actions(arguments["host_id"], privilege)
+        try:
+            with self.ledger_db.transaction():
+                with self.ledger_db.cursor() as cursor:
+                    caller = self.authorizer.require_principal(cursor, principal,
+                                                               caller_action, scope)
+        except Exception as exc:
+            if type(exc).__name__ in {"GrantDenied", "GrantCheckUnavailable"}:
+                raise CommandGatewayDenied("caller_command_grant_denied") from None
+            raise
+        idem = self._idempotency(principal, operation + ":" + arguments["host_id"],
+                                 arguments["idempotency_key"])
+        operation_ref = "comms5-command:" + idem
+        try:
+            reservation = self.registry.reserve_delegated_grant(
+                self.grantee_credential, execution_grant_id, execution_action, scope,
+                operation_ref, idempotency_key=idem)
+        except Exception as exc:
+            if type(exc).__name__ in {"AuthorityDenied", "RegistryUnavailable"}:
+                raise CommandGatewayDenied("execution_allowance_denied") from None
+            raise
+        if reservation.get("status") not in {"reserved", "consumed"}:
+            raise CommandGatewayDenied("execution_allowance_inactive")
+        try:
+            with self.ledger_db.transaction():
+                with self.ledger_db.cursor() as cursor:
+                    current = self.authorizer.require(cursor, self.grantee_credential,
+                                                      execution_action, scope)
+            if current.get("grant_id") != execution_grant_id:
+                raise CommandGatewayDenied("execution_grant_changed_before_dispatch")
+        except Exception as exc:
+            self.registry.release_delegated_grant(
+                self.grantee_credential, reservation["reservation_id"],
+                "authority_revoked_before_dispatch")
+            if isinstance(exc, CommandGatewayDenied):
+                raise
+            if type(exc).__name__ in {"GrantDenied", "GrantCheckUnavailable"}:
+                raise CommandGatewayDenied("execution_grant_inactive_before_dispatch") from None
+            raise
+        request = {"operation": operation, "target_host": target, "host_id": arguments["host_id"],
+            "transport": transport, "privilege_level": privilege, "command": command,
+            "caller_principal": principal, "caller_grant_id": caller["grant_id"],
+            "execution_grant_id": execution_grant_id,
+            "reservation_id": reservation["reservation_id"], "idempotency_key": idem}
+        try:
+            result = self.agent.submit(request)
+        except Exception:
+            self.registry.release_delegated_grant(self.grantee_credential,
+                reservation["reservation_id"], "command_agent_unavailable")
+            raise
+        status = result.get("execution_status")
+        if status == "denied":
+            self.registry.release_delegated_grant(self.grantee_credential,
+                reservation["reservation_id"], "command_agent_rejected")
+        elif status in {"queued", "running", "completed", "failed", "timed_out", "interrupted"}:
+            self.registry.consume_delegated_grant(self.grantee_credential,
+                reservation["reservation_id"], result["execution_id"])
+        else:
+            raise CommandAgentUnavailable("command_agent_status_invalid")
+        return self._result(result, principal, caller["grant_id"], execution_grant_id,
+                            reservation["reservation_id"], operation, target, privilege)
+
+    def task_status(self, principal: str, arguments: dict) -> dict:
+        expected = {"host_id", "command_sha256", "privilege_level", "idempotency_key"}
+        if not isinstance(arguments, dict) or set(arguments) != expected:
+            raise ValueError("command_task_status_fields_invalid")
+        operation, target, scope, _transport, privilege = self._task_target(
+            arguments["host_id"], arguments["privilege_level"])
+        if not isinstance(arguments["command_sha256"], str) or not re.fullmatch(
+                r"[0-9a-f]{64}", arguments["command_sha256"]):
+            raise ValueError("command_hash_invalid")
+        caller_action, _ = self._task_actions(arguments["host_id"], privilege)
+        try:
+            with self.ledger_db.transaction():
+                with self.ledger_db.cursor() as cursor:
+                    caller = self.authorizer.require_principal(cursor, principal, caller_action, scope)
+        except Exception as exc:
+            if type(exc).__name__ in {"GrantDenied", "GrantCheckUnavailable"}:
+                raise CommandGatewayDenied("caller_command_grant_denied") from None
+            raise
+        idem = self._idempotency(principal, operation + ":" + arguments["host_id"],
+                                 arguments["idempotency_key"])
+        result = self.agent.status(idem, principal, operation)
+        if result.get("execution_status") == "not_found":
+            return {"status": "not_found", "executed": False,
+                "host_id": arguments["host_id"], "privilege_level": privilege,
+                "command_sha256": arguments["command_sha256"],
+                "authorization_evidence": {"principal_id": principal,
+                    "caller_grant_id": caller["grant_id"], "action": caller_action,
+                    "scope_ref": scope}}
+        if result.get("command_sha256") != arguments["command_sha256"]:
+            return {"status": "not_found", "executed": False}
+        return self._result(result, principal, caller["grant_id"],
+            result.get("execution_grant_id", ""), result.get("reservation_id", ""),
+            operation, target, privilege)
+
+    @staticmethod
     def _result(result, principal, caller_grant_id, execution_grant_id,
                 reservation_id, operation, target, privilege):
-        return {
+        if operation.startswith("command_task_"):
+            host_id = result.get("host_id", "")
+            action = f"comms5.command.execute.task.{host_id}.{privilege}"
+            scope = TASK_HOSTS.get(host_id, (target, "", ""))[1]
+        else:
+            host_id = ""
+            action = EXECUTION_ACTIONS[operation]
+            scope = HOSTS[operation][1]
+        value = {
             "status": result["execution_status"], "executed": result["execution_status"] in
                 {"queued", "running", "completed", "failed", "timed_out", "interrupted"},
             "execution_id": result["execution_id"],
@@ -217,14 +362,18 @@ class WindowsCommandGateway:
             "authorization_evidence": {
                 "principal_id": principal, "caller_grant_id": caller_grant_id,
                 "execution_grant_id": execution_grant_id,
-                "action": EXECUTION_ACTIONS[operation],
-                "scope_ref": HOSTS[operation][1], "reservation_id": reservation_id,
+                "action": action,
+                "scope_ref": scope, "reservation_id": reservation_id,
                 "reservation_status": "consumed" if result["execution_status"] != "denied" else "released",
             },
             "audit_evidence": {"execution_id": result["execution_id"],
                 "audit_event_id": result.get("audit_event_id"),
                 "idempotency_key": result.get("idempotency_key")},
         }
+        if host_id:
+            value["host_id"] = host_id
+            value["command_sha256"] = result.get("command_sha256", "")
+        return value
 
 
 class WindowsCommandAgentClient:
@@ -303,6 +452,9 @@ class WindowsCommandAgentStore:
                     request_sha256 TEXT NOT NULL,
                     operation TEXT NOT NULL,
                     target_host TEXT NOT NULL,
+                    host_id TEXT NOT NULL DEFAULT '',
+                    transport TEXT NOT NULL DEFAULT '',
+                    command_sha256 TEXT NOT NULL DEFAULT '',
                     privilege_level TEXT NOT NULL,
                     caller_principal TEXT NOT NULL,
                     caller_grant_id TEXT NOT NULL,
@@ -328,6 +480,12 @@ class WindowsCommandAgentStore:
                 CREATE INDEX IF NOT EXISTS command_execution_events_by_execution
                     ON command_execution_events(execution_id, occurred_at);
             """)
+            columns = {row[1] for row in db.execute("PRAGMA table_info(command_executions)")}
+            for name, definition in (("host_id", "TEXT NOT NULL DEFAULT ''"),
+                                     ("transport", "TEXT NOT NULL DEFAULT ''"),
+                                     ("command_sha256", "TEXT NOT NULL DEFAULT ''")):
+                if name not in columns:
+                    db.execute(f"ALTER TABLE command_executions ADD COLUMN {name} {definition}")
             for row in db.execute("SELECT execution_id FROM command_executions WHERE execution_status IN ('queued','running')"):
                 self._event(db, row[0], "interrupted", {"reason": "agent_restarted"})
                 db.execute("UPDATE command_executions SET execution_status='interrupted',completed_at=? WHERE execution_id=?",
@@ -367,17 +525,23 @@ class WindowsCommandAgentStore:
             now = _now()
             event_id = str(uuid4())
             db.execute("""INSERT INTO command_executions
-                (execution_id,idempotency_key,request_sha256,operation,target_host,privilege_level,
+                (execution_id,idempotency_key,request_sha256,operation,target_host,host_id,transport,
+                 command_sha256,privilege_level,
                  caller_principal,caller_grant_id,execution_grant_id,reservation_id,execution_status,
                  created_at,audit_event_id)
-                VALUES(?,?,?,?,?,?,?,?,?,?,'queued',?,?)""",
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'queued',?,?)""",
                 (execution_id, validated["idempotency_key"], request_hash,
-                 validated["operation"], validated["target_host"], validated["privilege_level"],
+                 validated["operation"], validated["target_host"], validated.get("host_id", ""),
+                 validated.get("transport", ""), validated.get("command_sha256", ""),
+                 validated["privilege_level"],
                  validated["caller_principal"], validated["caller_grant_id"],
                  validated["execution_grant_id"], validated["reservation_id"], now, event_id))
             db.execute("INSERT INTO command_execution_events VALUES(?,?,?,?,?)",
                        (event_id, execution_id, "accepted", _canonical_json({
                            "operation": validated["operation"], "target_host": validated["target_host"],
+                           "host_id": validated.get("host_id", ""),
+                           "transport": validated.get("transport", ""),
+                           "command_sha256": validated.get("command_sha256", ""),
                            "privilege_level": validated["privilege_level"],
                            "caller_principal": validated["caller_principal"],
                            "caller_grant_id": validated["caller_grant_id"],
@@ -391,7 +555,8 @@ class WindowsCommandAgentStore:
                        (started, execution_id))
             db.commit()
             try:
-                stdout, stderr, exit_code = self.runner(validated["operation"], self.timeout_seconds)
+                runner_input = validated if validated["operation"].startswith("command_task_") else validated["operation"]
+                stdout, stderr, exit_code = self.runner(runner_input, self.timeout_seconds)
                 status = "completed" if exit_code == 0 else "failed"
             except subprocess.TimeoutExpired as exc:
                 stdout = _decode_output(exc.stdout, self.output_limit)
@@ -404,6 +569,7 @@ class WindowsCommandAgentStore:
             completed = _now()
             db.execute("BEGIN IMMEDIATE")
             event_id = self._event(db, execution_id, status, {
+                "command_sha256": validated.get("command_sha256", ""),
                 "exit_code": exit_code, "stdout_sha256": hashlib.sha256(stdout.encode()).hexdigest(),
                 "stderr_sha256": hashlib.sha256(stderr.encode()).hexdigest(),
                 "stdout_bytes": len(stdout.encode()), "stderr_bytes": len(stderr.encode())})
@@ -451,10 +617,31 @@ def _validate_agent_request(request: dict) -> dict:
     expected = {"operation", "target_host", "privilege_level", "caller_principal",
                 "caller_grant_id", "execution_grant_id", "reservation_id", "idempotency_key"}
     if not isinstance(request, dict) or set(request) != expected:
-        raise ValueError("agent_request_fields_invalid")
-    target, scope, privilege = _safe_operation(request["operation"])
-    if (request["target_host"] != target or request["privilege_level"] != privilege or
-            not isinstance(request["caller_principal"], str) or
+        task_expected = expected | {"host_id", "transport", "command"}
+        if not isinstance(request, dict) or set(request) != task_expected:
+            raise ValueError("agent_request_fields_invalid")
+    if request["operation"] in {"command_task_standard", "command_task_elevated"}:
+        if set(request) != expected | {"host_id", "transport", "command"}:
+            raise ValueError("agent_request_fields_invalid")
+        host_id = request["host_id"]
+        if not isinstance(host_id, str) or host_id not in TASK_HOSTS:
+            raise ValueError("command_host_not_registered")
+        target, _scope, transport = TASK_HOSTS[host_id]
+        privilege = request["operation"].removeprefix("command_task_")
+        command = request["command"]
+        if (request["target_host"] != target or request["transport"] != transport or
+                request["privilege_level"] != privilege or privilege not in TASK_PRIVILEGES or
+                not isinstance(command, str) or not command.strip() or
+                len(command.encode("utf-8")) > MAX_COMMAND_CHARS or "\x00" in command):
+            raise ValueError("agent_request_not_authorized_shape")
+        request = dict(request)
+        request["command_sha256"] = hashlib.sha256(command.encode("utf-8")).hexdigest()
+        # The command is delivered to the runner but never written to the durable ledger.
+    else:
+        target, _scope, privilege = _safe_operation(request["operation"])
+        if request["target_host"] != target or request["privilege_level"] != privilege:
+            raise ValueError("agent_request_not_authorized_shape")
+    if (not isinstance(request["caller_principal"], str) or
             not request["caller_principal"].startswith("steward:") or
             any(not isinstance(request[field], str) or not 1 <= len(request[field]) <= 256
                 for field in ("caller_grant_id", "execution_grant_id", "reservation_id")) or
@@ -475,6 +662,29 @@ def _run_windows_operation(operation: str, timeout: int):
         argv = ["ssh.exe", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
                 "-o", "ClearAllForwardings=yes", "-o", "ForwardAgent=no",
                 "-o", "RequestTTY=no", "camrui", "hostname"]
+    elif isinstance(operation, dict) and operation.get("operation", "").startswith("command_task_"):
+        transport = operation["transport"]
+        command = operation["command"]
+        privilege = operation["privilege_level"]
+        if transport == "powershell":
+            # The service account must be provisioned as a non-administrator.
+            # A separate elevated caller/executor grant is necessary but cannot
+            # by itself grant the Windows service OS privileges.
+            if privilege == "elevated":
+                raise PermissionError("windows_elevated_executor_not_configured")
+            argv = ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command]
+        elif transport == "ssh":
+            # SSH aliases and strict known_hosts entries are administrator managed.
+            # The standard SSH account must not have sudo rights; elevated requests
+            # use non-interactive sudo and therefore fail closed if not granted.
+            import shlex
+            remote = (command if privilege == "standard" else
+                      "sudo -n -- sh -lc " + shlex.quote(command))
+            argv = ["ssh.exe", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
+                    "-o", "ClearAllForwardings=yes", "-o", "ForwardAgent=no",
+                    "-o", "RequestTTY=no", operation["host_id"], remote]
+        else:
+            raise ValueError("command_transport_not_supported")
     else:
         raise ValueError("command_operation_not_allowlisted")
     process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

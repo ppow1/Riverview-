@@ -1,5 +1,5 @@
-# Revision: 1.1.0
-# Changed: 2026-10-26 UTC | RV-ISSUE343-BASE-INTEGRATION | Preserve protected ChatGPT principal registration and add exact host-scoped delegation pairs.
+# Revision: 1.2.0
+# Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Permit explicit host-and-privilege-specific task command grant pairs.
 """Protected adapter for Comms5 delegated grant lifecycle and identity registration.
 
 The adapter owns the manager connection and Steward credential. Neither value
@@ -27,6 +27,9 @@ _HOST_SCOPED_ACTIONS = {
     "comms5.command.execute.readonly.powershell_identity.standard": "host:desktop-ja3rpnq",
     "comms5.command.submit.ssh_camrui_hostname": "host:camrui",
     "comms5.command.execute.readonly.ssh_camrui_hostname.standard": "host:camrui",
+    **{f"comms5.command.{verb}.task.{host}.{level}": f"host:{host}"
+       for host in ("desktop-ja3rpnq", "camrui", "octominer1", "octominer2")
+       for verb in ("submit", "execute") for level in ("standard", "elevated")},
 }
 _UNCHANGED = object()
 from riverview_core.comms5.delegation_policy import (

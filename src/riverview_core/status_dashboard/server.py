@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.45
+# Revision: 1.3.46
+# Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Route host-scoped command tools to their independent exact-grant boundary without broad project delegation.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Route one confirmed identity.manage registration action through the protected delegation adapter.
 # Changed: 2026-10-26 UTC | RV-PR342-COMMS5-AUTHORITY-EXCLUSION | Classify internal Comms5 authorization ingress as excluded from resident-executable capability registration
 # Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Expose a non-sensitive eligibility hint to hide recovery controls from unlinked sessions
@@ -984,14 +985,17 @@ def make_handler():
                         "delegation_grant_requests", None)
                     if not is_steward:
                         from riverview_core.comms5.delegation_policy import is_delegable_tool
+                        exact_command_tool = data["tool"] in {
+                            "comms5_command_submit", "comms5_command_status",
+                            "comms5_command_task_submit", "comms5_command_task_status"}
                         self_surrender = data["tool"] == "comms5_revoke_delegation_grant"
-                        if not is_delegable_tool(data["tool"]) and not self_surrender:
+                        if not is_delegable_tool(data["tool"]) and not self_surrender and not exact_command_tool:
                             self._error(403, "comms5_operation_not_authorized", request_id)
                             return
-                        if delegated_adapter is None:
+                        if delegated_adapter is None and not exact_command_tool:
                             self._error(503, "delegation_authority_unavailable", request_id)
                             return
-                        if not self_surrender and data["tool"] not in {
+                        if not exact_command_tool and not self_surrender and data["tool"] not in {
                                 "comms5_request_delegation_grant", "comms5_get_delegation_grant_status"}:
                             try:
                                 delegated_adapter.authorize_operation(principal_id=attested_principal,

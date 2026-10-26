@@ -176,6 +176,12 @@ def test_comms5_adapter_allows_only_exact_command_gateway_host_grants():
         ("comms5.command.execute.readonly.ssh_camrui_hostname.standard",
          "host:camrui", "service:command-gateway"),
     ]
+    pairs.extend(
+        (f"comms5.command.{verb}.task.{host}.{level}", f"host:{host}", principal)
+        for host in ("desktop-ja3rpnq", "camrui", "octominer1", "octominer2")
+        for level in ("standard", "elevated")
+        for verb, principal in (("submit", "service:chatgpt"),
+                                ("execute", "service:command-gateway")))
     for index, (action, scope, principal) in enumerate(pairs):
         adapter.request_grant(
             requester_id="steward:camrui", principal_id=principal,

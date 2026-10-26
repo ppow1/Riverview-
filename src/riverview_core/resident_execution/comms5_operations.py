@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.0.8
+# Revision: 1.1.0
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -15,7 +15,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Require fresh trusted repository grounding for stale-base rework and preserve dependency/completion semantics.
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Make repeated policy transitions auditable after intervening changes without losing retry safety.
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Route four advisory exchange tools through an explicit authenticated Steward bridge.
-# Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Dispatch fixed command operations after existing authenticated Steward/delegation checks.
+# Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Add exact-host-grant task submit/status without project-grant shell authorization.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md; Comms5 contract 5.0
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -33,6 +33,11 @@ from ..institutional_authority.grants import InstitutionalPrincipal
 
 _UNSET = object()
 from ..comms5.delegation_policy import is_delegable_tool
+
+HOST_SCOPED_COMMAND_TOOLS = frozenset({
+    "comms5_command_submit", "comms5_command_status",
+    "comms5_command_task_submit", "comms5_command_task_status",
+})
 
 from .proposals import ProposalConflict
 
@@ -71,6 +76,7 @@ class Comms5Operations:
         "comms5_request_delegation_grant", "comms5_get_delegation_grant_status",
         "comms5_revoke_delegation_grant", "comms5_request_delegation_grant_change",
         "comms5_command_submit", "comms5_command_status",
+        "comms5_command_task_submit", "comms5_command_task_status",
         "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
         "reasoning_exchange_submit_response", "reasoning_exchange_status",
     })
@@ -197,12 +203,14 @@ class Comms5Operations:
     def execute(self, tool, arguments, *, principal_id, delegated_authorized=False):
         if type(delegated_authorized) is not bool:
             raise ValueError("delegated_authorization_context_invalid")
-        if delegated_authorized and not (is_delegable_tool(tool) or tool == "comms5_revoke_delegation_grant"):
+        if delegated_authorized and not (is_delegable_tool(tool) or
+                tool == "comms5_revoke_delegation_grant" or
+                tool in HOST_SCOPED_COMMAND_TOOLS):
             raise PermissionError("Comms5 operation is excluded from delegated authority")
         actor = self._attested_grantee(principal_id) if delegated_authorized else self._actor(principal_id)
         if tool not in self.SUPPORTED:
             raise ValueError("operation_not_supported")
-        if tool in {"comms5_command_submit", "comms5_command_status"}:
+        if tool in HOST_SCOPED_COMMAND_TOOLS:
             if self.pipeline is None or self.authority_registry is None:
                 raise RuntimeError("command_gateway_authority_unavailable")
             from ..comms5.command_gateway import WindowsCommandGateway
@@ -212,7 +220,11 @@ class Comms5Operations:
                 ledger_db=self.pipeline.ledger.db)
             if tool == "comms5_command_submit":
                 return gateway.submit(actor, arguments)
-            return gateway.status(actor, arguments)
+            if tool == "comms5_command_status":
+                return gateway.status(actor, arguments)
+            if tool == "comms5_command_task_submit":
+                return gateway.submit_task(actor, arguments)
+            return gateway.task_status(actor, arguments)
         if tool == "comms5_authorize_grace_experiment":
             if arguments.get("explicit_steward_confirmation") is not True:
                 raise PermissionError("explicit Steward confirmation is required")
