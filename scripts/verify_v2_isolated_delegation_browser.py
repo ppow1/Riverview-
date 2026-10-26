@@ -2,13 +2,14 @@
 # Riverview~ Controlled Script
 # File: scripts/verify_v2_isolated_delegation_browser.py
 # Component: RIVERVIEW-V2-DELEGATION-ACCEPTANCE
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify complete delegation lifecycle using the reserved persona and an isolated canonical authority schema.
 # Execution Model: Authenticated headless Chrome and ephemeral PostgreSQL-backed V2 API.
 # Observability: Safe per-check JSON, audit assertions, and screenshot evidence.
 # Dependencies: PostgreSQL 16, Psycopg 3, Python, OpenSSL, ChromeDriver.
 # Authority: Isolated steward:test grants and disposable service principals only; never production identity or grants.
 # Changed: 2026-10-26 UTC | RV-ISSUE268-DELEGATION-CANCEL-ACCEPTANCE | Test registration, request/hash approval, policy enforcement, revocation and errors through V2.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-SYSTEMD-CHROME-ACCEPTANCE | Prefer the installed Chrome/ChromeDriver pair and fail clearly if the driver does not become ready.
 # Contracts: Existing canonical AuthorityRegistry and V2 Delegation Approvals API.
 # Tests: scripts/verify_v2_isolated_delegation_browser.py and tests/test_delegation_routes.py.
 # History: Git and .riverview-backups/manifest.jsonl.
@@ -171,9 +172,19 @@ def run():
         key,cert=temp_path/"key.pem",temp_path/"cert.pem"
         subprocess.run(["openssl","req","-x509","-newkey","rsa:2048","-nodes","-keyout",str(key),"-out",str(cert),"-days","1","-subj","/CN=localhost","-addext","subjectAltName=DNS:localhost,IP:127.0.0.1"],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         tls=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);tls.load_cert_chain(cert,key);server.socket=tls.wrap_socket(server.socket,server_side=True);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-        driver_port=free_port();gecko=shutil.which("geckodriver") or "/snap/bin/geckodriver";firefox=shutil.which("firefox") or "/snap/bin/firefox"
-        if not Path(gecko).exists() or not Path(firefox).exists():raise RuntimeError("existing_acceptance_browser_unavailable")
-        driver=subprocess.Popen([gecko,"--host","127.0.0.1","--port",str(driver_port)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        driver_port=free_port();chrome_driver=shutil.which("chromedriver");chrome=shutil.which("google-chrome") or shutil.which("google-chrome-stable")
+        gecko=shutil.which("geckodriver") or ("/snap/bin/geckodriver" if Path("/snap/bin/geckodriver").exists() else None)
+        firefox=shutil.which("firefox") or ("/snap/bin/firefox" if Path("/snap/bin/firefox").exists() else None)
+        if chrome_driver and chrome:
+            driver_command=[chrome_driver,f"--port={driver_port}","--allowed-ips=127.0.0.1"]
+            browser_name="chrome"
+            browser_options={"goog:chromeOptions":{"binary":chrome,"args":["--headless=new","--disable-dev-shm-usage"]}}
+        elif gecko and firefox:
+            driver_command=[gecko,"--host","127.0.0.1","--port",str(driver_port)]
+            browser_name="firefox"
+            browser_options={"moz:firefoxOptions":{"args":["-headless"]}}
+        else:raise RuntimeError("existing_acceptance_browser_unavailable")
+        driver=subprocess.Popen(driver_command,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         sid=None
         def wd(method,path,value=None):
             from urllib.request import Request,urlopen
@@ -184,10 +195,14 @@ def run():
             except HTTPError as exc:raise RuntimeError(f"browser_protocol_http_{exc.code}")
         def js(source,*args):return wd("POST",f"/session/{sid}/execute/sync",{"script":source,"args":list(args)})["value"]
         try:
+            driver_ready=False
             for _ in range(100):
-                try:wd("GET","/status");break
-                except Exception:time.sleep(.1)
-            caps={"capabilities":{"alwaysMatch":{"browserName":"firefox","acceptInsecureCerts":True,"moz:firefoxOptions":{"args":["-headless"]}}}}
+                try:wd("GET","/status");driver_ready=True;break
+                except Exception:
+                    if driver.poll() is not None:break
+                    time.sleep(.1)
+            if not driver_ready:raise RuntimeError("browser_driver_start_failed")
+            caps={"capabilities":{"alwaysMatch":{"browserName":browser_name,"acceptInsecureCerts":True,**browser_options}}}
             sid=wd("POST","/session",caps)["value"]["sessionId"]
             wd("POST",f"/session/{sid}/url",{"url":f"https://127.0.0.1:{port}/v2/"})
             time.sleep(.4)

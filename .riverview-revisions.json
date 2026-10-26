@@ -20,9 +20,9 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.37",
-      "sha256": "561a81f50db0d9724b5a26e369514af1ff099b46b884def54de3ff1dd63b94cd",
-      "size_bytes": 1616971
+      "revision": "1.0.39",
+      "sha256": "d386785009bd7d9462451a02f8c2bc59dd5bbaab09b587ed3ce37b59efcd1aab",
+      "size_bytes": 1618319
     },
     ".riverview-revisions.json": {
       "revision": "1.1.348"
@@ -248,6 +248,12 @@
       "revision": "1.0.0",
       "sha256": "b666e07b0d3023112a689900c338301571188b837d966a6d25e2f3ae237e5c23",
       "size_bytes": 385
+    },
+    "deploy/systemd/riverview-website-acceptance-isolated-postgres.conf": {
+      "path": "deploy/systemd/riverview-website-acceptance-isolated-postgres.conf",
+      "revision": "1.0.0",
+      "sha256": "231a6eb23da05603bfedacfc031b75ab06f756ffc502719ad8b5e6071968eaa1",
+      "size_bytes": 1056
     },
     "dist/knowledge-provider-v1.0.0.zip": {
       "path": "dist/knowledge-provider-v1.0.0.zip",
@@ -8315,9 +8321,9 @@
     },
     "scripts/verify_v2_isolated_delegation_browser.py": {
       "path": "scripts/verify_v2_isolated_delegation_browser.py",
-      "revision": "1.0.0",
-      "sha256": "3aaaa60987842c3cb962c08068a6c0b046b7ba1522b82a8febea7984f85a9ed2",
-      "size_bytes": 34505
+      "revision": "1.0.1",
+      "sha256": "4130bad96069ed7534f9b01184fc394bd51de77aba3a14027dbc241acceb4671",
+      "size_bytes": 35512
     },
     "scripts/verify_worker_inventory_browser.py": {
       "path": "scripts/verify_worker_inventory_browser.py",
@@ -9569,9 +9575,9 @@
     },
     "tests/test_invoke_isolated_website_acceptance.py": {
       "path": "tests/test_invoke_isolated_website_acceptance.py",
-      "revision": "1.0.0",
-      "sha256": "eb9c0ca5b9a017d9ee7b116f3af070e9549b6294928916cecdd94c7ce449afdc",
-      "size_bytes": 2622
+      "revision": "1.0.1",
+      "sha256": "43eaf02060c4b84d882d9c05bc091da97d26d2686a70ab4a7007eb5fc2a4a177",
+      "size_bytes": 2694
     },
     "tests/test_ledger.py": {
       "path": "tests/test_ledger.py",
@@ -9857,6 +9863,6 @@
     }
   },
   "manifest_revision": "1.1.340",
-  "revision": "1.1.349",
+  "revision": "1.1.351",
   "updated_at": "2026-10-25T17:46:11+00:00"
 }
