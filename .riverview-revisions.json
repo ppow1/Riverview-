@@ -717,6 +717,18 @@
       "sha256": "58322701d46781f9ad3596114bab417306828ca1bf1d8bbf78fa8e0e03c4c8c2",
       "size_bytes": 28097
     },
+    "docs/delegation-grants/examples.json": {
+      "path": "docs/delegation-grants/examples.json",
+      "revision": "1.0.0",
+      "sha256": "9b143ad3bdc0069d82f6a8696cea6e7f442137532d9ca42528ce1fcc5bfbd766",
+      "size_bytes": 12178
+    },
+    "docs/delegation-grants/openapi.json": {
+      "path": "docs/delegation-grants/openapi.json",
+      "revision": "1.0.0",
+      "sha256": "57817c55a60fb90b15c228778dbeb4608af9b0efcab860fd8c7edf85125915cb",
+      "size_bytes": 17431
+    },
     "docs/development/JOURNAL.md": {
       "path": "docs/development/JOURNAL.md",
       "revision": "1.0.177",
@@ -8582,6 +8594,18 @@
       "revision": "1.0.1",
       "sha256": "438e17ce9024df66e2d484835977ff32b1b9c87674c4d11c9c733c2bf6d78a9d",
       "size_bytes": 12511
+    },
+    "src/riverview_core/institutional_authority/migrations/0018_delegated_host_scopes.sql": {
+      "path": "src/riverview_core/institutional_authority/migrations/0018_delegated_host_scopes.sql",
+      "revision": "1.0.0",
+      "sha256": "b1c91240276a47c8bbbf15b30061818542c55541113e3cd3c416f9f0dfb57cb8",
+      "size_bytes": 970
+    },
+    "src/riverview_core/institutional_authority/migrations/0019_generalized_delegation_lifecycle.sql": {
+      "path": "src/riverview_core/institutional_authority/migrations/0019_generalized_delegation_lifecycle.sql",
+      "revision": "1.0.0",
+      "sha256": "68dea653e76d78ef589c2f2f91e325781fc65886b51a11daa1b39194fc99880f",
+      "size_bytes": 3095
     },
     "src/riverview_core/institutional_authority/permission_profiles.py": {
       "path": "src/riverview_core/institutional_authority/permission_profiles.py",

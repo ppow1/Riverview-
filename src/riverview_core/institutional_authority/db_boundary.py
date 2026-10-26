@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/db_boundary.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.27
+# Revision: 1.0.28
+# Changed: 2026-10-26 UTC | RV-ISSUE343-MIGRATION-PROFILE-COMPAT | Match required authority relations to the applied grant migration profile.
 # Changed: 2026-10-25 UTC | C3-PR302-MIGRATION-COMPATIBILITY | Allowlist and protect the migration-gated legacy capability trigger.
 # Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Keep the migration-0015 invoker-only function out of older boundary profiles
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-M33-PROFILE | Expose the exact migration-0008 function profile for version-specific verification.
@@ -228,6 +229,18 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
 
     with connection.transaction():
         with connection.cursor(row_factory=dict_row) as cur:
+            cur.execute(sql.SQL("SELECT EXISTS(SELECT 1 FROM {}.schema_migrations "
+                                "WHERE version='0017_reusable_scoped_grants') AS applied")
+                        .format(sql.Identifier(schema)))
+            reusable_grants_applied = cur.fetchone()["applied"]
+            authority_tables = AUTHORITY_TABLES
+            if not reusable_grants_applied:
+                # Migrations before 0017 do not create these relations. Keep
+                # the established preflight usable for the older migration
+                # profile without weakening checks on an upgraded registry.
+                authority_tables = tuple(
+                    table for table in AUTHORITY_TABLES
+                    if table not in {"delegated_grant_requests", "delegated_grant_reservations"})
             runtime_permission_functions_map = _permission_functions_for_migration_profile(cur, schema)
             deployment_registration_functions_map = (
                 _deployment_registration_functions_for_migration(cur, schema))
@@ -305,7 +318,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                            JOIN pg_namespace n ON n.oid=c.relnamespace
                            WHERE n.nspname=%s AND c.relkind IN ('r','p','v','m','S','f')""",
                         (schema,))
-            allowed_objects = set(AUTHORITY_TABLES) | {"schema_migrations"}
+            allowed_objects = set(authority_tables) | {"schema_migrations"}
             unexpected_objects = sorted(row["relname"] for row in cur.fetchall()
                                          if row["relname"] not in allowed_objects)
             if unexpected_objects:
@@ -335,9 +348,9 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
 
             cur.execute("""SELECT tablename,tableowner FROM pg_tables
                            WHERE schemaname=%s AND tablename=ANY(%s)""",
-                        (schema, list(AUTHORITY_TABLES)))
+                        (schema, list(authority_tables)))
             tables = {row["tablename"]: row["tableowner"] for row in cur.fetchall()}
-            missing = sorted(set(AUTHORITY_TABLES) - set(tables))
+            missing = sorted(set(authority_tables) - set(tables))
             if missing:
                 raise BoundaryPreflightError("authority migration is incomplete: " + ",".join(missing))
             acceptable_owners = {runtime_role, owner_role, administrator["current_user"]}
@@ -474,13 +487,13 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                            WHERE n.nspname=%s AND c.relkind='r' AND c.relname=ANY(%s)""",
                         (runtime_role, runtime_role, runtime_role, runtime_role,
                          manager_role, manager_role, manager_role, manager_role,
-                         schema, list(AUTHORITY_TABLES)))
+                         schema, list(authority_tables)))
             table_access = cur.fetchall()
             owner_dml = ("runtime_select", "runtime_insert", "runtime_update", "runtime_delete")
             manager_dml = ("manager_select", "manager_insert", "manager_update", "manager_delete")
             apply_required = (
                 owner is None
-                or len(table_access) != len(AUTHORITY_TABLES)
+                or len(table_access) != len(authority_tables)
                 or any(row["owner"] != owner_role for row in table_access)
                 or any(row[name] for row in table_access for name in owner_dml)
                 or any(not row[name] for row in table_access for name in manager_dml)
@@ -526,7 +539,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                 sql.Identifier(schema), sql.Identifier(owner_role)))
             cur.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
                 sql.Identifier(schema), sql.Identifier(runtime_role)))
-            for table_name in AUTHORITY_TABLES:
+            for table_name in authority_tables:
                 cur.execute(sql.SQL("ALTER TABLE {}.{} OWNER TO {}").format(
                     sql.Identifier(schema), sql.Identifier(table_name), sql.Identifier(owner_role)))
                 cur.execute(sql.SQL("REVOKE ALL PRIVILEGES ON TABLE {}.{} FROM PUBLIC,{}").format(
@@ -589,7 +602,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                            WHERE n.nspname=%s AND c.relkind='r' AND c.relname=ANY(%s)""",
                         (runtime_role, runtime_role, runtime_role, runtime_role,
                          manager_role, manager_role, manager_role, manager_role,
-                         schema, list(AUTHORITY_TABLES)))
+                         schema, list(authority_tables)))
             verification = cur.fetchall()
             cur.execute("""SELECT has_schema_privilege(%s::name,%s,'USAGE') AS runtime_usage,
                                   has_schema_privilege(%s::name,%s,'CREATE') AS runtime_create,
@@ -664,7 +677,7 @@ def provision_authority_boundary(connection, *, schema, runtime_role="riverview_
                     raise BoundaryPreflightError(
                         "deployment capability registration function post-apply verification failed")
                 deployment_registration_functions.append(function_row)
-            if (len(verification) != len(AUTHORITY_TABLES)
+            if (len(verification) != len(authority_tables)
                     or any(row["owner"] != owner_role for row in verification)
                     or any(row[name] for row in verification
                            for name in ("runtime_select", "runtime_insert", "runtime_update", "runtime_delete"))

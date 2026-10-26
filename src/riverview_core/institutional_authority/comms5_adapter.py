@@ -18,6 +18,12 @@ from .registry import AuthorityDenied, AuthorityRegistry
 
 _PROMOTION_ACTION = "comms5.proposal.promote"
 _PROMOTION_POLICY = "policy:delegation.v1"
+_HOST_SCOPED_ACTIONS = {
+    "comms5.command.submit.powershell_identity": "host:desktop-ja3rpnq",
+    "comms5.command.execute.readonly.powershell_identity.standard": "host:desktop-ja3rpnq",
+    "comms5.command.submit.ssh_camrui_hostname": "host:camrui",
+    "comms5.command.execute.readonly.ssh_camrui_hostname.standard": "host:camrui",
+}
 _UNCHANGED = object()
 from riverview_core.comms5.delegation_policy import (
     DELEGATED_ACTION, DELEGATED_POLICY, DELEGATED_PROJECT_SCOPE, is_delegable_tool,
@@ -157,21 +163,27 @@ class Comms5DelegationAuthorityAdapter:
                     (principal_kind is None or row["principal_kind"] == principal_kind))
 
     @staticmethod
-    def _proposal_action(action):
-        if action != _PROMOTION_ACTION:
-            raise AuthorityDenied("Comms5 delegation adapter permits proposal promotion only")
+    def _validate_action_scope(action, scope_ref, policy_ref):
+        if action == DELEGATED_ACTION:
+            if (scope_ref != DELEGATED_PROJECT_SCOPE or policy_ref != DELEGATED_POLICY):
+                raise AuthorityDenied("Comms5 broad delegation requires Riverview project scope")
+            return
+        if action == _PROMOTION_ACTION:
+            if (not scope_ref.startswith(("project:", "issue:"))
+                    or policy_ref != _PROMOTION_POLICY):
+                raise AuthorityDenied("Comms5 proposal delegation requires exact project or issue scope")
+            return
+        expected_host = _HOST_SCOPED_ACTIONS.get(action)
+        if expected_host is None or scope_ref != expected_host or policy_ref != DELEGATED_POLICY:
+            raise AuthorityDenied("Comms5 delegation action and scope are not an approved pair")
 
     def request_grant(self, *, requester_id, principal_id, action, scope_ref,
                       policy_ref, request_ref, max_uses=None, valid_until=None,
                       duration_spec=None, idempotency_key):
+        self._validate_action_scope(action, scope_ref, policy_ref)
         if action == DELEGATED_ACTION:
-            if (scope_ref != DELEGATED_PROJECT_SCOPE or policy_ref != DELEGATED_POLICY
-                    or max_uses is not None):
+            if max_uses is not None:
                 raise AuthorityDenied("Comms5 broad delegation requires Riverview scope and unlimited use")
-        else:
-            self._proposal_action(action)
-            if policy_ref != _PROMOTION_POLICY:
-                raise AuthorityDenied("Comms5 delegation policy is fixed")
         return self._registry.request_grant(requester_id=requester_id,
             principal_id=principal_id, action=action, scope_ref=scope_ref,
             policy_ref=policy_ref, request_ref=request_ref, max_uses=max_uses,
@@ -182,14 +194,10 @@ class Comms5DelegationAuthorityAdapter:
                        policy_ref, request_ref, max_uses=_UNCHANGED,
                        valid_until=_UNCHANGED, duration_spec=None,
                        change_kind=None, idempotency_key):
+        self._validate_action_scope(action, scope_ref, policy_ref)
         if action == DELEGATED_ACTION:
-            if (scope_ref != DELEGATED_PROJECT_SCOPE or policy_ref != DELEGATED_POLICY
-                    or (max_uses is not _UNCHANGED and max_uses is not None)):
+            if (max_uses is not _UNCHANGED and max_uses is not None):
                 raise AuthorityDenied("Comms5 broad delegation requires Riverview scope and unlimited use")
-        else:
-            self._proposal_action(action)
-            if policy_ref != _PROMOTION_POLICY:
-                raise AuthorityDenied("Comms5 delegation policy is fixed")
         change = {}
         if max_uses is not _UNCHANGED:
             change["max_uses"] = max_uses

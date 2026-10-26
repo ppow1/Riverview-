@@ -1,3 +1,4 @@
+# File Revision: 1.0.0
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -79,6 +80,7 @@ def test_contract_examples_and_openapi_cover_lifecycle():
         "combined_count_and_time", "indefinite", "calendar_duration",
         "custom_duration", "request", "approve", "deny", "inspect",
         "extend", "upgrade", "extend_and_upgrade", "revoke", "surrender",
+        "host_scoped_command_caller", "host_scoped_command_execution",
     }
     assert required <= set(examples)
     openapi_doc = json.loads((root / "openapi.json").read_text())
@@ -86,7 +88,8 @@ def test_contract_examples_and_openapi_cover_lifecycle():
     for operation in ("requestGrant", "decideGrantRequest", "inspectGrant",
                       "requestGrantChange", "revokeGrant", "surrenderGrant"):
         assert operation in openapi
-    for key in ("request", "inspect", "extend", "upgrade", "extend_and_upgrade", "surrender"):
+    for key in ("request", "inspect", "extend", "upgrade", "extend_and_upgrade", "surrender",
+                "host_scoped_command_caller", "host_scoped_command_execution"):
         call = examples[key]
         tool = call["params"]["name"]
         assert _valid(_TOOLS[tool]["inputSchema"], call["params"]["arguments"])
@@ -150,3 +153,52 @@ def test_protected_comms5_adapter_forwards_typed_grant_lifecycle_only():
     assert adapter._registry.change["change_kind"] == "extend"
     assert "max_uses" not in adapter._registry.change
     assert "valid_until" not in adapter._registry.change
+
+
+def test_comms5_adapter_allows_only_exact_command_gateway_host_grants():
+    from riverview_core.institutional_authority import AuthorityDenied
+
+    class Registry:
+        def request_grant(self, **values):
+            self.grant = values
+            return {"status": "pending"}
+
+    registry = Registry()
+    adapter = object.__new__(Comms5DelegationAuthorityAdapter)
+    adapter._registry = registry
+    pairs = [
+        ("comms5.command.submit.powershell_identity", "host:desktop-ja3rpnq",
+         "steward:camrui"),
+        ("comms5.command.execute.readonly.powershell_identity.standard",
+         "host:desktop-ja3rpnq", "service:command-gateway"),
+        ("comms5.command.submit.ssh_camrui_hostname", "host:camrui",
+         "steward:camrui"),
+        ("comms5.command.execute.readonly.ssh_camrui_hostname.standard",
+         "host:camrui", "service:command-gateway"),
+    ]
+    for index, (action, scope, principal) in enumerate(pairs):
+        adapter.request_grant(
+            requester_id="steward:camrui", principal_id=principal,
+            action=action, scope_ref=scope, policy_ref="policy:delegation.v1",
+            request_ref="bounded Command Gateway grant fixture",
+            max_uses=1 if action.startswith("comms5.command.execute.") else None,
+            duration_spec={"unit": "days", "value": 7},
+            idempotency_key=f"command-host-request-{index}")
+        assert registry.grant["action"] == action
+        assert registry.grant["scope_ref"] == scope
+
+    with pytest.raises(AuthorityDenied):
+        adapter.request_grant(
+            requester_id="steward:camrui", principal_id="service:command-gateway",
+            action="comms5.command.execute.readonly.powershell_identity.standard",
+            scope_ref="host:camrui", policy_ref="policy:delegation.v1",
+            request_ref="wrong action-host binding", max_uses=1,
+            duration_spec={"unit": "days", "value": 7},
+            idempotency_key="command-host-request-wrong-host")
+    with pytest.raises(AuthorityDenied):
+        adapter.request_grant(
+            requester_id="steward:camrui", principal_id="service:command-gateway",
+            action="comms5.command.execute.shell.anything", scope_ref="host:camrui",
+            policy_ref="policy:delegation.v1", request_ref="unknown command grant",
+            max_uses=1, duration_spec={"unit": "days", "value": 7},
+            idempotency_key="command-host-request-unknown-action")

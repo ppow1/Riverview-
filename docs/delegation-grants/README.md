@@ -1,3 +1,4 @@
+<!-- Document Revision: 1.0.0 -->
 # Riverview Delegation Grants
 
 This contract extends the existing `AuthorityRegistry`. Comms5, internal
@@ -69,7 +70,11 @@ permissions and lifetime together is one request and requires one Steward
 decision.
 
 The Comms5 adapter accepts only actions allowed by the existing explicit
-delegation policy. Broad Comms5 authority remains bound to
+delegation policy. Host-scoped grants are limited to the four fixed
+Command Gateway permission IDs and their exact registered host pairs:
+`desktop-ja3rpnq` for the PowerShell identity probe and `camrui` for the SSH
+hostname probe. Unknown command actions or action/host mismatches are rejected.
+Broad Comms5 authority remains bound to
 `project:Riverview`, `policy:delegation.v1`, unlimited count, and the existing
 non-destructive action class. Other actions remain exact. Steward approval,
 account-session authentication, CSRF validation, request digests, idempotency,

@@ -356,5 +356,46 @@
         "idempotency_key": "example-surrender"
       }
     }
+  },
+  "host_scoped_command_caller": {
+    "jsonrpc": "2.0",
+    "id": "grant-host-caller",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "steward:camrui",
+        "action": "comms5.command.submit.powershell_identity",
+        "scope_ref": "host:desktop-ja3rpnq",
+        "policy_ref": "policy:delegation.v1",
+        "duration_spec": {
+          "unit": "days",
+          "value": 7
+        },
+        "request_ref": "Read-only PowerShell identity gateway caller grant",
+        "idempotency_key": "gateway-host-caller-powershell-v1"
+      }
+    }
+  },
+  "host_scoped_command_execution": {
+    "jsonrpc": "2.0",
+    "id": "grant-host-execution",
+    "method": "tools/call",
+    "params": {
+      "name": "comms5_request_delegation_grant",
+      "arguments": {
+        "principal_id": "service:command-gateway",
+        "action": "comms5.command.execute.readonly.powershell_identity.standard",
+        "scope_ref": "host:desktop-ja3rpnq",
+        "policy_ref": "policy:delegation.v1",
+        "max_uses": 1,
+        "duration_spec": {
+          "unit": "days",
+          "value": 7
+        },
+        "request_ref": "One-use standard-privilege PowerShell identity execution allowance",
+        "idempotency_key": "gateway-host-execution-powershell-v1"
+      }
+    }
   }
 }

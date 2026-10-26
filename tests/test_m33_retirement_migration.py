@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_m33_retirement_migration.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.2.4
+# Revision: 1.2.5
+# Changed: 2026-10-26 UTC | RV-ISSUE343-MIGRATION-PROFILE-COMPAT | Keep historical M33 fixture independent of later delegation schema additions.
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-M33-PROFILE | Verify only the five functions belonging to migration 0008 in the prerequisite case.
 # Purpose: Verify 0008 commits atomically with the runtime function ACL boundary
 # Execution Model: Disposable PostgreSQL schemas
@@ -32,6 +33,18 @@ from uuid import uuid4
 DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "src/riverview_core/institutional_authority/migrations"
+PRE_DELEGATION_AUTHORITY_TABLES = (
+    "institutional_offices", "institutional_principals", "principal_credentials",
+    "authority_grants", "resident_occupants", "resident_implementations",
+    "office_bindings", "office_runtime_state", "institutional_authority_events",
+)
+DELEGATION_LIFECYCLE_EVENT_TYPES = frozenset({
+    "authority_grant_used", "authority_grant_reserved",
+    "authority_grant_reservation_released", "authority_grant_reservation_expired",
+    "authority_grant_expired", "authority_grant_surrendered",
+    "authority_delegation_request_created", "authority_delegation_request_decided",
+    "authority_delegation_grant_extended", "authority_delegation_grant_upgraded",
+})
 
 
 @unittest.skipUnless(DSN, "RIVERVIEW_TEST_PG_DSN not configured")
@@ -115,7 +128,7 @@ class M33RetirementMigrationTests(unittest.TestCase):
     def _apply_pre_0008_boundary_fixture(self, schema):
         """Mirror the deployed 0000-0007 function-only boundary for this schema."""
         from riverview_core.institutional_authority.db_boundary import (
-            AUTHORIZATION_FUNCTION, AUTHORITY_TABLES, EVENT_TRIGGER_FUNCTION,
+            AUTHORIZATION_FUNCTION, EVENT_TRIGGER_FUNCTION,
             PRINCIPAL_AUTHORIZATION_FUNCTION, RUNTIME_OFFICE_FUNCTION_SIGNATURES,
         )
         ident = self.sql.Identifier(schema)
@@ -126,7 +139,7 @@ class M33RetirementMigrationTests(unittest.TestCase):
         for role in (self.runtime_role, self.manager_role, self.owner_role):
             self.admin.execute(self.sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
                 ident, self.sql.Identifier(role)))
-        for table in AUTHORITY_TABLES[:9]:
+        for table in PRE_DELEGATION_AUTHORITY_TABLES:
             self.admin.execute(self.sql.SQL("ALTER TABLE {}.{} OWNER TO {}").format(
                 ident, self.sql.Identifier(table), self.sql.Identifier(self.owner_role)))
             self.admin.execute(self.sql.SQL(
@@ -205,7 +218,10 @@ class M33RetirementMigrationTests(unittest.TestCase):
                 RETIRED_EVENT_TYPES, _event_types,
             )
             with self.admin.cursor() as cur:
-                self.assertEqual(_event_types(cur, schema), RETIRED_EVENT_TYPES)
+                event_types = _event_types(cur, schema)
+                self.assertTrue(RETIRED_EVENT_TYPES <= event_types)
+                self.assertEqual(event_types - RETIRED_EVENT_TYPES,
+                                 DELEGATION_LIFECYCLE_EVENT_TYPES)
             self.assertEqual(self.admin.execute(self.sql.SQL(
                 "SELECT count(*) FROM {}.institutional_authority_events"
             ).format(self.sql.Identifier(schema))).fetchone()[0], 0)
