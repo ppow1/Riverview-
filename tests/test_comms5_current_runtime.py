@@ -1,6 +1,6 @@
 """Focused tests for Comms5 operations on current Riverview services.
 
-File Revision: 1.0.6
+File Revision: 1.0.7
 Component: COMMS5-CURRENT-RUNTIME-OPERATIONS-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify intent/authority projection and combined durable objective/proposal listing.
@@ -9,6 +9,7 @@ Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify durable CME 
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Update runtime catalog and verify new policy tool accounting.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Cover persisted policy projections and fixed operation dispatch without mutable MCP routing.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Count the four bounded Steward exchange operations in live backend implementation status.
+Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Account for preserved direct dispatch and fixed command gateway tools.
 """
 
 import unittest
@@ -546,9 +547,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 32)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 35)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(32 - len(status), 0)
+        self.assertEqual(35 - len(status), 0)
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler

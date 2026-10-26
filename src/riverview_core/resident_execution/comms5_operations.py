@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -15,6 +15,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Require fresh trusted repository grounding for stale-base rework and preserve dependency/completion semantics.
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Make repeated policy transitions auditable after intervening changes without losing retry safety.
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Route four advisory exchange tools through an explicit authenticated Steward bridge.
+# Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Dispatch fixed command operations after existing authenticated Steward/delegation checks.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md; Comms5 contract 5.0
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -69,6 +70,7 @@ class Comms5Operations:
         "comms5_submit_direct_engineering_task",
         "comms5_request_delegation_grant", "comms5_get_delegation_grant_status",
         "comms5_revoke_delegation_grant", "comms5_request_delegation_grant_change",
+        "comms5_command_submit", "comms5_command_status",
         "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
         "reasoning_exchange_submit_response", "reasoning_exchange_status",
     })
@@ -200,6 +202,17 @@ class Comms5Operations:
         actor = self._attested_grantee(principal_id) if delegated_authorized else self._actor(principal_id)
         if tool not in self.SUPPORTED:
             raise ValueError("operation_not_supported")
+        if tool in {"comms5_command_submit", "comms5_command_status"}:
+            if self.pipeline is None or self.authority_registry is None:
+                raise RuntimeError("command_gateway_authority_unavailable")
+            from ..comms5.command_gateway import WindowsCommandGateway
+            gateway = WindowsCommandGateway.from_environment(
+                authority_registry=self.authority_registry,
+                authorizer=self.pipeline.authorizer,
+                ledger_db=self.pipeline.ledger.db)
+            if tool == "comms5_command_submit":
+                return gateway.submit(actor, arguments)
+            return gateway.status(actor, arguments)
         if tool == "comms5_authorize_grace_experiment":
             if arguments.get("explicit_steward_confirmation") is not True:
                 raise PermissionError("explicit Steward confirmation is required")

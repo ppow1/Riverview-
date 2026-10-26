@@ -1,0 +1,8 @@
+# File Revision: 1.0.0
+# Install only after the Windows agent and all protected credential files exist.
+# Keep this as a systemd drop-in; do not make gateway credentials part of the base unit.
+[Service]
+LoadCredential=command-gateway-grantee:/etc/riverview/command-gateway/grantee.credential
+LoadCredential=command-agent-token:/etc/riverview/command-gateway/agent.token
+LoadCredential=command-agent-ca.pem:/etc/riverview/command-gateway/agent-ca.pem
+Environment=RIVERVIEW_COMMAND_AGENT_URL=https://desktop-ja3rpnq:8443

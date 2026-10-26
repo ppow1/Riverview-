@@ -1,12 +1,13 @@
 """Loopback Comms5 MCP compatibility endpoint.
 
-File Revision: 1.1.4
+File Revision: 1.1.5
 Component: COMMS5-CAMRUI-ADAPTER
 Authority: OAuth is validated at the Ionoge ingress; this service accepts only
            the Caddy-injected principal marker and a separate protected hop token.
 Purpose: Preserve the historical Comms5 tool contract while incrementally
          mapping tools to current Camrui services.
 History: New file; no predecessor existed.
+Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Validate enum constraints for bounded command operation inputs.
 """
 
 from __future__ import annotations
@@ -59,6 +60,8 @@ def _valid(schema: dict[str, Any], value: Any, root: dict[str, Any] | None = Non
             return False
         return _valid(target, value, root)
     kind = schema.get("type")
+    if "enum" in schema and value not in schema["enum"]:
+        return False
     if kind == "object":
         if not isinstance(value, dict):
             return False

@@ -20,12 +20,12 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.35",
-      "sha256": "12350301908fcc30093cd7351fb184924a6d9869090d21935cfb728ffb5c5b22",
-      "size_bytes": 1584723
+      "revision": "1.0.36",
+      "sha256": "6d9a86ea9511a6f43b57ddbac2575a70f8048b5e9e3ba62831ec8a44e0dba773",
+      "size_bytes": 1611115
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.347"
+      "revision": "1.1.348"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -242,6 +242,12 @@
       "revision": "1.0.0",
       "sha256": "5ad840b5d32a09498b040b1de55ae94531947feb55bcf9dd15b8f5dd92087457",
       "size_bytes": 2116
+    },
+    "deploy/systemd/riverview-status-dashboard-command-gateway.conf.example": {
+      "path": "deploy/systemd/riverview-status-dashboard-command-gateway.conf.example",
+      "revision": "1.0.0",
+      "sha256": "cad15a24472c151c0ffba06c309c5050549d4630e76ee189c9eac9a48427b12e",
+      "size_bytes": 519
     },
     "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf": {
       "path": "deploy/systemd/riverview-status-dashboard-resource-telemetry.conf",
@@ -716,6 +722,12 @@
       "revision": "1.0.13",
       "sha256": "58322701d46781f9ad3596114bab417306828ca1bf1d8bbf78fa8e0e03c4c8c2",
       "size_bytes": 28097
+    },
+    "docs/components/command-gateway/README.md": {
+      "path": "docs/components/command-gateway/README.md",
+      "revision": "1.0.0",
+      "sha256": "c2676ccfaec7f8b43c307cf43a02eba1f82c627bb1979fb44ed55e1946f250eb",
+      "size_bytes": 15638
     },
     "docs/delegation-grants/examples.json": {
       "path": "docs/delegation-grants/examples.json",
@@ -2921,7 +2933,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2939,7 +2951,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -8193,6 +8205,12 @@
       "sha256": "ab5a1882eb33e0c8d832978fc262d64f351b475670122431a682bcefe25b5b03",
       "size_bytes": 5728
     },
+    "scripts/run_windows_command_agent.py": {
+      "path": "scripts/run_windows_command_agent.py",
+      "revision": "1.0.0",
+      "sha256": "6385c5164d7f0acd247e1c45370e12dc54f4874d7fac7dace004342e105ef693",
+      "size_bytes": 342
+    },
     "scripts/run_worker_service.py": {
       "path": "scripts/run_worker_service.py",
       "revision": "1.0.1",
@@ -8361,23 +8379,29 @@
       "sha256": "19fa09731709b69cca80a90c424c87ff4790439c796e8669d3037756028ec2dc",
       "size_bytes": 26590
     },
+    "src/riverview_core/comms5/command_gateway.py": {
+      "path": "src/riverview_core/comms5/command_gateway.py",
+      "revision": "1.0.0",
+      "sha256": "d0be0be38a3fe838cba622df53d12448b2cc56ed7b0d55415725efc27d49de8b",
+      "size_bytes": 30236
+    },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
-      "revision": "1.0.9",
-      "sha256": "082133a20a519338b658f5fab26f4194945f28847fb5fd377c077060629a633b",
-      "size_bytes": 13996
+      "revision": "1.0.10",
+      "sha256": "84c728924d92004ad59e0bc304f69ab6489b616284fc83a510d08699738ed56b",
+      "size_bytes": 15111
     },
     "src/riverview_core/comms5/server.py": {
       "path": "src/riverview_core/comms5/server.py",
-      "revision": "1.1.4",
-      "sha256": "b274aaa8d6d9be17ca148db1e12dc8dbfb24245af5f8851c120068d590b697de",
-      "size_bytes": 18239
+      "revision": "1.1.5",
+      "sha256": "b24072f2eeda8d5ea6f572d76b5751ccb24293009f912d26640f5da8ba9a5b4c",
+      "size_bytes": 18437
     },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
-      "revision": "1.0.1",
-      "sha256": "9572c1fc46cdbe1fc1ad212877a74805be9aae987b477b876dbe37abc0dc8c86",
-      "size_bytes": 92890
+      "revision": "1.0.2",
+      "sha256": "a27b2fab391d6c8d7ca2657650a5bd7f25bba4a5f07f560f0c23a5a68858275a",
+      "size_bytes": 138740
     },
     "src/riverview_core/diagnostics.py": {
       "path": "src/riverview_core/diagnostics.py",
@@ -8735,9 +8759,9 @@
     },
     "src/riverview_core/resident_execution/comms5_operations.py": {
       "path": "src/riverview_core/resident_execution/comms5_operations.py",
-      "revision": "1.0.7",
-      "sha256": "9f2b6f1581e52353edf6cd25bd0a215ec6e9046a3d46c7182c33529ac4d9ff30",
-      "size_bytes": 58887
+      "revision": "1.0.8",
+      "sha256": "de27e619a17ad7d2f384118d80525be6a3cd4955cd0cdbd6ad9aac0f363ad0d3",
+      "size_bytes": 85957
     },
     "src/riverview_core/resident_execution/conversation.py": {
       "path": "src/riverview_core/resident_execution/conversation.py",
@@ -9303,11 +9327,17 @@
       "sha256": "52e0b73b0c700e92c9c897e843c92f3dec10caf61f99dc5b4c5609a20ee5da70",
       "size_bytes": 13428
     },
+    "tests/test_command_gateway.py": {
+      "path": "tests/test_command_gateway.py",
+      "revision": "1.0.0",
+      "sha256": "57d32daac5a42750cb625bcfdcdea6614fbf4b2a6b2de0572921c7d1ab2dd49b",
+      "size_bytes": 10081
+    },
     "tests/test_comms5_current_runtime.py": {
       "path": "tests/test_comms5_current_runtime.py",
-      "revision": "1.0.6",
-      "sha256": "644664a4d64b7ab7911feb3aef25e5dd016b11dbc40665d5df2903d774e9786c",
-      "size_bytes": 26472
+      "revision": "1.0.7",
+      "sha256": "d465690c194ee01e671d83843d2a1ffa5112a3a20c8ca53f8b213c65cc60f6c7",
+      "size_bytes": 39975
     },
     "tests/test_comms5_deployment.py": {
       "path": "tests/test_comms5_deployment.py",
@@ -9317,9 +9347,9 @@
     },
     "tests/test_comms5_mcp.py": {
       "path": "tests/test_comms5_mcp.py",
-      "revision": "1.1.6",
-      "sha256": "eae439095b01ba767aae7e49c54b740e5230d870f812c61660394896169a8b52",
-      "size_bytes": 22552
+      "revision": "1.1.7",
+      "sha256": "f0f796aaf44bfc51fa0356029569423992d0b748251f4061a563d7d6537b8ed8",
+      "size_bytes": 24939
     },
     "tests/test_comms5_packaging.py": {
       "path": "tests/test_comms5_packaging.py",
@@ -9773,6 +9803,6 @@
     }
   },
   "manifest_revision": "1.1.340",
-  "revision": "1.1.346",
-  "updated_at": "2026-10-25T17:46:11+00:00"
+  "revision": "1.1.348",
+  "updated_at": "2026-10-26T17:07:43+00:00"
 }
