@@ -50,7 +50,7 @@ History: Git and revision/backup manifest
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/workspace.css?rev=theme-resident-nav-graph-fit-20261027">
   <link rel="stylesheet" href="assets/communications.css">
-  <link rel="stylesheet" href="assets/resource-monitor.css?rev=storage-bars-20261027">
+  <link rel="stylesheet" href="assets/resource-monitor.css?rev=comfyui-runtime-20261026">
   <link rel="stylesheet" href="assets/work-monitor.css?rev=objective-status-outputs-20261026">
   <link rel="stylesheet" href="assets/work-evidence.css?rev=objective-status-outputs-20261026">
   <link rel="stylesheet" href="assets/living-roadmap.css?rev=roadmap-integrated-20261024">
@@ -61,13 +61,13 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
   <link rel="stylesheet" href="assets/notification-settings.css">
-  <link rel="stylesheet" href="assets/operational-inbox.css?rev=recovery-decision-controls-20261025">
+  <link rel="stylesheet" href="assets/operational-inbox.css?rev=ntfy-deep-links-20261026">
   <link rel="stylesheet" href="assets/overview.css?rev=live-operations-20261026">
   <script defer src="assets/fixtures.js"></script>
   <script defer src="assets/overview-adapter.js?rev=live-operations-20261026"></script>
   <script defer src="assets/overview.js?rev=live-operations-20261026"></script>
   <script defer src="assets/octominer-bay-assignments.js?rev=steward-reported-20261024"></script>
-  <script defer src="assets/resource-monitor.js?rev=storage-bars-20261027"></script>
+  <script defer src="assets/resource-monitor.js?rev=comfyui-runtime-20261026"></script>
   <script defer src="assets/work-evidence-adapter.js?rev=objective-status-outputs-20261026"></script>
   <script defer src="assets/work-evidence.js?rev=objective-status-outputs-20261026"></script>
   <script defer src="assets/living-roadmap-data.js?rev=parity-correction-20261027"></script>
@@ -82,14 +82,14 @@ History: Git and revision/backup manifest
   <script defer src="assets/authority-explorer.js?rev=resident-search-20261027"></script>
   <script defer src="assets/account-administration.js?rev=account-email-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=objective-status-outputs-20261026"></script>
-  <script defer src="assets/workspace.js?rev=chat-vision-ae317006"></script>
+  <script defer src="assets/workspace.js?rev=ntfy-deep-links-20261026"></script>
   <script defer src="assets/communications.js"></script>
   <script defer src="assets/snapshot.js"></script>
   <script defer src="assets/grace-chat.js?rev=chat-vision-ae317006"></script>
   <script defer src="assets/manual-image-generation.js"></script>
   <script defer src="assets/notification-settings.js"></script>
   <script defer src="assets/operational-inbox-adapter.js?rev=recovery-decision-controls-20261025"></script>
-  <script defer src="assets/operational-inbox.js?rev=recovery-session-eligibility-20261025"></script>
+  <script defer src="assets/operational-inbox.js?rev=ntfy-deep-links-20261026"></script>
   <script defer src="assets/verification-status.js?rev=acceptance-v1"></script>
 <meta name="rv-v2-snapshot-mode" content="authenticated-dashboard"></head>
 <body>
@@ -296,6 +296,12 @@ History: Git and revision/backup manifest
                   <div id="octo1-gpu-selectors" class="octo-device-grid" role="group" aria-label="OCTO1 GPU devices"><p class="octo-empty">Authenticated GPU inventory has not been received.</p></div>
                   <h5 class="octo-group-label">Grace models <small>GPU assignment is derived from the live GPU process projection</small></h5>
                   <div id="octo1-model-selectors" class="octo-model-grid" role="group" aria-label="OCTO1 Grace inference models"><p class="octo-empty">Inference service state has not been received.</p></div>
+                  <section class="octo-throughput" aria-labelledby="comfyui-runtime-title" data-resource-card data-resource-kind="inference" data-search="comfyui image generation service queue gpu vram">
+                    <div class="octo-machine-view-heading"><div><p class="eyebrow">LIVE SERVICE · READ ONLY</p><h4 id="comfyui-runtime-title">ComfyUI runtime</h4></div><span id="comfyui-runtime-state" class="resource-tag" data-state="not_initialized">NOT CHECKED</span></div>
+                    <p id="comfyui-runtime-summary" class="resource-footnote">ComfyUI service state and queue counts are not yet available.</p>
+                    <dl id="comfyui-runtime-details" class="comfyui-runtime-details"><div><dt>Version</dt><dd id="comfyui-runtime-version">Not checked</dd></div><div><dt>Queue</dt><dd id="comfyui-runtime-queue">Not checked</dd></div><div><dt>CUDA device and VRAM</dt><dd id="comfyui-runtime-devices">Not checked</dd></div><div><dt>Observed</dt><dd id="comfyui-runtime-observed">Not checked</dd></div></dl>
+                    <p class="resource-footnote">Queue contents are not exposed. ComfyUI CUDA device numbers are separate from host NVIDIA indices and physical chassis bays.</p>
+                  </section>
                   <section class="octo-throughput" aria-labelledby="octo1-throughput-title"><div class="octo-machine-view-heading"><div><p class="eyebrow">MEASURED TELEMETRY · ROLLING 5 MINUTES</p><h4 id="octo1-throughput-title">Live hardware, model, and response activity</h4></div><span class="resource-footnote">Source snapshots update with authenticated five-second polling</span></div><div id="octo1-throughput-chart-grid" class="octo-throughput-grid" aria-live="polite"></div><p class="octo-attribution-note">GPU utilization and active inference slots are live system measurements and are not attributed to a specific Grace request. Streamed characters/s is application-side delivery cadence. Completed tokens/s is router-measured provider-call throughput, including endpoint and transport overhead. These measurements are separate; native model-server token-generation speed is unavailable.</p></section>
                   <h5 class="octo-group-label">Machine systems <small>select a physical or controller subsystem for verified details</small></h5>
                   <div id="octo1-system-selectors" class="octo-system-grid" role="group" aria-label="OCTO1 machine systems"><button type="button" data-octo-component="controller" aria-pressed="false"><span>Fan controller</span><small>OCTO1 installation unverified</small></button><button type="button" data-octo-component="thermal" aria-pressed="false"><span>Environmental sensors</span><small>Unavailable</small></button><button type="button" data-octo-component="psu" aria-pressed="false"><span>Power supplies</span><small>Controller feed unavailable</small></button><button type="button" data-octo-component="watchdog" aria-pressed="false"><span>Watchdog</span><small>Controller feed unavailable</small></button></div>

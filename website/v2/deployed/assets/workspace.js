@@ -231,5 +231,14 @@ History: Git and revision/backup manifest
   window.RiverviewV2Workspace = Object.freeze({openGraceConversation});
   updateResidentContext(currentResident);
   initTooltips();
-  render("overview");
+  const deepLink = new URLSearchParams(location.search);
+  const requestedView = deepLink.get("view");
+  const allowedView = requestedView && [...nav.querySelectorAll("button[data-view]")]
+    .some((button) => button.dataset.view === requestedView) ? requestedView : "overview";
+  const assignmentId = deepLink.get("assignment_id");
+  if (allowedView === "work" && assignmentId && /^[A-Za-z0-9:._-]{1,128}$/.test(assignmentId)) {
+    const search = document.getElementById("work-search");
+    if (search) search.value = assignmentId;
+  }
+  render(allowedView);
 })();

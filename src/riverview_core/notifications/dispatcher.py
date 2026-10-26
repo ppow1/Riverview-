@@ -197,7 +197,7 @@ class NotificationDispatcher:
         with self._connection() as db:
             with db.transaction(), db.cursor() as cur:
                 cur.execute(sql.SQL("SELECT set_config('search_path', %s, true)"), (self.schema,))
-                cur.execute("""SELECT d.notification_id,n.event_type,n.source_event_id
+                cur.execute("""SELECT d.notification_id,n.event_type,n.source_event_id,n.assignment_id
                     FROM notification_phone_deliveries d
                     JOIN attention_notifications n USING(notification_id)
                     WHERE d.delivery_state IN ('pending','failed','sending')
@@ -223,10 +223,11 @@ class NotificationDispatcher:
                         suppression_reason=NULL,updated_at=clock_timestamp() WHERE notification_id=%s""",
                         (row["notification_id"],))
                     event_type = row["event_type"]
-                    claimed.append((row["notification_id"], event_type))
-            for notification_id, event_type in claimed:
+                    claimed.append((row["notification_id"], event_type, row["assignment_id"]))
+            for notification_id, event_type, assignment_id in claimed:
                 try:
-                    message_id = self.phone_publisher.publish(event_type)
+                    message_id = self.phone_publisher.publish(
+                        event_type, notification_id=str(notification_id), assignment_id=assignment_id)
                 except Exception as exc:
                     with db.transaction(), db.cursor() as cur:
                         cur.execute(sql.SQL("SELECT set_config('search_path', %s, true)"), (self.schema,))
@@ -307,7 +308,8 @@ def _publisher_from_environment():
         return None
     if not token or not topic:
         return None
-    return NtfyPhonePublisher(base_url, topic=topic, token=token)
+    return NtfyPhonePublisher(base_url, topic=topic, token=token,
+                              web_base_url=os.environ.get("RIVERVIEW_V2_WEB_BASE_URL"))
 
 
 if __name__ == "__main__":

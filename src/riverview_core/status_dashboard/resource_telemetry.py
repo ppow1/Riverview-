@@ -2,16 +2,17 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/resource_telemetry.py
 # Component: STEWARD-DASHBOARD-RESOURCE-TELEMETRY
-# Revision: 1.2.0
+# Revision: 1.3.0
 # Purpose: Build a read-only, timestamped projection from approved GPU, model, and storage sources
 # Execution Model: Request-driven; one bounded collection per authenticated GET
 # Observability: rv.dashboard.resource-telemetry.v1 with per-source state, timestamps, and safe error codes
-# Dependencies: Python standard library, systemd SSH credentials, restricted OCTOMINER1 telemetry key
-# Inputs/Outputs: NVIDIA/storage JSON via forced-command SSH; local mountinfo; model APIs; redacted host projection
+# Dependencies: Python standard library, systemd SSH credentials, restricted OCTOMINER1 telemetry key, read-only ComfyUI API
+# Inputs/Outputs: NVIDIA/storage JSON via forced-command SSH; local mountinfo; model/ComfyUI APIs; redacted host projection
 # Authority: Dashboard authentication is enforced by the parent API; fixed host and endpoint allowlists only
 # Changed: 2026-10-21 UTC | RV-V2-HW-AI-LIVE-TELEMETRY | Initial read-only telemetry projection
 # Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Project bounded numeric per-slot context counters without task IDs or prompt data
 # Changed: 2026-10-22 UTC | RV-V2-STORAGE-CAPACITY-001 | Add local and OCTO1 mounted-volume measurements to the existing resource projection
+# Changed: 2026-10-26 UTC | RV-V2-COMFYUI-RUNTIME-READOUT-20261026 | Project bounded ComfyUI version, queue counts, device and VRAM without prompt data
 # Contracts: docs/components/STATUS_DASHBOARD.md
 # Tests: tests/test_resource_telemetry.py; tests/test_status_dashboard.py
 # History: Git and .riverview-backups/manifest.jsonl
@@ -46,6 +47,8 @@ SCHEMA_VERSION = "rv.dashboard.resource-telemetry.v1"
 MAX_RESPONSE_BYTES = 64 * 1024
 _MODEL_ID = re.compile(r"^[A-Za-z0-9._+() -]{1,128}$")
 _GPU_NAME = re.compile(r"^[A-Za-z0-9._+() -]{1,100}$")
+_COMFYUI_DEVICE_NAME = re.compile(r"^[A-Za-z0-9._+(): -]{1,160}$")
+_COMFYUI_BASE_URL = "http://192.168.1.160:8188"
 _SSH_HOST = "192.168.1.160"
 _SSH_USER = "root"
 _SSH_PORT = "22"
@@ -340,11 +343,56 @@ class DashboardResourceTelemetry:
                 "error_code": "model_server_unavailable",
             }
 
+    def _comfyui_source(self) -> dict:
+        """Project ComfyUI service, queue counts, and device memory without queue contents."""
+        observed = _utc_now()
+        try:
+            system_stats = self._read_json(_COMFYUI_BASE_URL + "/system_stats")
+            queue = self._read_json(_COMFYUI_BASE_URL + "/queue")
+            system = system_stats.get("system") if isinstance(system_stats, dict) else None
+            devices = system_stats.get("devices") if isinstance(system_stats, dict) else None
+            running = queue.get("queue_running") if isinstance(queue, dict) else None
+            pending = queue.get("queue_pending") if isinstance(queue, dict) else None
+            if (not isinstance(system, dict) or not isinstance(devices, list) or len(devices) > 32
+                    or not isinstance(running, list) or not isinstance(pending, list)
+                    or len(running) > 10000 or len(pending) > 10000):
+                raise ValueError("comfyui_schema_invalid")
+            version = system.get("comfyui_version")
+            if not isinstance(version, str) or not _MODEL_ID.fullmatch(version):
+                raise ValueError("comfyui_version_invalid")
+            projected_devices = []
+            for item in devices:
+                if not isinstance(item, dict):
+                    continue
+                name = item.get("name")
+                device_type = item.get("type")
+                index = _safe_integer(item.get("index"))
+                total = _safe_integer(item.get("vram_total"))
+                free = _safe_integer(item.get("vram_free"))
+                if (not isinstance(name, str) or not _COMFYUI_DEVICE_NAME.fullmatch(name)
+                        or device_type not in {"cuda", "cpu", "mps", "xpu"}
+                        or index is None or total is None or free is None or free > total):
+                    continue
+                projected_devices.append({"name": name, "type": device_type, "index": index,
+                                          "vram_total_bytes": total, "vram_free_bytes": free})
+            return {"service_id": "riverview-comfyui", "display_name": "ComfyUI",
+                    "state": "ready", "version": version, "observed_at": observed,
+                    "devices": projected_devices,
+                    "queue": {"state": "measured", "running": len(running),
+                              "pending": len(pending)}, "error_code": None}
+        except (OSError, HTTPError, URLError, TimeoutError, ValueError, TypeError,
+                json.JSONDecodeError):
+            return {"service_id": "riverview-comfyui", "display_name": "ComfyUI",
+                    "state": "unavailable", "version": None, "observed_at": None,
+                    "devices": [], "queue": {"state": "unavailable", "running": None,
+                                                "pending": None},
+                    "error_code": "comfyui_source_unavailable"}
     def read(self) -> dict:
         """Return the current result; failed sources are never filled from cache."""
         tasks = {}
-        with ThreadPoolExecutor(max_workers=4, thread_name_prefix="rv-resource-read") as pool:
+        with ThreadPoolExecutor(max_workers=5, thread_name_prefix="rv-resource-read") as pool:
             tasks["gpu"] = pool.submit(self._gpu_source)
+            tasks["comfyui"] = pool.submit(self._comfyui_source)
             for source in _MODEL_SOURCES:
                 tasks[source["service_id"]] = pool.submit(self._model_source, source)
             results = {name: future.result(timeout=7.0) for name, future in tasks.items()}
@@ -420,5 +468,6 @@ class DashboardResourceTelemetry:
             "collection_model": "request_driven_no_cache",
             "storage_status": storage_status,
             "storage_observed_at": _utc_now(),
+            "comfyui": results["comfyui"],
             "hosts": hosts,
         }
