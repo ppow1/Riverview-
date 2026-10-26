@@ -669,6 +669,23 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/v2/assets/../../src/riverview_core/status_dashboard/server.py")[0], 404)
         self.assertEqual(self.request("GET", "/v2/assets/server.py")[0], 404)
 
+    def test_v2_gpu_controls_assets_are_served_from_the_immutable_release(self):
+        from riverview_core.status_dashboard import server as dashboard_server
+        with tempfile.TemporaryDirectory() as root:
+            assets = Path(root) / "website" / "v2" / "assets"
+            assets.mkdir(parents=True)
+            (assets / "gpu-workload-controls.js").write_text("window.gpuControlsLoaded = true;")
+            (assets / "gpu-workload-controls.css").write_text(".gpu-workload-controls{display:grid}")
+            with mock.patch.object(dashboard_server, "_release_root", return_value=Path(root)):
+                self.assertEqual(self.request("GET", "/v2/assets/gpu-workload-controls.js?rev=check")[0], 200)
+                self.assertEqual(self.request("GET", "/v2/assets/gpu-workload-controls.css?rev=check")[0], 200)
+                self.assertEqual(self.request("GET", "/v2/assets/gpu-workload-controls.js/extra")[0], 404)
+
+    def test_gpu_workload_state_rejects_dashboard_bearer_without_steward_session(self):
+        status, _, body = self.request("GET", "/api/v1/hardware/workloads", token=self.token)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "steward_gpu_workload_authority_required")
+
     def test_v2_snapshot_mode_is_injected_only_by_dashboard_route(self):
         source = (Path(__file__).resolve().parents[1] / "website/v2/index.html").read_bytes()
         self.assertNotIn(b"rv-v2-snapshot-mode", source)

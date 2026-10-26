@@ -674,6 +674,13 @@ def make_handler():
                     re.fullmatch(r"^/api/v1/steward/delegation-grant-requests/"
                                  r"delegation-request:[A-Za-z0-9._:-]{1,128}$", parsed.path))  # capability-exclusion: Steward administrative projection; not resident-invocable
             ) or delegation_revoke is not None
+            gpu_workload_read = (parsed.path == "/api/v1/hardware/workloads" and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
+            gpu_workload_job = (re.fullmatch(r"^/api/v1/hardware/workloads/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", parsed.path) is not None and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
+            gpu_workload_start = (parsed.path == "/api/v1/hardware/workloads/start" and self.command == "POST")  # capability-operation: hardware.gpu.workload.start
+            gpu_workload_stop = (parsed.path == "/api/v1/hardware/workloads/stop" and self.command == "POST")  # capability-operation: hardware.gpu.workload.stop
+            gpu_workload_switch = (parsed.path == "/api/v1/hardware/workloads/switch" and self.command == "POST")  # capability-operation: hardware.gpu.workload.switch
+            gpu_workload_route = (gpu_workload_read or gpu_workload_job or gpu_workload_start
+                                  or gpu_workload_stop or gpu_workload_switch)
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -692,6 +699,7 @@ def make_handler():
                     and not comms5_operation
                     and not snapshot_archive
                     and not delegation_revoke
+                    and not gpu_workload_route
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
@@ -721,7 +729,7 @@ def make_handler():
                 except ValueError:
                     self._error(503, "v2_ui_invalid_document", request_id)
                 return
-            v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js)", parsed.path)
+            v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js|gpu-workload-controls\.css|gpu-workload-controls\.js)", parsed.path)
             if v2_asset:
                 release_root = _release_root()
                 path = release_root / "website" / "v2" / "assets" / v2_asset.group(1)
@@ -844,6 +852,10 @@ def make_handler():
                 return
             if delegation_route:
                 from riverview_core.status_dashboard.delegation_routes import dispatch
+                dispatch(self, parsed, request_id)
+                return
+            if gpu_workload_route:
+                from riverview_core.status_dashboard.gpu_workload_routes import dispatch
                 dispatch(self, parsed, request_id)
                 return
             if snapshot_archive:

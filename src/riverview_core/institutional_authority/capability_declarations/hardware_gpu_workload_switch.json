@@ -1,0 +1,14 @@
+{
+  "capability_id": "hardware.gpu.workload.switch",
+  "description": "Switch between the vision and ComfyUI services with active-work, GPU-release and readiness checks",
+  "operation": "hardware.gpu.workload.switch",
+  "owner_office": "office:steward",
+  "implementation_ref": "dashboard.gpu_workload_routes.switch",
+  "dependencies": ["riverview.status-dashboard", "octominer1.riverview-gpu-workload-control"],
+  "approval_default": false,
+  "enabled": true,
+  "input_schema": {"type":"object","additionalProperties":false,"required":["service"],"properties":{"service":{"type":"string","enum":["vision","comfyui"]}}},
+  "authorization_contract": {"mode":"exact_grant","action":"hardware.gpu.workload.switch","scope_policy":"exact_scope"},
+  "availability_policy": "executor_and_worker_health",
+  "registration_blocker": null
+}
