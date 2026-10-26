@@ -56,8 +56,12 @@ class Comms5MCPTests(unittest.TestCase):
         by_name = {tool["name"]: tool for tool in result}
         grant_schema = by_name["comms5_request_delegation_grant"]["inputSchema"]
         self.assertIn("duration_spec", grant_schema["properties"])
-        self.assertTrue(any(option.get("type") == "null"
-                            for option in grant_schema["properties"]["max_uses"]["oneOf"]))
+        self.assertNotIn("duration_spec", grant_schema["required"])
+        self.assertNotIn("max_uses", grant_schema["required"])
+        self.assertEqual(grant_schema["properties"]["duration_spec"]["type"], "object")
+        self.assertNotIn("oneOf", grant_schema["properties"]["duration_spec"])
+        self.assertIn("days", grant_schema["properties"]["duration_spec"]["properties"]["unit"]["enum"])
+        self.assertIn("unlimited", grant_schema["properties"]["max_uses"]["description"])
         self.assertTrue(all(tool["securitySchemes"] == [{"type": "oauth2", "scopes": ["comms5"]}] for tool in result))
         from riverview_core.resident_execution.external_reasoning_mcp import ExternalReasoningMCPAdapter
         shared = {tool["name"]: tool["inputSchema"] for tool in ExternalReasoningMCPAdapter.tools()}
@@ -66,6 +70,48 @@ class Comms5MCPTests(unittest.TestCase):
         payload = json.loads(call["result"]["content"][0]["text"])
         self.assertEqual(payload["contract"], "riverview-comms-contract:5.0")
         self.assertFalse(call["result"]["isError"])
+
+    def test_seven_day_grant_schema_validates_and_forwards_typed_duration(self):
+        class GrantBackend:
+            supported_tools = {"comms5_request_delegation_grant"}
+
+            def __init__(self):
+                self.received = None
+
+            def call_authenticated(self, name, arguments, *, principal=None):
+                self.received = (name, arguments, principal)
+                return {"status": "PENDING", "request_id": "request:test"}
+
+        backend = GrantBackend()
+        application = Comms5Application("x" * 48, backend=backend)
+        arguments = {
+            "principal_id": "steward:camrui", "action": "comms5.operations.non_destructive.v1",
+            "scope_ref": "project:Riverview", "policy_ref": "policy:delegation.v1",
+            "duration_spec": {"unit": "days", "value": 7},
+            "request_ref": "test seven-day request", "idempotency_key": "seven-day-test",
+        }
+        result = application.handle(rpc("tools/call", {
+            "name": "comms5_request_delegation_grant", "arguments": arguments,
+        }), principal="steward")
+        self.assertEqual(result["result"]["structuredContent"]["status"], "PENDING")
+        self.assertEqual(backend.received, ("comms5_request_delegation_grant", arguments, "steward"))
+        self.assertNotIn("max_uses", backend.received[1])  # Omission is the unlimited form.
+
+        for invalid in ({"unit": "days"}, {"unit": "days", "value": 7, "seconds": 1},
+                        {"unit": "days", "value": 0}, {"unit": "unknown", "value": 7},
+                        {"unit": "days", "value": 7.0}):
+            bad = dict(arguments, duration_spec=invalid, idempotency_key="invalid-duration")
+            rejected = application.handle(rpc("tools/call", {
+                "name": "comms5_request_delegation_grant", "arguments": bad,
+            }), principal="steward")
+            self.assertEqual(rejected["error"]["code"], -32602)
+        for invalid_limit in (0, -1, 1_000_001, True):
+            bad = dict(arguments, max_uses=invalid_limit, idempotency_key="invalid-limit")
+            rejected = application.handle(rpc("tools/call", {
+                "name": "comms5_request_delegation_grant", "arguments": bad,
+            }), principal="steward")
+            self.assertEqual(rejected["error"]["code"], -32602)
+        self.assertEqual(backend.received[1], arguments)
 
     def test_reasoning_tools_dispatch_only_through_authenticated_steward_backend(self):
         class ReviewBackend:
