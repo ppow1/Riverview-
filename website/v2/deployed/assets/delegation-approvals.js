@@ -1,8 +1,8 @@
 /*
-Revision: 1.2.0
+Revision: 1.3.0
 Purpose: V2 request, review and revocation view over canonical Steward delegation APIs.
 Authority: The Dashboard account session, CSRF check, and institutional authority registry remain authoritative.
-Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decisions, grant inspection and confirmed revoke controls.
+Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Add explicit canonical service identity registration with server-only credential storage.
 */
 (() => {
   "use strict";
@@ -36,8 +36,11 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
 
   function explain(error) {
     if (error.message === "http_401" || error.message === "authentication_required") return "Sign in with an authenticated Steward account to review delegation requests.";
+    if (error.message === "steward_identity_management_denied") return "Registration denied: this authenticated Steward lacks identity.manage at institution scope. No principal or credential was created.";
     if (error.message === "http_403" || error.message === "authenticated_steward_required" || error.message === "steward_authority_denied") return "Unavailable: this account is not the institutionally linked Steward with authority.grant at institution scope.";
     if (error.message === "http_503" || error.message === "delegation_authority_unavailable") return "The canonical delegation authority service is unavailable. No decision or revocation was made.";
+    if (error.message === "protected_credential_destination_unavailable") return "Registration is unavailable because the protected server-side credential destination is not ready. No identity or credential was created.";
+    if (error.message === "service_principal_registration_conflict") return "Registration could not proceed because the canonical service identity already exists in a conflicting state. No replacement credential was issued.";
     return `Request failed (${error.message}). No authority change is reported.`;
   }
 
@@ -68,13 +71,54 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
       const additional = Array.isArray(type.additional_authority_required) && type.additional_authority_required.length
         ? `<p>Separate authorization remains required: ${type.additional_authority_required.map(esc).join(", ")}.</p>` : "";
       const registration = type.type_id === "comms5_codex" && type.status === "unavailable"
-        ? `<p class="delegation-policy-warning">Required action: register <code>service:chatgpt</code> as an active <code>service</code> principal through canonical identity management. This requires the authenticated Steward's <code>identity.manage</code> authority at <code>institution</code> scope. V2 has no principal-registration action, so none was performed; registration alone does not grant this capability.</p>` : "";
+        ? `<p class="delegation-policy-warning">Required action: register <code>service:chatgpt</code> as an active <code>service</code> principal through the confirmed identity-management control above. This requires the authenticated Steward's <code>identity.manage</code> authority at <code>institution</code> scope. Registration alone does not grant this capability.</p>` : "";
       const state = type.status === "unavailable"
         ? `Unavailable: ${esc(unavailableReason(type.unavailable_reason))}` : "Registered authorization type";
       const hostScopes = type.scope_kind === "host" ? requestOptions.map((item) =>
         `<li><strong>${esc(item.display_name)}</strong> · <code>${esc(item.scope_ref)}</code>: ${(item.capabilities || []).map((cap) => esc(cap.capability_id)).join(", ") || "no registered operations"}</li>`).join("") : "";
       return `<article class="delegation-policy-card"><h5>${esc(type.label)} <span>${state}</span></h5><dl><dt>Principal</dt><dd><code>${esc(target)}</code></dd><dt>Capability</dt><dd>${authority}</dd><dt>Scope</dt><dd><code>${esc(scope)}</code></dd><dt>Usage</dt><dd>${usage}</dd><dt>Duration</dt><dd>${duration}</dd></dl>${hostScopes ? `<ul>${hostScopes}</ul>` : ""}${registration}${additional}</article>`;
     }).join("");
+  }
+
+  function renderChatgptRegistration(info) {
+    const button = $("chatgpt-principal-register");
+    const state = $("chatgpt-principal-registration-state");
+    if (!button || !state || !info) return;
+    if (info.status === "registered") {
+      button.disabled = true;
+      button.hidden = true;
+      state.textContent = "service:chatgpt is active in the canonical identity registry. No credential is shown in the browser.";
+      return;
+    }
+    button.hidden = false;
+    button.disabled = info.available !== true;
+    if (info.available === true) {
+      state.textContent = "Registration is available. It requires identity.manage at institution scope and a separate confirmation.";
+    } else if (info.unavailable_reason === "identity_manage_required") {
+      state.textContent = "Registration unavailable: the authenticated Steward lacks identity.manage at institution scope.";
+    } else {
+      state.textContent = "Registration unavailable: the protected server-side credential destination is not ready.";
+    }
+  }
+
+  async function registerChatgptPrincipal() {
+    const button = $("chatgpt-principal-register");
+    if (!button || button.disabled) return;
+    if (!confirm("Register exactly service:chatgpt as an active service principal? This uses identity.manage at institution scope. Its one-time credential will be stored only in Riverview's protected server-side credential store and will not be shown or sent to this browser. This creates no delegation grant. Continue?")) return;
+    button.disabled = true;
+    const state = $("chatgpt-principal-registration-state");
+    state.textContent = "Registering the confirmed service identity through the canonical Authority Registry…";
+    try {
+      const result = await request("/api/v1/steward/service-principals/chatgpt/register", "POST",
+        {confirmation:"REGISTER service:chatgpt"});
+      state.textContent = result.status === "registered"
+        ? "service:chatgpt is registered. Its one-time credential was saved in the protected server-side store and was not returned to this browser. No delegation grant was created."
+        : "service:chatgpt is already active. No new credential or grant was issued.";
+      await refresh();
+    } catch (error) {
+      state.textContent = explain(error);
+      button.disabled = false;
+    }
   }
 
   function renderRequests(items) {
@@ -141,6 +185,7 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
       requestOptions = Array.isArray(result.hosts) ? result.hosts : [];
       authorizationTypes = Array.isArray(result.authorization_types) ? result.authorization_types : [];
       $("delegation-request-requester").textContent = result.requester_principal_id || "Unavailable";
+      renderChatgptRegistration(result.chatgpt_registration);
       typeSelect.innerHTML = '<option value="">Choose authorization type</option>' + authorizationTypes.map(item =>
         `<option value="${esc(item.type_id)}" ${item.status === "unavailable" ? "disabled" : ""}>${esc(item.label)}${item.status === "unavailable" ? " · unavailable" : ""}</option>`).join("");
       if (!$("delegation-request-expiry").value) {
@@ -192,7 +237,7 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
       $("delegation-request-expiry").max = maxExpiry.toISOString().slice(0,16);
       if ($("delegation-request-expiry").value > $("delegation-request-expiry").max)
         $("delegation-request-expiry").value = $("delegation-request-expiry").max;
-      $("delegation-request-type-note").textContent = "Capability comms5.operations.non_destructive.v1 · scope project:Riverview · principal service:chatgpt · unlimited use · expires 24 hours after activation. Separate objective and assignment authorization remains required for task execution. Service principal registration is a distinct identity.manage action and is not performed here.";
+      $("delegation-request-type-note").textContent = "Capability comms5.operations.non_destructive.v1 · scope project:Riverview · principal service:chatgpt · unlimited use · expires 24 hours after activation. Separate objective and assignment authorization remains required for task execution. A delegation request remains pending until separately approved.";
     } else if (gpu) {
       if (!$("delegation-request-max-uses").value) $("delegation-request-max-uses").value = "1";
       $("delegation-request-expiry").removeAttribute("max");
@@ -300,5 +345,6 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
     $("delegation-request-type")?.addEventListener("change", updateRequestType);
     $("delegation-request-host")?.addEventListener("change", updateCapabilities);
     $("delegation-request-form")?.addEventListener("submit", submitRequest);
+    $("chatgpt-principal-register")?.addEventListener("click", registerChatgptPrincipal);
   });
 })();

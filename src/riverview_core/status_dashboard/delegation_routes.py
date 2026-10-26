@@ -1,14 +1,15 @@
 # Riverview~ Controlled Source
 # File: src/riverview_core/status_dashboard/delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.1
-# Purpose: Route authenticated Steward list, detail, grant inspection and revocation requests
+# Revision: 1.1.0
+# Purpose: Route authenticated Steward delegation and fixed service principal registration requests
 # Execution Model: Same-origin request-driven API
 # Observability: Structured safe status/error codes; no credentials in responses
 # Dependencies: Existing account-session/CSRF validation and protected delegation adapter
 # Authority: Steward role, steward:camrui binding, and authority.grant institution scope
 # Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Expose bounded reads and canonical grant revocation.
 # Changed: 2026-10-26 UTC | RV-PR342-FINITE-USE-WITHOUT-EXPIRY | Permit a finite-use-only GPU delegation request through the canonical bounded-grant policy.
+# Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Require institution-scoped identity.manage and explicit exact-name confirmation for service registration.
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # Tests: tests/test_delegation_routes.py
 # History: Initial controlled source
@@ -34,16 +35,18 @@ _REVOKE = re.compile(r"^/api/v1/steward/delegated-grants/(grant:[A-Za-z0-9._:-]{
 _REQUESTS = "/api/v1/steward/delegation-grant-requests"
 _GRANTS = "/api/v1/steward/delegated-grants"
 _OPTIONS = _REQUESTS + "/options"
+_CHATGPT_REGISTRATION = "/api/v1/steward/service-principals/chatgpt/register"
 
 
 def is_route(method: str, path: str) -> bool:
     return ((method in {"GET", "HEAD"} and
              (path in {_REQUESTS, _GRANTS, _OPTIONS} or _REQUEST.fullmatch(path) is not None)) or
             (method == "POST" and (path == _REQUESTS or _DECISION.fullmatch(path) is not None or
-                                    _REVOKE.fullmatch(path) is not None)))
+                                    _REVOKE.fullmatch(path) is not None or
+                                    path == _CHATGPT_REGISTRATION)))
 
 
-def _request_context(handler):
+def _steward_context(handler, action):
     identity = getattr(handler, "_account_identity", None)
     if (not getattr(handler, "_account_cookie_authenticated", False) or not identity or
             "steward" not in identity.get("roles", ()) or
@@ -59,7 +62,7 @@ def _request_context(handler):
         raise RuntimeError("delegation_authority_unavailable")
     try:
         principal_id = adapter._authenticated_steward()
-        actor = registry.authorize(token, "authority.grant", "institution")
+        actor = registry.authorize(token, action, "institution")
     except Exception as exc:
         from riverview_core.institutional_authority.registry import AuthorityDenied
         if isinstance(exc, AuthorityDenied):
@@ -68,6 +71,11 @@ def _request_context(handler):
     if (principal_id != "steward:camrui" or actor.get("principal_id") != principal_id or
             actor.get("principal_kind") != "steward"):
         raise PermissionError("steward_authority_denied")
+    return principal_id, registry, adapter
+
+
+def _request_context(handler):
+    principal_id, registry, _ = _steward_context(handler, "authority.grant")
     return principal_id, registry
 
 
@@ -127,6 +135,18 @@ def _request_options(handler, principal_id):
         "comms5_submit_direct_engineering_task" in getattr(operations, "SUPPORTED", ()))
     target_registered = bool(adapter and callable(getattr(adapter, "registered_target", None))
                              and adapter.registered_target(codex_target, principal_kind="service"))
+    registration_available = bool(adapter and
+        callable(getattr(adapter, "chatgpt_registration_available", None)) and
+        adapter.chatgpt_registration_available())
+    identity_manage = False
+    if adapter and getattr(adapter, "_registry", None) is not None:
+        try:
+            adapter._registry.authorize(adapter._steward_token, "identity.manage", "institution")
+            identity_manage = True
+        except Exception as exc:
+            from riverview_core.institutional_authority.registry import AuthorityDenied
+            if not isinstance(exc, AuthorityDenied):
+                raise
     codex_available = executor_registered and target_registered
     codex_unavailable_reason = (None if codex_available else
         "codex_task_operation_not_registered" if not executor_registered else
@@ -153,6 +173,21 @@ def _request_options(handler, principal_id):
                 "additional_authority_required": ["objective.submit", "assignment.create", "assignment.execute", "assignment.verify"],
             }],
             "expires_in_days": [1, 7, 30, 90, 180, 365],
+            "chatgpt_registration": {
+                "principal_id": codex_target,
+                "principal_kind": "service",
+                "status": "registered" if target_registered else "registration_required",
+                "available": bool(not target_registered and registration_available and identity_manage),
+                "authorized": identity_manage,
+                "required_action": "identity.manage",
+                "required_scope": "institution",
+                "credential_delivery": "protected_server_store",
+                "credential_shown_to_browser": False,
+                "unavailable_reason": (None if target_registered or
+                    registration_available and identity_manage else
+                    "identity_manage_required" if not identity_manage else
+                    "protected_credential_destination_unavailable"),
+            },
             "requester_principal_id": principal_id,
             "target_principal_id": principal_id}
 
@@ -251,6 +286,39 @@ def dispatch(handler, parsed, request_id):
         except Exception as exc:
             handler._error(503, str(exc) if str(exc).startswith(("delegation_", "hardware_"))
                            else "hardware_host_registry_unavailable", request_id)
+        return True
+    if handler.command == "POST" and parsed.path == _CHATGPT_REGISTRATION:
+        try:
+            data = handler._json_body(1024)
+            if data != {"confirmation": "REGISTER service:chatgpt"}:
+                raise ValueError("explicit_registration_confirmation_required")
+            principal_id, _, adapter = _steward_context(handler, "identity.manage")
+            if principal_id != "steward:camrui":
+                raise PermissionError("steward_authority_denied")
+            result = adapter.register_chatgpt_service_principal()
+            handler._json(201 if result.get("status") == "registered" else 200,
+                          result, request_id)
+        except PermissionError:
+            handler._error(403, "steward_identity_management_denied", request_id)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            handler._error(400, "explicit_registration_confirmation_required", request_id)
+        except Exception as exc:
+            from riverview_core.institutional_authority.registry import (
+                AuthorityDenied, IdentityConflict, RegistryUnavailable,
+            )
+            from riverview_core.institutional_authority.service_principal_credentials import (
+                CredentialDestinationUnavailable,
+            )
+            if isinstance(exc, AuthorityDenied):
+                handler._error(403, "steward_identity_management_denied", request_id)
+            elif isinstance(exc, IdentityConflict):
+                handler._error(409, "service_principal_registration_conflict", request_id)
+            elif isinstance(exc, CredentialDestinationUnavailable):
+                handler._error(503, "protected_credential_destination_unavailable", request_id)
+            elif isinstance(exc, RegistryUnavailable):
+                handler._error(503, "delegation_authority_unavailable", request_id)
+            else:
+                handler._error(503, "service_principal_registration_unavailable", request_id)
         return True
     if handler.command == "POST" and parsed.path == _REQUESTS:
         try:

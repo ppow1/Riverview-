@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Verify narrow Steward delegation API routing and composite-source overlay
 # Execution Model: Local unittest with fake account and authority adapters
 # Observability: unittest case names, counts and exit status
@@ -92,7 +92,8 @@ class _Registry:
 
     def _require(self, cur, token, action, scope):
         if self.actor != "steward":
-            raise PermissionError("denied")
+            from riverview_core.institutional_authority.registry import AuthorityDenied
+            raise AuthorityDenied("denied")
         self.required = (action, scope)
         return {"principal_kind":"steward","principal_id":"steward:camrui"}
 
@@ -227,6 +228,56 @@ class DelegationRequestCreationTests(unittest.TestCase):
         codex=next(item for item in handler.response[1]["authorization_types"]
                    if item["type_id"]=="comms5_codex")
         self.assertEqual(codex["unavailable_reason"],"codex_task_operation_not_registered")
+
+    def test_chatgpt_registration_options_require_identity_manage_and_protected_sink(self):
+        registry = _Registry()
+        adapter = _Adapter(registry=registry)
+        adapter.registered_target = lambda principal_id, *, principal_kind=None: False
+        adapter.chatgpt_registration_available = lambda: True
+        handler = self.handler(registry)
+        handler.server._comms5_operations = SimpleNamespace(
+            delegation_grant_requests=adapter,
+            SUPPORTED={"comms5_submit_direct_engineering_task"})
+        handler.server._resource_telemetry = _RequestTelemetry()
+        handler.server._permission_store = _RequestPermissionStore()
+        handler.command = "GET"
+        dispatch(handler, urlsplit("/api/v1/steward/delegation-grant-requests/options"), "r")
+        registration = handler.response[1]["chatgpt_registration"]
+        self.assertEqual(registration["principal_id"], "service:chatgpt")
+        self.assertEqual(registration["required_action"], "identity.manage")
+        self.assertEqual(registration["required_scope"], "institution")
+        self.assertTrue(registration["available"])
+        self.assertFalse(registration["credential_shown_to_browser"])
+
+    def test_registration_requires_identity_manage_and_exact_confirmation(self):
+        registry = _Registry()
+        adapter = _Adapter(registry=registry)
+        adapter.register_chatgpt_service_principal = lambda: {
+            "status": "registered", "principal_id": "service:chatgpt",
+            "principal_kind": "service", "credential_stored": True}
+        handler = _Handler(adapter, body={"confirmation": "REGISTER service:chatgpt"})
+        handler.command = "POST"
+        path = "/api/v1/steward/service-principals/chatgpt/register"
+        self.assertTrue(is_route("POST", path))
+        dispatch(handler, urlsplit(path), "r")
+        self.assertEqual(handler.response[0], 201)
+        self.assertEqual(registry.required, ("identity.manage", "institution"))
+        self.assertNotIn("credential", handler.response[1])
+
+        invalid = _Handler(adapter, body={"confirmation": "register"})
+        invalid.command = "POST"
+        dispatch(invalid, urlsplit(path), "r")
+        self.assertEqual(invalid.response[0], 400)
+
+        denied_registry = _Registry(actor="resident")
+        denied_adapter = _Adapter(registry=denied_registry)
+        denied_adapter.register_chatgpt_service_principal = lambda: self.fail(
+            "unauthorized request must not call the registry")
+        denied = _Handler(denied_adapter,
+            body={"confirmation": "REGISTER service:chatgpt"})
+        denied.command = "POST"
+        dispatch(denied, urlsplit(path), "r")
+        self.assertEqual(denied.response[0], 403)
 
     def test_request_submission_is_pending_exact_scope_and_requires_steward_authority(self):
         registry=_RequestRegistry(); handler=self.handler(registry,self.body())

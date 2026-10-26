@@ -1,7 +1,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.22
+# Revision: 1.0.23
+# Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Verify write-ahead secret persistence with the canonical create_principal transaction in an isolated schema.
 # Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-AUTHORITY-ORDER | Expect the additive conversation capability migration after declaration enforcement.
 # Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Test migration 0015 reconciliation and declaration updates
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
@@ -388,12 +389,24 @@ class InstitutionalAuthorityTests(unittest.TestCase):
 
     def test_codex_delegation_is_exact_scoped_and_expires_after_activation(self):
         from riverview_core.institutional_authority import AuthorityDenied
+        from riverview_core.institutional_authority.service_principal_credentials import (
+            ProtectedChatGPTCredentialStore,
+        )
         unprivileged = self.registry.create_principal(self.steward_token,
             "service:registration-test", "service")
         with self.assertRaises(AuthorityDenied):
             self.registry.create_principal(unprivileged, "service:chatgpt", "service")
-        issued_credential = self.registry.create_principal(
-            self.steward_token, "service:chatgpt", "service")
+        with tempfile.TemporaryDirectory() as root:
+            os.chmod(root, 0o700)
+            credential_store = ProtectedChatGPTCredentialStore(
+                Path(root) / "service-chatgpt.credential")
+            with credential_store.registration_lock():
+                one_time_credential = credential_store.load_or_create()
+                issued_credential = self.registry.create_principal(
+                    self.steward_token, "service:chatgpt", "service",
+                    credential=one_time_credential)
+            self.assertEqual(issued_credential, one_time_credential)
+            self.assertEqual(credential_store.path.read_text().strip(), issued_credential)
         self.assertGreaterEqual(len(issued_credential), 32)
         with self.admin.cursor() as cur:
             cur.execute(f"SELECT event_type FROM {self.schema}.institutional_authority_events WHERE subject_id=%s", ("service:chatgpt",))

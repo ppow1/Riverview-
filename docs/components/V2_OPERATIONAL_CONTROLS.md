@@ -44,24 +44,24 @@ The existing ChatGPT → Comms5 → Codex path uses action
 `service:chatgpt`. Its canonical policy requires unlimited uses and ends the
 grant 24 hours after activation; objective and assignment permissions remain
 separate requirements. The active Comms5 release registers
-`comms5_submit_direct_engineering_task`, but the current Authority Registry has
-no active `service:chatgpt` principal, so the website must present this request
-type as unavailable. Neither a GPU host grant nor this project grant by itself
+`comms5_submit_direct_engineering_task`. Until the service principal is active,
+the website presents this request type as unavailable. Neither a GPU host grant nor this project grant by itself
 authorizes objective submission or Engineering execution. No principal, grant,
 or production request was created during this review.
 
 Registering the target is a separate canonical identity operation:
 `AuthorityRegistry.create_principal(steward_token, "service:chatgpt", "service")`.
-It requires an active Steward credential with `identity.manage` at `institution`
-scope, writes the principal and `principal_created` audit event, and returns a
-bearer credential once. No V2 principal-registration endpoint or approval form
-exists, and the Comms5 OAuth-attested identity does not itself create an active
-Authority Registry principal. The V2 page therefore states this exact unmet
-action and does not create the principal or discard/route its returned
-credential. After registration is completed through an authorized, protected
-identity-management operation, the existing grant request can be submitted
-from Delegation Approvals; its request is still pending until explicitly
-approved by the Steward.
+The V2 confirmation control calls that operation only after the authenticated
+Steward confirms and the server rechecks `identity.manage` at `institution`
+scope. The operation writes the principal and `principal_created` audit event.
+Its one-time bearer is prepared write-ahead and stored at
+`/var/lib/riverview-status-dashboard/identity-credentials/service-chatgpt.credential`
+in a private service-owned directory; the API never returns it to the browser.
+The Comms5 OAuth-attested identity does not itself create an active Authority
+Registry principal. Registration is a distinct identity action and creates no
+delegation grant. After registration, the existing Delegation Approvals form
+can submit the fixed ChatGPT-to-Codex request; it remains pending until the
+Steward explicitly approves it.
 
 These administrative routes are intentionally marked as capability exclusions:
 they operate on institutional authority and must not become resident/Grace
