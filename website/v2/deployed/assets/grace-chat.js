@@ -2,7 +2,8 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/grace-chat.js
 Component: RIVERVIEW-V2-WORKSPACE-SHELL
-Revision: 1.0.11
+Revision: 1.1.0
+Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-20261026 | Add resident-scoped conversation management, protected image storage, and fail-closed vision routing.
 Changed: 2026-10-24 UTC | RV-V2-GRACE-CANCELLATION-INTEGRATION | Resolve exact objective/work-order chat commands through the Steward session and shared lifecycle confirmation.
 Changed: 2026-10-25 UTC | RV-V2-V1-PROPOSAL-PARITY-20261025 | Add idempotent proposal drafting from a persisted, selected Steward message through the existing API.
 Changed: 2026-10-23 UTC | RV-ISSUE-253-V2-ENGINEERING-PROGRESS | Show live conversation-linked objectives with safe cancellation and preserve a single panel across responsive sidebar transitions.

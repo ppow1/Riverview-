@@ -1,17 +1,5 @@
-// =============================================================================
-// RIVERVIEW~ CONTROLLED SOURCE
-// File: website/v2/deployed/assets/operational-inbox.js
-// Component: RIVERVIEW-V2-INSTITUTIONAL-ACTIVITY-LEDGER
-// Revision: 1.0.0
-// Purpose: Render existing read-only notification, attention, and event projections.
-// Execution Model: Browser event-driven view controller
-// Observability: Per-source freshness, status, cursor, and event identity metadata
-// Dependencies: Same-origin authenticated Dashboard API; operational-inbox-adapter.js
-// Authority: Read-only display; no receipts, delivery, or decision are inferred.
-// Changed: 2026-10-25 UTC | RV-INTEGRATE-295-297-302-20261025 | Port the reviewed bounded event ledger UI.
-// Tests: tests/test_v2_operational_inbox.cjs
-// History: Git
-// =============================================================================
+// Revision: 1.0.1
+// Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Hide decision controls when server session says authority binding is unavailable
 /* Read-only V2 presentation for existing notification and event projections. */
 (() => {
   "use strict";
@@ -19,11 +7,15 @@
   const adapter = window.RiverviewV2OperationalInboxAdapter;
   if (!adapter || !$("#operational-inbox")) return;
   const feeds = {
-    notifications: {path: "/api/v1/notifications?limit=50", status: "not checked", lastSuccess: null, items: []},
+    notifications: {path: "/api/v1/notifications?limit=50", status: "not checked", lastSuccess: null, items: [], dispatcher: null},
     attention: {path: "/api/v1/attention?limit=50", status: "not checked", lastSuccess: null, items: []},
     events: {path: "/api/v1/events?limit=50", status: "not checked", lastSuccess: null, items: [], olderCursor: null, newerCursor: null, canLoadOlder: false, canLoadNewer: false}
   };
   let refreshedAt = null;
+  let canWriteReceipts = false;
+  let canRequestRecoveryDecision = false;
+  let recoveryAccessMessage = "Sign in with a Steward account linked to institutional Steward authority to decide recovery requests.";
+  const receiptRequests = new Set();
 
   const node = (tag, value, className) => {
     const item = document.createElement(tag);
@@ -67,6 +59,7 @@
       const label = name === "events" ? "Operational events" : name === "attention" ? "Attention" : "Notifications";
       return node("span", `${label}: ${stateLabel(feed)}`, `inbox-source inbox-source-${feed.status.replaceAll("_", "-")}`);
     }));
+    renderDispatcherHealth(feeds.notifications);
     const body = $("#inbox-rows");
     const eventFeed = feeds.events;
     $("#inbox-events-older").hidden = !eventFeed.canLoadOlder || eventFeed.status !== "available";
@@ -87,6 +80,19 @@
       const eventCell = document.createElement("td");
       eventCell.append(node("strong", human(row.eventType)), node("span", row.description, "inbox-description"),
         node("small", row.sources.map((s) => s === "event" ? "Operational event" : s === "attention" ? "Attention" : "Notification").join(" · "), "inbox-meta"));
+      const receiptAction = adapter.notificationReceiptAction(row, canWriteReceipts);
+      if (receiptAction) {
+        const actionButton = node("button", receiptAction === "delivered" ? "Confirm displayed" : "Acknowledge receipt", "inbox-receipt-action");
+        actionButton.type = "button";
+        actionButton.dataset.notificationReceiptAction = receiptAction;
+        actionButton.dataset.notificationId = row.notificationId;
+        actionButton.setAttribute("aria-label", `${receiptAction === "delivered" ? "Confirm dashboard display" : "Acknowledge receipt"} for ${human(row.eventType)}`);
+        eventCell.append(actionButton);
+      } else if (row.notificationId && row.deliveryState === "acknowledged") {
+        eventCell.append(node("small", "Receipt acknowledged; no decision was made.", "inbox-receipt-note"));
+      } else if (row.notificationId && ["queued", "delivered"].includes(row.deliveryState) && !canWriteReceipts) {
+        eventCell.append(node("small", "An operator or Steward session is required to record a receipt.", "inbox-receipt-note"));
+      }
       if (row.sources.includes("event")) {
         const details = document.createElement("details");
         const summary = node("summary", "Institution event record");
@@ -98,6 +104,7 @@
         details.append(summary, fields);
         eventCell.append(details);
       }
+      if (row.notificationDetails) eventCell.append(renderNotificationDetails(row.notificationDetails));
       tr.append(eventCell);
       const related = document.createElement("td");
       if (row.assignmentId) {
@@ -124,16 +131,204 @@
     empty.textContent = rows.length ? "" : Object.values(feeds).every((feed) => feed.status === "not checked")
       ? "No source records have been loaded."
       : "No records match the selected filters, or all available sources returned no records.";
+    document.querySelectorAll("[data-notification-receipt-action]").forEach((button) => button.addEventListener("click", () => recordNoticeReceipt(button)));
+  }
+
+  function renderDispatcherHealth(feed) {
+    const target = $("#inbox-dispatcher-health");
+    if (!target) return;
+    const health = feed.dispatcher;
+    if (!health) {
+      target.textContent = feed.status === "unavailable" && feed.lastSuccess
+        ? `Dispatcher status unavailable on refresh; last notification data is from ${dateLabel(feed.lastSuccess)}.`
+        : feed.status === "unavailable" ? "Dispatcher status unavailable; notification API could not be read."
+          : "Dispatcher health has not been read.";
+      return;
+    }
+    const parts = [`Dispatcher ${human(health.status)}`];
+    if (health.heartbeat_age_seconds != null && Number.isFinite(Number(health.heartbeat_age_seconds))) parts.push(`heartbeat ${ageLabel(Number(health.heartbeat_age_seconds))} ago`);
+    else if (health.last_heartbeat_at) parts.push(`heartbeat ${dateLabel(health.last_heartbeat_at)}`);
+    else parts.push("heartbeat not recorded");
+    if (health.last_scan_at) parts.push(`last scan ${dateLabel(health.last_scan_at)}`);
+    if (health.last_error_type) parts.push(`recorded error type ${human(health.last_error_type)}`);
+    if (feed.status === "unavailable" && feed.lastSuccess) parts.push(`last successful API read ${dateLabel(feed.lastSuccess)} (stale)`);
+    target.textContent = parts.join(" · ");
+  }
+
+  function ageLabel(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "unverified age";
+    if (seconds < 60) return `${Math.floor(seconds)}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  }
+
+  function renderNotificationDetails(item) {
+    const details = document.createElement("details");
+    details.className = "inbox-notification-details";
+    const summary = node("summary", "Notification status and source details");
+    const fields = document.createElement("dl");
+    let recoveryActions = null;
+    const statusMeaning = {
+      queued: "Queued by Riverview; dashboard display is not confirmed. This does not confirm NTFY delivery.",
+      delivered: "Dashboard display was explicitly confirmed; this does not confirm NTFY delivery or that a person saw it.",
+      acknowledged: "Dashboard receipt was explicitly acknowledged; this is not a decision or proof of phone delivery."
+    };
+    const values = [
+      ["Notification status", statusMeaning[item.delivery_status] || "Status not supplied by the notification API."],
+      ["Configured notification channel (not delivery confirmation)", item.channel], ["Source event", item.source_event_id],
+      ["Source event time", item.source_recorded_at], ["Notification queued", item.created_at],
+      ["Dashboard display confirmation", item.delivered_at], ["Dashboard receipt acknowledgment", item.acknowledged_at],
+      ["Linked decision request", item.decision_request_id], ["Decision status", item.decision_status],
+      ["Decision assignment version", item.assignment_version]
+    ];
+    if (item.recovery_request_id) values.push(
+      ["Bound recovery request", item.recovery_request_id], ["Recovery status", item.recovery_status],
+      ["Recovery action", item.recovery_action], ["Recovery objective revision", item.recovery_objective_revision],
+      ["Recovery attempt limit", item.attempt_limit], ["Recovery expiry", item.recovery_expires_at]
+    );
+    for (const [label, value] of values) appendField(fields, label, value);
+    const transportNote = node("p", "This API does not report NTFY relay acceptance or iPhone delivery.", "inbox-receipt-note");
+    const source = item.source_details;
+    if (source) for (const [label, key] of [["Related objective", "objective_id"], ["Objective revision", "objective_revision"],
+      ["Runtime revision", "runtime_revision"], ["Failure count", "failure_count"], ["Last error code", "last_error_code"],
+      ["Blocked at", "blocked_at"], ["Last failure", "last_failure_at"], ["Recorded decision", "decision"],
+      ["Recommended next action", "recommended_action"], ["Automatic recovery state", "automatic_recovery"]]) {
+      if (source[key] != null && source[key] !== "") appendField(fields, label, source[key]);
+    }
+    if (item.recovery_request_id && item.recovery_status === "pending") {
+      const actions = document.createElement("div");
+      actions.className = "inbox-recovery-actions";
+      if (canRequestRecoveryDecision) {
+        for (const [decision, label] of [["approve", "Request: approve one retry"], ["defer", "Request: defer"], ["reject", "Request: reject"]]) {
+          const button = node("button", label, decision === "approve" || decision === "reject" ? "inbox-recovery-decision inbox-recovery-consequential" : "inbox-recovery-decision");
+          button.type = "button";
+          button.dataset.recoveryDecision = decision;
+          button.dataset.recoveryRequest = item.recovery_request_id;
+          button.addEventListener("click", () => recordRecoveryDecision(button));
+          actions.append(button);
+        }
+        actions.append(node("small", "The existing API additionally requires linked institutional Steward authority. Every choice requires confirmation and an audit reason; approval does not itself execute a retry."));
+      } else {
+        actions.append(node("small", recoveryAccessMessage, "inbox-recovery-unavailable"));
+      }
+      recoveryActions = actions;
+    }
+    details.append(summary, transportNote, fields);
+    if (recoveryActions) details.append(recoveryActions);
+    return details;
+  }
+
+  function appendField(fields, label, value) {
+    const term = node("dt", label);
+    const isTime = /time|queued|confirmation|acknowledgment|expiry|blocked at|last failure/i.test(label);
+    const rendered = value == null || value === "" ? "Not recorded by source"
+      : isTime && typeof value === "string" && Number.isFinite(Date.parse(value)) ? dateLabel(value)
+        : typeof value === "object" ? JSON.stringify(value) : String(value);
+    const description = node("dd", rendered);
+    fields.append(term, description);
+  }
+  async function readReceiptAuthority() {
+    try {
+      const response = await fetch("/api/v1/auth/session", {method: "GET", credentials: "same-origin", cache: "no-store", headers: {Accept: "application/json"}});
+      const session = response.ok ? await response.json() : null;
+      const roles = session?.identity?.roles || [];
+      canWriteReceipts = Array.isArray(roles) && (roles.includes("operator") || roles.includes("steward"));
+      canRequestRecoveryDecision = adapter.canRequestRecoveryDecision(session?.identity);
+      recoveryAccessMessage = !response.ok ? "A Steward account session is required for recovery decisions."
+        : typeof session?.identity?.can_decide_grace_recovery !== "boolean"
+          ? "Recovery decision eligibility is unavailable from this server session; no decision controls are enabled."
+          : !session.identity.can_decide_grace_recovery
+            ? roles.includes("steward")
+              ? "This Steward account has no linked institutional Steward authority; recovery decisions are unavailable."
+              : "Recovery decisions require a Steward account linked to institutional Steward authority."
+            : "Eligible Steward session. The existing decision API rechecks authorization before recording each choice.";
+    } catch (_) { canWriteReceipts = false; canRequestRecoveryDecision = false; recoveryAccessMessage = "Steward authorization status is unavailable; recovery decisions are disabled."; }
+  }
+  function csrfHeaders() {
+    const raw = document.cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith("rv_account_csrf="))?.slice("rv_account_csrf=".length);
+    if (!raw) throw new Error("csrf_token_missing");
+    return {Accept: "application/json", "X-Riverview-CSRF": decodeURIComponent(raw)};
+  }
+  async function postNoticeReceipt(notificationId, action) {
+    const response = await fetch(`/api/v1/notifications/${encodeURIComponent(notificationId)}/${action}`, {
+      method: "POST", credentials: "same-origin", cache: "no-store", headers: csrfHeaders()
+    });
+    if (!response.ok) throw new Error(`http_${response.status}`);
+    return response.json();
+  }
+
+  async function recordRecoveryDecision(button) {
+    const requestId = button.dataset.recoveryRequest;
+    const decision = button.dataset.recoveryDecision;
+    if (!canRequestRecoveryDecision || !/^[0-9a-f-]{36}$/i.test(requestId || "") || !["approve", "defer", "reject"].includes(decision)) return;
+    if (!window.confirm(`Confirm Steward decision “${decision}” for this exact one-attempt recovery request (${requestId})?`)) return;
+    const reason = window.prompt("Required audit reason for this Steward recovery decision:");
+    if (!reason?.trim()) return;
+    button.disabled = true;
+    $("#inbox-action-status").textContent = `Submitting Steward ${decision} decision…`;
+    try {
+      const response = await fetch(`/api/v1/grace-recovery/${encodeURIComponent(requestId)}/decision`, {
+        method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: {...csrfHeaders(), "Content-Type": "application/json"},
+        body: JSON.stringify({decision, reason: reason.trim().slice(0, 1000),
+          idempotency_key: `grace-recovery-decision:${requestId}:${decision}`})
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          canRequestRecoveryDecision = false;
+          recoveryAccessMessage = "Recovery decision unavailable: the server rejected this Steward session or institutional authority. No decision was recorded.";
+        }
+        if (response.status === 409) await refresh();
+        throw new Error(response.status === 401 || response.status === 403 ? "Steward authority required; no decision recorded"
+          : response.status === 404 ? "Recovery request no longer exists"
+            : response.status === 409 ? "Recovery request is already decided or expired"
+              : response.status === 503 ? "Recovery decision service unavailable; no decision confirmed"
+                : `http_${response.status}`);
+      }
+      await refresh();
+      $("#inbox-action-status").textContent = result.status === "expired"
+        ? "Recovery request expired; no decision was recorded."
+        : `Steward ${decision} decision recorded. Existing bounded recovery processing determines whether or when anything is dispatched.`;
+    } catch (error) {
+      button.disabled = false;
+      $("#inbox-action-status").textContent = `Recovery decision not confirmed (${error.message}).`;
+      render();
+    }
+  }
+  async function refreshNotifications() {
+    await readFeed("notifications", feeds.notifications);
+    render();
+  }
+  async function recordNoticeReceipt(button) {
+    const notificationId = button.dataset.notificationId;
+    const action = button.dataset.notificationReceiptAction;
+    if (!canWriteReceipts || !notificationId || !["delivered", "acknowledge"].includes(action) || receiptRequests.has(notificationId)) return;
+    receiptRequests.add(notificationId); button.disabled = true;
+    $("#inbox-action-status").textContent = action === "delivered" ? "Recording dashboard display…" : "Recording receipt acknowledgment…";
+    try {
+      const receipt = await postNoticeReceipt(notificationId, action);
+      await refreshNotifications();
+      $("#inbox-action-status").textContent = action === "delivered"
+        ? "Dashboard display receipt recorded. This does not confirm phone delivery or that a person saw it."
+        : receipt.authority_effect === "none"
+          ? "Receipt acknowledged. No decision or recovery authorization was made."
+          : "Receipt response did not confirm that authority was unchanged.";
+    } catch (error) {
+      button.disabled = false;
+      $("#inbox-action-status").textContent = `Receipt was not recorded (${error.message}).`;
+    } finally { receiptRequests.delete(notificationId); }
   }
   async function readFeed(name, feed) {
     try {
       const response = await fetch(feed.path, {method: "GET", credentials: "same-origin", cache: "no-store", headers: {Accept: "application/json"}});
-      if (response.status === 401) { feed.status = "unauthenticated"; feed.items = []; feed.lastSuccess = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
-      if (response.status === 403) { feed.status = "denied"; feed.items = []; feed.lastSuccess = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
+      if (response.status === 401) { feed.status = "unauthenticated"; feed.items = []; feed.lastSuccess = null; if (name === "notifications") feed.dispatcher = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
+      if (response.status === 403) { feed.status = "denied"; feed.items = []; feed.lastSuccess = null; if (name === "notifications") feed.dispatcher = null; if (name === "events") { feed.olderCursor = null; feed.newerCursor = null; feed.canLoadOlder = false; feed.canLoadNewer = false; } return; }
       if (!response.ok) throw new Error(`http_${response.status}`);
       const page = await response.json();
       feed.status = page.status || "available";
       if (!Array.isArray(page.items)) throw new Error("invalid_projection");
+      if (name === "notifications") feed.dispatcher = page.dispatcher || {status: "not_initialized"};
       if (feed.status === "available") {
         feed.items = page.items;
         feed.lastSuccess = page.observed_at || new Date().toISOString();
@@ -179,7 +374,7 @@
     $("#operational-inbox-refresh").disabled = true;
     refreshedAt = new Date().toISOString();
     render();
-    await Promise.all(Object.entries(feeds).map(([name, feed]) => readFeed(name, feed)));
+    await Promise.all([...Object.entries(feeds).map(([name, feed]) => readFeed(name, feed)), readReceiptAuthority()]);
     render();
     $("#operational-inbox-refresh").disabled = false;
   }
@@ -191,7 +386,10 @@
       $(selector).addEventListener(selector === "#inbox-search" ? "input" : "change", render);
     }
     document.addEventListener("rvv2:view", (event) => {
-      if (event.detail?.view === "communications" && !refreshedAt) refresh();
+      if (event.detail?.view === "communications") {
+        if (!refreshedAt) refresh();
+        else render();
+      }
     });
   });
   window.RiverviewV2OperationalInbox = Object.freeze({render, refresh});

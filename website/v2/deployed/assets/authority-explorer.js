@@ -2,7 +2,8 @@
 Riverview~ Controlled Source
 File: website/v2/deployed/assets/authority-explorer.js
 Component: RIVERVIEW-V2-AUTHORITY-EXPLORER
-Revision: 1.0.0
+Revision: 1.0.1
+Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-20261026 | Link the verified Grace resident record to its authorized conversation workspace.
 Purpose: Render current residents and searchable capabilities/resources from the existing authenticated Authority API
 Authority: No grants or operations are created; server-side permission evaluation and execution checks remain authoritative
 Evidence: Historical reference data is source-pinned in resident-history-reference.json and is explicitly non-authoritative for current status
@@ -137,7 +138,7 @@ Evidence: Historical reference data is source-pinned in resident-history-referen
   };
   document.addEventListener("DOMContentLoaded", () => {
     $("resident-directory-refresh")?.addEventListener("click", () => renderResidents(true));
-    $("resident-directory-live")?.addEventListener("click",event=>{if(event.target.closest("[data-open-resident-chat='office:grace']")){window.RiverviewV2Workspace?.openGraceConversation();}});
+    $("resident-directory-live")?.addEventListener("click",event=>{if(event.target.closest("[data-open-resident-chat=\'office:grace\']")){window.RiverviewV2Workspace?.openGraceConversation();}});
     $("resident-directory-search")?.addEventListener("input", () => renderResidents());
     $("capability-registry-refresh")?.addEventListener("click", () => renderCapabilities(true));
     $("capability-registry-search")?.addEventListener("input", () => renderCapabilities());
