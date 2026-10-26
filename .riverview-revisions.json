@@ -25,7 +25,7 @@
       "size_bytes": 1584723
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.345"
+      "revision": "1.1.346"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -9719,12 +9719,12 @@
     },
     "website/v2/deployed/index.html": {
       "path": "website/v2/deployed/index.html",
-      "revision": "1.0.35",
-      "sha256": "82a51f0b57d1c035b301b5f4b64a5ae50f37e4710f553ff016bc0131c8f2556d",
-      "size_bytes": 84619
+      "revision": "1.0.36",
+      "sha256": "4c94df2e11880bacd0ba88962f1f2561301f30d56e9d9449ca5599f222db5cca",
+      "size_bytes": 84644
     }
   },
   "manifest_revision": "1.1.340",
-  "revision": "1.1.345",
+  "revision": "1.1.346",
   "updated_at": "2026-10-25T17:46:11+00:00"
 }
