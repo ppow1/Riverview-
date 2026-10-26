@@ -103,6 +103,8 @@ _NOTICE_WRITE = re.compile(
 _NOTIFICATION_SETTINGS = "/api/v1/notification-settings"
 _GRACE_RECOVERY_DECISION = re.compile(
     r"^/api/v1/grace-recovery/([0-9a-fA-F-]{36})/decision$")
+_COMMS5_AUTHORIZATION = "/api/v1/internal/comms5/authorization"  # capability-exclusion: fixed Comms5 ingress authorization check; no execution and canonical grant authority required
+_COMMS5_PRINCIPAL = re.compile(r"^(?:steward|resident|human|service|worker):[A-Za-z0-9._:@-]{1,240}$")
 _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
 _OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/proposal$")
 _OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
@@ -271,7 +273,8 @@ class _BoundedHTTPServer(HTTPServer):
                  objective_pipeline, conversation_service, account_auth_service,
                  permission_store, static_dir, proposal_registry,
                  steward_review_exchange=None, resource_telemetry=None,
-                 snapshot_archive=None, authority_registry=None):
+                 snapshot_archive=None, authority_registry=None,
+                 delegation_grant_requests=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -288,14 +291,16 @@ class _BoundedHTTPServer(HTTPServer):
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
             self._proposal_lifecycle = ProposalLifecycle(proposal_registry, objective_pipeline)
         self._comms5_operations = None
-        if proposal_registry is not None or steward_review_exchange is not None:
+        if (proposal_registry is not None or steward_review_exchange is not None or
+                delegation_grant_requests is not None):
             from riverview_core.resident_execution.comms5_operations import Comms5Operations
             from riverview_core.resident_execution.external_reasoning_mcp import StewardReviewBridge
             self._comms5_operations = Comms5Operations(
                 proposal_registry, self._proposal_lifecycle, objective_pipeline,
                 steward_review_bridge=(StewardReviewBridge(steward_review_exchange)
                     if steward_review_exchange is not None else None),
-                authority_registry=authority_registry)
+                authority_registry=authority_registry,
+                delegation_grant_requests=delegation_grant_requests)
         self._static_dir = Path(static_dir)
         self._resource_telemetry = resource_telemetry
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
@@ -663,10 +668,15 @@ def make_handler():
                                     if self.command == "POST" else None)
             proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
             comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
+            comms5_delegation_authorization = (
+                parsed.path == _COMMS5_AUTHORIZATION and self.command == "POST")
             snapshot_archive = parsed.path == _SNAPSHOT_ARCHIVE and self.command == "POST"
             delegation_revoke = (re.fullmatch(
                 r"^/api/v1/steward/delegated-grants/(grant:[A-Za-z0-9._:-]{1,128})/revoke$",
                 parsed.path) if self.command == "POST" else None)  # capability-exclusion: Steward administrative revocation; not resident-invocable
+            delegation_decision = (re.fullmatch(
+                r"^/api/v1/steward/delegation-grant-requests/(delegation-request:[A-Za-z0-9._:-]{1,128})/decision$",
+                parsed.path) if self.command == "POST" else None)  # capability-exclusion: Steward hash-bound request decision; not resident-invocable
             delegation_request_create = (parsed.path == "/api/v1/steward/delegation-grant-requests"
                                          and self.command == "POST")  # capability-exclusion: Steward request creation; not resident-invocable
             delegation_route = (
@@ -675,7 +685,7 @@ def make_handler():
                                     "/api/v1/steward/delegated-grants"} or
                     re.fullmatch(r"^/api/v1/steward/delegation-grant-requests/"
                                  r"delegation-request:[A-Za-z0-9._:-]{1,128}$", parsed.path))  # capability-exclusion: Steward administrative projection; not resident-invocable
-            ) or delegation_revoke is not None or delegation_request_create
+            ) or delegation_revoke is not None or delegation_request_create or delegation_decision is not None
             gpu_workload_read = (parsed.path == "/api/v1/hardware/workloads" and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
             gpu_workload_job = (re.fullmatch(r"^/api/v1/hardware/workloads/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", parsed.path) is not None and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
             gpu_workload_start = (parsed.path == "/api/v1/hardware/workloads/start" and self.command == "POST")  # capability-operation: hardware.gpu.workload.start
@@ -699,8 +709,10 @@ def make_handler():
                     and not proposal_revision and not proposal_decision
                     and not proposal_work_orders and not proposal_command
                     and not comms5_operation
+                    and not comms5_delegation_authorization
                     and not snapshot_archive
                     and not delegation_revoke
+                    and not delegation_decision
                     and not delegation_request_create
                     and not gpu_workload_route
                     and not auth_logout and not account_decision and not account_user
@@ -909,9 +921,48 @@ def make_handler():
                 return
             try:
                 query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
+                if comms5_delegation_authorization:
+                    principal = self.headers.get("X-Riverview-Comms5-Principal", "")
+                    from riverview_core.comms5.delegation_policy import is_delegable_tool
+                    if (self.headers.get("X-Riverview-Comms5") != "1" or
+                            not _COMMS5_PRINCIPAL.fullmatch(principal) or principal == "steward" or
+                            principal.startswith("steward:")):
+                        self._error(403, "comms5_transport_attestation_required", request_id)
+                        return
+                    operations = self.server._comms5_operations
+                    adapter = getattr(operations, "delegation_grant_requests", None) if operations else None
+                    if adapter is None:
+                        self._error(503, "delegation_authority_unavailable", request_id)
+                        return
+                    try:
+                        data = self._json_body(_MAX_CHAT_BODY)
+                        if (set(data) != {"operation", "operation_ref"} or
+                                not isinstance(data["operation"], str) or
+                                not isinstance(data["operation_ref"], str) or
+                                not is_delegable_tool(data["operation"])):
+                            raise ValueError("invalid_delegated_operation")
+                        result = adapter.authorize_operation(principal_id=principal,
+                            tool=data["operation"], operation_ref=data["operation_ref"])
+                        self._json(200, result, request_id)
+                    except (ValueError, TypeError):
+                        self._error(400, "invalid_delegated_operation", request_id)
+                    except Exception as exc:
+                        from riverview_core.institutional_authority.registry import (
+                            AuthorityDenied, RegistryUnavailable)
+                        if isinstance(exc, AuthorityDenied):
+                            self._error(403, "delegated_operation_not_authorized", request_id)
+                        elif isinstance(exc, RegistryUnavailable):
+                            self._error(503, "delegation_authority_unavailable", request_id)
+                        else:
+                            self._error(503, "delegation_authorization_unavailable", request_id)
+                    return
                 if comms5_operation:
-                    if (self.headers.get("X-Riverview-Comms5") != "1"
-                            or self.headers.get("X-Riverview-Comms5-Principal") != "steward"):
+                    attested_principal = self.headers.get("X-Riverview-Comms5-Principal", "")
+                    principal_valid = (attested_principal == "steward" or
+                                       bool(_COMMS5_PRINCIPAL.fullmatch(attested_principal)))
+                    is_steward = (attested_principal == "steward" or
+                                  attested_principal.startswith("steward:"))
+                    if (self.headers.get("X-Riverview-Comms5") != "1" or not principal_valid):
                         self._error(403, "comms5_transport_attestation_required", request_id)
                         return
                     if self.server._comms5_operations is None:
@@ -923,9 +974,38 @@ def make_handler():
                             or not isinstance(data["arguments"], dict)):
                         self._error(400, "invalid_comms5_operation", request_id)
                         return
+                    delegated_adapter = getattr(self.server._comms5_operations,
+                        "delegation_grant_requests", None)
+                    if not is_steward:
+                        from riverview_core.comms5.delegation_policy import is_delegable_tool
+                        self_surrender = data["tool"] == "comms5_revoke_delegation_grant"
+                        if not is_delegable_tool(data["tool"]) and not self_surrender:
+                            self._error(403, "comms5_operation_not_authorized", request_id)
+                            return
+                        if delegated_adapter is None:
+                            self._error(503, "delegation_authority_unavailable", request_id)
+                            return
+                        if not self_surrender and data["tool"] not in {
+                                "comms5_request_delegation_grant", "comms5_get_delegation_grant_status"}:
+                            try:
+                                delegated_adapter.authorize_operation(principal_id=attested_principal,
+                                    tool=data["tool"], operation_ref=request_id)
+                            except Exception as exc:
+                                from riverview_core.institutional_authority.registry import (
+                                    AuthorityDenied, RegistryUnavailable)
+                                if isinstance(exc, AuthorityDenied):
+                                    self._error(403, "comms5_operation_not_authorized", request_id)
+                                elif isinstance(exc, RegistryUnavailable):
+                                    self._error(503, "delegation_authority_unavailable", request_id)
+                                else:
+                                    self._error(503, "delegation_authorization_unavailable", request_id)
+                                return
                     try:
                         result = self.server._comms5_operations.execute(
-                            data["tool"], data["arguments"], principal_id="steward:camrui")
+                            data["tool"], data["arguments"],
+                            principal_id=("steward:camrui" if attested_principal == "steward"
+                                          else attested_principal),
+                            delegated_authorized=not is_steward)
                         self._json(200, result, request_id)
                     except PermissionError:
                         self._error(403, "comms5_operation_not_authorized", request_id)
@@ -2432,7 +2512,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  conversation_service=None, account_auth_service=None,
                  permission_store=None, proposal_registry=None,
                  steward_review_exchange=None, resource_telemetry=None,
-                 snapshot_archive=None, authority_registry=None):
+                 snapshot_archive=None, authority_registry=None,
+                 delegation_grant_requests=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -2450,7 +2531,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          steward_review_exchange=steward_review_exchange,
                          resource_telemetry=resource_telemetry,
                          snapshot_archive=snapshot_archive,
-                         authority_registry=authority_registry)
+                         authority_registry=authority_registry,
+                         delegation_grant_requests=delegation_grant_requests)
 
 
 def _release_commit() -> str:
@@ -2602,6 +2684,7 @@ def main():
     conversation_store = None
     authority_registry = None
     comms5_authority_registry = None
+    comms5_delegation_adapter = None
     proposal_registry = None
     schema = os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev")
     try:
@@ -2756,6 +2839,19 @@ def main():
         except Exception as exc:
             print(json.dumps({"event": "comms5_experiment_authority_unavailable",
                               "error_type": type(exc).__name__}), flush=True)
+    try:
+        from riverview_core.institutional_authority.comms5_adapter import (
+            Comms5DelegationAuthorityAdapter)
+        credential_dir = Path(os.environ.get("CREDENTIALS_DIRECTORY", ""))
+        if not credential_dir.is_dir():
+            raise RuntimeError("systemd authority credentials are required")
+        comms5_delegation_adapter = Comms5DelegationAuthorityAdapter(
+            dsn, schema=os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority"),
+            manager_passfile=credential_dir / "authority-manager-pgpass",
+            steward_token_file=credential_dir / "authority-steward-token")
+    except Exception as exc:
+        print(json.dumps({"event": "comms5_delegation_authority_unavailable",
+                          "error_type": type(exc).__name__}), flush=True)
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
@@ -2766,7 +2862,8 @@ def main():
                                  steward_review_exchange=steward_review_exchange,
                                  resource_telemetry=resource_telemetry,
                                  snapshot_archive=snapshot_archive,
-                                 authority_registry=comms5_authority_registry)
+                                 authority_registry=comms5_authority_registry,
+                                 delegation_grant_requests=comms5_delegation_adapter)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)
@@ -2784,6 +2881,8 @@ def main():
             authority_registry.close()
         if comms5_authority_registry is not None:
             comms5_authority_registry.close()
+        if comms5_delegation_adapter is not None:
+            comms5_delegation_adapter.close()
 
 
 if __name__ == "__main__":

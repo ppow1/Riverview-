@@ -26,13 +26,18 @@ _ROUTE_ANCHOR = '            if snapshot_archive:\n                identity = ge
 _DECLARATION = '''            delegation_revoke = (re.fullmatch(
                 r"^/api/v1/steward/delegated-grants/(grant:[A-Za-z0-9._:-]{1,128})/revoke$",
                 parsed.path) if self.command == "POST" else None)  # capability-exclusion: Steward administrative revocation; not resident-invocable
+            delegation_request_create = (parsed.path == "/api/v1/steward/delegation-grant-requests"
+                                         and self.command == "POST")  # capability-exclusion: Steward-only pending request submission; not resident-invocable
+            delegation_decision = (re.fullmatch(
+                r"^/api/v1/steward/delegation-grant-requests/(delegation-request:[A-Za-z0-9._:-]{1,128})/decision$",
+                parsed.path) if self.command == "POST" else None)  # capability-exclusion: Steward hash-bound decision; not resident-invocable
             delegation_route = (
-                self.command in {"GET", "HEAD"} and (
-                    parsed.path in {"/api/v1/steward/delegation-grant-requests",  # capability-exclusion: Steward administrative projection; not resident-invocable
+                (self.command in {"GET", "HEAD"} and (
+                    parsed.path in {"/api/v1/steward/delegation-grant-requests", "/api/v1/steward/delegation-grant-requests/options",  # capability-exclusion: Steward administrative projection; not resident-invocable
                                     "/api/v1/steward/delegated-grants"} or
                     re.fullmatch(r"^/api/v1/steward/delegation-grant-requests/"
-                                 r"delegation-request:[A-Za-z0-9._:-]{1,128}$", parsed.path))  # capability-exclusion: Steward administrative projection; not resident-invocable
-            ) or delegation_revoke is not None
+                                 r"delegation-request:[A-Za-z0-9._:-]{1,128}$", parsed.path)))  # capability-exclusion: Steward administrative projection; not resident-invocable
+                or delegation_revoke is not None or delegation_request_create or delegation_decision is not None)
 '''
 _ROUTE = '''            if delegation_route:
                 from riverview_core.status_dashboard.delegation_routes import dispatch
@@ -54,7 +59,9 @@ def apply(source: str) -> str:
         raise ValueError("dashboard_authenticated_route_anchor_not_unique")
     source = source.replace(_DECLARATION_ANCHOR, _DECLARATION_ANCHOR + _DECLARATION, 1)
     source = source.replace(_ALLOWLIST_ANCHOR,
-                            '                    and not delegation_revoke\n' + _ALLOWLIST_ANCHOR, 1)
+                            '                    and not delegation_revoke\n'
+                            '                    and not delegation_request_create\n'
+                            '                    and not delegation_decision\n' + _ALLOWLIST_ANCHOR, 1)
     source = source.replace(_ROUTE_ANCHOR, _ROUTE + _ROUTE_ANCHOR, 1)
     return source
 

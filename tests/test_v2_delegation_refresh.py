@@ -24,4 +24,6 @@ def test_delegation_ui_distinguishes_authentication_authorization_and_service_fa
     assert "not the institutionally linked Steward" in source
     assert '"delegation_authority_unavailable"' in source
     assert "canonical delegation authority service is unavailable" in source
-    assert "delegation-approvals.js?rev=steward-delegation-auth-message-20261026" in index
+    assert "delegation-approvals.js?rev=delegation-policy-runtime-repair-20261026c" in index
+    assert "Maximum executions (leave blank for time-only access)" in index
+    assert '$("delegation-request-max-uses").required = false' in source
