@@ -1,3 +1,9 @@
+# Riverview~ Controlled Source
+# File: tests/test_resident_conversation_vision_input.py
+# Component: RESIDENT-CONVERSATION
+# Revision: 1.0.0
+# Purpose: Verify multimodal input, model routing, authorization declarations, and V2 controls
+# Authority: Isolated tests only; no production identities or services are changed
 """Focused contracts for owner-chat multimodal routing and V2 input controls."""
 from pathlib import Path
 import json

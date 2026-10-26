@@ -25,7 +25,7 @@
       "size_bytes": 1584723
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.336"
+      "revision": "1.1.337"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -8439,6 +8439,18 @@
       "sha256": "812c4e6c8624d27a465daccdc352d593254ce09eeb7e9f022c12cacf50885c82",
       "size_bytes": 1502
     },
+    "src/riverview_core/institutional_authority/capability_declarations/resident_conversation_read.json": {
+      "path": "src/riverview_core/institutional_authority/capability_declarations/resident_conversation_read.json",
+      "revision": "1.0.0",
+      "sha256": "d74056cd7862c64ede3a5eaf1445fb49188546b794abe5f8b13cb866acf41d4f",
+      "size_bytes": 1197
+    },
+    "src/riverview_core/institutional_authority/capability_declarations/resident_conversation_send.json": {
+      "path": "src/riverview_core/institutional_authority/capability_declarations/resident_conversation_send.json",
+      "revision": "1.0.0",
+      "sha256": "c091914205be055773b1e3f69195231ac53fb01672e38c4f869ca073dfe2f151",
+      "size_bytes": 1969
+    },
     "src/riverview_core/institutional_authority/capability_declarations/resident_status_read.json": {
       "path": "src/riverview_core/institutional_authority/capability_declarations/resident_status_read.json",
       "revision": "1.0.0",
@@ -9656,8 +9668,14 @@
       "revision": "1.0.0",
       "sha256": "66ccabf2b0300fa386c667870c43325b3a4eb4b7d27e9e4739681ce1dc029268",
       "size_bytes": 2008940
+    },
+    "website/v2/deployed/assets/resident-history-reference.json": {
+      "path": "website/v2/deployed/assets/resident-history-reference.json",
+      "revision": "1.0.0",
+      "sha256": "250d4f2f200f33766febe95aba1d982a8161e51d02ae4dad247a1a920366cdcd",
+      "size_bytes": 3788
     }
   },
-  "manifest_revision": "1.1.336",
+  "manifest_revision": "1.1.337",
   "updated_at": "2026-10-25T17:46:11+00:00"
 }

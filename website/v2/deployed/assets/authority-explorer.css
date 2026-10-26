@@ -1,3 +1,6 @@
+/*
+File Revision: 1.0.0
+*/
 /* Riverview~ Controlled Source | Revision: 1.0.0 | Authority Explorer and Central Settings */
 .authority-explorer,.settings-workspace{max-width:1240px;margin:18px auto;padding:clamp(16px,2.5vw,28px);border:1px solid var(--line,#d8dfeb);border-radius:18px;background:var(--surface,#fff);box-shadow:0 12px 32px rgba(25,42,71,.06)}
 .authority-explorer header,.settings-workspace header{max-width:900px;margin-bottom:20px}.authority-explorer header h2,.settings-workspace header h2{margin:.2rem 0 .5rem}.authority-explorer header p:not(.eyebrow),.settings-workspace header p:not(.eyebrow){color:var(--muted,#64748b);line-height:1.55}

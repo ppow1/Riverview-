@@ -1,3 +1,4 @@
+// File Revision: 1.0.0
 /* Read-only view models for the canonical process-graph documentation and evidence registry. */
 (() => {
   "use strict";
