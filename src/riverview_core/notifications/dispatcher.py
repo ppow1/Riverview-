@@ -1,11 +1,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/notifications/dispatcher.py
 # Component: NOTIFICATION-DELIVERY
-# Revision: 1.0.1
+# Revision: 1.0.2
 # Purpose: Project durable CME attention into a replay-safe notification outbox
 # Execution Model: Continuous scheduled reconciliation of PostgreSQL source rows
 # Observability: Durable notification rows and dispatcher health; sanitized logs
-# Dependencies: PostgreSQL 16; Psycopg 3; notification migration 0006
+# Dependencies: PostgreSQL 16; Psycopg 3; notification migrations 0006 and 0007
 # Authority: Reads CME/assignment state; writes notification-owned tables only
 # Changed: 2026-10-11 UTC | RV-M3.2-001 | Keep failed scans from advancing the last-successful-scan timestamp
 # Contracts: docs/components/NOTIFICATION_DELIVERY.md
@@ -28,6 +28,8 @@ from uuid import uuid4
 import psycopg
 from psycopg import sql
 from psycopg.rows import dict_row
+
+from .policy import allowed
 
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 _SERVICE_ID = "notification.dispatcher.v1"
@@ -86,7 +88,18 @@ class NotificationDispatcher:
                             (f"riverview-notification-dispatcher:{self.schema}",))
                 if not cur.fetchone()["locked"]:
                     return {"status": "another_instance_active", "scanned": 0,
-                            "notifications_created": 0, "decision_requests_created": 0}
+                            "notifications_created": 0, "notifications_suppressed": 0,
+                            "decision_requests_created": 0}
+                cur.execute("""SELECT level,quiet_hours_enabled,quiet_start,quiet_end,quiet_timezone
+                               FROM notification_settings WHERE settings_id=1""")
+                preferences = cur.fetchone()
+                if preferences is None:
+                    raise RuntimeError("notification_settings_not_initialized")
+                settings = {"level": preferences["level"], "quiet_hours": {
+                    "enabled": preferences["quiet_hours_enabled"],
+                    "start": preferences["quiet_start"].strftime("%H:%M"),
+                    "end": preferences["quiet_end"].strftime("%H:%M"),
+                    "timezone": preferences["quiet_timezone"]}}
                 cur.execute("""SELECT e.event_id,e.assignment_id,e.event_type,e.recorded_at,
                                       a.state AS assignment_state,a.version AS assignment_version
                                FROM cme_monitor_events e
@@ -94,6 +107,8 @@ class NotificationDispatcher:
                                WHERE e.event_type = ANY(%s)
                                  AND NOT EXISTS (SELECT 1 FROM attention_notifications n
                                                  WHERE n.source_event_id=e.event_id)
+                                 AND NOT EXISTS (SELECT 1 FROM notification_suppressions s
+                                                 WHERE s.source_event_id=e.event_id)
                                  AND (e.assignment_id IS NULL OR NOT EXISTS (
                                      SELECT 1 FROM events p WHERE p.assignment_id=e.assignment_id
                                        AND p.privacy_domain <> 'institution'))
@@ -102,8 +117,17 @@ class NotificationDispatcher:
                             (list(_EVENT_TYPES), self.batch_size))
                 rows = cur.fetchall()
                 created = 0
+                suppressed = 0
                 requests = 0
                 for row in rows:
+                    permitted, suppression_reason = allowed(row["event_type"], settings)
+                    if not permitted:
+                        cur.execute("""INSERT INTO notification_suppressions
+                            (source_event_id,event_type,reason) VALUES (%s,%s,%s)
+                            ON CONFLICT(source_event_id) DO NOTHING""",
+                                    (row["event_id"], row["event_type"], suppression_reason))
+                        suppressed += 1
+                        continue
                     request_id = None
                     if (row["event_type"] == "assignment_attention" and
                             row["assignment_state"] == "awaiting_steward" and
@@ -144,6 +168,7 @@ class NotificationDispatcher:
                              requests=requests)
                 return {"status": "healthy", "scanned": len(rows),
                         "notifications_created": created,
+                        "notifications_suppressed": suppressed,
                         "decision_requests_created": requests}
 
     def _record_failure(self, error_type: str) -> None:

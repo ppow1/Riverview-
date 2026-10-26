@@ -1,5 +1,5 @@
 <!-- Riverview~ controlled asset; component STEWARD-DASHBOARD. -->
-<!-- Revision: 1.0.7 -->
+<!-- Revision: 1.0.8 -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -19,6 +19,7 @@
         <button class="nav-item" data-view="activity"><span class="nav-mark">⌁</span>Activity</button>
         <button class="nav-item" data-view="workflows"><span class="nav-mark">◇</span>Workflows</button>
         <button class="nav-item" data-view="notifications"><span class="nav-mark">◎</span>Notifications</button>
+        <button class="nav-item" data-view="notification-settings"><span class="nav-mark">⚙</span>Notification settings</button>
       </nav>
       <div class="rail-foot"><span class="pulse-dot" id="pulse-dot"></span><span id="rail-health">Connecting</span><button id="snapshot" class="quiet-button" title="Download bounded diagnostic snapshot">Snapshot ↓</button></div>
     </aside>
@@ -48,6 +49,27 @@
         <section class="view" id="view-notifications" aria-label="Notifications" hidden>
           <div class="section-intro"><div><div class="eyebrow">DURABLE ATTENTION</div><h2>Notifications</h2></div><div class="note">Receipt acknowledgment confirms that this dashboard rendered the notice. It is not a Steward decision or approval.</div></div>
           <div class="panel"><div class="panel-head"><div><h3>Attention delivery</h3><span class="muted" id="notification-state">Waiting for source</span></div><button id="refresh-notifications" class="secondary">Refresh</button></div><div id="notification-list" class="rows muted">No notification state observed.</div><div class="diagnostics"><a href="/docs/components/NOTIFICATION_DELIVERY.md" target="_blank" rel="noreferrer">Notification contract</a><a href="/docs/components/NOTIFICATION_DELIVERY_COOKBOOK.md" target="_blank" rel="noreferrer">Troubleshooting and recovery</a></div></div>
+        </section>
+        <section class="view" id="view-notification-settings" aria-label="Notification settings" hidden>
+          <div class="section-intro"><div><div class="eyebrow">STEWARD PREFERENCES</div><h2>Notification settings</h2></div><div class="note">Settings are stored on the Riverview server and apply when new notifications are dispatched.</div></div>
+          <form id="notification-settings-form" class="panel settings-form">
+            <label for="notification-level">Notification level</label>
+            <select id="notification-level" name="level">
+              <option value="all">All — all eligible notifications</option>
+              <option value="important">Important — important and critical</option>
+              <option value="critical_only">Critical Only — critical notifications</option>
+              <option value="paused">Paused — suppress noncritical notifications</option>
+            </select>
+            <h3>Quiet hours</h3>
+            <label class="check-row"><input id="quiet-enabled" type="checkbox"> Enable quiet hours</label>
+            <div class="settings-grid">
+              <label for="quiet-start">Start <input id="quiet-start" type="time" value="22:00" required></label>
+              <label for="quiet-end">End <input id="quiet-end" type="time" value="07:00" required></label>
+              <label for="quiet-timezone">Time zone <input id="quiet-timezone" type="text" value="UTC" autocomplete="off" required></label>
+            </div>
+            <p class="note">Critical alerts always pass, including during Paused and quiet hours. Noncritical notifications are suppressed during quiet hours. Quiet-hour times use the selected IANA time zone.</p>
+            <div class="form-actions"><button class="primary" type="submit">Save settings</button><span id="settings-state" role="status">Settings not loaded.</span></div>
+          </form>
         </section>
       </div>
       <footer><span>Read-only projection</span><span id="source-commit">Source revision unavailable</span><span id="request-state">No pending request</span></footer>

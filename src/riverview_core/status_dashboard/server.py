@@ -2,8 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.7
-# Purpose: Serve authenticated live projections and bounded notification receipts
+# Revision: 1.0.8
+# Purpose: Serve authenticated projections, notification settings, and bounded receipts
 # Execution Model: Request-driven, independent of CME assignment execution
 # Observability: Structured request IDs, HTTP health/error codes, PostgreSQL projection
 # Dependencies: Python 3.10+; standard library; status_dashboard.projection
@@ -38,6 +38,7 @@ _MAX_PAGE = 100
 _DOC_NAME = re.compile(r"^[A-Za-z0-9_-]+\.md$")
 _NOTICE_WRITE = re.compile(
     r"^/api/v1/notifications/([0-9a-fA-F-]{36})/(delivered|acknowledge)$")
+_SETTINGS_PATH = "/api/v1/notification-settings"
 
 def _bounded_limit(value):
     try:
@@ -191,10 +192,11 @@ def make_handler():
             parsed = urlsplit(self.path)
             notification_write = (_NOTICE_WRITE.fullmatch(parsed.path)
                                   if self.command == "POST" else None)
+            settings_write = parsed.path == _SETTINGS_PATH and self.command == "PUT"
             if not self._host_ok():
                 self._error(400, "invalid_host", request_id)
                 return
-            if self.command not in {"GET", "HEAD"} and not notification_write:
+            if self.command not in {"GET", "HEAD"} and not notification_write and not settings_write:
                 self._error(405, "read_only_method", request_id)
                 return
             if parsed.path == "/":
@@ -273,6 +275,28 @@ def make_handler():
                                              "dispatcher": {"status": "not_initialized"},
                                              "items": [], "limit": 25})
                     self._json(200, page, request_id)
+                elif parsed.path == _SETTINGS_PATH and self.command in {"GET", "HEAD"}:
+                    service = self.server._notification_service
+                    if service is None:
+                        self._error(503, "notifications_not_initialized", request_id)
+                        return
+                    self._json(200, service.get_settings(), request_id)
+                elif settings_write:
+                    service = self.server._notification_service
+                    if service is None:
+                        self._error(503, "notifications_not_initialized", request_id)
+                        return
+                    raw_length = self.headers.get("Content-Length", "0")
+                    if (self.headers.get("Transfer-Encoding") or not raw_length.isdigit() or
+                            int(raw_length) > 4096 or int(raw_length) == 0):
+                        self._error(400, "invalid_settings_body", request_id)
+                        return
+                    try:
+                        payload = json.loads(self.rfile.read(int(raw_length)))
+                    except (UnicodeError, json.JSONDecodeError):
+                        self._error(400, "invalid_settings_body", request_id)
+                        return
+                    self._json(200, service.update_settings(payload), request_id)
                 elif notification_write:
                     if (self.headers.get("Content-Length", "0") != "0" or
                             self.headers.get("Transfer-Encoding")):
@@ -337,7 +361,8 @@ def make_handler():
                 else:
                     self._error(404, "not_found", request_id)
             except ValueError:
-                self._error(400, "invalid_query", request_id)
+                self._error(400, "invalid_notification_settings" if parsed.path == _SETTINGS_PATH
+                            else "invalid_query", request_id)
             except ProjectionUnavailable:
                 self._error(503, "projection_unavailable", request_id)
             except Exception as exc:
