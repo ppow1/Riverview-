@@ -2,10 +2,12 @@
 # Revision: 1.0.0
 
 import tempfile
+import sys
 import unittest
 from pathlib import Path
 from urllib.error import HTTPError
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.invoke_isolated_website_acceptance import resolve_served_assets
 
 
