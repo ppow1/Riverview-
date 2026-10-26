@@ -114,10 +114,13 @@ Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decision
     } catch (error) { $("delegation-state").textContent = explain(error); button.disabled = false; }
   }
 
+  // workspace.js dispatches this while its deferred script is initializing,
+  // before DOMContentLoaded. Register now so direct links to this view load too.
+  window.addEventListener("rv:resident-permissions", refresh);
+
   document.addEventListener("DOMContentLoaded", () => {
     $("delegation-refresh")?.addEventListener("click", refresh);
     $("delegation-request-filter")?.addEventListener("change", refresh);
     $("delegation-grant-filter")?.addEventListener("change", refresh);
-    document.addEventListener("rv:resident-permissions", refresh);
   });
 })();
