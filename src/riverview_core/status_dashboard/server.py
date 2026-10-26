@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.47
+# Revision: 1.3.48
 # Changed: 2026-10-26 UTC | COMMS5-COMMAND-GATEWAY-IDENTITY | Route one confirmed service:command-gateway identity.manage registration action.
 # Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Route host-scoped command tools to their independent exact-grant boundary without broad project delegation.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Route one confirmed identity.manage registration action through the protected delegation adapter.
@@ -725,6 +725,7 @@ def make_handler():
                     and not delegation_decision
                     and not delegation_request_create
                     and not chatgpt_principal_registration
+                    and not command_gateway_principal_registration
                     and not gpu_workload_route
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
