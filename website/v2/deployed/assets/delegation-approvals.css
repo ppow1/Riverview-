@@ -1,0 +1,26 @@
+/* Revision: 1.0.0 | RV-V2-DELEGATION-PROJECTION-001 */
+.delegation-approvals{display:grid;gap:12px;margin:20px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.delegation-approvals-heading{display:flex;align-items:start;justify-content:space-between;gap:14px}
+.delegation-approvals-heading h3{margin:2px 0 5px;font-size:18px;color:var(--ink)}
+.delegation-approvals-heading p{max-width:700px;margin:5px 0;line-height:1.45;color:var(--muted)}
+.delegation-approvals-controls{display:flex;flex-wrap:wrap;gap:12px}
+.delegation-approvals-controls label{display:grid;gap:4px;min-width:180px;color:var(--muted);font-size:12px}
+.delegation-approvals-controls select{min-height:38px;padding:6px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink)}
+.delegation-record-list{display:grid;gap:10px;min-width:0}
+.delegation-record{min-width:0;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--surface-soft);overflow-wrap:anywhere}
+.delegation-record header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.delegation-record header>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.delegation-record dl{display:grid;grid-template-columns:minmax(135px,.65fr) minmax(0,1.6fr);gap:6px 12px;margin:12px 0;font-size:12px}
+.delegation-record dt{color:var(--muted)}
+.delegation-record dd{margin:0;color:var(--ink)}
+.delegation-record code{overflow-wrap:anywhere;word-break:break-word}
+.delegation-hash{font-size:10px}
+.delegation-state-chip{padding:3px 8px;border:1px solid var(--line);border-radius:999px;color:var(--ink);font-size:10px;text-transform:uppercase}
+.delegation-state-chip[data-state="pending"]{color:var(--warning,#a16b00)}
+.delegation-state-chip[data-state="active"],.delegation-state-chip[data-state="approved"]{color:var(--success,#18794e)}
+.delegation-state-chip[data-state="rejected"],.delegation-state-chip[data-state="revoked"]{color:var(--danger,#a33)}
+.delegation-record details{margin:8px 0;color:var(--muted);font-size:11px}
+.delegation-record details ul{margin:6px 0;padding-left:20px}
+.delegation-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.delegation-empty{padding:12px;border:1px dashed var(--line);border-radius:8px;color:var(--muted)}
+@media(max-width:600px){.delegation-approvals{padding:10px}.delegation-approvals-heading{display:block}.delegation-approvals-heading button{margin-top:8px;min-height:40px}.delegation-record dl{grid-template-columns:1fr;gap:3px}.delegation-record dd{margin-bottom:7px}.delegation-actions button{min-height:40px;flex:1 1 120px}}

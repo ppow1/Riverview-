@@ -57,6 +57,7 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposal-lifecycle-20261025">
   <link rel="stylesheet" href="assets/process-workflows.css?rev=decision-layout-20261027">
   <link rel="stylesheet" href="assets/resident-permissions.css?rev=resident-permissions-20261025">
+  <link rel="stylesheet" href="assets/delegation-approvals.css?rev=steward-delegation-read-revoke-20261026">
   <link rel="stylesheet" href="assets/authority-explorer.css?rev=batch1-20261025">
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
@@ -79,6 +80,7 @@ History: Git and revision/backup manifest
   <script defer src="assets/documentation-catalog.js?rev=v1-parity-20261025"></script>
   <script defer src="assets/resident-permissions-model.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
   <script defer src="assets/resident-permissions.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
+  <script defer src="assets/delegation-approvals.js?rev=steward-delegation-read-revoke-20261026"></script>
   <script defer src="assets/authority-explorer.js?rev=resident-search-20261027"></script>
   <script defer src="assets/account-administration.js?rev=account-email-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=objective-status-outputs-20261026"></script>
@@ -208,6 +210,14 @@ History: Git and revision/backup manifest
             <p id="resident-permission-state" class="resident-permission-state" role="status" aria-live="polite">Permission registry has not been checked.</p>
             <div id="resident-permission-list" class="resident-permission-list">Select Refresh to load the authorized registry.</div>
             <aside class="resident-permission-notice"><strong>Authorization boundary</strong><p>Access requires an authenticated Steward account with an institutional identity and the exact <code>office.manage</code> grant. Missing identity or registry access is reported here. This page cannot create grants or bypass server checks. Saving a profile creates a pending revision; activation and revocation are separate audited operations.</p></aside>
+            <section class="delegation-approvals" id="delegation-approvals" aria-labelledby="delegation-approvals-title">
+              <div class="delegation-approvals-heading"><div><p class="eyebrow">CANONICAL INSTITUTIONAL AUTHORITY</p><h3 id="delegation-approvals-title">Delegation approvals</h3><p>Review and decide requests through the existing Steward authority adapter. Discovery and display never grant permission.</p></div><button id="delegation-refresh" type="button">Refresh</button></div>
+              <p id="delegation-state" role="status" aria-live="polite">Delegation requests have not been loaded.</p>
+              <div class="delegation-approvals-controls"><label for="delegation-request-filter">Requests<select id="delegation-request-filter"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Denied</option><option value="all">All history</option></select></label><label for="delegation-grant-filter">Grants<select id="delegation-grant-filter"><option value="active">Active</option><option value="expired">Expired</option><option value="revoked">Revoked</option><option value="all">All grants</option></select></label></div>
+              <div id="delegation-request-list" class="delegation-record-list"></div>
+              <h4>Delegated grants</h4><div id="delegation-grant-list" class="delegation-record-list"></div>
+              <aside class="resident-permission-notice"><strong>Authority boundary</strong><p>Only the authenticated institutional Steward with the exact <code>authority.grant</code> scope can review or revoke. Approvals require the backend request hash and are recorded by the canonical authority registry. Revoke uses the existing audited grant revocation function. No automatic approvals or grants are created here.</p></aside>
+            </section>
           </section>
           <section class="account-administration-workspace" id="account-administration-workspace" aria-labelledby="account-administration-title" hidden>
             <div class="account-admin-heading"><div><p class="eyebrow">AUTHENTICATED ACCOUNT CONTROL</p><h2 id="account-administration-title">Account administration</h2><p class="muted">Review verified enrollment requests, inspect access, and manage accounts and shared email delivery through existing Steward-authorized operations.</p></div><button id="account-admin-refresh" type="button">Refresh</button></div>
