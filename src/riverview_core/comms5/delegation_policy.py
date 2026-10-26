@@ -1,3 +1,4 @@
+# Revision: 1.0.0
 """Versioned allowlist for operations covered by a Riverview-wide grant.
 
 Keep this list explicit. In particular, tool catalog annotations are not

@@ -1,4 +1,5 @@
 """Focused contract checks for the in-place website acceptance extension."""
+# Revision: 1.0.1
 from pathlib import Path
 import importlib.util
 

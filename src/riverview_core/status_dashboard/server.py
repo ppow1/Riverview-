@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.43
+# Revision: 1.3.44
+# Changed: 2026-10-26 UTC | RV-PR342-COMMS5-AUTHORITY-EXCLUSION | Classify internal Comms5 authorization ingress as excluded from resident-executable capability registration
 # Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Expose a non-sensitive eligibility hint to hide recovery controls from unlinked sessions
 # Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Bind the status API operation to its catalog declaration
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Wire the authenticated resident credential and existing objective pipeline into Grace's registry bridge.
@@ -669,7 +670,7 @@ def make_handler():
             proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
             comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
             comms5_delegation_authorization = (
-                parsed.path == _COMMS5_AUTHORIZATION and self.command == "POST")
+                parsed.path == _COMMS5_AUTHORIZATION and self.command == "POST")  # capability-exclusion: internal Comms5 authorization decision; not a resident-invocable executable operation
             snapshot_archive = parsed.path == _SNAPSHOT_ARCHIVE and self.command == "POST"
             delegation_revoke = (re.fullmatch(
                 r"^/api/v1/steward/delegated-grants/(grant:[A-Za-z0-9._:-]{1,128})/revoke$",

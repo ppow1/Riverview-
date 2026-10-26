@@ -3,6 +3,7 @@
 The runner remains the existing Selenium test program; this idempotent overlay
 is a small release-time patch, not a second test framework.
 """
+# Revision: 1.0.1
 from __future__ import annotations
 
 import argparse

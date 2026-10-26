@@ -1,6 +1,6 @@
 # V2 Operational Controls
 
-<!-- Revision: 1.1.0 -->
+<!-- Revision: 1.2.0 -->
 
 This document records the shipped boundary for the operational controls increment.
 

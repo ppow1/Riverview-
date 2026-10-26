@@ -1,5 +1,5 @@
 from pathlib import Path
-# Revision: 1.0.0
+# Revision: 1.0.1
 
 
 def test_delegation_panel_listens_for_workspace_refresh_before_dom_ready():
@@ -25,6 +25,7 @@ def test_delegation_ui_distinguishes_authentication_authorization_and_service_fa
     assert '"delegation_authority_unavailable"' in source
     assert "canonical delegation authority service is unavailable" in source
     assert "delegation-approvals.js?rev=delegation-policy-runtime-repair-20261026d" in index
+    assert "delegation-approvals.css?rev=delegation-policy-runtime-repair-20261026b" in index
     assert "Maximum executions (optional with expiry; required without expiry)" in index
     assert '$("delegation-request-max-uses").required = false' in source
     assert '$("delegation-request-expiry-label").hidden = codex' in source

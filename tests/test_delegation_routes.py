@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: tests/test_delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify narrow Steward delegation API routing and composite-source overlay
 # Execution Model: Local unittest with fake account and authority adapters
 # Observability: unittest case names, counts and exit status

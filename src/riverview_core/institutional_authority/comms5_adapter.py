@@ -1,3 +1,4 @@
+# Revision: 1.0.0
 """Protected, fixed-surface adapter for Comms5 delegated proposal promotion.
 
 The adapter owns the manager connection and Steward credential. Neither value

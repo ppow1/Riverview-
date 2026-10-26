@@ -1,5 +1,5 @@
 /*
-Revision: 1.1.0
+Revision: 1.2.0
 Purpose: V2 request, review and revocation view over canonical Steward delegation APIs.
 Authority: The Dashboard account session, CSRF check, and institutional authority registry remain authoritative.
 Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Add request decisions, grant inspection and confirmed revoke controls.

@@ -1,0 +1,17 @@
+{
+  "artifacts": {
+    "followup-acceptance.json": {
+      "path": "followup-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "757c0f267037518732cc152dfb31aba6e327b40bf3b06785bb934a797ded4ed4",
+      "size_bytes": 2620
+    },
+    "pre-deploy-acceptance.json": {
+      "path": "pre-deploy-acceptance.json",
+      "revision": "1.0.0",
+      "sha256": "05bc99a7259372a2f937c2421ec51568fedd5c9560a26200294372f60952c487",
+      "size_bytes": 2410
+    }
+  },
+  "manifest_revision": "1.0.0"
+}

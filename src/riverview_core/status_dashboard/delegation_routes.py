@@ -1,13 +1,14 @@
 # Riverview~ Controlled Source
 # File: src/riverview_core/status_dashboard/delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Route authenticated Steward list, detail, grant inspection and revocation requests
 # Execution Model: Same-origin request-driven API
 # Observability: Structured safe status/error codes; no credentials in responses
 # Dependencies: Existing account-session/CSRF validation and protected delegation adapter
 # Authority: Steward role, steward:camrui binding, and authority.grant institution scope
 # Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Expose bounded reads and canonical grant revocation.
+# Changed: 2026-10-26 UTC | RV-PR342-FINITE-USE-WITHOUT-EXPIRY | Permit a finite-use-only GPU delegation request through the canonical bounded-grant policy.
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # Tests: tests/test_delegation_routes.py
 # History: Initial controlled source
