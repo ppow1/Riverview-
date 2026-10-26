@@ -27,6 +27,7 @@ active credential with the exact management action and scope.
 import hashlib
 import json
 import os
+import re
 import secrets
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -50,7 +51,7 @@ class IdentityConflict(RuntimeError):
 class AuthorityRegistry:
     """Store identity separately from office role, occupant and implementation."""
 
-    SCHEMA_VERSION = "0001_institutional_authority"
+    SCHEMA_VERSION = "0017_reusable_scoped_grants"
     MAX_STATE_BYTES = 65536
     BOOTSTRAP_GRANTS = (
         ("authority.grant", "institution"),
@@ -126,12 +127,12 @@ class AuthorityRegistry:
         cur.execute(
             """SELECT grant_id FROM authority_grants
                WHERE principal_id=%s AND action=%s AND scope_ref=%s
-                 AND revoked_at IS NULL AND valid_from<=clock_timestamp()
+                 AND grant_kind='direct' AND revoked_at IS NULL AND valid_from<=clock_timestamp()
                  AND (valid_until IS NULL OR valid_until>clock_timestamp())
                ORDER BY created_at DESC LIMIT 1 FOR SHARE""",
             (principal["principal_id"], action, scope_ref))
         if cur.fetchone() is None:
-            raise AuthorityDenied("no active grant for exact action and scope")
+            raise AuthorityDenied("no active direct grant for exact action and scope")
         return principal
 
     def _new_credential(self, cur, principal_id, *, expires_at=None):
@@ -292,6 +293,732 @@ class AuthorityRegistry:
             raise IdentityConflict("grant identity already exists") from exc
         except Exception as exc:
             raise RegistryUnavailable(type(exc).__name__) from None
+
+    @staticmethod
+    def _validate_delegation_scope(scope_ref):
+        import re
+        if not isinstance(scope_ref, str):
+            raise ValueError("delegated grants require a registered project, issue, or host scope")
+        if re.fullmatch(r"project:[A-Za-z0-9._-]{1,128}", scope_ref):
+            return
+        if re.fullmatch(r"issue:[A-Za-z0-9._-]{1,128}/[A-Za-z0-9._-]{1,128}", scope_ref):
+            return
+        if re.fullmatch(r"host:[a-z][a-z0-9-]{1,62}", scope_ref):
+            return
+        raise ValueError("scope must be project:<id>, issue:<project-id>/<issue-id>, or host:<registered-host-id>")
+
+    def _insert_delegated_grant(self, cur, actor_id, principal_id, action, scope_ref, *,
+                                proposal_ref, proposal_digest, approval_ref, policy_ref,
+                                grant_id=None, max_uses=None, valid_until=None,
+                                expires_24h_after_activation=False):
+        grant_id = grant_id or "grant:" + uuid4().hex
+        cur.execute("SELECT 1 FROM institutional_principals WHERE principal_id=%s AND status='active'",
+                    (principal_id,))
+        if cur.fetchone() is None:
+            raise IdentityConflict("grant subject is not an active principal")
+        cur.execute("""INSERT INTO authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref,
+             valid_until,max_uses,grant_kind,approval_ref,proposal_ref,
+             proposal_digest,approved_by,approved_at)
+            VALUES (%s,%s,%s,%s,%s,%s,
+                CASE WHEN %s THEN clock_timestamp()+interval '24 hours' ELSE %s END,
+                %s,'delegated',%s,%s,%s,%s,clock_timestamp()) RETURNING valid_until""",
+            (grant_id, principal_id, action, scope_ref, actor_id, policy_ref,
+             expires_24h_after_activation, valid_until, max_uses, approval_ref,
+             proposal_ref, proposal_digest, actor_id))
+        activated_expiry = cur.fetchone()["valid_until"]
+        self._event(cur,event_type="authority_granted",actor_id=actor_id,
+            subject_id=principal_id,grant_id=grant_id,
+            payload={"action":action,"scope_ref":scope_ref,"policy_ref":policy_ref,
+                "grant_kind":"delegated","max_uses":max_uses,
+                "valid_until":activated_expiry.isoformat() if activated_expiry else None,
+                "proposal_ref":proposal_ref,"proposal_digest":proposal_digest,
+                "approval_ref":approval_ref,"approved_by":actor_id})
+        return grant_id
+
+    @staticmethod
+    def _validate_delegated_grant_values(principal_id, action, scope_ref, *,
+                                         proposal_ref, proposal_digest, approval_ref,
+                                         policy_ref, max_uses, valid_until):
+        AuthorityRegistry._validate_delegation_scope(scope_ref)
+        AuthorityRegistry._validate_expiry(valid_until)
+        if not all((principal_id, action, proposal_ref, approval_ref, policy_ref)):
+            raise ValueError("principal, action, proposal, approval and policy references are required")
+        if (not isinstance(action,str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}",action) or
+                action in {"authority.grant","identity.manage","office.manage"}):
+            raise ValueError("delegated action must be a specific non-management operation")
+        if not isinstance(proposal_digest, str) or len(proposal_digest) != 64 or any(c not in "0123456789abcdef" for c in proposal_digest):
+            raise ValueError("proposal_digest must be a lowercase SHA-256 hex digest")
+        if max_uses is not None and (type(max_uses) is not int or not 1<=max_uses<=1_000_000):
+            raise ValueError("max_uses must be between 1 and 1000000")
+        if max_uses is None and valid_until is None:
+            raise ValueError("delegated grants must have a use limit, an expiry, or both")
+        for name, value in (("approval_ref",approval_ref),("proposal_ref",proposal_ref)):
+            if not isinstance(value,str) or not value.strip() or len(value)>256:
+                raise ValueError(f"{name} must be a bounded non-empty reference")
+        if not isinstance(policy_ref,str) or not policy_ref.strip() or len(policy_ref)>256:
+            raise ValueError("policy_ref must be a bounded non-empty reference")
+
+    def approve_delegated_grant(self, steward_token, principal_id, action, scope_ref, *,
+                                proposal_ref, proposal_digest, approval_ref, policy_ref,
+                                grant_id=None, max_uses=None, valid_until=None):
+        """Create an exact delegated grant after authenticated Steward approval."""
+        self._validate_delegated_grant_values(principal_id,action,scope_ref,
+            proposal_ref=proposal_ref,proposal_digest=proposal_digest,
+            approval_ref=approval_ref,policy_ref=policy_ref,
+            max_uses=max_uses,valid_until=valid_until)
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor=self._require(cur,steward_token,"authority.grant","institution")
+                    if actor["principal_kind"]!="steward":
+                        raise AuthorityDenied("delegated grant activation requires an authenticated Steward")
+                    grant_id=self._insert_delegated_grant(cur,actor["principal_id"],principal_id,
+                        action,scope_ref,proposal_ref=proposal_ref,proposal_digest=proposal_digest,
+                        approval_ref=approval_ref,policy_ref=policy_ref,grant_id=grant_id,
+                        max_uses=max_uses,valid_until=valid_until)
+            return grant_id
+        except (AuthorityDenied,IdentityConflict,ValueError):
+            raise
+        except psycopg.errors.UniqueViolation as exc:
+            raise IdentityConflict("grant identity already exists") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    @staticmethod
+    def _delegation_request_digest(values):
+        encoded=json.dumps(values,sort_keys=True,separators=(",",":"),default=lambda v:v.isoformat() if isinstance(v,datetime) else v)
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _require_steward_identity(cur, principal_id):
+        cur.execute("SELECT principal_kind,status FROM institutional_principals WHERE principal_id=%s FOR UPDATE",
+                    (principal_id,))
+        row=cur.fetchone()
+        if row is None or row["status"]!="active" or row["principal_kind"]!="steward":
+            raise AuthorityDenied("authenticated active Steward context is required")
+
+    def _create_delegation_request(self, *, request_kind, requester_id, principal_id,
+                                   action, scope_ref, policy_ref, request_ref,
+                                   max_uses, valid_until, idempotency_key,
+                                   change_grant_id=None):
+        self._validate_delegation_scope(scope_ref)
+        self._validate_expiry(valid_until)
+        if (not isinstance(action,str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}",action) or
+                action in {"authority.grant","identity.manage","office.manage"}):
+            raise ValueError("delegated action must be a specific non-management operation")
+        if not isinstance(policy_ref,str) or not policy_ref.startswith("policy:") or len(policy_ref)>256:
+            raise ValueError("policy_ref is invalid")
+        if not isinstance(request_ref,str) or not request_ref.strip() or len(request_ref)>256:
+            raise ValueError("request_ref must be a bounded non-empty reference")
+        if max_uses is not None and (type(max_uses) is not int or not 1<=max_uses<=1_000_000):
+            raise ValueError("max_uses must be between 1 and 1000000")
+        if max_uses is None and valid_until is None:
+            raise ValueError("delegated grants must have a use limit or expiry")
+        if action == "comms5.operations.non_destructive.v1" and (
+                scope_ref != "project:Riverview" or policy_ref != "policy:delegation.v1"
+                or max_uses is not None):
+            raise AuthorityDenied("broad Comms5 delegation requires Riverview scope and unlimited use")
+        if not isinstance(idempotency_key,str) or not 1<=len(idempotency_key)<=200:
+            raise ValueError("idempotency_key must be bounded")
+        payload={"request_kind":request_kind,"requester_id":requester_id,
+            "principal_id":principal_id,"action":action,"scope_ref":scope_ref,
+            "policy_ref":policy_ref,"request_ref":request_ref,"max_uses":max_uses,
+            "valid_until":valid_until}
+        digest=self._delegation_request_digest(payload)
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    self._require_steward_identity(cur,requester_id)
+                    cur.execute("SELECT 1 FROM institutional_principals WHERE principal_id=%s AND status='active'",
+                                (principal_id,))
+                    if cur.fetchone() is None:
+                        raise IdentityConflict("grant subject is not an active principal")
+                    if change_grant_id:
+                        cur.execute("""SELECT principal_id,grant_kind,revoked_at FROM authority_grants
+                            WHERE grant_id=%s FOR SHARE""",(change_grant_id,))
+                        old=cur.fetchone()
+                        if old is None or old["grant_kind"]!="delegated" or old["revoked_at"] is not None:
+                            raise IdentityConflict("active delegated grant for change was not found")
+                        if old["principal_id"]!=principal_id:
+                            raise AuthorityDenied("replacement must retain the existing grant grantee")
+                    cur.execute("""SELECT request_id,request_sha256,status FROM delegated_grant_requests
+                        WHERE requester_id=%s AND request_kind=%s AND idempotency_key=%s FOR UPDATE""",
+                        (requester_id,request_kind,idempotency_key))
+                    existing=cur.fetchone()
+                    if existing:
+                        if existing["request_sha256"]!=digest:
+                            raise IdentityConflict("idempotency key conflicts with a different delegation request")
+                        return {"status":existing["status"],"request_id":existing["request_id"],
+                                "request_sha256":existing["request_sha256"]}
+                    request_id="delegation-request:"+uuid4().hex
+                    cur.execute("""INSERT INTO delegated_grant_requests
+                        (request_id,request_kind,requester_id,grantee_id,change_grant_id,
+                         action,scope_ref,policy_ref,request_ref,max_uses,valid_until,
+                         request_sha256,idempotency_key,status)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending')""",
+                        (request_id,request_kind,requester_id,principal_id,change_grant_id,
+                         action,scope_ref,policy_ref,request_ref,max_uses,valid_until,digest,idempotency_key))
+                    self._event(cur,event_type="authority_delegation_request_created",
+                        actor_id=requester_id,subject_id=principal_id,
+                        payload={"request_id":request_id,"request_kind":request_kind,
+                            "request_sha256":digest,"action":action,"scope_ref":scope_ref,
+                            "request_ref":request_ref,"change_grant_id":change_grant_id})
+            return {"status":"pending","request_id":request_id,"request_sha256":digest}
+        except (AuthorityDenied,IdentityConflict,ValueError):
+            raise
+        except psycopg.errors.UniqueViolation as exc:
+            raise IdentityConflict("delegation request identity conflicts") from exc
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def request_grant(self, *, requester_id, principal_id, action, scope_ref,
+                      policy_ref, request_ref, max_uses=None, valid_until=None,
+                      idempotency_key):
+        return self._create_delegation_request(request_kind="grant",
+            requester_id=requester_id,principal_id=principal_id,action=action,
+            scope_ref=scope_ref,policy_ref=policy_ref,request_ref=request_ref,
+            max_uses=max_uses,valid_until=valid_until,idempotency_key=idempotency_key)
+
+    def request_change(self, *, requester_id, grant_id, action, scope_ref,
+                       policy_ref, request_ref, max_uses=None, valid_until=None,
+                       idempotency_key):
+        with self.db.transaction():
+            with self.db.cursor() as cur:
+                self._path(cur)
+                cur.execute("SELECT principal_id FROM authority_grants WHERE grant_id=%s",
+                            (grant_id,))
+                existing=cur.fetchone()
+                if existing is None:
+                    raise IdentityConflict("grant for change was not found")
+                principal_id=existing["principal_id"]
+        return self._create_delegation_request(request_kind="change",
+            requester_id=requester_id,principal_id=principal_id,action=action,
+            scope_ref=scope_ref,policy_ref=policy_ref,request_ref=request_ref,
+            max_uses=max_uses,valid_until=valid_until,idempotency_key=idempotency_key,
+            change_grant_id=grant_id)
+
+    def list_active_delegated_grants(self, credential, action, scope_ref):
+        """Read the caller's own active exact-scope delegated grants without consuming them."""
+        self._validate_delegation_scope(scope_ref)
+        if not isinstance(action, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", action):
+            raise ValueError("delegated action is invalid")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    principal = self._authenticate(cur, credential)
+                    if principal.get("principal_id") != "steward:camrui" or principal.get("principal_kind") != "steward":
+                        raise AuthorityDenied("delegated GPU permission view requires the authenticated Steward principal")
+                    cur.execute("""SELECT grant_id,action,scope_ref,policy_ref,valid_until
+                        FROM authority_grants
+                        WHERE principal_id=%s AND action=%s AND scope_ref=%s
+                          AND grant_kind='delegated' AND revoked_at IS NULL
+                          AND valid_from<=clock_timestamp()
+                          AND (valid_until IS NULL OR valid_until>clock_timestamp())
+                        ORDER BY approved_at DESC,grant_id""",
+                        (principal["principal_id"], action, scope_ref))
+                    return [{key:(value.isoformat() if isinstance(value,datetime) else value)
+                             for key,value in dict(row).items()} for row in cur.fetchall()]
+        except (AuthorityDenied, IdentityConflict, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def get_status(self, *, requester_id, request_id=None, grant_id=None):
+        if (request_id is None)==(grant_id is None):
+            raise ValueError("exactly one request_id or grant_id is required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    cur.execute("SELECT principal_kind,status FROM institutional_principals WHERE principal_id=%s",
+                                (requester_id,))
+                    principal=cur.fetchone()
+                    is_steward=bool(principal and principal["status"]=="active"
+                                    and principal["principal_kind"]=="steward")
+                    if request_id is not None:
+                        cur.execute("""SELECT request_id,request_kind,requester_id,grantee_id,
+                            change_grant_id,action,scope_ref,policy_ref,request_ref,max_uses,
+                            valid_until,request_sha256,status,decision,decision_by,decision_at,
+                            approval_ref,grant_id FROM delegated_grant_requests WHERE request_id=%s
+                              AND (%s OR requester_id=%s OR grantee_id=%s)""",
+                            (request_id,is_steward,requester_id,requester_id))
+                        row=cur.fetchone()
+                        if row is None:
+                            raise IdentityConflict("delegation request was not found")
+                        return {key:(value.isoformat() if isinstance(value,datetime) else value)
+                                for key,value in dict(row).items()}
+                    cur.execute("""SELECT grant_id,principal_id,action,scope_ref,policy_ref,
+                        valid_until,max_uses,used_count,grant_kind,proposal_ref,proposal_digest,
+                        approved_by,approved_at,approval_ref,revoked_at FROM authority_grants
+                        WHERE grant_id=%s AND grant_kind='delegated'
+                          AND (%s OR principal_id=%s)""",(grant_id,is_steward,requester_id))
+                    row=cur.fetchone()
+                    if row is None:
+                        raise IdentityConflict("delegated grant was not found")
+                    result={key:(value.isoformat() if isinstance(value,datetime) else value)
+                            for key,value in dict(row).items()}
+                    result["status"]=("revoked" if row["revoked_at"] else
+                        "expired" if row["valid_until"] and row["valid_until"]<=datetime.now(timezone.utc) else "active")
+                    return result
+        except (AuthorityDenied,IdentityConflict,ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def decide_request(self, *, steward_token, request_id, decision,
+                       expected_request_sha256, idempotency_key, approval_ref=None):
+        if decision not in {"approve","reject"} or not re.fullmatch(r"[0-9a-f]{64}",str(expected_request_sha256)):
+            raise ValueError("delegation decision binding is invalid")
+        if not isinstance(idempotency_key,str) or not 1<=len(idempotency_key)<=200:
+            raise ValueError("idempotency key is invalid")
+        if decision=="approve" and (not isinstance(approval_ref,str) or not approval_ref.strip() or len(approval_ref)>256):
+            raise ValueError("approval_ref is required for approval")
+        if decision=="reject" and approval_ref is not None:
+            raise ValueError("rejection must not include approval_ref")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor=self._require(cur,steward_token,"authority.grant","institution")
+                    if actor["principal_kind"]!="steward":
+                        raise AuthorityDenied("delegation decision requires an authenticated Steward")
+                    cur.execute("SELECT * FROM delegated_grant_requests WHERE request_id=%s FOR UPDATE",
+                                (request_id,))
+                    request=cur.fetchone()
+                    if request is None:
+                        raise IdentityConflict("delegation request was not found")
+                    if request["request_sha256"]!=expected_request_sha256:
+                        raise IdentityConflict("delegation request changed since review")
+                    if request["status"]!="pending":
+                        if (request["decision"]==decision and
+                                request["decision_idempotency_key"]==idempotency_key and
+                                request["approval_ref"]==approval_ref):
+                            return {"status":request["status"],"request_id":request_id,
+                                    "request_sha256":request["request_sha256"],"grant_id":request["grant_id"]}
+                        raise IdentityConflict("delegation request has already been decided")
+                    grant_id=None
+                    if decision=="approve":
+                        grant_id=self._insert_delegated_grant(cur,actor["principal_id"],
+                            request["grantee_id"],request["action"],request["scope_ref"],
+                            proposal_ref=request["request_ref"],proposal_digest=request["request_sha256"],
+                            approval_ref=approval_ref,policy_ref=request["policy_ref"],
+                            max_uses=request["max_uses"],valid_until=request["valid_until"],
+                            expires_24h_after_activation=(
+                                request["action"] == "comms5.operations.non_destructive.v1"))
+                        if request["request_kind"]=="change":
+                            cur.execute("""UPDATE authority_grants SET revoked_at=clock_timestamp()
+                                WHERE grant_id=%s AND revoked_at IS NULL RETURNING grant_id""",
+                                (request["change_grant_id"],))
+                            if cur.fetchone() is None:
+                                raise IdentityConflict("grant changed while replacement was pending")
+                            cur.execute("""UPDATE delegated_grant_reservations SET status='released',
+                                reason_code='grant_replaced',updated_at=clock_timestamp()
+                                WHERE grant_id=%s AND status='reserved' RETURNING reservation_id""",
+                                (request["change_grant_id"],))
+                            for item in cur.fetchall():
+                                self._reservation_event(cur,event_type="authority_grant_reservation_released",
+                                    actor_id=actor["principal_id"],grant_id=request["change_grant_id"],
+                                    reservation_id=item["reservation_id"],payload={"reason_code":"grant_replaced"})
+                            self._event(cur,event_type="authority_revoked",actor_id=actor["principal_id"],
+                                subject_id=request["grantee_id"],grant_id=request["change_grant_id"],
+                                payload={"reason_code":"steward_replaced"})
+                    status="approved" if decision=="approve" else "rejected"
+                    cur.execute("""UPDATE delegated_grant_requests SET status=%s,decision=%s,
+                        decision_by=%s,decision_at=clock_timestamp(),decision_idempotency_key=%s,
+                        approval_ref=%s,grant_id=%s,updated_at=clock_timestamp()
+                        WHERE request_id=%s""",
+                        (status,decision,actor["principal_id"],idempotency_key,approval_ref,grant_id,request_id))
+                    self._event(cur,event_type="authority_delegation_request_decided",
+                        actor_id=actor["principal_id"],subject_id=request["grantee_id"],grant_id=grant_id,
+                        payload={"request_id":request_id,"request_sha256":expected_request_sha256,
+                            "decision":decision,"approval_ref":approval_ref,
+                            "idempotency_key":idempotency_key})
+            return {"status":status,"request_id":request_id,
+                    "request_sha256":expected_request_sha256,"grant_id":grant_id}
+        except (AuthorityDenied,IdentityConflict,ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def surrender_grant(self, *, grantee_id, grant_id, reason_code="grantee_surrendered",
+                        idempotency_key):
+        if (not isinstance(idempotency_key,str) or not 1<=len(idempotency_key)<=200 or
+                not isinstance(reason_code,str) or not re.fullmatch(r"[a-z0-9_]{1,64}",reason_code)):
+            raise ValueError("surrender identity or reason is invalid")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    cur.execute("SELECT principal_kind,status FROM institutional_principals WHERE principal_id=%s",
+                                (grantee_id,))
+                    principal=cur.fetchone()
+                    if principal is None or principal["status"]!="active":
+                        raise AuthorityDenied("active grantee identity is required")
+                    cur.execute("""SELECT principal_id,grant_kind,revoked_at,surrender_idempotency_key,
+                        surrender_reason_code,action,scope_ref FROM authority_grants WHERE grant_id=%s FOR UPDATE""",(grant_id,))
+                    grant=cur.fetchone()
+                    if grant is None or grant["grant_kind"]!="delegated" or grant["principal_id"]!=grantee_id:
+                        raise AuthorityDenied("only the grantee may surrender this delegated grant")
+                    if grant["revoked_at"] is not None:
+                        if (grant["surrender_idempotency_key"]==idempotency_key and
+                                grant["surrender_reason_code"]==reason_code):
+                            return {"status":"surrendered","grant_id":grant_id}
+                        raise IdentityConflict("delegated grant is already inactive")
+                    cur.execute("""UPDATE authority_grants SET revoked_at=clock_timestamp(),
+                        surrender_idempotency_key=%s,surrender_reason_code=%s,surrendered_by=%s,
+                        surrendered_at=clock_timestamp() WHERE grant_id=%s""",
+                        (idempotency_key,reason_code,grantee_id,grant_id))
+                    cur.execute("""UPDATE delegated_grant_reservations SET status='released',
+                        reason_code='grant_surrendered',updated_at=clock_timestamp()
+                        WHERE grant_id=%s AND status='reserved' RETURNING reservation_id""",(grant_id,))
+                    for item in cur.fetchall():
+                        self._reservation_event(cur,event_type="authority_grant_reservation_released",
+                            actor_id=grantee_id,grant_id=grant_id,reservation_id=item["reservation_id"],
+                            payload={"reason_code":"grant_surrendered"})
+                    self._event(cur,event_type="authority_grant_surrendered",actor_id=grantee_id,
+                        subject_id=grantee_id,grant_id=grant_id,
+                        payload={"action":grant["action"],"scope_ref":grant["scope_ref"],
+                            "reason_code":reason_code,"idempotency_key":idempotency_key})
+            return {"status":"surrendered","grant_id":grant_id}
+        except (AuthorityDenied,IdentityConflict,ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def _reservation_event(self, cur, *, event_type, actor_id, grant_id,
+                           reservation_id, payload=None):
+        body = dict(payload or {})
+        body["reservation_id"] = str(reservation_id)
+        self._event(cur, event_type=event_type, actor_id=actor_id,
+                    subject_id=actor_id, grant_id=grant_id, payload=body)
+
+    def authorize_delegated_principal_operation(self, principal_id, action, scope_ref,
+                                                policy_ref, operation_ref):
+        """Authorize and audit one operation for an OAuth-attested principal.
+
+        This manager-only path accepts an already authenticated principal ID
+        from the protected Comms5 ingress. It supports only unlimited delegated
+        grants; finite grants must use the reservation/consume/release API.
+        """
+        self._validate_delegation_scope(scope_ref)
+        if (not all(isinstance(value, str) and value for value in
+                    (principal_id, action, policy_ref, operation_ref)) or
+                len(operation_ref) > 256):
+            raise ValueError("delegated operation identity is invalid")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    cur.execute("""SELECT principal_kind,status FROM institutional_principals
+                        WHERE principal_id=%s FOR SHARE""", (principal_id,))
+                    principal = cur.fetchone()
+                    if principal is None or principal["status"] != "active":
+                        raise AuthorityDenied("OAuth principal is not active in AuthorityRegistry")
+                    cur.execute("""SELECT grant_id,valid_until,max_uses,used_count
+                        FROM authority_grants
+                        WHERE principal_id=%s AND action=%s AND scope_ref=%s
+                          AND policy_ref=%s AND grant_kind='delegated' AND revoked_at IS NULL
+                          AND valid_from<=clock_timestamp()
+                          AND (valid_until IS NULL OR valid_until>clock_timestamp())
+                          AND max_uses IS NULL
+                        ORDER BY approved_at DESC, grant_id
+                          LIMIT 1 FOR UPDATE""", (principal_id, action, scope_ref, policy_ref))
+                    grant = cur.fetchone()
+                    if grant is None:
+                        raise AuthorityDenied("no active unlimited delegated grant covers this operation")
+                    self._event(cur, event_type="authority_grant_used",
+                        actor_id=principal_id, subject_id=principal_id,
+                        grant_id=grant["grant_id"], payload={
+                            "action": action, "scope_ref": scope_ref,
+                            "policy_ref": policy_ref, "operation_ref": operation_ref,
+                            "valid_until": grant["valid_until"].isoformat()
+                                if grant["valid_until"] else None,
+                            "use_limit": "unlimited"})
+            return {"grant_id": grant["grant_id"], "principal_id": principal_id,
+                    "action": action, "scope_ref": scope_ref,
+                    "valid_until": grant["valid_until"].isoformat()
+                        if grant["valid_until"] else None,
+                    "status": "authorized", "use_limit": "unlimited"}
+        except (AuthorityDenied, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def reserve_delegated_grant(self, grantee_token, grant_id, action, scope_ref, operation_ref, *, idempotency_key):
+        """Atomically reserve a use for one exact promotion/work-order operation."""
+        self._validate_delegation_scope(scope_ref)
+        if (not all((grant_id,action,operation_ref,idempotency_key)) or
+                not isinstance(operation_ref,str) or len(operation_ref)>256 or
+                not isinstance(idempotency_key,str) or not 1<=len(idempotency_key)<=200):
+            raise ValueError("grant, action, operation reference and bounded idempotency key are required")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    grantee = self._authenticate(cur, grantee_token)
+                    cur.execute("""SELECT grant_id,principal_id,action,scope_ref,proposal_ref,
+                                          grant_kind,max_uses,used_count,valid_from,valid_until,revoked_at
+                        FROM authority_grants WHERE grant_id=%s AND principal_id=%s
+                        FOR UPDATE""", (grant_id, grantee["principal_id"]))
+                    grant = cur.fetchone()
+                    if grant is None or grant["grant_kind"] != "delegated":
+                        raise AuthorityDenied("delegated grant is not assigned to this grantee")
+                    if grant["action"] != action or grant["scope_ref"] != scope_ref:
+                        raise AuthorityDenied("operation and scope do not match the approved grant")
+                    cur.execute("""SELECT reservation_id,status,action,scope_ref,operation_ref,
+                                          generation,lease_expires_at,result_ref,reason_code
+                        FROM delegated_grant_reservations
+                        WHERE grant_id=%s AND grantee_id=%s AND idempotency_key=%s
+                        ORDER BY generation DESC LIMIT 1 FOR UPDATE""",
+                        (grant_id, grantee["principal_id"], idempotency_key))
+                    existing = cur.fetchone()
+                    if existing is not None:
+                        if (existing["action"] != action or existing["scope_ref"] != scope_ref or
+                                existing["operation_ref"] != operation_ref):
+                            raise AuthorityDenied("idempotency key was already used for different request data")
+                        if existing["status"] == "reserved" and existing["lease_expires_at"] <= datetime.now(timezone.utc):
+                            cur.execute("""UPDATE delegated_grant_reservations SET status='expired',updated_at=clock_timestamp()
+                                WHERE reservation_id=%s RETURNING reservation_id""", (existing["reservation_id"],))
+                            self._reservation_event(cur, event_type="authority_grant_reservation_expired",
+                                actor_id=grantee["principal_id"], grant_id=grant_id,
+                                reservation_id=existing["reservation_id"], payload={"cause":"lease_expired"})
+                            existing["status"] = "expired"
+                        if existing["status"] in {"reserved","consumed"}:
+                            return {"reservation_id": str(existing["reservation_id"]),
+                                    "status": existing["status"],
+                                    "lease_expires_at": existing["lease_expires_at"].isoformat(),
+                                    "result_ref": existing["result_ref"],
+                                    "reason_code": existing["reason_code"],
+                                    "generation": existing["generation"]}
+                        inactive=(grant["revoked_at"] is not None or
+                            (grant["valid_until"] is not None and grant["valid_until"]<=datetime.now(timezone.utc)))
+                        if inactive:
+                            return {"reservation_id":str(existing["reservation_id"]),
+                                    "status":existing["status"],
+                                    "lease_expires_at":existing["lease_expires_at"].isoformat(),
+                                    "result_ref":existing["result_ref"],
+                                    "reason_code":existing["reason_code"],
+                                    "generation":existing["generation"]}
+                        next_generation = existing["generation"] + 1
+                    else:
+                        next_generation = 1
+                    if grant["revoked_at"] is not None or grant["valid_from"] > datetime.now(timezone.utc) or (
+                            grant["valid_until"] is not None and grant["valid_until"] <= datetime.now(timezone.utc)):
+                        raise AuthorityDenied("delegated grant is not currently active")
+                    cur.execute("""UPDATE delegated_grant_reservations SET status='expired',updated_at=clock_timestamp()
+                        WHERE grant_id=%s AND status='reserved' AND lease_expires_at<=clock_timestamp()
+                        RETURNING reservation_id,grantee_id""", (grant_id,))
+                    for expired in cur.fetchall():
+                        self._reservation_event(cur, event_type="authority_grant_reservation_expired",
+                            actor_id=expired["grantee_id"], grant_id=grant_id,
+                            reservation_id=expired["reservation_id"], payload={"cause":"lease_expired"})
+                    cur.execute("""SELECT count(*) AS live_count FROM delegated_grant_reservations
+                        WHERE grant_id=%s AND status='reserved' AND lease_expires_at>clock_timestamp()""",
+                        (grant_id,))
+                    live_count = cur.fetchone()["live_count"]
+                    if grant["max_uses"] is not None and grant["used_count"] + live_count >= grant["max_uses"]:
+                        raise AuthorityDenied("delegated grant use limit is reserved or exhausted")
+                    reservation_id = uuid4()
+                    cur.execute("""INSERT INTO delegated_grant_reservations
+                        (reservation_id,grant_id,grantee_id,idempotency_key,generation,operation_ref,
+                         action,scope_ref,proposal_ref,status,lease_expires_at)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'reserved',
+                            CASE WHEN %s::timestamptz IS NULL THEN clock_timestamp()+interval '300 seconds'
+                                 ELSE LEAST(clock_timestamp()+interval '300 seconds',%s::timestamptz) END)
+                        RETURNING lease_expires_at""",
+                        (reservation_id,grant_id,grantee["principal_id"],idempotency_key,next_generation,
+                         operation_ref,action,scope_ref,grant["proposal_ref"],grant["valid_until"],grant["valid_until"]))
+                    lease_expires_at = cur.fetchone()["lease_expires_at"]
+                    self._reservation_event(cur, event_type="authority_grant_reserved",
+                        actor_id=grantee["principal_id"], grant_id=grant_id,
+                        reservation_id=reservation_id,
+                        payload={"action": action, "scope_ref": scope_ref,
+                                 "proposal_ref": grant["proposal_ref"],
+                                 "operation_ref": operation_ref,
+                                 "idempotency_key": idempotency_key,
+                                 "generation": next_generation,
+                                 "lease_expires_at": lease_expires_at.isoformat()})
+            return {"reservation_id": str(reservation_id), "status":"reserved",
+                    "lease_expires_at": lease_expires_at.isoformat(),
+                    "result_ref": None, "reason_code": None,
+                    "generation": next_generation}
+        except (AuthorityDenied, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def consume_delegated_grant(self, grantee_token, reservation_id, result_ref):
+        """Consume a reserved use after success; same result replay is idempotent."""
+        if not result_ref or len(result_ref) > 512:
+            raise ValueError("result_ref must be a bounded non-empty reference")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    grantee = self._authenticate(cur, grantee_token)
+                    cur.execute("SELECT grant_id FROM delegated_grant_reservations WHERE reservation_id=%s",
+                                (reservation_id,))
+                    reference = cur.fetchone()
+                    if reference is None:
+                        raise AuthorityDenied("delegated reservation was not found")
+                    cur.execute("""SELECT grant_id,principal_id,max_uses,used_count,revoked_at
+                        FROM authority_grants WHERE grant_id=%s FOR UPDATE""", (reference["grant_id"],))
+                    grant = cur.fetchone()
+                    cur.execute("""SELECT * FROM delegated_grant_reservations
+                        WHERE reservation_id=%s FOR UPDATE""", (reservation_id,))
+                    reservation = cur.fetchone()
+                    if reservation["grantee_id"] != grantee["principal_id"]:
+                        raise AuthorityDenied("reservation belongs to another grantee")
+                    if reservation["status"] == "consumed":
+                        if reservation["result_ref"] != result_ref:
+                            raise AuthorityDenied("consumed reservation replay changed result reference")
+                        return {"reservation_id":str(reservation_id),"status":"consumed","result_ref":result_ref}
+                    if reservation["status"] != "reserved":
+                        return {"reservation_id":str(reservation_id),"status":reservation["status"],
+                                "result_ref":reservation["result_ref"],"reason_code":reservation["reason_code"]}
+                    if reservation["lease_expires_at"] <= datetime.now(timezone.utc) or grant["revoked_at"] is not None:
+                        cur.execute("""UPDATE delegated_grant_reservations SET status='expired',updated_at=clock_timestamp()
+                            WHERE reservation_id=%s""", (reservation_id,))
+                        self._reservation_event(cur,event_type="authority_grant_reservation_expired",
+                            actor_id=grantee["principal_id"],grant_id=grant["grant_id"],
+                            reservation_id=reservation_id,payload={"cause":"lease_or_revocation"})
+                        return {"reservation_id":str(reservation_id),"status":"expired"}
+                    cur.execute("""UPDATE authority_grants SET used_count=used_count+1
+                        WHERE grant_id=%s AND (max_uses IS NULL OR used_count<max_uses)
+                        RETURNING used_count,max_uses""", (grant["grant_id"],))
+                    usage = cur.fetchone()
+                    if usage is None:
+                        raise AuthorityDenied("delegated grant use limit is exhausted")
+                    cur.execute("""UPDATE delegated_grant_reservations SET status='consumed',result_ref=%s,
+                        updated_at=clock_timestamp() WHERE reservation_id=%s""", (result_ref,reservation_id))
+                    self._reservation_event(cur,event_type="authority_grant_used",
+                        actor_id=grantee["principal_id"],grant_id=grant["grant_id"],
+                        reservation_id=reservation_id,
+                        payload={"result_ref":result_ref,"used_count":usage["used_count"],
+                                 "max_uses":usage["max_uses"],
+                                 "operation_ref":reservation["operation_ref"],
+                                 "idempotency_key":reservation["idempotency_key"],
+                                 "generation":reservation["generation"]})
+            return {"reservation_id":str(reservation_id),"status":"consumed","result_ref":result_ref}
+        except (AuthorityDenied, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def release_delegated_grant(self, grantee_token, reservation_id, reason_code):
+        """Release a failed operation's reservation; repeated same release is safe."""
+        if not reason_code or len(reason_code) > 64:
+            raise ValueError("reason_code must be a bounded non-empty code")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    grantee = self._authenticate(cur, grantee_token)
+                    cur.execute("SELECT grant_id FROM delegated_grant_reservations WHERE reservation_id=%s",
+                                (reservation_id,))
+                    reference = cur.fetchone()
+                    if reference is None:
+                        raise AuthorityDenied("delegated reservation was not found")
+                    cur.execute("SELECT grant_id FROM authority_grants WHERE grant_id=%s FOR UPDATE",
+                                (reference["grant_id"],))
+                    grant = cur.fetchone()
+                    cur.execute("SELECT * FROM delegated_grant_reservations WHERE reservation_id=%s FOR UPDATE",
+                                (reservation_id,))
+                    reservation = cur.fetchone()
+                    if reservation["grantee_id"] != grantee["principal_id"]:
+                        raise AuthorityDenied("reservation belongs to another grantee")
+                    if reservation["status"] == "released":
+                        if reservation["reason_code"] != reason_code:
+                            raise AuthorityDenied("release replay changed reason code")
+                        return {"reservation_id":str(reservation_id),"status":"released","reason_code":reason_code}
+                    if reservation["status"] != "reserved":
+                        return {"reservation_id":str(reservation_id),"status":reservation["status"]}
+                    cur.execute("""UPDATE delegated_grant_reservations SET status='released',reason_code=%s,
+                        updated_at=clock_timestamp() WHERE reservation_id=%s""", (reason_code,reservation_id))
+                    self._reservation_event(cur,event_type="authority_grant_reservation_released",
+                        actor_id=grantee["principal_id"],grant_id=grant["grant_id"],
+                        reservation_id=reservation_id,payload={"reason_code":reason_code})
+            return {"reservation_id":str(reservation_id),"status":"released","reason_code":reason_code}
+        except (AuthorityDenied, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def audit_expired_delegated_grants(self, steward_token):
+        """Record expired delegated grants and reservation leases exactly once."""
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    actor = self._require(cur, steward_token, "authority.grant", "institution")
+                    if actor["principal_kind"] != "steward":
+                        raise AuthorityDenied("expiry audit requires an authenticated Steward")
+                    cur.execute("""UPDATE authority_grants SET expired_audited_at=clock_timestamp()
+                        WHERE grant_kind='delegated' AND revoked_at IS NULL
+                          AND valid_until IS NOT NULL AND valid_until<=clock_timestamp()
+                          AND expired_audited_at IS NULL
+                        RETURNING grant_id,principal_id,action,scope_ref""")
+                    expired = cur.fetchall()
+                    for grant in expired:
+                        self._event(cur,event_type="authority_grant_expired",actor_id=actor["principal_id"],
+                            subject_id=grant["principal_id"],grant_id=grant["grant_id"],
+                            payload={"action":grant["action"],"scope_ref":grant["scope_ref"]})
+                    cur.execute("""UPDATE delegated_grant_reservations r
+                        SET status='expired',updated_at=clock_timestamp()
+                        FROM authority_grants g
+                        WHERE r.grant_id=g.grant_id AND r.status='reserved'
+                          AND (r.lease_expires_at<=clock_timestamp() OR
+                               (g.valid_until IS NOT NULL AND g.valid_until<=clock_timestamp()))
+                        RETURNING r.grant_id,r.reservation_id""")
+                    reservations = cur.fetchall()
+                    for reservation in reservations:
+                        self._reservation_event(cur,event_type="authority_grant_reservation_expired",
+                            actor_id=actor["principal_id"],grant_id=reservation["grant_id"],
+                            reservation_id=reservation["reservation_id"],payload={"cause":"expiry_sweep"})
+            return {"expired_grants":len(expired),"expired_reservations":len(reservations)}
+        except AuthorityDenied:
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
+    def surrender_delegated_grant(self, grantee_token, grant_id, *, reason_code="grantee_surrendered"):
+        if not reason_code or len(reason_code) > 64:
+            raise ValueError("reason_code must be a bounded non-empty code")
+        try:
+            with self.db.transaction():
+                with self.db.cursor() as cur:
+                    self._path(cur)
+                    grantee = self._authenticate(cur, grantee_token)
+                    cur.execute("""UPDATE authority_grants SET revoked_at=clock_timestamp()
+                        WHERE grant_id=%s AND principal_id=%s AND grant_kind='delegated'
+                          AND revoked_at IS NULL
+                        RETURNING principal_id,action,scope_ref""",
+                        (grant_id, grantee["principal_id"]))
+                    grant = cur.fetchone()
+                    if grant is None:
+                        raise AuthorityDenied("only the authorized grantee may surrender an active delegated grant")
+                    cur.execute("""UPDATE delegated_grant_reservations SET status='released',
+                        reason_code='grant_surrendered',updated_at=clock_timestamp()
+                        WHERE grant_id=%s AND status='reserved'
+                        RETURNING reservation_id""",(grant_id,))
+                    for reservation in cur.fetchall():
+                        self._reservation_event(cur,event_type="authority_grant_reservation_released",
+                            actor_id=grantee["principal_id"],grant_id=grant_id,
+                            reservation_id=reservation["reservation_id"],
+                            payload={"reason_code":"grant_surrendered"})
+                    self._event(cur,event_type="authority_grant_surrendered",
+                        actor_id=grantee["principal_id"],subject_id=grantee["principal_id"],
+                        grant_id=grant_id,payload={"action":grant["action"],
+                            "scope_ref":grant["scope_ref"],"reason_code":reason_code})
+        except (AuthorityDenied, ValueError):
+            raise
+        except Exception as exc:
+            raise RegistryUnavailable(type(exc).__name__) from None
+
 
     def issue_grace_autonomy_experiment_grant(self, *, actor_id, grant_id, scope_ref,
                                                valid_until):

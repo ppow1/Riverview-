@@ -57,8 +57,8 @@ History: Git and revision/backup manifest
   <link rel="stylesheet" href="assets/institutional-proposals.css?rev=proposal-lifecycle-20261025">
   <link rel="stylesheet" href="assets/process-workflows.css?rev=decision-layout-20261027">
   <link rel="stylesheet" href="assets/resident-permissions.css?rev=resident-permissions-20261025">
-  <link rel="stylesheet" href="assets/delegation-approvals.css?rev=steward-delegation-read-revoke-20261026">
-  <link rel="stylesheet" href="assets/gpu-workload-controls.css?rev=gpu-controls-20261026">
+  <link rel="stylesheet" href="assets/delegation-approvals.css?rev=steward-delegation-host-request-20261026a">
+  <link rel="stylesheet" href="assets/gpu-workload-controls.css?rev=registered-host-controls-20261026a">
   <link rel="stylesheet" href="assets/authority-explorer.css?rev=batch1-20261025">
   <link rel="stylesheet" href="assets/account-administration.css?rev=account-email-20261025">
   <link rel="stylesheet" href="assets/manual-image-generation.css">
@@ -81,8 +81,8 @@ History: Git and revision/backup manifest
   <script defer src="assets/documentation-catalog.js?rev=v1-parity-20261025"></script>
   <script defer src="assets/resident-permissions-model.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
   <script defer src="assets/resident-permissions.js?rev=dynamic-authority-catalog-batch1-status-20261025"></script>
-  <script defer src="assets/delegation-approvals.js?rev=steward-delegation-auth-message-20261026"></script>
-  <script defer src="assets/gpu-workload-controls.js?rev=gpu-controls-20261026"></script>
+  <script defer src="assets/delegation-approvals.js?rev=steward-delegation-host-request-20261026a"></script>
+  <script defer src="assets/gpu-workload-controls.js?rev=registered-host-controls-20261026a"></script>
   <script defer src="assets/authority-explorer.js?rev=resident-search-20261027"></script>
   <script defer src="assets/account-administration.js?rev=account-email-20261025"></script>
   <script defer src="assets/work-monitor.js?rev=objective-status-outputs-20261026"></script>
@@ -215,6 +215,19 @@ History: Git and revision/backup manifest
             <section class="delegation-approvals" id="delegation-approvals" aria-labelledby="delegation-approvals-title">
               <div class="delegation-approvals-heading"><div><p class="eyebrow">CANONICAL INSTITUTIONAL AUTHORITY</p><h3 id="delegation-approvals-title">Delegation approvals</h3><p>Review and decide requests through the existing Steward authority adapter. Discovery and display never grant permission.</p></div><button id="delegation-refresh" type="button">Refresh</button></div>
               <p id="delegation-state" role="status" aria-live="polite">Delegation requests have not been loaded.</p>
+              <section class="delegation-create" aria-labelledby="delegation-create-title">
+                <h4 id="delegation-create-title">Request a registered host permission</h4>
+                <p>Requests use the canonical delegation registry and remain pending until the Steward reviews them. The target principal is the institutionally linked Steward account; a request does not grant access.</p>
+                <form id="delegation-request-form">
+                  <label>Registered host<select id="delegation-request-host" required><option value="">Load registered hosts</option></select></label>
+                  <label>Capability and operation<select id="delegation-request-capability" required disabled><option value="">Select a registered host</option></select></label>
+                  <label>Purpose / justification<textarea id="delegation-request-purpose" maxlength="500" minlength="8" required placeholder="Explain the operational need for this host-scoped permission."></textarea></label>
+                  <label>Requested expiration<select id="delegation-request-expiry"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select></label>
+                  <p class="delegation-request-target">Requester: <code id="delegation-request-requester">Unavailable</code> · Target principal: <code id="delegation-request-target">Unavailable</code></p>
+                  <button type="submit" id="delegation-request-submit" disabled>Submit pending request</button>
+                </form>
+                <p id="delegation-request-result" role="status" aria-live="polite">No permission request submitted.</p>
+              </section>
               <div class="delegation-approvals-controls"><label for="delegation-request-filter">Requests<select id="delegation-request-filter"><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Denied</option><option value="all">All history</option></select></label><label for="delegation-grant-filter">Grants<select id="delegation-grant-filter"><option value="active">Active</option><option value="expired">Expired</option><option value="revoked">Revoked</option><option value="all">All grants</option></select></label></div>
               <div id="delegation-request-list" class="delegation-record-list"></div>
               <h4>Delegated grants</h4><div id="delegation-grant-list" class="delegation-record-list"></div>
@@ -313,15 +326,7 @@ History: Git and revision/backup manifest
                     <p id="comfyui-runtime-summary" class="resource-footnote">ComfyUI service state and queue counts are not yet available.</p>
                     <dl id="comfyui-runtime-details" class="comfyui-runtime-details"><div><dt>Version</dt><dd id="comfyui-runtime-version">Not checked</dd></div><div><dt>Queue</dt><dd id="comfyui-runtime-queue">Not checked</dd></div><div><dt>CUDA device and VRAM</dt><dd id="comfyui-runtime-devices">Not checked</dd></div><div><dt>Observed</dt><dd id="comfyui-runtime-observed">Not checked</dd></div></dl>
                     <p class="resource-footnote">Queue contents are not exposed. ComfyUI CUDA device numbers are separate from host NVIDIA indices and physical chassis bays.</p>
-                    <section id="gpu-workload-controls" class="gpu-workload-controls" aria-labelledby="gpu-workload-title">
-                      <div class="gpu-workload-heading"><div><h5 id="gpu-workload-title">OCTOMINER1 workload controls</h5><p class="resource-footnote">Only the two registered services are addressable. Stop and switch refuse active jobs, unrelated GPU processes, or unverified memory release.</p></div><button id="gpu-workload-refresh" type="button">Refresh control status</button></div>
-                      <p id="gpu-workload-state" role="status" aria-live="polite">Checking Steward authorization and the remote controller…</p>
-                      <div class="gpu-workload-facts"><span>Vision service <b id="gpu-workload-vision">Unknown</b></span><span>ComfyUI service <b id="gpu-workload-comfyui">Unknown</b></span><span>Shared RTX 4090 memory <b id="gpu-workload-vram">Unavailable</b></span><span>Observed <b id="gpu-workload-observed">Not observed</b></span></div>
-                      <div class="gpu-workload-actions" role="group" aria-label="Authorized GPU workload operations">
-                        <section><h6>30B vision</h6><button type="button" data-gpu-action="start" data-gpu-service="vision" disabled>Start</button><button type="button" data-gpu-action="stop" data-gpu-service="vision" disabled>Stop</button><button type="button" data-gpu-action="switch" data-gpu-service="vision" disabled>Switch to vision</button></section>
-                        <section><h6>ComfyUI</h6><button type="button" data-gpu-action="start" data-gpu-service="comfyui" disabled>Start</button><button type="button" data-gpu-action="stop" data-gpu-service="comfyui" disabled>Stop</button><button type="button" data-gpu-action="switch" data-gpu-service="comfyui" disabled>Switch to ComfyUI</button></section>
-                      </div>
-                    </section>
+
                   </section>
                   <section class="octo-throughput" aria-labelledby="octo1-throughput-title"><div class="octo-machine-view-heading"><div><p class="eyebrow">MEASURED TELEMETRY · ROLLING 5 MINUTES</p><h4 id="octo1-throughput-title">Live hardware, model, and response activity</h4></div><span class="resource-footnote">Source snapshots update with authenticated five-second polling</span></div><div id="octo1-throughput-chart-grid" class="octo-throughput-grid" aria-live="polite"></div><p class="octo-attribution-note">GPU utilization and active inference slots are live system measurements and are not attributed to a specific Grace request. Streamed characters/s is application-side delivery cadence. Completed tokens/s is router-measured provider-call throughput, including endpoint and transport overhead. These measurements are separate; native model-server token-generation speed is unavailable.</p></section>
                   <h5 class="octo-group-label">Machine systems <small>select a physical or controller subsystem for verified details</small></h5>
@@ -333,6 +338,13 @@ History: Git and revision/backup manifest
               <section class="octo-activity" aria-labelledby="octo1-activity-title"><div class="octo-machine-view-heading"><div><p class="eyebrow">FIVE-SECOND SOURCE SAMPLES</p><h4 id="octo1-activity-title">Recent hardware activity</h4></div><span id="octo1-poll-state" class="resource-footnote">Auto-refresh runs only while Hardware &amp; AI is open and this tab is visible.</span></div><div id="octo1-activity-list" class="octo-activity-list" aria-live="polite"><p class="octo-empty">No telemetry samples captured in this browser session.</p></div><nav id="octo1-activity-pagination" class="octo-activity-pagination" aria-label="Recent Hardware Activity pages"><button type="button" id="octo1-activity-previous" aria-controls="octo1-activity-list" disabled>Previous</button><span id="octo1-activity-page" aria-live="polite">Page 1 of 1 · no samples</span><button type="button" id="octo1-activity-next" aria-controls="octo1-activity-list" disabled>Next</button></nav><p class="octo-attribution-note"><strong>Separate observations:</strong> GPU use and active-slot counts are not evidence that a specific Grace request reached or generated on a model. Correlated durable conversation evidence appears below when an authorized Grace conversation is connected.</p></section>
               <section class="octo-request-trace" aria-labelledby="octo1-request-trace-title"><header class="octo-machine-view-heading"><div><p class="eyebrow">AUTHORIZED · DURABLE CONVERSATION EVENTS</p><h4 id="octo1-request-trace-title">Grace request trace</h4></div><span id="octo1-request-trace-state" class="resource-tag" data-state="not_initialized">NOT AVAILABLE</span></header><div id="octo1-request-trace-list" class="octo-request-trace-list" aria-live="polite"><p class="octo-empty">Open Grace chat to load the current authorized conversation trace.</p></div><p class="octo-attribution-note">This view shows the current signed-in Steward’s selected conversation, request ID, router attempt metadata, and persisted response timestamp. Prompt and response text are excluded. The current llama.cpp API does not provide a correlated server-receipt or prompt/generation timeline; no GPU sample is attributed to a request.</p></section>
             </section>
+              <section id="gpu-workload-controls" class="gpu-workload-controls" aria-labelledby="gpu-workload-title">
+                <div class="gpu-workload-heading"><div><h5 id="gpu-workload-title">Registered GPU workload controls</h5><p class="resource-footnote">Hosts and services appear from the verified hardware/service registry. Each action is authorized against the selected host; unverified hosts remain unavailable.</p></div><button id="gpu-workload-refresh" type="button">Refresh control status</button></div>
+                <p id="gpu-workload-state" role="status" aria-live="polite">Checking registered host controllers and Steward authorization…</p>
+                <label class="gpu-workload-host-label" for="gpu-workload-host">GPU host<select id="gpu-workload-host" disabled><option>Loading registered hosts…</option></select></label>
+                <div id="gpu-workload-facts" class="gpu-workload-facts"></div>
+                <div id="gpu-workload-actions" class="gpu-workload-actions" role="group" aria-label="Host-scoped GPU workload operations"></div>
+              </section>
             <section id="resource-storage" class="resource-storage" data-resource-card data-resource-kind="hardware" data-search="storage capacity disk mounted volumes free space">
               <div class="resource-card-top"><div><p class="eyebrow">MOUNTED VOLUMES · READ ONLY</p><h3>Storage capacity</h3></div><span id="resource-storage-state" class="resource-tag" data-state="unavailable">NOT OBSERVED</span></div>
               <p id="resource-storage-summary" class="resource-footnote">Capacity totals include only unique measured filesystems. Offline or unconfigured hosts remain unavailable.</p>

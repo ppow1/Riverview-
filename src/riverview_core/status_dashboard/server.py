@@ -667,13 +667,15 @@ def make_handler():
             delegation_revoke = (re.fullmatch(
                 r"^/api/v1/steward/delegated-grants/(grant:[A-Za-z0-9._:-]{1,128})/revoke$",
                 parsed.path) if self.command == "POST" else None)  # capability-exclusion: Steward administrative revocation; not resident-invocable
+            delegation_request_create = (parsed.path == "/api/v1/steward/delegation-grant-requests"
+                                         and self.command == "POST")  # capability-exclusion: Steward request creation; not resident-invocable
             delegation_route = (
                 self.command in {"GET", "HEAD"} and (
-                    parsed.path in {"/api/v1/steward/delegation-grant-requests",  # capability-exclusion: Steward administrative projection; not resident-invocable
+                    parsed.path in {"/api/v1/steward/delegation-grant-requests", "/api/v1/steward/delegation-grant-requests/options",  # capability-exclusion: Steward administrative projection; not resident-invocable
                                     "/api/v1/steward/delegated-grants"} or
                     re.fullmatch(r"^/api/v1/steward/delegation-grant-requests/"
                                  r"delegation-request:[A-Za-z0-9._:-]{1,128}$", parsed.path))  # capability-exclusion: Steward administrative projection; not resident-invocable
-            ) or delegation_revoke is not None
+            ) or delegation_revoke is not None or delegation_request_create
             gpu_workload_read = (parsed.path == "/api/v1/hardware/workloads" and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
             gpu_workload_job = (re.fullmatch(r"^/api/v1/hardware/workloads/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", parsed.path) is not None and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
             gpu_workload_start = (parsed.path == "/api/v1/hardware/workloads/start" and self.command == "POST")  # capability-operation: hardware.gpu.workload.start
@@ -699,6 +701,7 @@ def make_handler():
                     and not comms5_operation
                     and not snapshot_archive
                     and not delegation_revoke
+                    and not delegation_request_create
                     and not gpu_workload_route
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
