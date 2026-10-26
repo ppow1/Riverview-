@@ -664,6 +664,16 @@ def make_handler():
             proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
             comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
             snapshot_archive = parsed.path == _SNAPSHOT_ARCHIVE and self.command == "POST"
+            delegation_revoke = (re.fullmatch(
+                r"^/api/v1/steward/delegated-grants/(grant:[A-Za-z0-9._:-]{1,128})/revoke$",
+                parsed.path) if self.command == "POST" else None)  # capability-exclusion: Steward administrative revocation; not resident-invocable
+            delegation_route = (
+                self.command in {"GET", "HEAD"} and (
+                    parsed.path in {"/api/v1/steward/delegation-grant-requests",  # capability-exclusion: Steward administrative projection; not resident-invocable
+                                    "/api/v1/steward/delegated-grants"} or
+                    re.fullmatch(r"^/api/v1/steward/delegation-grant-requests/"
+                                 r"delegation-request:[A-Za-z0-9._:-]{1,128}$", parsed.path))  # capability-exclusion: Steward administrative projection; not resident-invocable
+            ) or delegation_revoke is not None
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -681,6 +691,7 @@ def make_handler():
                     and not proposal_work_orders and not proposal_command
                     and not comms5_operation
                     and not snapshot_archive
+                    and not delegation_revoke
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
@@ -830,6 +841,10 @@ def make_handler():
                 self.end_headers()
                 if self.command != "HEAD":
                     self.wfile.write(body)
+                return
+            if delegation_route:
+                from riverview_core.status_dashboard.delegation_routes import dispatch
+                dispatch(self, parsed, request_id)
                 return
             if snapshot_archive:
                 identity = getattr(self, "_account_identity", None)
