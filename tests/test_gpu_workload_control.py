@@ -8,6 +8,8 @@ import pytest
 
 from scripts import rv_gpu_workload_control as gpu
 from riverview_core.status_dashboard.gpu_workload_routes import GpuWorkloadRemote, OP_ACTION, dispatch, is_route
+from scripts.apply_gpu_workload_dashboard_overlay import apply as apply_dashboard_overlay
+from scripts.apply_gpu_workload_ui_overlay import apply as apply_ui_overlay
 
 
 def unit(active, name):
@@ -175,3 +177,42 @@ def test_stop_waits_for_exact_systemd_inactive_state_before_memory_check():
          patch.object(gpu.time, "sleep") as sleep:
         gpu._wait_inactive("comfyui", seconds=1)
     sleep.assert_called_once_with(1)
+
+
+def test_composite_dashboard_overlay_is_bounded_valid_and_idempotent():
+    source = (
+        'def handle():\n'
+        '            delegation_route = (path == "/api/v1/steward")\n'
+        '            allowed = (\n'
+        '                    True\n'
+        '                    and not delegation_revoke\n'
+        '            )\n'
+        '            conversation_session = (parsed.path == _CONVERSATION_SESSION\n'
+        '                                     and self.command == "GET")\n'
+        '            if delegation_route:\n'
+        '                dispatch(self, parsed, request_id)\n'
+        '                return\n'
+        '            if snapshot_archive:\n'
+        '                identity = getattr(self, "_account_identity", None)\n'
+        '                process_snapshot()\n'
+        '            v2_asset = re.fullmatch(r"/v2/assets/(favicon\\.svg|workspace\\.css|fixtures\\.js|workspace\\.js|snapshot\\.js)", parsed.path)\n')
+    output = apply_dashboard_overlay(source)
+    compile(output, "composite-server.py", "exec")
+    assert "hardware.gpu.workload.switch" in output
+    assert "gpu_workload_routes import dispatch" in output
+    assert "gpu-workload-controls\\.js" in output
+    assert apply_dashboard_overlay(output) == output
+
+
+def test_deployed_v2_ui_overlay_preserves_existing_page_and_inserts_one_control_panel():
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[1]
+    feature=(root/"website/v2/deployed/index.html").read_text()
+    baseline=('  <link rel="stylesheet" href="assets/delegation-approvals.css?rev=steward-delegation-refresh-76b02cfb">\n'
+              '  <script defer src="assets/delegation-approvals.js?rev=steward-delegation-refresh-76b02cfb"></script>\n'
+              '                    <p class="resource-footnote">Queue contents are not exposed. ComfyUI CUDA device numbers are separate from host NVIDIA indices and physical chassis bays.</p>\n'
+              '<main id="existing-dashboard-features">preserve existing features</main>\n')
+    result=apply_ui_overlay(baseline,feature)
+    assert result.count('id="gpu-workload-controls"') == 1
+    assert 'id="existing-dashboard-features">preserve existing features' in result
+    assert apply_ui_overlay(result,feature) == result
