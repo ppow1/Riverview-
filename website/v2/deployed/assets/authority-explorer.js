@@ -69,6 +69,8 @@ Evidence: Historical reference data is source-pinned in resident-history-referen
       const hist = refs.filter((r) => JSON.stringify(r).toLowerCase().includes(query));
       $("resident-history-notice").textContent = data.history.notice || "Historical source-pinned records; current authority is not inferred.";
       $("resident-directory-history").innerHTML = hist.map(historicalCard).join("") || "<p>No historical reference records match.</p>";
+      const historyPanel = document.querySelector(".authority-history");
+      if (historyPanel && query && hist.length) historyPanel.open = true;
       state.textContent = `${live.length} current authority resident record(s) · ${hist.length} historical/uncommissioned references. Effective access is the server-evaluated projection; the source API remains authoritative.`;
     } catch (error) { state.textContent = showError(error); $("resident-directory-live").replaceChildren(); $("resident-directory-history").replaceChildren(); }
   };
