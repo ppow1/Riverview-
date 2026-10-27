@@ -20,13 +20,13 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.37",
-      "sha256": "5ddadc5ca04a93741da234afb7201be65dbfbee9c1fdd8d20db264d7284fc93b",
-      "size_bytes": 1621485
+      "revision": "1.0.38",
+      "sha256": "3190666ebacae7e16fc4476ef23118b7fc094e2d6b510232777672a0e39cc006",
+      "size_bytes": 1622765
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.349"
+      "revision": "1.1.350"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -696,9 +696,9 @@
     },
     "docs/components/STATUS_DASHBOARD_COOKBOOK.md": {
       "path": "docs/components/STATUS_DASHBOARD_COOKBOOK.md",
-      "revision": "1.1.34",
-      "sha256": "bd482941da5a8c41a07c709cd5b1bbc4a14d5955a06b94381fac48548ac9aa7f",
-      "size_bytes": 66200
+      "revision": "1.1.36",
+      "sha256": "f9193690a6ad2afb65a8edaf987ffbb4613de720f073beeb9727f851b8545f6f",
+      "size_bytes": 78101
     },
     "docs/components/STATUS_DASHBOARD_FLOW.md": {
       "path": "docs/components/STATUS_DASHBOARD_FLOW.md",
@@ -8190,9 +8190,9 @@
     },
     "scripts/run_status_dashboard.py": {
       "path": "scripts/run_status_dashboard.py",
-      "revision": "1.0.0",
-      "sha256": "03354b8453f3c3a4071e94cf81c41d6914b5101ed3d1423022c946bee3456b17",
-      "size_bytes": 2566
+      "revision": "1.0.1",
+      "sha256": "6aab387d0d024dfb5147796f648b9567cbb74850c6dc61d2952b52ec922e36a5",
+      "size_bytes": 2995
     },
     "scripts/run_supervised_grace_execution.sh": {
       "path": "scripts/run_supervised_grace_execution.sh",
@@ -9714,9 +9714,9 @@
     },
     "tests/test_status_dashboard.py": {
       "path": "tests/test_status_dashboard.py",
-      "revision": "1.0.74",
-      "sha256": "077fd14242bc4d9e4831e878204c7d06057e79a91f8fd3e25fbe0c870f8dfa73",
-      "size_bytes": 118378
+      "revision": "1.0.79",
+      "sha256": "bda5923f00b6d77089a68aae42237f17808a33cc6d28f6ca159edadc1ed6e3d7",
+      "size_bytes": 130524
     },
     "tests/test_storage_inventory.py": {
       "path": "tests/test_storage_inventory.py",
@@ -9837,9 +9837,33 @@
       "revision": "1.0.36",
       "sha256": "4c94df2e11880bacd0ba88962f1f2561301f30d56e9d9449ca5599f222db5cca",
       "size_bytes": 84644
+    },
+    "scripts/run_status_dashboard_parallel.py": {
+      "path": "scripts/run_status_dashboard_parallel.py",
+      "revision": "1.0.0",
+      "sha256": "14f8ec9b40fb84b6b2293bd89231686d17f0b6f7b3aa24e5c1607e2d8eab36ee",
+      "size_bytes": 1888
+    },
+    "deploy/riverview-status-dashboard-parallel.service": {
+      "path": "deploy/riverview-status-dashboard-parallel.service",
+      "revision": "1.0.0",
+      "sha256": "ee98c36b6c02f82a433e4f92b14ff4d8e6936a846c0b0a91f15b8336be595ede",
+      "size_bytes": 2656
+    },
+    "tests/test_parallel_dashboard_service.py": {
+      "path": "tests/test_parallel_dashboard_service.py",
+      "revision": "1.0.1",
+      "sha256": "752ee76f4d9f8854a9a09a74c76a5cdb771e1cbfd9cd96fb62cf2eed1b42a683",
+      "size_bytes": 4940
+    },
+    "docs/operations/ISSUE_359_PARALLEL_DASHBOARD_RUNBOOK.md": {
+      "path": "docs/operations/ISSUE_359_PARALLEL_DASHBOARD_RUNBOOK.md",
+      "revision": "1.0.0",
+      "sha256": "3e58c75778e02d78d573d8b90486cd2c2d0e6b02d95dcbcf709bb767c01330af",
+      "size_bytes": 5551
     }
   },
-  "manifest_revision": "1.1.349",
-  "revision": "1.1.356",
-  "updated_at": "2026-10-27T13:22:54+00:00"
+  "manifest_revision": "1.1.350",
+  "revision": "1.1.357",
+  "updated_at": "2026-10-27T18:02:00+00:00"
 }
