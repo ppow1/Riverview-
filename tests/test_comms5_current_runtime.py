@@ -1,6 +1,6 @@
 """Focused tests for Comms5 operations on current Riverview services.
 
-File Revision: 1.0.8
+File Revision: 1.0.9
 Component: COMMS5-CURRENT-RUNTIME-OPERATIONS-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify intent/authority projection and combined durable objective/proposal listing.
@@ -571,9 +571,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 37)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 41)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(37 - len(status), 0)
+        self.assertEqual(41 - len(status), 0)
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler

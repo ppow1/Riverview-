@@ -1,13 +1,13 @@
 # Riverview~ Controlled Source
 # File: src/riverview_core/institutional_authority/service_principal_credentials.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.0
-# Purpose: Persist the ChatGPT service principal's one-time credential without browser delivery
+# Revision: 1.1.0
+# Purpose: Persist fixed Comms5 service principal credentials without browser delivery
 # Execution Model: Fixed-path, local service account storage
 # Observability: Sanitized availability errors; credential bytes are never logged
 # Dependencies: A private service-owned directory and POSIX file semantics
-# Authority: One fixed `service:chatgpt` credential destination
-"""Protected one-time credential storage for the fixed ChatGPT service principal."""
+# Authority: Fixed `service:chatgpt` and `service:command-gateway` destinations
+"""Protected one-time credential storage for fixed Riverview service principals."""
 
 from __future__ import annotations
 
@@ -23,19 +23,37 @@ CHATGPT_PRINCIPAL_ID = "service:chatgpt"
 CHATGPT_CREDENTIAL_PATH = Path(
     "/var/lib/riverview-status-dashboard/identity-credentials/service-chatgpt.credential"
 )
+COMMAND_GATEWAY_PRINCIPAL_ID = "service:command-gateway"
+COMMAND_GATEWAY_CREDENTIAL_PATH = Path(
+    "/var/lib/riverview-status-dashboard/identity-credentials/service-command-gateway.credential"
+)
+_SERVICE_CREDENTIAL_DESTINATIONS = {
+    CHATGPT_PRINCIPAL_ID: CHATGPT_CREDENTIAL_PATH,
+    COMMAND_GATEWAY_PRINCIPAL_ID: COMMAND_GATEWAY_CREDENTIAL_PATH,
+}
 
 
 class CredentialDestinationUnavailable(RuntimeError):
     """The fixed protected destination is absent, unsafe, or unwritable."""
 
 
-class ProtectedChatGPTCredentialStore:
+class ProtectedServicePrincipalCredentialStore:
     """Fixed destination; no path or credential is accepted from an HTTP caller."""
 
-    def __init__(self, path: str | Path = CHATGPT_CREDENTIAL_PATH):
-        self.path = Path(path)
-        if not self.path.is_absolute() or self.path.name != "service-chatgpt.credential":
+    def __init__(self, principal_id: str = CHATGPT_PRINCIPAL_ID,
+                 path: str | Path | None = None):
+        expected_path = _SERVICE_CREDENTIAL_DESTINATIONS.get(principal_id)
+        if expected_path is None:
             raise CredentialDestinationUnavailable("credential_destination_invalid")
+        if path is None:
+            path = expected_path
+        self.path = Path(path)
+        if not self.path.is_absolute() or self.path.name != expected_path.name:
+            raise CredentialDestinationUnavailable("credential_destination_invalid")
+        self.principal_id = principal_id
+
+    def _stem(self) -> str:
+        return self.principal_id.removeprefix("service:")
 
     def _directory_fd(self, *, write: bool):
         directory = self.path.parent
@@ -98,7 +116,7 @@ class ProtectedChatGPTCredentialStore:
         descriptor = None
         try:
             try:
-                descriptor = os.open(".service-chatgpt-registration.lock",
+                descriptor = os.open(f".service-{self._stem()}-registration.lock",
                     os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
                     | getattr(os, "O_CLOEXEC", 0), 0o600, dir_fd=directory_fd)
                 metadata = os.fstat(descriptor)
@@ -128,7 +146,7 @@ class ProtectedChatGPTCredentialStore:
             except FileNotFoundError:
                 pass
             token = secrets.token_urlsafe(32)
-            temporary = ".service-chatgpt-" + secrets.token_hex(16) + ".tmp"
+            temporary = f".service-{self._stem()}-" + secrets.token_hex(16) + ".tmp"
             descriptor = None
             try:
                 descriptor = os.open(temporary,
@@ -165,3 +183,10 @@ class ProtectedChatGPTCredentialStore:
                     os.close(descriptor)
         finally:
             os.close(directory_fd)
+
+
+class ProtectedChatGPTCredentialStore(ProtectedServicePrincipalCredentialStore):
+    """Compatibility name for the existing fixed ChatGPT credential store."""
+
+    def __init__(self, path: str | Path = CHATGPT_CREDENTIAL_PATH):
+        super().__init__(CHATGPT_PRINCIPAL_ID, path)

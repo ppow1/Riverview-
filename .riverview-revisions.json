@@ -25,7 +25,7 @@
       "size_bytes": 1611115
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.350"
+      "revision": "1.1.351"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -8387,15 +8387,15 @@
     },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
-      "revision": "1.1.0",
-      "sha256": "2606bf9f331829e75184b70a2a8291570ef86dabc7eaf3f88deb579f141561d8",
-      "size_bytes": 16336
+      "revision": "1.2.2",
+      "sha256": "2929c516cf8e53f1370a287184d483d459385032e869db8fb77ec45c412fa744",
+      "size_bytes": 17267
     },
     "src/riverview_core/comms5/server.py": {
       "path": "src/riverview_core/comms5/server.py",
       "revision": "1.1.5",
-      "sha256": "b24072f2eeda8d5ea6f572d76b5751ccb24293009f912d26640f5da8ba9a5b4c",
-      "size_bytes": 18437
+      "sha256": "f857399c71489b8b58f96770d4f5b7d19b6ae5f6fbed766e743aa72d743fa0ac",
+      "size_bytes": 20202
     },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
@@ -9005,9 +9005,9 @@
     },
     "src/riverview_core/status_dashboard/server.py": {
       "path": "src/riverview_core/status_dashboard/server.py",
-      "revision": "1.3.43",
-      "sha256": "f70f0377b8d257b6ed10010418abdd409345d29b46f7dbb6a5cb511727628f7e",
-      "size_bytes": 174003
+      "revision": "1.3.49",
+      "sha256": "f3b6de57e1c16b6e4bc736f4df0a526b7911df1d05ebb7a5ad0a7dcf321edbdb",
+      "size_bytes": 192526
     },
     "src/riverview_core/status_dashboard/snapshot_archive.py": {
       "path": "src/riverview_core/status_dashboard/snapshot_archive.py",
@@ -9335,8 +9335,8 @@
     },
     "tests/test_comms5_current_runtime.py": {
       "path": "tests/test_comms5_current_runtime.py",
-      "revision": "1.0.8",
-      "sha256": "4ccecf9ee76c4b052e7c053605d82ea0d7d571964d41e2846ac6c7991f405ccb",
+      "revision": "1.0.9",
+      "sha256": "20cc2c4a7c10102742b06dbeb5309b63dead30ee6f77ccc061135cfa568e965f",
       "size_bytes": 41491
     },
     "tests/test_comms5_deployment.py": {
@@ -9802,13 +9802,43 @@
       "size_bytes": 84644
     },
     "src/riverview_core/institutional_authority/comms5_adapter.py": {
-      "revision": "1.2.0",
+      "revision": "1.3.1",
       "path": "src/riverview_core/institutional_authority/comms5_adapter.py",
-      "sha256": "365854757797be5a98d51f3251cf7712ffef12496f0718644bb7f081592023b3",
-      "size_bytes": 18186
+      "sha256": "3de4be88fe9f5ab4254ebb38d59a7f1b652ad8123ddb5a7fe486c685dd96f9a8",
+      "size_bytes": 20032
+    },
+    "src/riverview_core/institutional_authority/service_principal_credentials.py": {
+      "revision": "1.1.0",
+      "path": "src/riverview_core/institutional_authority/service_principal_credentials.py",
+      "sha256": "12a0ee6ad9dca0f8fdc2bc96ece58f25e31e8b001604dbb1e0eeafc85719a901",
+      "size_bytes": 8585
+    },
+    "src/riverview_core/status_dashboard/delegation_routes.py": {
+      "revision": "1.2.0",
+      "path": "src/riverview_core/status_dashboard/delegation_routes.py",
+      "sha256": "273478d356709ed8eb63a551157b3fb3e1b4c193850b0965a7b2334a924b3c4c",
+      "size_bytes": 29456
+    },
+    "tests/test_delegation_lifecycle_contract.py": {
+      "revision": "1.0.1",
+      "path": "tests/test_delegation_lifecycle_contract.py",
+      "sha256": "199d3d2a58f816071f56884e1be0e7f569055031d830d66de6380a1af136694d",
+      "size_bytes": 13587
+    },
+    "tests/test_delegation_routes.py": {
+      "revision": "1.0.3",
+      "path": "tests/test_delegation_routes.py",
+      "sha256": "b0f144bf4ec02634f68a252d1618adfc7f8bc66b4094f31f51d29c6b78c302c6",
+      "size_bytes": 29462
+    },
+    "tests/test_service_principal_credentials.py": {
+      "revision": "1.2.0",
+      "path": "tests/test_service_principal_credentials.py",
+      "sha256": "1639ac591f1a834d2bb35683ea21227d47d4b0c0d3ee923222d10ab3f930eaed",
+      "size_bytes": 6869
     }
   },
-  "manifest_revision": "1.1.341",
-  "revision": "1.1.350",
-  "updated_at": "2026-10-27T02:56:09+00:00"
+  "manifest_revision": "1.1.342",
+  "revision": "1.1.351",
+  "updated_at": "2026-10-27T03:05:13+00:00"
 }

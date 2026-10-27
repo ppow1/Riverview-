@@ -1,7 +1,7 @@
 # Riverview~ Controlled Source
 # File: src/riverview_core/status_dashboard/delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Purpose: Route authenticated Steward delegation and fixed service principal registration requests
 # Execution Model: Same-origin request-driven API
 # Observability: Structured safe status/error codes; no credentials in responses
@@ -9,7 +9,7 @@
 # Authority: Steward role, steward:camrui binding, and authority.grant institution scope
 # Changed: 2026-10-26 UTC | RV-V2-DELEGATION-PROJECTION-001 | Expose bounded reads and canonical grant revocation.
 # Changed: 2026-10-26 UTC | RV-PR342-FINITE-USE-WITHOUT-EXPIRY | Permit a finite-use-only GPU delegation request through the canonical bounded-grant policy.
-# Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Require institution-scoped identity.manage and explicit exact-name confirmation for service registration.
+# Changed: 2026-10-26 UTC | COMMS5-COMMAND-GATEWAY-IDENTITY | Add exact-confirmation identity.manage registration for the fixed command executor principal.
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md
 # Tests: tests/test_delegation_routes.py
 # History: Initial controlled source
@@ -36,6 +36,7 @@ _REQUESTS = "/api/v1/steward/delegation-grant-requests"
 _GRANTS = "/api/v1/steward/delegated-grants"
 _OPTIONS = _REQUESTS + "/options"
 _CHATGPT_REGISTRATION = "/api/v1/steward/service-principals/chatgpt/register"
+_COMMAND_GATEWAY_REGISTRATION = "/api/v1/steward/service-principals/command-gateway/register"
 
 
 def is_route(method: str, path: str) -> bool:
@@ -43,7 +44,7 @@ def is_route(method: str, path: str) -> bool:
              (path in {_REQUESTS, _GRANTS, _OPTIONS} or _REQUEST.fullmatch(path) is not None)) or
             (method == "POST" and (path == _REQUESTS or _DECISION.fullmatch(path) is not None or
                                     _REVOKE.fullmatch(path) is not None or
-                                    path == _CHATGPT_REGISTRATION)))
+                                    path in {_CHATGPT_REGISTRATION, _COMMAND_GATEWAY_REGISTRATION})))
 
 
 def _steward_context(handler, action):
@@ -138,6 +139,13 @@ def _request_options(handler, principal_id):
     registration_available = bool(adapter and
         callable(getattr(adapter, "chatgpt_registration_available", None)) and
         adapter.chatgpt_registration_available())
+    gateway_target = "service:command-gateway"
+    gateway_registered = bool(adapter and
+        callable(getattr(adapter, "registered_target", None)) and
+        adapter.registered_target(gateway_target, principal_kind="service"))
+    gateway_registration_available = bool(adapter and
+        callable(getattr(adapter, "command_gateway_registration_available", None)) and
+        adapter.command_gateway_registration_available())
     identity_manage = False
     if adapter and getattr(adapter, "_registry", None) is not None:
         try:
@@ -185,6 +193,21 @@ def _request_options(handler, principal_id):
                 "credential_shown_to_browser": False,
                 "unavailable_reason": (None if target_registered or
                     registration_available and identity_manage else
+                    "identity_manage_required" if not identity_manage else
+                    "protected_credential_destination_unavailable"),
+            },
+            "command_gateway_registration": {
+                "principal_id": gateway_target,
+                "principal_kind": "service",
+                "status": "registered" if gateway_registered else "registration_required",
+                "available": bool(not gateway_registered and gateway_registration_available and identity_manage),
+                "authorized": identity_manage,
+                "required_action": "identity.manage",
+                "required_scope": "institution",
+                "credential_delivery": "protected_server_store",
+                "credential_shown_to_browser": False,
+                "unavailable_reason": (None if gateway_registered or
+                    gateway_registration_available and identity_manage else
                     "identity_manage_required" if not identity_manage else
                     "protected_credential_destination_unavailable"),
             },
@@ -296,6 +319,39 @@ def dispatch(handler, parsed, request_id):
             if principal_id != "steward:camrui":
                 raise PermissionError("steward_authority_denied")
             result = adapter.register_chatgpt_service_principal()
+            handler._json(201 if result.get("status") == "registered" else 200,
+                          result, request_id)
+        except PermissionError:
+            handler._error(403, "steward_identity_management_denied", request_id)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            handler._error(400, "explicit_registration_confirmation_required", request_id)
+        except Exception as exc:
+            from riverview_core.institutional_authority.registry import (
+                AuthorityDenied, IdentityConflict, RegistryUnavailable,
+            )
+            from riverview_core.institutional_authority.service_principal_credentials import (
+                CredentialDestinationUnavailable,
+            )
+            if isinstance(exc, AuthorityDenied):
+                handler._error(403, "steward_identity_management_denied", request_id)
+            elif isinstance(exc, IdentityConflict):
+                handler._error(409, "service_principal_registration_conflict", request_id)
+            elif isinstance(exc, CredentialDestinationUnavailable):
+                handler._error(503, "protected_credential_destination_unavailable", request_id)
+            elif isinstance(exc, RegistryUnavailable):
+                handler._error(503, "delegation_authority_unavailable", request_id)
+            else:
+                handler._error(503, "service_principal_registration_unavailable", request_id)
+        return True
+    if handler.command == "POST" and parsed.path == _COMMAND_GATEWAY_REGISTRATION:
+        try:
+            data = handler._json_body(1024)
+            if data != {"confirmation": "REGISTER service:command-gateway"}:
+                raise ValueError("explicit_registration_confirmation_required")
+            principal_id, _, adapter = _steward_context(handler, "identity.manage")
+            if principal_id != "steward:camrui":
+                raise PermissionError("steward_authority_denied")
+            result = adapter.register_command_gateway_service_principal()
             handler._json(201 if result.get("status") == "registered" else 200,
                           result, request_id)
         except PermissionError:
