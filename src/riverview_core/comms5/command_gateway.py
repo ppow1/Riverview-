@@ -1,6 +1,6 @@
 """Bounded Windows PowerShell/SSH command gateway for Comms5.
 
-File Revision: 1.1.1
+File Revision: 1.1.2
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY
 Authority: Existing AuthorityRegistry grants and systemd-loaded service credential.
 Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Add host-scoped standard/elevated task commands and durable result attribution.
@@ -414,7 +414,18 @@ class WindowsCommandAgentClient:
                 if response.status not in {200, 201} or response.headers.get_content_type() != "application/json":
                     raise CommandAgentUnavailable("command_agent_http_status")
                 payload = response.read(MAX_BODY_BYTES + 1)
-        except (HTTPError, URLError, TimeoutError, OSError):
+        except HTTPError as exc:
+            try:
+                value = json.loads(exc.read(4096))
+                code = value.get("error") if isinstance(value, dict) else None
+            except Exception:
+                code = None
+            if not isinstance(code, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code):
+                code = "unclassified_agent_error"
+            status = exc.code if isinstance(exc.code, int) and 400 <= exc.code <= 599 else 0
+            raise CommandAgentUnavailable(
+                f"command_agent_http_{status}_{code}") from None
+        except (URLError, TimeoutError, OSError):
             raise CommandAgentUnavailable("command_agent_unavailable") from None
         if len(payload) > MAX_BODY_BYTES:
             raise CommandAgentUnavailable("command_agent_response_too_large")

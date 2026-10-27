@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.2.0
+# Revision: 1.2.1
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
@@ -13,6 +13,7 @@
 # Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Route fixed read-only command tools and preserve direct Engineering dispatch in the authenticated Comms5 surface.
 # Changed: 2026-10-26 UTC | C1-COMMS5-DELEGATION-ROUTE | Route the four generalized delegation operations through the existing authenticated Dashboard operation contract.
 # Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Register host-scoped task command submit/status operations.
+# Changed: 2026-10-27 UTC | C1-COMMAND-AGENT-POST-DIAGNOSTIC | Preserve bounded agent HTTP status and sanitized error codes through the internal Comms5 operation result.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
 
@@ -207,6 +208,12 @@ class DashboardReadBackend:
                 raise DashboardOperationConflict("proposal_lifecycle_conflict") from None
             if code == "invalid_comms5_operation":
                 raise ValueError("invalid_comms5_operation") from None
+            if code == "command_agent_unavailable":
+                diagnostic = error.get("diagnostic") if isinstance(error, dict) else None
+                if (isinstance(diagnostic, str) and re.fullmatch(
+                        r"command_agent_http_[1-5][0-9]{2}_[a-z][a-z0-9_]{0,63}", diagnostic)):
+                    raise DashboardBackendUnavailable(diagnostic) from None
+                raise DashboardBackendUnavailable("command_agent_failure_unclassified") from None
             raise DashboardBackendUnavailable("dashboard_operation_http_status") from None
         except (URLError, TimeoutError, OSError):
             raise DashboardBackendUnavailable("dashboard_operation_unavailable") from None

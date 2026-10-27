@@ -1,6 +1,6 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.8
+File Revision: 1.1.9
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
@@ -11,6 +11,7 @@ Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Verify host-sco
 """
 
 import hashlib
+import io
 import json
 import tempfile
 import threading
@@ -396,6 +397,31 @@ class Comms5MCPTests(unittest.TestCase):
                 with self.subTest(path=path), self.assertRaisesRegex(
                         DashboardBackendUnavailable, "path_not_allowlisted"):
                     backend._get(path)
+
+    def test_dashboard_backend_preserves_only_sanitized_agent_http_diagnostic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("h" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            body = json.dumps({"error": "command_agent_unavailable",
+                "diagnostic": "command_agent_http_400_invalid_command_request"}).encode()
+            error = HTTPError("http://127.0.0.1:8767/api/v1/internal/comms5/operation",
+                503, "Service Unavailable", {}, io.BytesIO(body))
+            with patch.object(backend, "_open", side_effect=error):
+                with self.assertRaisesRegex(DashboardBackendUnavailable,
+                        "command_agent_http_400_invalid_command_request"):
+                    backend._post_operation("comms5_command_task_submit", {})
+
+            unsafe_body = json.dumps({"error": "command_agent_unavailable",
+                "diagnostic": "bearer-secret-value"}).encode()
+            unsafe_error = HTTPError("http://127.0.0.1:8767/api/v1/internal/comms5/operation",
+                503, "Service Unavailable", {}, io.BytesIO(unsafe_body))
+            with patch.object(backend, "_open", side_effect=unsafe_error):
+                with self.assertRaisesRegex(DashboardBackendUnavailable,
+                        "command_agent_failure_unclassified") as caught:
+                    backend._post_operation("comms5_command_task_submit", {})
+            self.assertNotIn("bearer-secret-value", str(caught.exception))
 
     def test_dashboard_backend_sends_only_authenticated_fixed_read_request(self):
         class Response:

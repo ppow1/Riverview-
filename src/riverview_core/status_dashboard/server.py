@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.48
+# Revision: 1.3.49
+# Changed: 2026-10-27 UTC | C1-COMMAND-AGENT-POST-DIAGNOSTIC | Preserve only bounded agent HTTP status and sanitized error identifiers for authenticated Comms5 command failures.
 # Changed: 2026-10-26 UTC | COMMS5-COMMAND-GATEWAY-IDENTITY | Route one confirmed service:command-gateway identity.manage registration action.
 # Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Route host-scoped command tools to their independent exact-grant boundary without broad project delegation.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Route one confirmed identity.manage registration action through the protected delegation adapter.
@@ -1025,6 +1026,7 @@ def make_handler():
                     except PermissionError:
                         self._error(403, "comms5_operation_not_authorized", request_id)
                     except Exception as exc:
+                        from riverview_core.comms5.command_gateway import CommandAgentUnavailable
                         from riverview_core.resident_execution.proposals import (
                             ProposalConflict, ProposalNotFound, ProposalValidationError)
                         from riverview_core.resident_execution.pipeline import ObjectiveNotAuthorized
@@ -1047,6 +1049,14 @@ def make_handler():
                             self._error(409, "proposal_lifecycle_conflict", request_id)
                         elif isinstance(exc, (ValueError, TypeError, ProposalValidationError)):
                             self._error(400, "invalid_comms5_operation", request_id)
+                        elif isinstance(exc, CommandAgentUnavailable):
+                            diagnostic = str(exc)
+                            if not re.fullmatch(
+                                    r"command_agent_http_[1-5][0-9]{2}_[a-z][a-z0-9_]{0,63}",
+                                    diagnostic):
+                                diagnostic = "command_agent_failure_unclassified"
+                            self._json(503, {"error": "command_agent_unavailable",
+                                "diagnostic": diagnostic, "request_id": request_id}, request_id)
                         else:
                             self._error(503, "comms5_operation_unavailable", request_id)
                     return

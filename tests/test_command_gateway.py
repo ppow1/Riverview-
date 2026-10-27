@@ -1,6 +1,6 @@
 """Focused tests for the bounded Comms5 Windows command gateway.
 
-File Revision: 1.1.0
+File Revision: 1.1.1
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY-TESTS
 """
 
@@ -20,6 +20,8 @@ from riverview_core.comms5.command_gateway import (
     CALLER_ACTIONS,
     EXECUTION_ACTIONS,
     TASK_HOSTS,
+    CommandAgentUnavailable,
+    WindowsCommandAgentClient,
     WindowsCommandAgentStore,
     WindowsCommandGateway,
     _run_windows_operation,
@@ -98,6 +100,34 @@ class _CommandGrantAuthority:
 
 
 class CommandGatewayTests(unittest.TestCase):
+    def test_agent_http_error_preserves_only_status_and_sanitized_error_code(self):
+        client = object.__new__(WindowsCommandAgentClient)
+        client.url = "https://desktop-ja3rpnq:8443"
+        client.token = "opaque-test-token"
+        client.timeout = 1
+        client.opener = Mock()
+        client.opener.open.side_effect = HTTPError("https://desktop-ja3rpnq:8443/v1/commands",
+            400, "Bad Request", {}, io.BytesIO(
+                b'{"error":"invalid_command_request","debug":"token=secret"}'))
+        with self.assertRaisesRegex(CommandAgentUnavailable,
+                                    "command_agent_http_400_invalid_command_request") as caught:
+            client.submit({"operation": "command_task_standard"})
+        self.assertNotIn("secret", str(caught.exception))
+
+    def test_agent_http_error_with_untrusted_diagnostic_is_redacted(self):
+        client = object.__new__(WindowsCommandAgentClient)
+        client.url = "https://desktop-ja3rpnq:8443"
+        client.token = "opaque-test-token"
+        client.timeout = 1
+        client.opener = Mock()
+        client.opener.open.side_effect = HTTPError("https://desktop-ja3rpnq:8443/v1/commands",
+            500, "Internal Server Error", {}, io.BytesIO(
+                b'{"error":"bearer-secret-value"}'))
+        with self.assertRaisesRegex(CommandAgentUnavailable,
+                                    "command_agent_http_500_unclassified_agent_error") as caught:
+            client.submit({"operation": "command_task_standard"})
+        self.assertNotIn("bearer-secret-value", str(caught.exception))
+
     def test_submit_authorizes_caller_and_reserves_exact_host_execution_grant(self):
         authority, authorizer, agent = _AuthorityRegistry(), _Authorizer(), Mock()
         agent.submit.return_value = {
