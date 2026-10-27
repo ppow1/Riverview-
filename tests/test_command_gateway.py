@@ -1,7 +1,8 @@
 """Focused tests for the bounded Comms5 Windows command gateway.
 
-File Revision: 1.1.2
+File Revision: 1.1.3
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY-TESTS
+Changed: 2026-10-27 UTC | C2-359-CAMRUI-SSH-ADDRESS | Assert the Windows runner uses the pinned alias with Camrui's literal IP.
 Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Verify long execution, polling, cancellation, idempotency, revocation, and restart recovery.
 Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Verify digest-bound Comms5 cancellation and bounded agent diagnostics.
 """
@@ -539,6 +540,20 @@ class CommandGatewayTests(unittest.TestCase):
             self.assertIn("octominer1", argv)
             self.assertTrue(argv[-1].startswith("sudo -n -- sh -lc "))
             self.assertIs(popen.call_args.kwargs["shell"], False)
+
+            popen.reset_mock()
+            _run_windows_operation({"operation": "command_task_standard", "transport": "ssh",
+                "privilege_level": "standard", "host_id": "camrui", "command": "hostname"}, 12)
+            argv = popen.call_args.args[0]
+            self.assertIn("StrictHostKeyChecking=yes", argv)
+            self.assertIn("HostKeyAlias=camrui", argv)
+            self.assertEqual(argv[-2:], ["192.168.1.155", "hostname"])
+
+            popen.reset_mock()
+            _run_windows_operation("ssh_camrui_hostname", 12)
+            argv = popen.call_args.args[0]
+            self.assertIn("HostKeyAlias=camrui", argv)
+            self.assertEqual(argv[-2:], ["192.168.1.155", "hostname"])
 
     def test_agent_store_enforces_fixed_operations_idempotency_and_output_bound(self):
         with tempfile.TemporaryDirectory() as directory:

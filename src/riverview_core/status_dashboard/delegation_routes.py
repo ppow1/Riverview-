@@ -1,7 +1,8 @@
 # Riverview~ Controlled Source
 # File: src/riverview_core/status_dashboard/delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.2.0
+# Revision: 1.2.1
+# Changed: 2026-10-27 UTC | C2-359-ENCODED-DELEGATION-ID | Normalize only percent-encoded request ID colons before exact route validation.
 # Purpose: Route authenticated Steward delegation and fixed service principal registration requests
 # Execution Model: Same-origin request-driven API
 # Observability: Structured safe status/error codes; no credentials in responses
@@ -39,7 +40,18 @@ _CHATGPT_REGISTRATION = "/api/v1/steward/service-principals/chatgpt/register"
 _COMMAND_GATEWAY_REGISTRATION = "/api/v1/steward/service-principals/command-gateway/register"
 
 
+def canonicalize_delegation_path(path: str) -> str:
+    """Accept the URL-encoded colon in opaque delegation request IDs.
+
+    Browser clients commonly encode the ``:`` in ``delegation-request:<id>``
+    as ``%3A``. Normalize only that fixed identifier delimiter; do not decode
+    other reserved characters or path separators.
+    """
+    return re.sub(r"(?i)(?<=delegation-request)%3a", ":", path)
+
+
 def is_route(method: str, path: str) -> bool:
+    path = canonicalize_delegation_path(path)
     return ((method in {"GET", "HEAD"} and
              (path in {_REQUESTS, _GRANTS, _OPTIONS} or _REQUEST.fullmatch(path) is not None)) or
             (method == "POST" and (path == _REQUESTS or _DECISION.fullmatch(path) is not None or
@@ -292,6 +304,12 @@ def _one(query, key, default):
 
 def dispatch(handler, parsed, request_id):
     """Send one matched delegation request; caller has already validated session and CSRF."""
+    canonical_path = canonicalize_delegation_path(parsed.path)
+    if canonical_path != parsed.path:
+        if hasattr(parsed, "_replace"):
+            parsed = parsed._replace(path=canonical_path)
+        else:
+            parsed.path = canonical_path
     if not is_route(handler.command, parsed.path):
         return False
     identity = getattr(handler, "_account_identity", None)

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.50
+# Revision: 1.3.51
+# Changed: 2026-10-27 UTC | C2-359-ENCODED-DELEGATION-ID | Route percent-encoded delegation ID delimiters to the authenticated approval handler.
 # Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Route authenticated host-scoped cancellation through the existing Gateway authorization boundary.
 # Changed: 2026-10-27 UTC | C1-COMMAND-AGENT-POST-DIAGNOSTIC | Preserve only bounded agent HTTP status and sanitized error identifiers for authenticated Comms5 command failures.
 # Changed: 2026-10-26 UTC | COMMS5-COMMAND-GATEWAY-IDENTITY | Route one confirmed service:command-gateway identity.manage registration action.
@@ -620,6 +621,11 @@ def make_handler():
         def _dispatch(self):
             request_id = secrets.token_hex(12)
             parsed = urlsplit(self.path)
+            # Browser URL builders may percent-encode the colon in the exact
+            # opaque delegation request ID. Normalize this one delimiter so
+            # the authenticated POST reaches its existing hash-bound handler.
+            from .delegation_routes import canonicalize_delegation_path
+            parsed = parsed._replace(path=canonicalize_delegation_path(parsed.path))
             notification_write = (_NOTICE_WRITE.fullmatch(parsed.path)
                                   if self.command == "POST" else None)
             notification_settings_get = (parsed.path == _NOTIFICATION_SETTINGS and

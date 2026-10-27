@@ -1,0 +1,57 @@
+# RIVERVIEW~ CONTROLLED SYSTEMD UNIT
+# File: deploy/riverview-status-dashboard-parallel.service
+# Component: STEWARD-DASHBOARD
+# Revision: 1.0.0
+# Purpose: Stage an isolated parallel Dashboard for forward-only qualification
+# Authority: Candidate only; do not install/start until Issue #359 activation gates pass
+# Changed: 2026-10-27 UTC | RV-ISSUE-359-PARALLEL-DASHBOARD | Use distinct listener, unit credential mount, runtime directory, and database application name.
+# =============================================================================
+[Unit]
+Description=Riverview parallel Dashboard candidate for Issue 359
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=riverview
+Group=riverview
+WorkingDirectory=/opt/riverview-status-dashboard/parallel-current
+Environment=PYTHONPATH=/opt/riverview-status-dashboard/parallel-current/src:/opt/riverview-status-dashboard/parallel-current/scripts
+Environment="RIVERVIEW_DATABASE_DSN=host=127.0.0.1 port=5432 dbname=riverview user=riverview_core application_name=riverview-status-dashboard-parallel"
+Environment=RIVERVIEW_DATABASE_SCHEMA=riverview_dev
+Environment=RIVERVIEW_AUTHORITY_SCHEMA=riverview_authority
+Environment=RIVERVIEW_COMMAND_AGENT_URL=https://desktop-ja3rpnq:8443
+Environment=RIVERVIEW_DASHBOARD_HOST=127.0.0.1
+Environment=RIVERVIEW_DASHBOARD_PORT=8770
+Environment=RIVERVIEW_STALE_AFTER_SECONDS=30
+Environment=RIVERVIEW_DEPLOYMENT_ID=issue359-parallel-command-gateway
+RuntimeDirectory=riverview-status-dashboard-parallel
+RuntimeDirectoryMode=0700
+LoadCredential=pgpass:/etc/riverview/pgpass
+LoadCredential=dashboard-token:/home/admin1/.config/riverview/status-dashboard.token
+LoadCredential=authority-manager-pgpass:/etc/riverview/authority/manager.pgpass
+LoadCredential=authority-steward-token:/etc/riverview/authority/steward.token
+LoadCredential=command-gateway-grantee:/var/lib/riverview-status-dashboard/identity-credentials/service-command-gateway.credential
+LoadCredential=command-agent-token:/etc/riverview/command-gateway/agent.token
+LoadCredential=command-agent-ca.pem:/etc/riverview/command-gateway/agent-ca.pem
+ExecStart=/usr/bin/python3 /opt/riverview-status-dashboard/parallel-current/scripts/run_status_dashboard_parallel.py
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=10s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

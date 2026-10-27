@@ -2,10 +2,11 @@
 Riverview~ Controlled Document
 File: docs/components/INSTITUTIONAL_AUTHORITY.md
 Component: INSTITUTIONAL-AUTHORITY
-File Revision: 1.0.30
+File Revision: 1.0.31
 Purpose: Define durable identities, exact scoped authority, and office-state continuity
 Authority: Grants are Steward-issued; absence or uncertainty denies the action
 Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Document release declarations and dynamic Grace discovery through the existing catalog
+Changed: 2026-10-27 UTC | RV-ISSUE-359-TRANSACTION-OWNERSHIP | Document per-thread transaction ownership, commit visibility, rollback, and safe handling of open approval transactions.
 Changed: 2026-10-11 UTC | RV-M4.1-001 | Remove trailing-space Markdown hardbreaks
 Changed: 2026-10-11 UTC | RV-M4.1-DB-BOUNDARY | Specify separate schema, runtime, manager, and authority-owner identities
 Changed: 2026-10-11 UTC | RV-M4.1-DASHBOARD-COOKBOOK-ROUTE | Verify local dashboard documentation route for the expanded authority procedures
@@ -158,6 +159,28 @@ Authority and binding events are append-only. Office state writes are bounded to
 The registry returns `AuthorityDenied` for a negative authorization result and
 `RegistryUnavailable` when it cannot obtain authoritative database state; callers
 must not interpret either as permission.
+
+## Registry transaction ownership and recovery
+
+Each registry operation owns a PostgreSQL connection on its calling thread.
+The outermost transaction commits before a mutating method returns success; an
+operation error or commit failure rolls the transaction back before the
+connection is closed. Nested transactions on that same thread use savepoints.
+Connections are never shared between Dashboard request threads, so a savepoint
+for one request cannot defer another request's commit. The Registry closes
+operation connections after their outermost transaction/cursor scope and closes
+any remaining connections during service shutdown.
+
+An `idle in transaction` manager backend is not evidence that a decision is
+durable. A session may read its own uncommitted grant and event writes while
+independent runtime connections correctly see the prior committed request and
+deny authorization. Preserve the live backend and its audit/write evidence;
+do not restart the Dashboard, terminate the backend, replay the approval, or
+write grant rows directly. The deployed Registry has no external transaction
+finalization API. Recovery must execute in the owning application session and
+verify the exact request hash, grant, decision, and audit records before
+committing. If that cannot be done through an existing supported path, leave
+the transaction intact and escalate for a reviewed, in-process recovery.
 
 ## Current security boundary and deployment limitation
 

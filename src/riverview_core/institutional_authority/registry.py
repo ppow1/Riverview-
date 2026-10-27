@@ -1,12 +1,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/registry.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.14
+# Revision: 1.0.15
 # Purpose: Persist separated offices, occupants, implementations and scoped grants
 # Execution Model: Synchronous transactional PostgreSQL registry
 # Observability: Append-only authority events and office binding revisions
 # Dependencies: Python 3.10+; Psycopg 3; institutional_authority migration
 # Authority: Exact active credential, principal, action and scope are required
+# Changed: 2026-10-27 UTC | RV-ISSUE-359-TRANSACTION-OWNERSHIP | Give each calling thread an isolated connection and transaction scope; close after commit/rollback.
 # Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Accept an optional pre-persisted credential for atomic server-side service identity registration.
 # Changed: 2026-10-11 UTC | RV-M4.1-001 | Validate expiry timestamps and object-shaped office state
 # Changed: 2026-10-11 UTC | RV-M4.1-BOOTSTRAP-WRITE-AHEAD | Allow trusted root caller to persist random token before bootstrap transaction
@@ -31,6 +32,8 @@ import os
 import re
 import secrets
 import calendar
+import threading
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -60,6 +63,86 @@ _DURATION_BOUNDS = {
     "years": (1, 100),
 }
 _UNSET = object()
+
+
+class _RegistryConnectionProvider:
+    """Own isolated psycopg connections for each thread and transaction scope.
+
+    AuthorityRegistry is called from the Dashboard's bounded request threads.
+    A psycopg connection is safe to use from multiple threads only in the sense
+    that commands serialize; transaction contexts still belong to the shared
+    connection. Reusing one connection can therefore make one request's
+    transaction a savepoint inside another request's transaction. This
+    provider gives each thread a separate connection and closes it as soon as
+    its outermost transaction/cursor scope exits.
+    """
+
+    def __init__(self, dsn):
+        self._dsn = dsn
+        self._local = threading.local()
+        self._lock = threading.Lock()
+        self._connections = {}
+        self._closed = False
+
+    def _acquire(self):
+        connection = getattr(self._local, "connection", None)
+        if connection is None or connection.closed:
+            with self._lock:
+                if self._closed:
+                    raise psycopg.OperationalError("authority registry is closed")
+            connection = psycopg.connect(self._dsn, row_factory=dict_row,
+                                         autocommit=True)
+            with self._lock:
+                if self._closed:
+                    connection.close()
+                    raise psycopg.OperationalError("authority registry is closed")
+                self._connections[threading.get_ident()] = connection
+            self._local.connection = connection
+            self._local.scope_depth = 0
+        self._local.scope_depth += 1
+        return connection
+
+    def _release(self, connection):
+        depth = getattr(self._local, "scope_depth", 0) - 1
+        self._local.scope_depth = max(depth, 0)
+        if depth > 0:
+            return
+        self._local.connection = None
+        self._local.scope_depth = 0
+        with self._lock:
+            if self._connections.get(threading.get_ident()) is connection:
+                self._connections.pop(threading.get_ident(), None)
+        connection.close()
+
+    @contextmanager
+    def transaction(self):
+        connection = self._acquire()
+        try:
+            # A successful outermost scope commits before its caller can return;
+            # psycopg rolls it back if the body or commit fails.
+            with connection.transaction():
+                yield connection
+        finally:
+            self._release(connection)
+
+    @contextmanager
+    def cursor(self, *args, **kwargs):
+        connection = self._acquire()
+        try:
+            with connection.cursor(*args, **kwargs) as cursor:
+                yield cursor
+        finally:
+            self._release(connection)
+
+    def close(self):
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            connections = tuple(self._connections.values())
+            self._connections.clear()
+        for connection in connections:
+            connection.close()
 
 
 def normalize_grant_duration(spec):
@@ -126,7 +209,7 @@ class AuthorityRegistry:
         self.schema = schema
         self.runtime_safe = bool(runtime_safe)
         try:
-            self.db = psycopg.connect(dsn, row_factory=dict_row, autocommit=True)
+            self.db = _RegistryConnectionProvider(dsn)
             if not self.runtime_safe:
                 with self.db.cursor() as cur:
                     cur.execute("SELECT to_regclass(%s) AS registry",

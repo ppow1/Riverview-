@@ -2,7 +2,8 @@
 Riverview~ Controlled Document
 File: docs/components/STATUS_DASHBOARD_COOKBOOK.md
 Component: STEWARD-DASHBOARD
-File Revision: 1.1.35
+File Revision: 1.1.36
+Changed: 2026-10-27 UTC | RV-ISSUE-359-PARALLEL-DASHBOARD | Link the inactive parallel-service preparation and authorization-gated activation runbook.
 Changed: 2026-10-22 UTC | RV-V2-HW-AI-ENHANCEMENTS-207 | Document safe per-slot context projection and explicit KV-data limitation.
 Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Document the authorized post-deployment path for diagnosing historical Grace grounding failures.
 Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Document authorized Engineering Progress grounding diagnostics and same-objective recovery guidance.
@@ -55,6 +56,7 @@ History: Git and revision/backup manifest
 # Status dashboard read-only troubleshooting cookbook
 
 The dashboard links to the [complete Riverview operations and recovery guide](RIVERVIEW_OPERATIONS_COOKBOOK.md), covering PostgreSQL, migrations, CME, event processing, workers, verification, and backups.
+Issue #359's forward-only parallel Dashboard candidate, isolated unit setup, and activation gates are documented in the [parallel Dashboard runbook](../operations/ISSUE_359_PARALLEL_DASHBOARD_RUNBOOK.md).
 The [notification delivery contract](NOTIFICATION_DELIVERY.md) and
 [notification troubleshooting cookbook](NOTIFICATION_DELIVERY_COOKBOOK.md)
 cover durable visual receipts. Receipt acknowledgment is not a Steward decision.

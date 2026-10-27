@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.78
+# Revision: 1.0.79
+# Changed: 2026-10-27 UTC | RV-ISSUE-359-PARALLEL-DASHBOARD | Verify the existing launcher retains its service-specific passfile defaults after enabling the isolated parallel launcher.
 # Changed: 2026-10-26 UTC | RV-ISSUE268-OBJECTIVE-PROJECTION-REPAIR | Cover outputless completed attempt projection and distinguish canonical objective status from a blocked assignment.
 # Changed: 2026-10-25 UTC | RV-V2-OBJECTIVE-OPERATIONAL-STATUS-OUTPUTS | Cover persisted operational status and safe multi-output assignment projection.
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Build Grace objective, conversation, and step relations from source migrations in Dashboard PostgreSQL tests.
@@ -428,7 +429,7 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("Environment=RIVERVIEW_SOURCE_COMMIT=8556598b19a7da4aa191a600c767d79d24432afe", unit)
         self.assertIn("Environment=RIVERVIEW_DEPLOYMENT_ID=m3.1-camrui-docs-d2c145c", unit)
         self.assertIn("scripts/run_status_dashboard.py", unit)
-        self.assertIn("copy_systemd_credential(source, PASSFILE, identity.pw_uid)", launcher)
+        self.assertIn("copy_systemd_credential(source, passfile, identity.pw_uid)", launcher)
         self.assertNotIn("Environment=PGPASSFILE=%d/pgpass", unit)
 
     def test_launcher_validates_service_credential_and_runtime_identity(self):
