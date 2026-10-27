@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CODEX_DUAL_HOST_CONTROL_RUNBOOK.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-27 | RV-CODEX-DUAL-HOST-RUNBOOK
 -->
 # Windows and Camrui: shell access, Codex start, result, and exact-session resume
@@ -16,7 +16,7 @@ it does not create an execution service, dispatcher, credential, or authority.
 | Path | Identity | Established evidence | Outstanding proof |
 | --- | --- | --- | --- |
 | Windows operator shell | `DESKTOP-JA3RPNQ\wille` | Operator diagnostic and SSH alias verification supplied by Steward | No new live test in this continuation |
-| Windows Comms5 shell/Codex | `DESKTOP-JA3RPNQ\RiverviewCmdAgent` | Prior real Luna launch, detached completion, exact UUID resume, recall of BLUEPRINT, exit 0 | New helper below has offline validation only |
+| Windows Comms5 shell/Codex | `DESKTOP-JA3RPNQ\RiverviewCmdAgent` | Fresh 19:36 EDT real Luna start, later status read and exact UUID resume recalled ORCHARD-592; both exit 0 | Codex-internal shell attempts were blocked by its environment policy; helper itself remains offline-tested |
 | Windows operator SSH → Camrui | `wille` client → `admin1@192.168.1.155` | Steward's CAMRUI_EXECUTION_OK, `admin1`, `/home/admin1`, SSH exit 0 | Do not infer Gateway account access from this success |
 | Camrui local Codex | `admin1` | Issue #359 records start and resume of `01a17ee1-4a3b-7951-b26d-3f44ecda6c25`, hostname returned | New remote Comms5 acceptance not established |
 | Gateway SSH → Camrui | Gateway's independently configured SSH identity | Fresh 19:30 EDT Comms5 submission and later status returned hostname only, exit 0; requested marker/user/pwd absent | Arbitrary Bash and remote Codex start/resume fail acceptance through this identity |
@@ -110,7 +110,16 @@ Both supersede their corresponding older grants. A seven-day extension preserved
 the executor's original 20-use ceiling and carried usage forward; it did not reset
 the quota or create unlimited execution. Recheck current usage before each task.
 This continuation has not renewed, replaced, surrendered or approved any grant.
-The current Windows host grant references remain missing from this handoff.
+Current Windows grants, supplied by Steward and independently verified active:
+
+| Binding | Grant ID | Expiry | Usage policy |
+| --- | --- | --- | --- |
+| Windows caller | `grant:bc790c0beb1746b295aade230d4a56cf` | November 2, 2026, 19:55:25 EST | Unlimited |
+| Windows executor | `grant:2c4cd34bcc484a61814f6f489f25c8f1` | November 2, 2026, 19:55:25 EST | Unlimited |
+
+No further approval is needed for eligible commands while these bindings remain
+active. Their identity, scope and dates were read from the canonical status tool.
+Use counts below are observations, not a continuously refreshed projection.
 
 Fresh acceptance attempt: key `issue359-handoff-camrui-shell-20261027-01`, execution
 `34e1e579-3ebb-4d85-9bc9-07b2e9cb162f`, audit event
@@ -408,3 +417,69 @@ exit propagation. They use a fake CLI, never real Codex or host credentials.
 The PowerShell examples have not been executed by this continuation. Use the
 existing live-tested Windows baseline above until a current Windows grant
 reference permits a fresh run; do not label offline helper tests live acceptance.
+
+
+## Fresh Windows live acceptance — October 27, 2026, 19:35–19:38 EDT
+
+1. Windows PowerShell probe returned RV_WINDOWS_SHELL_OK, host DESKTOP-JA3RPNQ,
+   identity desktop-ja3rpnq\riverviewcmdagent, and the verified Node/CLI paths,
+   exit 0. Execution: `240c8ca4-924e-48f2-bfa8-4068772f1dc0`.
+2. A real read-only Luna start returned RUNNING, allowing the initiating call to
+   finish; a later durable status read returned COMPLETED, exit 0, thread
+   `01a17fb8-8ab0-7993-a547-7f576d8571d4`. Execution:
+   `9b4d1a89-57fb-4cba-9368-d3c1e38143c6`; final audit:
+   `79c7852f-8706-4c7d-b158-4b8320bfdba0`.
+3. A separate Comms5 task ran `exec resume` on that exact UUID. The prompt did
+   not repeat the original marker. Later status returned ORCHARD-592, the same
+   UUID and exit 0. Execution: `cec27864-e8ef-4fdf-8745-ea367e05c9ea`;
+   final audit: `9b32d050-9bfa-43ff-a4b6-e3a19e99a0bd`.
+
+This proves Windows shell access plus real Codex start, return for result and
+persisted-session resume through Comms5. The initial Codex request also asked
+Codex to run hostname/whoami; its reply reports both tool attempts blocked by
+policy, and the events do not establish those commands ran. The independent
+Gateway PowerShell probe above did execute them. Do not conflate these outcomes
+or weaken the sandbox to make the Codex-internal shell test pass.
+
+### Remaining Camrui operator acceptance: one existing-account runner
+
+`scripts/Test-RiverviewCamruiCodexContinuity.ps1` verifies wille, inspects the
+existing alias without reading keys, requires a genuine SSH marker and admin1,
+starts read-only Luna, closes that SSH invocation, then resumes the exact UUID in
+another invocation and checks marker recall. It captures a complete report and
+copies it to the Windows clipboard. It does not alter authorized_keys, ACLs,
+SSH configuration, authentication, grants or services. Live Windows PowerShell
+parser validation passed, execution `1f15a9f3-3935-4a12-ac2b-ae862ae67a4c`.
+The runner has not been executed under wille by this ChatGPT continuation; its
+Gateway tool runs as RiverviewCmdAgent, which cannot be substituted for wille.
+
+From the established wille PowerShell window, use the existing checkout to
+retrieve the script and run it. The following only fetches the documentation
+branch, writes a temporary operator script, then runs that script. It does not
+switch, reset, merge or edit the checkout:
+
+```powershell
+Clear-Host
+$checkout = 'A:\Riverview-New-Core'
+if ((& whoami).Trim().ToLowerInvariant() -ne 'desktop-ja3rpnq\wille') { Write-Output 'Use the established wille operator window.'; return }
+git -C $checkout fetch --no-tags origin docs/windows-codex-comms5-runbook-20261027
+if ($LASTEXITCODE -ne 0) { Write-Output 'Fetch failed; keep the existing checkout unchanged.'; return }
+$scriptText = & git -C $checkout show 'FETCH_HEAD:scripts/Test-RiverviewCamruiCodexContinuity.ps1'
+if ($LASTEXITCODE -ne 0) { Write-Output 'Script retrieval failed.'; return }
+$scriptPath = Join-Path $env:TEMP 'Test-RiverviewCamruiCodexContinuity.ps1'
+$scriptText | Set-Content -Encoding UTF8 $scriptPath
+& $scriptPath
+```
+
+Paste its complete report into Issue #359 or the active continuation. This is
+execution under the already-established operator account, not another grant
+approval. Its result can verify the operator SSH/Codex path; it cannot turn that
+path into a Gateway service-account path or prove remote Comms5 Bash access.
+
+### Revision 1.0.1 predecessor
+
+Prior dual-host runbook revision 1.0.0 is preserved at
+`docs/history/CODEX_DUAL_HOST_CONTROL_RUNBOOK_rev1.0.0.md`. Original Git blob:
+`788edbd070eccab909815b2eab51b02ce076997c`. Verify the following SHA-256 before
+restoring those bytes to the original path:
+`d5a67fb4e56fb0835f597833455140287a3ae388f262cc09bfc038c44815947a`.
