@@ -2,10 +2,17 @@
 Riverview Controlled Document
 File: docs/operations/WINDOWS_CODEX_COMMS5_RUNBOOK.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-27 | Live Comms5 / Windows Codex launch and session-resume verification
 -->
 # Windows development machine — Codex via Riverview Comms 1.1
+
+**Continuation index:** [Dual-host control runbook](CODEX_DUAL_HOST_CONTROL_RUNBOOK.md)
+contains the identity/SSH matrix, exact grant bindings and approval procedure,
+complete start/result/resume examples for Windows and Camrui, and the portable
+read-only invocation helper. Its acceptance table distinguishes earlier live
+evidence from new offline helper checks. Predecessor:
+`docs/history/WINDOWS_CODEX_COMMS5_RUNBOOK_rev1.0.0.md`.
 
 **Status:** Verified for remote read-only execution and persisted-session resume on 2026-10-27. This is an operator runbook, not proof that autonomous background orchestration or SSH target verification is commissioned.
 
