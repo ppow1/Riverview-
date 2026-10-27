@@ -1,6 +1,6 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.9
+File Revision: 1.1.10
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
@@ -8,6 +8,7 @@ Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify transport pr
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify the Steward queue request uses the attested dashboard operation bridge and preserves its truthful queued state.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Verify the 25-tool catalog, preserved legacy catalog, and authenticated reasoning bridge dispatch.
 Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Verify host-scoped task command schemas and catalog registration.
+Changed: 2026-10-27 UTC | C1-ISSUE-356-COMMS5-RECOVERY | Verify command task discovery parity and command-specific backend timeout.
 """
 
 import hashlib
@@ -71,6 +72,46 @@ class Comms5MCPTests(unittest.TestCase):
         payload = json.loads(call["result"]["content"][0]["text"])
         self.assertEqual(payload["contract"], "riverview-comms-contract:5.0")
         self.assertFalse(call["result"]["isError"])
+
+    def test_command_task_discovery_metadata_matches_published_schemas(self):
+        class CommandBackend:
+            supported_tools = {"comms5_command_task_submit", "comms5_command_task_status"}
+            IMPLEMENTATION_STATUS = {name: "IMPLEMENTED" for name in supported_tools}
+
+        application = Comms5Application("x" * 48, backend=CommandBackend())
+        tools = application.handle(rpc("tools/list"))["result"]["tools"]
+        schemas = {tool["name"].removeprefix("comms5_"): tool["inputSchema"]
+                   for tool in tools if tool["name"] in {
+                       "comms5_command_task_submit", "comms5_command_task_status"}}
+        capabilities = application.handle(rpc("tools/call", {
+            "name": "comms5_capabilities", "arguments": {}}))["result"]["structuredContent"]
+        help_value = application.handle(rpc("tools/call", {
+            "name": "comms5_help", "arguments": {}}))["result"]["structuredContent"]
+        examples = application.handle(rpc("tools/call", {
+            "name": "comms5_examples", "arguments": {}}))["result"]["structuredContent"]
+        capability_names = {item["name"]: item for item in capabilities["operations"]}
+        help_names = {item["name"]: item for item in help_value["capabilities"]["operations"]}
+        for operation, expected_auth in (
+                ("command_task_submit", "EXACT_HOST_CALLER_AND_EXECUTOR_GRANTS"),
+                ("command_task_status", "EXACT_HOST_CALLER_GRANT")):
+            with self.subTest(operation=operation):
+                self.assertIn(operation, schemas)
+                self.assertEqual(capability_names[operation]["authorization"], expected_auth)
+                self.assertEqual(help_names[operation]["authorization"], expected_auth)
+                self.assertEqual(capability_names[operation]["required"],
+                                 schemas[operation]["required"])
+                self.assertEqual(help_names[operation]["required"],
+                                 schemas[operation]["required"])
+                self.assertIn(operation, examples)
+                described = application.handle(rpc("tools/call", {
+                    "name": "comms5_describe_operation",
+                    "arguments": {"operation": operation}}))["result"]["structuredContent"]
+                self.assertEqual(described["authorization"], expected_auth)
+                self.assertEqual(described["required"], schemas[operation]["required"])
+                self.assertEqual(described["camrui_implementation_status"], "IMPLEMENTED")
+        self.assertIn("project-wide Comms5 grant does not authorize command execution",
+                      capability_names["command_task_submit"]["description"])
+        self.assertIn("32 KiB", help_names["command_task_submit"]["description"])
 
     def test_seven_day_grant_schema_validates_and_forwards_typed_duration(self):
         class GrantBackend:
@@ -422,6 +463,24 @@ class Comms5MCPTests(unittest.TestCase):
                         "command_agent_failure_unclassified") as caught:
                     backend._post_operation("comms5_command_task_submit", {})
             self.assertNotIn("bearer-secret-value", str(caught.exception))
+
+    def test_command_task_submit_uses_timeout_longer_than_gateway_deadline(self):
+        class Response:
+            status = 200
+            headers = type("Headers", (), {"get_content_type": lambda self: "application/json"})()
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, size): return b'{"status":"COMPLETED"}'
+
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("t" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            with patch.object(backend, "_open", return_value=Response()) as opened:
+                result = backend._post_operation("comms5_command_task_submit", {})
+            self.assertEqual(result["status"], "COMPLETED")
+            self.assertEqual(opened.call_args.kwargs["timeout"], 25.0)
 
     def test_dashboard_backend_sends_only_authenticated_fixed_read_request(self):
         class Response:

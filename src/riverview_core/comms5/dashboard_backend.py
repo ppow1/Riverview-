@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.2.1
+# Revision: 1.2.2
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
@@ -14,6 +14,7 @@
 # Changed: 2026-10-26 UTC | C1-COMMS5-DELEGATION-ROUTE | Route the four generalized delegation operations through the existing authenticated Dashboard operation contract.
 # Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Register host-scoped task command submit/status operations.
 # Changed: 2026-10-27 UTC | C1-COMMAND-AGENT-POST-DIAGNOSTIC | Preserve bounded agent HTTP status and sanitized error codes through the internal Comms5 operation result.
+# Changed: 2026-10-27 UTC | C1-ISSUE-356-COMMS5-RECOVERY | Allow bounded command submission to wait beyond its 12-second agent deadline while preserving the ordinary dashboard timeout.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
 
@@ -175,8 +176,8 @@ class DashboardReadBackend:
         self.timeout = float(timeout)
         self._opener = build_opener(_NoRedirect())
 
-    def _open(self, request):
-        return self._opener.open(request, timeout=self.timeout)
+    def _open(self, request, *, timeout=None):
+        return self._opener.open(request, timeout=self.timeout if timeout is None else timeout)
 
     def _post_operation(self, tool, arguments):
         request = Request(self._base_url + "/api/v1/internal/comms5/operation",
@@ -188,7 +189,12 @@ class DashboardReadBackend:
                      "X-Riverview-Comms5": "1",
                      "X-Riverview-Comms5-Principal": "steward"}, method="POST")
         try:
-            with self._open(request) as response:
+            # PowerShell startup and bounded host execution can exceed the ordinary
+            # three-second dashboard read timeout; leave margin over the 12-second
+            # Gateway execution deadline so Comms5 receives the durable result.
+            timeout = 25.0 if tool == "comms5_command_task_submit" else None
+            with (self._open(request, timeout=timeout) if timeout is not None
+                  else self._open(request)) as response:
                 if response.status != 200 or response.headers.get_content_type() != "application/json":
                     raise DashboardBackendUnavailable("dashboard_operation_http_status")
                 payload = response.read(1_048_577)

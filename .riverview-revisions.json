@@ -25,7 +25,7 @@
       "size_bytes": 1611115
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.348"
+      "revision": "1.1.349"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -8387,9 +8387,9 @@
     },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
-      "revision": "1.0.10",
-      "sha256": "84c728924d92004ad59e0bc304f69ab6489b616284fc83a510d08699738ed56b",
-      "size_bytes": 15111
+      "revision": "1.0.11",
+      "sha256": "2929c516cf8e53f1370a287184d483d459385032e869db8fb77ec45c412fa744",
+      "size_bytes": 17267
     },
     "src/riverview_core/comms5/server.py": {
       "path": "src/riverview_core/comms5/server.py",
@@ -8399,9 +8399,9 @@
     },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
-      "revision": "1.0.2",
-      "sha256": "a27b2fab391d6c8d7ca2657650a5bd7f25bba4a5f07f560f0c23a5a68858275a",
-      "size_bytes": 138740
+      "revision": "1.0.3",
+      "sha256": "d0ec1b0e59950a59a2b7b8c6dddff2f1361d328d754a028e75e5cd61d54fb359",
+      "size_bytes": 145163
     },
     "src/riverview_core/diagnostics.py": {
       "path": "src/riverview_core/diagnostics.py",
@@ -9347,9 +9347,9 @@
     },
     "tests/test_comms5_mcp.py": {
       "path": "tests/test_comms5_mcp.py",
-      "revision": "1.1.7",
-      "sha256": "f0f796aaf44bfc51fa0356029569423992d0b748251f4061a563d7d6537b8ed8",
-      "size_bytes": 24939
+      "revision": "1.1.8",
+      "sha256": "92caaef3edc8fe6eca2e31cb7eb07f2c401047eb54af34558123287e9ad0f20c",
+      "size_bytes": 36108
     },
     "tests/test_comms5_packaging.py": {
       "path": "tests/test_comms5_packaging.py",
@@ -9803,6 +9803,6 @@
     }
   },
   "manifest_revision": "1.1.340",
-  "revision": "1.1.348",
-  "updated_at": "2026-10-26T17:07:43+00:00"
+  "revision": "1.1.349",
+  "updated_at": "2026-10-27T01:54:11+00:00"
 }
