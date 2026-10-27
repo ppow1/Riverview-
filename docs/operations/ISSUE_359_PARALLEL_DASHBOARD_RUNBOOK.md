@@ -24,6 +24,50 @@ This document originally described an inactive parallel deployment. **Those hist
 - **Remaining acceptance blocker:** Command Gateway's SSH target name `camrui` does not resolve in its actual execution environment. Verify the registered host mapping and transport under Gateway service identity. Camrui LAN IP previously documented as `192.168.1.155`; verify before use. Do not change grants or database authorization to address SSH resolution. Test the same harmless command and retrieve durable status; require exit 0 and expected hostname/user/output before closing Issue #359.
 - ChatGPT's current Riverview Comms 1.1 interface exposes callable `comms5_command_task_submit` and `comms5_command_task_status`; another C2 session's tool catalog may differ. A Comms5 transport probe verifies the adapter path, **not** SSH host execution.
 
+
+### Steward browser-console approval procedure — verified 2026-10-27
+
+**Use this procedure for future authenticated delegation-grant decisions.** The Dashboard has no currently working Steward delegation-grant approval UI, so the signed-in Steward uses the browser's F12 Console at the trusted same-origin Riverview Dashboard page. This is an existing authenticated API path, not a bypass. Do not post approvals with only `credentials: 'same-origin'`: that sends the session cookie but omits the required CSRF header and returns HTTP 403 `csrf_or_session_check_failed`. Refreshing the page and repeating that incomplete request does not fix it.
+
+1. First use Comms5 `request_delegation_grant_change` for an **extend** request with the original grant ID, unchanged exact action, `host:camrui` scope and `policy:delegation.v1`, `duration_spec: {unit:'days',value:7}`, and the intended use limit. This creates a pending successor only; it does not approve it. Record each returned `request_id` and `request_sha256`.
+2. In the authenticated Riverview page console, read the existing browser-readable cookie `rv_account_csrf`, URL-decode its value, and send it as the `X-Riverview-CSRF` header. Keep `credentials:'same-origin'` so the HttpOnly account session cookie is sent automatically. Never extract or paste the session cookie or a service credential.
+3. POST to `/api/v1/steward/delegation-grant-requests/${encodeURIComponent(request_id)}/decision`, with `Accept: application/json`, `Content-Type: application/json`, and JSON body containing `decision:'approve'`, the **exact** `expected_request_sha256`, a unique idempotency key, and an approval reference. The Dashboard route normalization for encoded `delegation-request%3A...` was already deployed in `8325d3f`; do not alter that routing.
+4. Require HTTP 200 and response `status:'approved'` plus a new `grant_id` for each request. Stop on any non-200. Verify each new grant independently through Comms5 `get_delegation_grant_status`, including `active`, seven-day duration, exact action, scope, expiry, and superseded predecessor. If the backend is temporarily unavailable, record verification as pending rather than inventing success.
+
+Reusable console template (substitute **fresh pending request IDs, hashes, and idempotency keys**; never reuse the historical IDs below):
+
+```javascript
+(async () => {
+  const requests = [
+    {id: 'delegation-request:REPLACE_CALLER', hash: 'REPLACE_64_HEX_HASH', key: 'REPLACE_UNIQUE_CALLER_KEY'},
+    {id: 'delegation-request:REPLACE_EXECUTOR', hash: 'REPLACE_64_HEX_HASH', key: 'REPLACE_UNIQUE_EXECUTOR_KEY'}
+  ];
+  const cookie = document.cookie.split(';').map(x => x.trim())
+    .find(x => x.startsWith('rv_account_csrf='));
+  if (!cookie) { console.error('No rv_account_csrf cookie; sign in to this Dashboard origin'); return; }
+  const csrf = decodeURIComponent(cookie.slice('rv_account_csrf='.length));
+  if (!window.confirm('Approve the two exact pending delegation requests?')) return;
+  for (const r of requests) {
+    const response = await fetch('/api/v1/steward/delegation-grant-requests/' +
+      encodeURIComponent(r.id) + '/decision', {
+      method: 'POST', credentials: 'same-origin',
+      headers: {Accept:'application/json', 'Content-Type':'application/json', 'X-Riverview-CSRF':csrf},
+      body: JSON.stringify({decision:'approve', expected_request_sha256:r.hash,
+        idempotency_key:r.key, approval_ref:'Steward-approved exact delegation extension'})
+    });
+    const result = await response.json();
+    console.log(r.id, response.status, result);
+    if (!response.ok) { console.error('Stopping after failure'); return; }
+  }
+})();
+```
+
+**Actual 2026-10-27 seven-day extension results:** The first two browser scripts omitted `X-Riverview-CSRF` and returned 403. The corrected script returned HTTP 200 / `approved` for both:
+- Caller request `delegation-request:8a7be042c6ae42d9ba4c52eab1486f79`, SHA256 `1dbb87ea327ce21c70c13f97e5c60c62ce21544a4a7fb7d19efb5b2b231aa21d` → `grant:6422d222eca74cb3b328bf3a80384a59`. Independently verified ACTIVE by Comms5, seven days, exact standard Camrui submission action, unlimited uses, supersedes the two-hour caller grant. Recorded expiry `2026-11-03T16:53:06.887533-05:00`.
+- Executor request `delegation-request:ba2d8bf8d062498bbcfcfba5b7ecc73d`, SHA256 `0eb785b6c976eb21ea0f0bacb164a652ac128c9cbb609a502cf72d38fbfca5b9` → `grant:5a2ddafc2c04632a6882e5831fd892d`. Browser returned HTTP 200 / approved; subsequent Comms5 verification attempts returned `BACKEND_UNAVAILABLE`, so independently verified executor status remains pending.
+
+The seven-day successor expiry reported by the backend is based on the predecessor's expiry plus seven days, not necessarily seven days from the browser approval instant; rely on `valid_until` rather than assumptions about duration semantics. No engineering change was necessary to approve these requests.
+
 ### Immediate next steps
 
 1. Inspect and fix only the Command Gateway SSH target configuration / host resolution for `camrui`, including where the gateway actually runs. Avoid assuming the Camrui local shell and Gateway process share SSH configuration.
