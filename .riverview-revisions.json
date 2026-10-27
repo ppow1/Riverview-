@@ -25,7 +25,8 @@
       "size_bytes": 1611115
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.351"
+      "revision": "1.1.348",
+      "path": ".riverview-revisions.json"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -725,9 +726,9 @@
     },
     "docs/components/command-gateway/README.md": {
       "path": "docs/components/command-gateway/README.md",
-      "revision": "1.1.2",
-      "sha256": "7af8e2156d986924d1bc670729142d1163fa2d367df3ad432cd0450f00655f24",
-      "size_bytes": 22871
+      "revision": "1.1.3",
+      "sha256": "5a7ba3927ba6102f44f415a3a97fb1d4efcac4ec2555449c94781d2b788b5a8f",
+      "size_bytes": 23357
     },
     "docs/delegation-grants/examples.json": {
       "path": "docs/delegation-grants/examples.json",
@@ -7859,9 +7860,9 @@
     },
     "process_graphs/comms5/camrui-adapter.json": {
       "path": "process_graphs/comms5/camrui-adapter.json",
-      "revision": "1.0.17",
-      "sha256": "55b7d7fe484f88a3f34870803b0636dca9cebc28074fb420fc03b68a51a9333a",
-      "size_bytes": 24975
+      "revision": "1.0.18",
+      "sha256": "2d6107681588b0c40268bb9a474d20df723595e83dab1615ab93a882906469b6",
+      "size_bytes": 25381
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "path": "process_graphs/event-processor/assignment-progression.json",
@@ -7877,9 +7878,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.38",
-      "sha256": "a0a3814cd47ee88faccf398fb5bb64661f4d33a18a622111d6b94c67b62d6863",
-      "size_bytes": 785860
+      "revision": "1.1.39",
+      "sha256": "ae04ee30cbe3fa1612af272ce50ad607be7cfa547586428f655687ab9f9e8ad3",
+      "size_bytes": 786286
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -8381,15 +8382,15 @@
     },
     "src/riverview_core/comms5/command_gateway.py": {
       "path": "src/riverview_core/comms5/command_gateway.py",
-      "revision": "1.1.2",
-      "sha256": "aede1ee1b3e5c0af5fdbd5419277cffd44d2fb31857470a3448aaa9be291e88f",
-      "size_bytes": 57266
+      "revision": "1.1.3",
+      "sha256": "e1e384a10447c4ea324ad01293cf80ffecf078b00d017f19d92efc569b060f43",
+      "size_bytes": 58922
     },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
-      "revision": "1.2.2",
-      "sha256": "2929c516cf8e53f1370a287184d483d459385032e869db8fb77ec45c412fa744",
-      "size_bytes": 17267
+      "revision": "1.2.3",
+      "sha256": "d902c6a443283b6663f4e00e7bb7b50682b4085723b2f767887c1292bdd8e550",
+      "size_bytes": 17499
     },
     "src/riverview_core/comms5/server.py": {
       "path": "src/riverview_core/comms5/server.py",
@@ -8399,9 +8400,9 @@
     },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
-      "revision": "1.0.3",
-      "sha256": "a76fea0236b7e9ff00242760dd12db3a1cbdc43833bbc6dbd92e7911d45e2ec9",
-      "size_bytes": 146547
+      "revision": "1.0.4",
+      "sha256": "4d7cf965217af0ba9ab088f2f95368bfdc3286dcc5aa74ec81644b62b8f8e4b6",
+      "size_bytes": 150352
     },
     "src/riverview_core/diagnostics.py": {
       "path": "src/riverview_core/diagnostics.py",
@@ -8516,6 +8517,12 @@
       "revision": "1.0.0",
       "sha256": "be9769908c3e6b268dd8f2336eaf2b5eb23de1f5f861c181d679a4b330a0fb70",
       "size_bytes": 678
+    },
+    "src/riverview_core/institutional_authority/comms5_adapter.py": {
+      "revision": "1.3.1",
+      "path": "src/riverview_core/institutional_authority/comms5_adapter.py",
+      "sha256": "3de4be88fe9f5ab4254ebb38d59a7f1b652ad8123ddb5a7fe486c685dd96f9a8",
+      "size_bytes": 20032
     },
     "src/riverview_core/institutional_authority/db_boundary.py": {
       "path": "src/riverview_core/institutional_authority/db_boundary.py",
@@ -8643,6 +8650,12 @@
       "sha256": "00df3d49bd78bcbf26084bd84916b6664b2acb4eff2382d7aefe95c64e79fc4f",
       "size_bytes": 43194
     },
+    "src/riverview_core/institutional_authority/service_principal_credentials.py": {
+      "revision": "1.1.0",
+      "path": "src/riverview_core/institutional_authority/service_principal_credentials.py",
+      "sha256": "12a0ee6ad9dca0f8fdc2bc96ece58f25e31e8b001604dbb1e0eeafc85719a901",
+      "size_bytes": 8585
+    },
     "src/riverview_core/ledger.py": {
       "path": "src/riverview_core/ledger.py",
       "revision": "1.0.3",
@@ -8759,9 +8772,9 @@
     },
     "src/riverview_core/resident_execution/comms5_operations.py": {
       "path": "src/riverview_core/resident_execution/comms5_operations.py",
-      "revision": "1.1.0",
-      "sha256": "454f8a4a626a4f43d6f1ee7e2da9e5b73fdd339a8739f0515b4ba58b451b969b",
-      "size_bytes": 86710
+      "revision": "1.1.1",
+      "sha256": "997711eb1eb9cd4a69f585d0ff9ae3b632de4cb9b51e79eeb4ab38f7c1ce1d37",
+      "size_bytes": 87146
     },
     "src/riverview_core/resident_execution/conversation.py": {
       "path": "src/riverview_core/resident_execution/conversation.py",
@@ -8985,6 +8998,12 @@
       "sha256": "b036b4eff55025362d9f42f30e7a1cf8afd65559e720abba5ff010669304bb04",
       "size_bytes": 186
     },
+    "src/riverview_core/status_dashboard/delegation_routes.py": {
+      "revision": "1.2.0",
+      "path": "src/riverview_core/status_dashboard/delegation_routes.py",
+      "sha256": "273478d356709ed8eb63a551157b3fb3e1b4c193850b0965a7b2334a924b3c4c",
+      "size_bytes": 29456
+    },
     "src/riverview_core/status_dashboard/markdown.py": {
       "path": "src/riverview_core/status_dashboard/markdown.py",
       "revision": "1.0.2",
@@ -9005,9 +9024,9 @@
     },
     "src/riverview_core/status_dashboard/server.py": {
       "path": "src/riverview_core/status_dashboard/server.py",
-      "revision": "1.3.49",
-      "sha256": "f3b6de57e1c16b6e4bc736f4df0a526b7911df1d05ebb7a5ad0a7dcf321edbdb",
-      "size_bytes": 192526
+      "revision": "1.3.50",
+      "sha256": "310d0f1a9947bd5c295b574f8dd59ae4fce7df7d57947829145fe0814d827fac",
+      "size_bytes": 192735
     },
     "src/riverview_core/status_dashboard/snapshot_archive.py": {
       "path": "src/riverview_core/status_dashboard/snapshot_archive.py",
@@ -9329,15 +9348,15 @@
     },
     "tests/test_command_gateway.py": {
       "path": "tests/test_command_gateway.py",
-      "revision": "1.1.1",
-      "sha256": "30076a6580c55c846dd98f9f7f4e1693f3d4e429aadef416d62e4bad9189dbcf",
-      "size_bytes": 35792
+      "revision": "1.1.2",
+      "sha256": "b5e96b5742606a209863132a9fb5aebe792386f4352cfd0227bb9ec44e8bff88",
+      "size_bytes": 38100
     },
     "tests/test_comms5_current_runtime.py": {
       "path": "tests/test_comms5_current_runtime.py",
-      "revision": "1.0.9",
-      "sha256": "20cc2c4a7c10102742b06dbeb5309b63dead30ee6f77ccc061135cfa568e965f",
-      "size_bytes": 41491
+      "revision": "1.0.10",
+      "sha256": "8725f8cf28468858c300ac9f9d3d2d0e88ab0286374c6ad3756dde33f2a27486",
+      "size_bytes": 42496
     },
     "tests/test_comms5_deployment.py": {
       "path": "tests/test_comms5_deployment.py",
@@ -9347,9 +9366,9 @@
     },
     "tests/test_comms5_mcp.py": {
       "path": "tests/test_comms5_mcp.py",
-      "revision": "1.1.9",
-      "sha256": "d1bbf13fb1cf3b2c43f6c270f13aac1a3baa1797e7618445df0397a3334a15b0",
-      "size_bytes": 29883
+      "revision": "1.1.10",
+      "sha256": "07ec652f0a8d9130ec5cc35775e628c22265da13118b88dc5b66e42804cad028",
+      "size_bytes": 30735
     },
     "tests/test_comms5_packaging.py": {
       "path": "tests/test_comms5_packaging.py",
@@ -9368,6 +9387,18 @@
       "revision": "1.0.1",
       "sha256": "cfefc8d6b17e338662d17725481fcac3311cf4c587512800d7fc4a78c0aa88bf",
       "size_bytes": 11584
+    },
+    "tests/test_delegation_lifecycle_contract.py": {
+      "revision": "1.0.1",
+      "path": "tests/test_delegation_lifecycle_contract.py",
+      "sha256": "199d3d2a58f816071f56884e1be0e7f569055031d830d66de6380a1af136694d",
+      "size_bytes": 13587
+    },
+    "tests/test_delegation_routes.py": {
+      "revision": "1.0.3",
+      "path": "tests/test_delegation_routes.py",
+      "sha256": "b0f144bf4ec02634f68a252d1618adfc7f8bc66b4094f31f51d29c6b78c302c6",
+      "size_bytes": 29462
     },
     "tests/test_engineering_artifact.py": {
       "path": "tests/test_engineering_artifact.py",
@@ -9663,6 +9694,12 @@
       "sha256": "8caceaa011f5d66cd7d90c618301e4840a2de09070a7b9008cd42ac2d1b2c3e0",
       "size_bytes": 37039
     },
+    "tests/test_service_principal_credentials.py": {
+      "revision": "1.2.0",
+      "path": "tests/test_service_principal_credentials.py",
+      "sha256": "1639ac591f1a834d2bb35683ea21227d47d4b0c0d3ee923222d10ab3f930eaed",
+      "size_bytes": 6869
+    },
     "tests/test_snapshot_archive.py": {
       "path": "tests/test_snapshot_archive.py",
       "revision": "1.0.2",
@@ -9800,45 +9837,9 @@
       "revision": "1.0.36",
       "sha256": "4c94df2e11880bacd0ba88962f1f2561301f30d56e9d9449ca5599f222db5cca",
       "size_bytes": 84644
-    },
-    "src/riverview_core/institutional_authority/comms5_adapter.py": {
-      "revision": "1.3.1",
-      "path": "src/riverview_core/institutional_authority/comms5_adapter.py",
-      "sha256": "3de4be88fe9f5ab4254ebb38d59a7f1b652ad8123ddb5a7fe486c685dd96f9a8",
-      "size_bytes": 20032
-    },
-    "src/riverview_core/institutional_authority/service_principal_credentials.py": {
-      "revision": "1.1.0",
-      "path": "src/riverview_core/institutional_authority/service_principal_credentials.py",
-      "sha256": "12a0ee6ad9dca0f8fdc2bc96ece58f25e31e8b001604dbb1e0eeafc85719a901",
-      "size_bytes": 8585
-    },
-    "src/riverview_core/status_dashboard/delegation_routes.py": {
-      "revision": "1.2.0",
-      "path": "src/riverview_core/status_dashboard/delegation_routes.py",
-      "sha256": "273478d356709ed8eb63a551157b3fb3e1b4c193850b0965a7b2334a924b3c4c",
-      "size_bytes": 29456
-    },
-    "tests/test_delegation_lifecycle_contract.py": {
-      "revision": "1.0.1",
-      "path": "tests/test_delegation_lifecycle_contract.py",
-      "sha256": "199d3d2a58f816071f56884e1be0e7f569055031d830d66de6380a1af136694d",
-      "size_bytes": 13587
-    },
-    "tests/test_delegation_routes.py": {
-      "revision": "1.0.3",
-      "path": "tests/test_delegation_routes.py",
-      "sha256": "b0f144bf4ec02634f68a252d1618adfc7f8bc66b4094f31f51d29c6b78c302c6",
-      "size_bytes": 29462
-    },
-    "tests/test_service_principal_credentials.py": {
-      "revision": "1.2.0",
-      "path": "tests/test_service_principal_credentials.py",
-      "sha256": "1639ac591f1a834d2bb35683ea21227d47d4b0c0d3ee923222d10ab3f930eaed",
-      "size_bytes": 6869
     }
   },
-  "manifest_revision": "1.1.342",
-  "revision": "1.1.351",
-  "updated_at": "2026-10-27T03:05:13+00:00"
+  "manifest_revision": "1.1.348",
+  "revision": "1.1.356",
+  "updated_at": "2026-10-27T13:22:54+00:00"
 }

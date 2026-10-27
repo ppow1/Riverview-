@@ -1,6 +1,6 @@
 """Focused tests for Comms5 operations on current Riverview services.
 
-File Revision: 1.0.9
+File Revision: 1.0.10
 Component: COMMS5-CURRENT-RUNTIME-OPERATIONS-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify intent/authority projection and combined durable objective/proposal listing.
@@ -11,6 +11,7 @@ Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Cover persisted policy
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Count the four bounded Steward exchange operations in live backend implementation status.
 Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Account for preserved direct dispatch and fixed command gateway tools.
 Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Route async task operations through the existing host-scoped grant boundary.
+Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Verify Comms5 cancellation dispatch stays within the same host-scoped Gateway boundary.
 """
 
 import unittest
@@ -178,6 +179,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
             def submit_task(self, principal, arguments):
                 return {"status": "queued", "principal": principal,
                         "host_id": arguments["host_id"]}
+            def cancel_task(self, principal, arguments):
+                return {"status": "cancelled", "principal": principal,
+                        "host_id": arguments["host_id"]}
 
         grant_authority = object()
         pipeline = SimpleNamespace(authorizer=object(), ledger=SimpleNamespace(db=object()))
@@ -192,6 +196,14 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
                 principal_id="service:chatgpt", delegated_authorized=True)
         self.assertEqual(result, {"status": "queued", "principal": "service:chatgpt",
                                   "host_id": "camrui"})
+        self.assertIs(factory.call_args.kwargs["command_grant_authority"], grant_authority)
+        cancel_arguments = {"host_id": "camrui", "command_sha256": "a" * 64,
+            "privilege_level": "standard", "idempotency_key": "async-route-cancel-test"}
+        with patch.object(WindowsCommandGateway, "from_environment", return_value=Gateway()) as factory:
+            cancelled = operations.execute("comms5_command_task_cancel", cancel_arguments,
+                principal_id="service:chatgpt", delegated_authorized=True)
+        self.assertEqual(cancelled, {"status": "cancelled", "principal": "service:chatgpt",
+                                     "host_id": "camrui"})
         self.assertIs(factory.call_args.kwargs["command_grant_authority"], grant_authority)
 
     def test_experiment_grant_requires_one_explicit_attested_steward_action(self):
@@ -571,9 +583,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 41)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 42)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(41 - len(status), 0)
+        self.assertEqual(42 - len(status), 0)
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler

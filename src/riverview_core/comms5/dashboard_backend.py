@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.2.2
+# Revision: 1.2.3
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
@@ -15,6 +15,7 @@
 # Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Register host-scoped task command submit/status operations.
 # Changed: 2026-10-27 UTC | C1-COMMAND-AGENT-POST-DIAGNOSTIC | Preserve bounded agent HTTP status and sanitized error codes through the internal Comms5 operation result.
 # Changed: 2026-10-27 UTC | C1-ISSUE-356-COMMS5-RECOVERY | Allow bounded command submission to wait beyond its 12-second agent deadline while preserving the ordinary dashboard timeout.
+# Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Expose bounded host-task cancellation through the authenticated Dashboard operation bridge.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
 
@@ -59,6 +60,7 @@ _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_request_delegation_grant", "comms5_get_delegation_grant_status",
     "comms5_revoke_delegation_grant", "comms5_request_delegation_grant_change",
     "comms5_command_task_submit", "comms5_command_task_status",
+    "comms5_command_task_cancel",
     "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
     "reasoning_exchange_submit_response", "reasoning_exchange_status",
 }
@@ -122,6 +124,7 @@ class DashboardReadBackend:
         "comms5_request_delegation_grant_change": "IMPLEMENTED",
         "comms5_command_task_submit": "IMPLEMENTED",
         "comms5_command_task_status": "IMPLEMENTED",
+        "comms5_command_task_cancel": "IMPLEMENTED",
         "reasoning_exchange_list_requests": "IMPLEMENTED",
         "reasoning_exchange_claim_request": "IMPLEMENTED",
         "reasoning_exchange_submit_response": "IMPLEMENTED",

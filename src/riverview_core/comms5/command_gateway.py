@@ -1,9 +1,10 @@
 """Bounded Windows PowerShell/SSH command gateway for Comms5.
 
-File Revision: 1.1.2
+File Revision: 1.1.3
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY
 Authority: Existing AuthorityRegistry grants and systemd-loaded service credential.
 Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Add durable asynchronous execution, cancellation, deadlines, and recovery under existing host-scoped grants.
+Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Preserve bounded agent HTTP diagnostics and bind cancellation to the submitted command digest before dispatch.
 
 Authorization remains in Riverview's AuthorityRegistry; the Windows agent
 persists bounded execution records and never receives credentials from Comms5.
@@ -378,8 +379,22 @@ class WindowsCommandGateway:
             raise
         idem = self._idempotency(principal, operation + ":" + arguments["host_id"],
                                  arguments["idempotency_key"])
+        existing = self.agent.status(idem, principal, operation)
+        if (not isinstance(existing, dict) or
+                existing.get("execution_status") == "not_found" or
+                existing.get("command_sha256") != digest or
+                existing.get("host_id") != arguments["host_id"] or
+                existing.get("privilege_level") != privilege):
+            return {"status": "not_found", "executed": False, "host_id": arguments["host_id"],
+                    "privilege_level": privilege, "command_sha256": digest,
+                    "authorization_evidence": {"principal_id": principal,
+                        "caller_grant_id": caller["grant_id"], "action": caller_action,
+                        "scope_ref": scope}}
         result = self.agent.cancel(idem, principal, operation)
-        if result.get("execution_status") == "not_found" or result.get("command_sha256") != digest:
+        if (not isinstance(result, dict) or result.get("execution_status") == "not_found" or
+                result.get("command_sha256") != digest or
+                result.get("host_id") != arguments["host_id"] or
+                result.get("privilege_level") != privilege):
             return {"status": "not_found", "executed": False, "host_id": arguments["host_id"],
                     "privilege_level": privilege, "command_sha256": digest,
                     "authorization_evidence": {"principal_id": principal,
@@ -462,7 +477,18 @@ class WindowsCommandAgentClient:
                 if response.status not in {200, 201} or response.headers.get_content_type() != "application/json":
                     raise CommandAgentUnavailable("command_agent_http_status")
                 payload = response.read(MAX_BODY_BYTES + 1)
-        except (HTTPError, URLError, TimeoutError, OSError):
+        except HTTPError as exc:
+            try:
+                value = json.loads(exc.read(4096))
+                code = value.get("error") if isinstance(value, dict) else None
+            except Exception:
+                code = None
+            if not isinstance(code, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code):
+                code = "unclassified_agent_error"
+            status = exc.code if isinstance(exc.code, int) and 400 <= exc.code <= 599 else 0
+            raise CommandAgentUnavailable(
+                f"command_agent_http_{status}_{code}") from None
+        except (URLError, TimeoutError, OSError):
             raise CommandAgentUnavailable("command_agent_unavailable") from None
         if len(payload) > MAX_BODY_BYTES:
             raise CommandAgentUnavailable("command_agent_response_too_large")

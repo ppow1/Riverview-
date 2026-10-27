@@ -1,8 +1,8 @@
-<!-- Document Revision: 1.1.2 -->
+<!-- Document Revision: 1.1.3 -->
 
 # Riverview Command Gateway
 
-The Gateway exposes fixed diagnostic probes and two task-specific command tools
+The Gateway exposes fixed diagnostic probes and three task-specific command tools
 through the existing authenticated Comms5 and Windows agent path. The fixed
 diagnostic operations remain:
 
@@ -11,8 +11,9 @@ diagnostic operations remain:
 | `powershell_identity` | `DESKTOP-JA3RPNQ` | Standard user | Returns the computer name and PowerShell version. |
 | `ssh_camrui_hostname` | `camrui` | Standard user | Runs the fixed remote `hostname` probe using Windows OpenSSH. |
 
-Task commands are accepted only by `comms5_command_task_submit`; the host ID
-selects a fixed PowerShell or SSH transport. The Gateway never accepts caller
+Task commands use `comms5_command_task_submit`, `comms5_command_task_status`,
+and `comms5_command_task_cancel`; the host ID selects a fixed PowerShell or SSH
+transport. The Gateway never accepts caller
 selected addresses, usernames, executable paths, or credentials. Host-scoped
 grants separately authorize standard or elevated execution. Windows elevated
 execution is not implemented until its OS privilege boundary is commissioned.
@@ -381,6 +382,19 @@ Example submit arguments (the Comms5 route supplies the authenticated caller):
 }
 ```
 
+Cancel the same task by submitting its host, command digest, privilege class,
+and original idempotency key. Cancellation rechecks the active host-scoped
+caller grant. It consumes no additional execution grant.
+
+```json
+{
+  "host_id": "desktop-ja3rpnq",
+  "command_sha256": "<sha256 returned by submit>",
+  "privilege_level": "standard",
+  "idempotency_key": "task-2026-10-26-001"
+}
+```
+
 Poll using the returned command digest and the same caller-supplied idempotency
 key. Status and cancellation both recheck the same host-scoped caller grant.
 
@@ -396,10 +410,10 @@ key. Status and cancellation both recheck the same host-scoped caller grant.
 `comms5_command_task_status` returns `queued`, `running`, `completed`, `failed`,
 `timed_out`, `cancelled`, or `interrupted`, with timestamps, bounded output,
 exit code, execution/task ID, authorization evidence, and the latest audit event
-identifier. The Gateway's `cancel_task` operation and authenticated agent
-DELETE endpoint provide idempotent cancellation. Comms5 publishes task submit
-and status tools; cancellation remains available through the authenticated
-agent API. Queued work becomes `cancelled`;
+identifier. `comms5_command_task_cancel` routes through the existing
+`WindowsCommandGateway.cancel_task` and authenticated agent DELETE endpoint.
+It is idempotent, binds the request to the original command digest, and returns
+the bounded task result and durable cancellation audit event. Queued work becomes `cancelled`;
 running work receives a cancellation signal and its process is terminated.
 Completed work is returned unchanged.
 

@@ -1,8 +1,9 @@
 """Focused tests for the bounded Comms5 Windows command gateway.
 
-File Revision: 1.1.1
+File Revision: 1.1.2
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY-TESTS
 Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Verify long execution, polling, cancellation, idempotency, revocation, and restart recovery.
+Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Verify digest-bound Comms5 cancellation and bounded agent diagnostics.
 """
 
 import json
@@ -27,6 +28,7 @@ from riverview_core.comms5.command_gateway import (
     TASK_HOSTS,
     WindowsCommandAgentStore,
     WindowsCommandGateway,
+    WindowsCommandAgentClient,
     _run_windows_operation,
     _validate_agent_request,
     create_agent_handler,
@@ -257,9 +259,12 @@ class CommandGatewayTests(unittest.TestCase):
 
     def test_task_cancel_requires_same_host_caller_grant(self):
         agent = Mock()
+        agent.status.return_value = {"execution_id": "exec-task", "execution_status": "running",
+            "host_id": "camrui", "privilege_level": "standard", "command_sha256": "d" * 64}
         agent.cancel.return_value = {"execution_id": "exec-task", "execution_status": "cancelled",
             "stdout": "", "stderr": "", "exit_code": None, "audit_event_id": "audit-cancel",
-            "idempotency_key": "cmd-key", "host_id": "camrui", "command_sha256": "d" * 64,
+            "idempotency_key": "cmd-key", "host_id": "camrui", "privilege_level": "standard",
+            "command_sha256": "d" * 64,
             "execution_grant_id": "executor", "reservation_id": "reservation"}
         authorizer = _Authorizer()
         gateway = WindowsCommandGateway(authority_registry=_AuthorityRegistry(), authorizer=authorizer,
@@ -270,11 +275,42 @@ class CommandGatewayTests(unittest.TestCase):
             "idempotency_key": "key-cancel"})
         self.assertEqual(value["status"], "cancelled")
         self.assertEqual(value["task_id"], "exec-task")
+        self.assertEqual(value["audit_evidence"]["audit_event_id"], "audit-cancel")
         self.assertEqual(authorizer.calls, [("steward:camrui",
             "comms5.command.submit.task.camrui.standard", "host:camrui")])
+        agent.status.assert_called_once_with("cmd-" + __import__("hashlib").sha256(
+            b"steward:camrui\0command_task_standard:camrui\0key-cancel").hexdigest(),
+            "steward:camrui", "command_task_standard")
         agent.cancel.assert_called_once_with("cmd-" + __import__("hashlib").sha256(
             b"steward:camrui\0command_task_standard:camrui\0key-cancel").hexdigest(),
             "steward:camrui", "command_task_standard")
+
+    def test_task_cancel_checks_digest_before_sending_cancellation(self):
+        agent = Mock()
+        agent.status.return_value = {"execution_id": "exec-task", "execution_status": "running",
+            "host_id": "camrui", "privilege_level": "standard", "command_sha256": "a" * 64}
+        authorizer = _Authorizer()
+        gateway = WindowsCommandGateway(authority_registry=_AuthorityRegistry(), authorizer=authorizer,
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=_AuthorityRegistry())
+        value = gateway.cancel_task("steward:camrui", {"host_id": "camrui",
+            "command_sha256": "d" * 64, "privilege_level": "standard",
+            "idempotency_key": "key-cancel-mismatch"})
+        self.assertEqual(value["status"], "not_found")
+        agent.cancel.assert_not_called()
+
+    def test_agent_http_diagnostics_keep_only_bounded_status_and_code(self):
+        body = io.BytesIO(b'{"error":"agent_task_running","secret":"must-not-escape"}')
+        client = object.__new__(WindowsCommandAgentClient)
+        client.url = "https://desktop-ja3rpnq:8443"
+        client.token = "x" * 48
+        client.timeout = 5
+        client.opener = Mock()
+        client.opener.open.side_effect = HTTPError(client.url, 409, "Conflict", {}, body)
+        with self.assertRaises(CommandAgentUnavailable) as raised:
+            client._request("DELETE", "/v1/commands/by-key/test")
+        self.assertEqual(str(raised.exception), "command_agent_http_409_agent_task_running")
+        self.assertNotIn("must-not-escape", str(raised.exception))
 
     def test_task_store_persists_only_digest_and_rejects_changed_idempotent_replay(self):
         with tempfile.TemporaryDirectory() as directory:

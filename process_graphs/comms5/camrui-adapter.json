@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.17",
+  "graph_revision": "1.0.18",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -455,17 +455,22 @@
     },
     {
       "id": "rv:comms5:camrui-adapter:host-command-status-cancel",
-      "node_revision": "1.0.0",
+      "node_revision": "1.0.1",
       "type": "verification",
-      "label": "Recheck exact caller host/privilege grant and bind status/cancel to caller, operation, host, idempotency key, and command digest.",
+      "label": "Expose Comms5 task status and cancellation through the existing Gateway; recheck the exact caller host/privilege grant and bind each request to caller, operation, host, idempotency key, and command digest.",
       "source_references": [
-        "src/riverview_core/comms5/command_gateway.py"
+        "src/riverview_core/comms5/command_gateway.py",
+        "src/riverview_core/resident_execution/comms5_operations.py",
+        "src/riverview_core/comms5/dashboard_backend.py",
+        "src/riverview_core/status_dashboard/server.py"
       ],
       "documentation_references": [
         "docs/components/command-gateway/README.md"
       ],
       "verification_evidence": [
-        "tests/test_command_gateway.py"
+        "tests/test_command_gateway.py",
+        "tests/test_comms5_current_runtime.py",
+        "tests/test_comms5_mcp.py"
       ]
     }
   ],
@@ -622,7 +627,7 @@
       "from": "rv:comms5:camrui-adapter:host-command-status-cancel",
       "to": "rv:comms5:camrui-adapter:host-command-background-worker",
       "type": "runtime_transition",
-      "label": "authorized cancellation cancels queued work or signals running process"
+      "label": "Comms5 caller-authorized cancellation cancels queued work or signals a running process and returns its bounded durable audit result"
     }
   ]
 }

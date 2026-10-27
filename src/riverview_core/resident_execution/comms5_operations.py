@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -17,6 +17,7 @@
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Route four advisory exchange tools through an explicit authenticated Steward bridge.
 # Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Dispatch fixed command operations after existing authenticated Steward/delegation checks.
 # Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Dispatch host-task submit/status through the existing exact-grant Gateway and allow only host-scoped delegated operations.
+# Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Expose authenticated, host-scoped task cancellation through Comms5.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md; Comms5 contract 5.0
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -38,6 +39,7 @@ from ..comms5.delegation_policy import is_delegable_tool
 HOST_SCOPED_COMMAND_TOOLS = frozenset({
     "comms5_command_submit", "comms5_command_status",
     "comms5_command_task_submit", "comms5_command_task_status",
+    "comms5_command_task_cancel",
 })
 
 from .proposals import ProposalConflict
@@ -78,6 +80,7 @@ class Comms5Operations:
         "comms5_revoke_delegation_grant", "comms5_request_delegation_grant_change",
         "comms5_command_submit", "comms5_command_status",
         "comms5_command_task_submit", "comms5_command_task_status",
+        "comms5_command_task_cancel",
         "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
         "reasoning_exchange_submit_response", "reasoning_exchange_status",
     })
@@ -226,7 +229,11 @@ class Comms5Operations:
                 return gateway.status(actor, arguments)
             if tool == "comms5_command_task_submit":
                 return gateway.submit_task(actor, arguments)
-            return gateway.task_status(actor, arguments)
+            if tool == "comms5_command_task_status":
+                return gateway.task_status(actor, arguments)
+            if tool == "comms5_command_task_cancel":
+                return gateway.cancel_task(actor, arguments)
+            raise ValueError("command_gateway_operation_not_supported")
         if tool == "comms5_authorize_grace_experiment":
             if arguments.get("explicit_steward_confirmation") is not True:
                 raise PermissionError("explicit Steward confirmation is required")
