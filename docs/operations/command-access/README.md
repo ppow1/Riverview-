@@ -1,3 +1,5 @@
+<!-- Document Revision: 1.0.0 -->
+
 # ChatGPT ↔ Riverview Command Access — commissioning record v0.1
 
 > **PROVISIONAL, 2026-10-26.** This records the working Windows path and the commissioning chronology. Facts labeled *reported* came from Windows/Camrui Codex and require source/configuration reconciliation. Do not store bearer values, private keys, or credentials in Git. This is **not yet a complete reproducible installation manual**. See [verification punch list](PUNCH_LIST.md).
@@ -22,7 +24,7 @@
 
 Original conversation exposed 39 MCP tools; updated connector advertises 41, including `comms5_command_task_submit` and `comms5_command_task_status`. Older `comms5_command_submit/status` were fixed-operation probes, not general command execution. Fresh ChatGPT session initially refreshed schema; later this session also showed all 41. `comms5_capabilities` operation count is **not** MCP tool count. Tool registration, schema publication, OAuth verified caller attestation, and client schema-refresh mechanics require source verification.
 
-Task submit parameters: `host_id`, task-specific `command`, `privilege_level`, `execution_grant_id`, `idempotency_key`. Windows standard is operational; Windows elevated unsupported. Current synchronous execution timeout 12 seconds; max output 32 KiB each stream; command 8000 UTF-8 bytes. Durable idempotent command digest, status lookup and execution audit.
+Task submit parameters: `host_id`, task-specific `command`, `privilege_level`, `execution_grant_id`, `idempotency_key`. Windows standard is operational; Windows elevated unsupported. The live behavior recorded above had a 12-second synchronous limit. [PR #358](https://github.com/ppow1/Riverview-/pull/358) implements a separate asynchronous backend: it waits up to 2 seconds for fast results, then returns queued/running task IDs for status polling; the task deadline defaults to one hour (configurable up to 24 hours). It retains the 32 KiB per-stream output limit and 8,000-byte command bound, stores the command digest rather than command text, supports caller-authorized cancellation, and marks unfinished tasks interrupted on agent restart rather than replaying them. This code is not merged or deployed; C1's route restoration in #356 and a live >12-second acceptance remain outstanding.
 
 ## AuthorityRegistry and website Steward approvals
 
@@ -55,7 +57,7 @@ Both requests approved 2026-10-26 ~19:55 EDT and confirmed through `comms5_get_d
 
 ## Next phase (not yet commissioned)
 
-Camrui SSH task execution: verify actual agent SSH account, pinned host key and authorized noninteractive identity, host mapping, command handler, Camrui-specific caller/executor grants and sudo boundary for elevated commands. Do not claim operational until ChatGPT submits and receives an actual SSH command. Windows elevated PowerShell and async long jobs remain separate work.
+Camrui SSH task execution: verify actual agent SSH account, pinned host key and authorized noninteractive identity, host mapping, command handler, Camrui-specific caller/executor grants and sudo boundary for elevated commands. Do not claim operational until ChatGPT submits and receives an actual SSH command. Async execution is implemented for review in #358 but awaits #356 route integration, merge, and live >12-second acceptance. Windows elevated PowerShell remains separate work.
 
 ## Documentation evidence and completion
 

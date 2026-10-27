@@ -1,3 +1,5 @@
+<!-- Document Revision: 1.0.0 -->
+
 # Command access — mechanism verification checklist (v0.1)
 
 Status convention: OPEN / VERIFIED / BLOCKED. Record evidence URL, exact source file/line or host read-only command, reviewer, date, and resulting runbook edit. **This is not Riverview's general punch list or project backlog.** The website access-automation effort is tracked in [Parking Lot issue #355](https://github.com/ppow1/Riverview-/issues/355), with grant lifecycle in #343 and website prioritization in #268. Do not block publishing v0.1 for open research items.
@@ -13,5 +15,5 @@ Status convention: OPEN / VERIFIED / BLOCKED. Record evidence URL, exact source 
 - [ ] **P1 — Test 1-day, 7-day, 3-month and custom durations.** Verify approval-time clock, actual expiration and independent use-limit, renewal, revocation and reauthorization without reinstalling agent.
 - [ ] **P1 — Recovery acceptance.** Windows reboot/autostart, Camrui service restart, agent unavailable, expired grant, invalid token, stale schema, task status 0x41301, denial 0xC000015B, rollback and failure audit.
 - [ ] **P1 — Camrui SSH commissioning.** Exact host map, agent SSH user/key/known_hosts, noninteractive sudo policy if elevated, two Camrui grant actions, first live ChatGPT command and audit.
-- [ ] **P2 — Document current long-running job limitations for future planning.** Replace/augment 12-second synchronous limit with durable asynchronous task status, bounded output and cancellation; do not block working short commands.
+- [ ] **P2 — Commission durable asynchronous tasks.** Backend, bounded output, idempotent status, cancellation, separate job deadline and restart recovery are implemented for review in [PR #358](https://github.com/ppow1/Riverview-/pull/358). Await C1 route restoration in #356, merge/deployment, and live >12-second task plus Codex acceptance; retain the 12-second limitation until that live path passes.
 - [ ] **P2 — Document Windows elevated command boundary for future planning.** Define separate supported elevation boundary, policy and owner authorization; do not treat existing standard grant as admin permission.
