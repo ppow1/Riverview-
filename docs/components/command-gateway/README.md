@@ -1,18 +1,21 @@
-<!-- Document Revision: 1.0.0 -->
+<!-- Document Revision: 1.1.1 -->
 
 # Riverview Command Gateway
 
-C2 adds two authenticated Comms5 connector tools backed by a fixed-operation
-Windows agent. The initial operations are:
+The Gateway exposes fixed diagnostic probes and two task-specific command tools
+through the existing authenticated Comms5 and Windows agent path. The fixed
+diagnostic operations remain:
 
 | Operation | Fixed target | Privilege | Effect |
 | --- | --- | --- | --- |
 | `powershell_identity` | `DESKTOP-JA3RPNQ` | Standard user | Returns the computer name and PowerShell version. |
 | `ssh_camrui_hostname` | `camrui` | Standard user | Runs the fixed remote `hostname` probe using Windows OpenSSH. |
 
-No shell, executable path, script body, SSH host, username, or privilege value
-is accepted from the caller. The operation selects those values on the server.
-Administrative operations are not implemented.
+Task commands are accepted only by `comms5_command_task_submit`; the host ID
+selects a fixed PowerShell or SSH transport. The Gateway never accepts caller
+selected addresses, usernames, executable paths, or credentials. Host-scoped
+grants separately authorize standard or elevated execution. Windows elevated
+execution is not implemented until its OS privilege boundary is commissioned.
 
 ## Authorization and audit
 
@@ -39,8 +42,10 @@ Steward-controlled AuthorityRegistry grant process.
 
 The execution grant is checked when its use is reserved and again directly
 before HTTPS dispatch. Revocation or expiry before dispatch releases the
-reservation and denies the call. A command already dispatched is short-lived,
-read-only work and cannot be recalled after it starts.
+reservation and denies the call. Once the agent accepts the durable task, the
+grant use is consumed. Later revocation does not rewrite that audit record or
+silently terminate dispatched work; an authorized caller may request task
+cancellation while it is queued or running.
 
 Each result includes the caller and execution grant IDs, reservation ID,
 execution ID, agent audit event ID, operation, host, privilege level, bounded
@@ -49,10 +54,11 @@ SQLite execution ledger and append-only event rows. That file contains execution
 records, not authority data; AuthorityRegistry remains the sole authorization
 source. Agent restart marks an unfinished execution `interrupted`.
 
-The idempotency key is bound to caller and operation. Reusing it replays the
-same result; changing operation or request data conflicts. A new call reserves a
-new delegated use. A connection failure after reservation is treated as an
-unknown dispatch outcome; the reservation is not silently released.
+The idempotency key is bound to caller, host, privilege class, and request
+digest. Reusing an accepted key returns the same task and does not reserve or
+consume another delegated use; changing the command or scope conflicts. A
+connection failure after reservation is treated as an unknown dispatch
+outcome; the reservation is not silently released.
 
 ## Comms5 examples
 
@@ -87,8 +93,13 @@ Read a result, including after a transport retry:
 
 The response has `status`, `execution_id`, `stdout`, `stderr`, `exit_code`,
 `authorization_evidence`, and `audit_evidence`. Command output is limited to
-32 KiB per stream. The agent command deadline is 12 seconds; the Comms5-to-agent
-request deadline is 20 seconds.
+32 KiB per stream. Fixed diagnostic probes retain their 12-second process
+deadline. Command tasks have a separate execution deadline: one hour by
+default, configurable on the agent with
+`RIVERVIEW_COMMAND_JOB_TIMEOUT_SECONDS` from 1 to 86,400 seconds. The agent
+waits at most 2 seconds for an immediate result; if the task is still active,
+submission returns `queued` or `running` with its durable `execution_id` and
+`task_id`. This leaves room inside the 20-second Comms5-to-agent HTTP deadline.
 
 ## Windows agent setup
 
@@ -296,6 +307,8 @@ $env:RIVERVIEW_COMMAND_AGENT_DB = Join-Path $Base 'data\executions.sqlite3'
 $env:RIVERVIEW_COMMAND_AGENT_TOKEN_FILE = Join-Path $Base 'secrets\agent.token'
 $env:RIVERVIEW_COMMAND_AGENT_CERT_FILE = Join-Path $Base 'secrets\agent.crt'
 $env:RIVERVIEW_COMMAND_AGENT_KEY_FILE = Join-Path $Base 'secrets\agent.key'
+$env:RIVERVIEW_COMMAND_JOB_TIMEOUT_SECONDS = '3600'
+$env:RIVERVIEW_COMMAND_RETENTION_DAYS = '30'
 & "$env:ProgramFiles\Python312\python.exe" `
   "$env:ProgramFiles\Riverview\CommandGateway\scripts\run_windows_command_agent.py"
 ```
@@ -332,3 +345,118 @@ reservation/consumption audit events in the canonical AuthorityRegistry. Do
 not claim acceptance until both responses and both Registry audit records are
 captured. Installing the Dashboard credential drop-in and restarting its
 service remains subject to the normal authorized deployment procedure.
+
+
+## Task-specific PowerShell and SSH commands
+
+The task interface uses the same Gateway, Windows HTTPS agent, AuthorityRegistry
+reservation/consumption, and SQLite audit ledger as the fixed probes. Host IDs
+are a closed server-side mapping: `desktop-ja3rpnq` uses
+PowerShell; `camrui`, `octominer1`, and `octominer2` use administrator-configured
+OpenSSH aliases. A caller cannot supply a network address, username, executable,
+credential, or alternate transport. SSH must use strict pinned host keys, batch
+mode, no forwarding, and no TTY.
+
+A command is at most 8,000 UTF-8 bytes. The agent persists the host, transport,
+privilege class, caller/grant/reservation identifiers, command SHA-256, task
+deadline, status, bounded result, timestamps, cancellation state, and
+append-only audit events. Command text is held only in worker memory and is not
+stored in SQLite. The durable queue row is committed before the agent starts
+the worker. A single bounded worker and a 100-task outstanding queue prevent
+unbounded execution fan-out. Completed records and their audit rows are
+retained for 30 days by default (`RIVERVIEW_COMMAND_RETENTION_DAYS`, 1–365).
+
+Example submit arguments (the Comms5 route supplies the authenticated caller):
+
+```json
+{
+  "host_id": "desktop-ja3rpnq",
+  "command": "Get-Date -Format o",
+  "privilege_level": "standard",
+  "execution_grant_id": "<active exact execution grant>",
+  "idempotency_key": "task-2026-10-26-001"
+}
+```
+
+Poll using the returned command digest and the same caller-supplied idempotency
+key. Status and cancellation both recheck the same host-scoped caller grant.
+
+```json
+{
+  "host_id": "desktop-ja3rpnq",
+  "command_sha256": "<sha256 returned by submit>",
+  "privilege_level": "standard",
+  "idempotency_key": "task-2026-10-26-001"
+}
+```
+
+`comms5_command_task_status` returns `queued`, `running`, `completed`, `failed`,
+`timed_out`, `cancelled`, or `interrupted`, with timestamps, bounded output,
+exit code, execution/task ID, authorization evidence, and the latest audit event
+identifier. The Gateway's `cancel_task` operation and authenticated agent
+DELETE endpoint provide idempotent cancellation; catalog and route exposure
+remain with C1's separate Comms5 restoration. Queued work becomes `cancelled`;
+running work receives a cancellation signal and its process is terminated.
+Completed work is returned unchanged.
+
+After an agent restart, queued and running records become `interrupted` with an
+audit event. Since command text is not persisted, unfinished work is never
+silently replayed; resubmission needs a new idempotency key and fresh grant.
+Completed results remain pollable during retention. Fast fixed probes continue
+to return their immediate result as before.
+
+### Required exact grants
+
+For each target host, issue two separate grants on `host:<host_id>` under
+`policy:delegation.v1`: one to the authenticated Comms5 principal for the caller
+action, and one to `service:command-gateway` for the execution action. Standard
+and elevated classes are independent. These are exact host grants; the
+`project:Riverview` `comms5.operations.non_destructive.v1` grant does not
+authorize shell access.
+
+| Host | Standard caller action | Standard executor action | Elevated caller action | Elevated executor action |
+| --- | --- | --- | --- | --- |
+| `desktop-ja3rpnq` | `comms5.command.submit.task.desktop-ja3rpnq.standard` | `comms5.command.execute.task.desktop-ja3rpnq.standard` | `comms5.command.submit.task.desktop-ja3rpnq.elevated` | `comms5.command.execute.task.desktop-ja3rpnq.elevated` |
+| `camrui` | `comms5.command.submit.task.camrui.standard` | `comms5.command.execute.task.camrui.standard` | `comms5.command.submit.task.camrui.elevated` | `comms5.command.execute.task.camrui.elevated` |
+| `octominer1` | `comms5.command.submit.task.octominer1.standard` | `comms5.command.execute.task.octominer1.standard` | `comms5.command.submit.task.octominer1.elevated` | `comms5.command.execute.task.octominer1.elevated` |
+| `octominer2` | `comms5.command.submit.task.octominer2.standard` | `comms5.command.execute.task.octominer2.standard` | `comms5.command.submit.task.octominer2.elevated` | `comms5.command.execute.task.octominer2.elevated` |
+
+Each grant must be separately approved through the current Steward workflow. The
+caller action grant belongs to the actual OAuth-verified Comms5 principal. The
+executor grant belongs to `service:command-gateway`. Status retrieval requires
+the same active caller action grant. A finite or unlimited use count and expiry
+are set through the existing grant lifecycle.
+
+Example submit:
+
+```json
+{
+  "host_id": "camrui",
+  "command": "hostname && systemctl is-active riverview-status-dashboard.service",
+  "privilege_level": "standard",
+  "execution_grant_id": "<active service:command-gateway grant>",
+  "idempotency_key": "camrui-health-check-20261026-01"
+}
+```
+
+For status, supply the same `host_id`, `privilege_level`, and `idempotency_key`,
+plus the SHA-256 digest returned by the submit result as `command_sha256`. The
+result returns bounded output, exit code, execution ID, grant references, and
+audit event ID.
+
+### Elevated execution limits and commissioning
+
+The `elevated` class requires separate host-specific caller and executor grants.
+SSH elevated requests run `sudo -n -- sh -lc <command>` and therefore fail
+closed unless the target account's approved sudo policy permits that exact
+execution. Standard SSH accounts must have no sudo rights. The Windows agent
+currently rejects elevated PowerShell because it has no separate OS-level
+elevation executor; a Steward grant alone cannot elevate its Windows service
+identity.
+
+This source change does not commission the Windows agent, SSH keys, host aliases,
+CA, credentials, or protected systemd drop-in. Do not deploy/enable task commands
+until the Windows agent is running under a dedicated non-administrator service
+identity, its TLS and bearer credentials are installed through the approved
+credential process, SSH aliases have strict known-host entries and least-
+privilege accounts, and the host-specific caller/executor grants are active.

@@ -25,7 +25,7 @@
       "size_bytes": 1611115
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.348"
+      "revision": "1.1.341"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -725,9 +725,9 @@
     },
     "docs/components/command-gateway/README.md": {
       "path": "docs/components/command-gateway/README.md",
-      "revision": "1.0.0",
-      "sha256": "c2676ccfaec7f8b43c307cf43a02eba1f82c627bb1979fb44ed55e1946f250eb",
-      "size_bytes": 15638
+      "revision": "1.1.1",
+      "sha256": "88c1455646dc613ac457ae285e5a619d2238d929cd97384007e99957ad4e3e68",
+      "size_bytes": 22660
     },
     "docs/delegation-grants/examples.json": {
       "path": "docs/delegation-grants/examples.json",
@@ -2933,7 +2933,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "382904294c4e33518d5774e18edba4b2457c144a3a6fd00aedde1eab0da66e33",
       "size_bytes": 638
     },
@@ -2951,7 +2951,7 @@
     },
     "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json": {
       "path": "evidence/checkouts/M4.1-DASHBOARD-DOCS/20261011T043757Z-b63f6d8/browser-authority-run2/authority-workflow-browser.json",
-      "revision": "INSTITUTIONAL-AUTHORITY · identity-and-grants.v1 · graph 1.0.0 · 12 nodes / 13 edges",
+      "revision": "INSTITUTIONAL-AUTHORITY \u00b7 identity-and-grants.v1 \u00b7 graph 1.0.0 \u00b7 12 nodes / 13 edges",
       "sha256": "1810bba628648b1f7be36eb045870900727e05221d691061c90002d50774d731",
       "size_bytes": 675
     },
@@ -7859,9 +7859,9 @@
     },
     "process_graphs/comms5/camrui-adapter.json": {
       "path": "process_graphs/comms5/camrui-adapter.json",
-      "revision": "1.0.16",
-      "sha256": "8e79c31f15dfb4d3e01b8a44dc70b4b5f5090c09485573d02b47300fa27ea857",
-      "size_bytes": 20500
+      "revision": "1.0.17",
+      "sha256": "55b7d7fe484f88a3f34870803b0636dca9cebc28074fb420fc03b68a51a9333a",
+      "size_bytes": 24975
     },
     "process_graphs/event-processor/assignment-progression.json": {
       "path": "process_graphs/event-processor/assignment-progression.json",
@@ -7877,9 +7877,9 @@
     },
     "process_graphs/generated/riverview-process-graph.json": {
       "path": "process_graphs/generated/riverview-process-graph.json",
-      "revision": "1.1.37",
-      "sha256": "d3d840511e46e5cd1ac471bba4993c64e3e09d7dce15a940ce0f0e2cb284f74a",
-      "size_bytes": 780643
+      "revision": "1.1.38",
+      "sha256": "a0a3814cd47ee88faccf398fb5bb64661f4d33a18a622111d6b94c67b62d6863",
+      "size_bytes": 785860
     },
     "process_graphs/grace/institutional-proposal-lifecycle.json": {
       "path": "process_graphs/grace/institutional-proposal-lifecycle.json",
@@ -8381,9 +8381,9 @@
     },
     "src/riverview_core/comms5/command_gateway.py": {
       "path": "src/riverview_core/comms5/command_gateway.py",
-      "revision": "1.0.0",
-      "sha256": "d0be0be38a3fe838cba622df53d12448b2cc56ed7b0d55415725efc27d49de8b",
-      "size_bytes": 30236
+      "revision": "1.1.1",
+      "sha256": "20cd7e48098748dac2184b41d9142009d87eeb81c44b8445538febda049d1dd4",
+      "size_bytes": 56961
     },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
@@ -9329,9 +9329,9 @@
     },
     "tests/test_command_gateway.py": {
       "path": "tests/test_command_gateway.py",
-      "revision": "1.0.0",
-      "sha256": "57d32daac5a42750cb625bcfdcdea6614fbf4b2a6b2de0572921c7d1ab2dd49b",
-      "size_bytes": 10081
+      "revision": "1.1.0",
+      "sha256": "22f10ea604d39cc10a20d6d908f340ad601cc3b932603f02e9a0ec385cb21887",
+      "size_bytes": 34906
     },
     "tests/test_comms5_current_runtime.py": {
       "path": "tests/test_comms5_current_runtime.py",
@@ -9802,7 +9802,7 @@
       "size_bytes": 84644
     }
   },
-  "manifest_revision": "1.1.340",
+  "manifest_revision": "1.1.341",
   "revision": "1.1.348",
   "updated_at": "2026-10-26T17:07:43+00:00"
 }
