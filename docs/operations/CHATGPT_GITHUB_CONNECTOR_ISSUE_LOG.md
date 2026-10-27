@@ -70,3 +70,5 @@ For each failure record date/time, tool, input category (never secrets), exact e
 ID | date | tool/path | intended action | error/result | server receipt | fallback | read-back verification | status.
 
 Do not log tokens, SSH private keys, command secrets, or sensitive output.
+
+- P2 `[GRACE-AUTONOMY-LOCAL-SCRIPT-RUNNER, DEFERRED]`: Build a versioned library of user-approved, preinstalled PowerShell/Bash scripts on the Windows development machine and Camrui, callable from ChatGPT/Grace via existing authorized Comms5 command execution or a narrow typed operation (e.g., script ID + validated parameters). Preserve host-specific resource access, explicit user authorization, allowlisting, audit trails, result/status retrieval, and local execution permissions. Goal: reliably trigger previously authorized local operations without repeatedly transmitting complex shell command bodies. This is NOT an authorization bypass; tool/platform restrictions still apply. Do not interrupt the current Issue #359 dual-host Codex session-control work to implement this.
