@@ -1,6 +1,6 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CHATGPT_GITHUB_CONNECTOR_ISSUE_LOG.md
-File Revision: 1.0.1
+File Revision: 1.0.2
 Changed: 2026-10-27
 -->
 # ChatGPT ↔ GitHub connector issue log
@@ -50,6 +50,8 @@ For each failure record date/time, tool, input category (never secrets), exact e
 - P1: Reconcile Comms5 direct Codex operation registration and ChatGPT tool schema.
 - P1: Validate native GitHub issue and contents/object write alternatives, with read-back and no duplicate writes.
 - P1: Prove ChatGPT → governed Codex worker → durable objective status → result.
+- P1 [GRACE-AUTONOMY-CODEX-LOCAL-E2E, DEFERRED]: Test the dedicated Comms5 `submit_direct_engineering_task` path end-to-end, specifically verifying whether it dispatches to and controls an existing Codex worker/session on Windows development host `desktop-ja3rpnq` (not the Command Gateway shell path). Previous objective `objective:5e29a3bb-f322-53d8-bebd-0acce2a25700` reached PROPOSED with no assignment, dispatch_count=0, or verified Codex execution. Acceptance: worker identity and host evidenced; assignment created; Codex executes bounded task; durable status, artifact, verification, and result returned. Preserve existing dispatcher; no new test now.
+- P1 [CODEX-DUAL-HOST-CONTROL]: Establish dedicated Codex start/attach/submit/status/result capability through Comms5 for both Camrui and Windows dev machine, with explicit host/session identity and their distinct resource access. Do not confuse with `command_task_submit` shell access or assume existing direct Engineering dispatcher supports host selection. Validate each host separately; use existing workers/sessions where possible. Camrui SSH hostname resolution remains separately tracked in Issue #359.
 - P2: Commission Camrui asynchronous Linux commands with exact host-scoped grants.
 - P2: Expose and test Comms5 command_task_cancel in ChatGPT.
 - P2: Publish async Gateway runbook and validate its provenance.
