@@ -26,8 +26,8 @@
     },
     ".riverview-revisions.json": {
       "path": ".riverview-revisions.json",
-      "revision": "1.1.350",
-      "size_bytes": 522584
+      "revision": "1.1.351",
+      "size_bytes": 522612
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -727,9 +727,9 @@
     },
     "docs/components/command-gateway/README.md": {
       "path": "docs/components/command-gateway/README.md",
-      "revision": "1.1.3",
-      "sha256": "5a7ba3927ba6102f44f415a3a97fb1d4efcac4ec2555449c94781d2b788b5a8f",
-      "size_bytes": 23357
+      "revision": "1.1.4",
+      "sha256": "09b9a4c0d1e228ddc19c6eba0f58bfcfc765cef5664f7fcbdf5771a43aa1ec5c",
+      "size_bytes": 23581
     },
     "docs/delegation-grants/examples.json": {
       "path": "docs/delegation-grants/examples.json",
@@ -8383,9 +8383,9 @@
     },
     "src/riverview_core/comms5/command_gateway.py": {
       "path": "src/riverview_core/comms5/command_gateway.py",
-      "revision": "1.1.3",
-      "sha256": "e1e384a10447c4ea324ad01293cf80ffecf078b00d017f19d92efc569b060f43",
-      "size_bytes": 58922
+      "revision": "1.1.4",
+      "sha256": "fe38c01c7ad14fd6a4114e305d3b4a7afca9be796b742cd02aaf4e8cbe644ddd",
+      "size_bytes": 59360
     },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
@@ -9349,9 +9349,9 @@
     },
     "tests/test_command_gateway.py": {
       "path": "tests/test_command_gateway.py",
-      "revision": "1.1.2",
-      "sha256": "b5e96b5742606a209863132a9fb5aebe792386f4352cfd0227bb9ec44e8bff88",
-      "size_bytes": 38100
+      "revision": "1.1.3",
+      "sha256": "b7cf8703bf45beb75922ff22793d77aad5391d23f93fec01b953a68e742922bb",
+      "size_bytes": 38943
     },
     "tests/test_comms5_current_runtime.py": {
       "path": "tests/test_comms5_current_runtime.py",
@@ -9864,7 +9864,7 @@
       "size_bytes": 5551
     }
   },
-  "manifest_revision": "1.1.351",
-  "revision": "1.1.358",
-  "updated_at": "2026-10-27T18:24:00+00:00"
+  "manifest_revision": "1.1.353",
+  "revision": "1.1.360",
+  "updated_at": "2026-10-27T19:45:00+00:00"
 }

@@ -1,4 +1,4 @@
-<!-- Document Revision: 1.1.3 -->
+<!-- Document Revision: 1.1.4 -->
 
 # Riverview Command Gateway
 
@@ -9,7 +9,7 @@ diagnostic operations remain:
 | Operation | Fixed target | Privilege | Effect |
 | --- | --- | --- | --- |
 | `powershell_identity` | `DESKTOP-JA3RPNQ` | Standard user | Returns the computer name and PowerShell version. |
-| `ssh_camrui_hostname` | `camrui` | Standard user | Runs the fixed remote `hostname` probe using Windows OpenSSH. |
+| `ssh_camrui_hostname` | `192.168.1.155` (`HostKeyAlias=camrui`) | Standard user | Runs the fixed remote `hostname` probe using Windows OpenSSH and the existing pinned `camrui` key. |
 
 Task commands use `comms5_command_task_submit`, `comms5_command_task_status`,
 and `comms5_command_task_cancel`; the host ID selects a fixed PowerShell or SSH
@@ -286,8 +286,10 @@ if ($ObservedFingerprint -ne $ExpectedCamruiFingerprint) {
 $Scan | Set-Content -Encoding ascii $KnownHosts
 ```
 
-The agent uses the Windows OpenSSH `camrui` alias with `BatchMode=yes` and
-`StrictHostKeyChecking=yes`. The firewall rule must be limited to the desktop
+The agent connects to Camrui at `192.168.1.155` with
+`HostKeyAlias=camrui`, `BatchMode=yes`, and `StrictHostKeyChecking=yes`. This
+avoids depending on a per-user SSH alias in the dedicated service account while
+still checking the existing pinned `camrui` key. The firewall rule must be limited to the desktop
 private address and Camrui private source address:
 
 ```powershell

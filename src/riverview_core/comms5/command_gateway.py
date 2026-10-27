@@ -1,8 +1,9 @@
 """Bounded Windows PowerShell/SSH command gateway for Comms5.
 
-File Revision: 1.1.3
+File Revision: 1.1.4
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY
 Authority: Existing AuthorityRegistry grants and systemd-loaded service credential.
+Changed: 2026-10-27 UTC | C2-359-CAMRUI-SSH-ADDRESS | Use the verified Camrui IP while retaining the pinned camrui host-key alias.
 Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Add durable asynchronous execution, cancellation, deadlines, and recovery under existing host-scoped grants.
 Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Preserve bounded agent HTTP diagnostics and bind cancellation to the submitted command digest before dispatch.
 
@@ -51,6 +52,9 @@ TASK_HOSTS = {
     "camrui": ("camrui", "host:camrui", "ssh"),
     "octominer1": ("octominer1", "host:octominer1", "ssh"),
     "octominer2": ("octominer2", "host:octominer2", "ssh"),
+}
+SSH_HOST_TARGETS = {
+    "camrui": ("192.168.1.155", "camrui"),
 }
 TASK_PRIVILEGES = frozenset({"standard", "elevated"})
 CALLER_ACTIONS = {
@@ -900,7 +904,8 @@ def _run_windows_operation(operation: str | dict, timeout: int):
     elif operation == "ssh_camrui_hostname":
         argv = ["ssh.exe", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
                 "-o", "ClearAllForwardings=yes", "-o", "ForwardAgent=no",
-                "-o", "RequestTTY=no", "camrui", "hostname"]
+                "-o", "RequestTTY=no", "-o", "HostKeyAlias=camrui",
+                "192.168.1.155", "hostname"]
     elif isinstance(operation, dict) and operation.get("operation", "").startswith("command_task_"):
         transport = operation["transport"]
         command = operation["command"]
@@ -919,9 +924,12 @@ def _run_windows_operation(operation: str | dict, timeout: int):
             import shlex
             remote = (command if privilege == "standard" else
                       "sudo -n -- sh -lc " + shlex.quote(command))
+            target, host_key_alias = SSH_HOST_TARGETS.get(
+                operation["host_id"], (operation["host_id"], operation["host_id"]))
             argv = ["ssh.exe", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
                     "-o", "ClearAllForwardings=yes", "-o", "ForwardAgent=no",
-                    "-o", "RequestTTY=no", operation["host_id"], remote]
+                    "-o", "RequestTTY=no", "-o", f"HostKeyAlias={host_key_alias}",
+                    target, remote]
         else:
             raise ValueError("command_transport_not_supported")
     else:
