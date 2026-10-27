@@ -20,13 +20,13 @@
     },
     ".riverview-backups/manifest.jsonl": {
       "path": ".riverview-backups/manifest.jsonl",
-      "revision": "1.0.36",
-      "sha256": "6d9a86ea9511a6f43b57ddbac2575a70f8048b5e9e3ba62831ec8a44e0dba773",
-      "size_bytes": 1611115
+      "revision": "1.0.37",
+      "sha256": "5ddadc5ca04a93741da234afb7201be65dbfbee9c1fdd8d20db264d7284fc93b",
+      "size_bytes": 1621485
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.348",
-      "path": ".riverview-revisions.json"
+      "path": ".riverview-revisions.json",
+      "revision": "1.1.349"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -522,9 +522,9 @@
     },
     "docs/components/INSTITUTIONAL_AUTHORITY.md": {
       "path": "docs/components/INSTITUTIONAL_AUTHORITY.md",
-      "revision": "1.0.29",
-      "sha256": "4c11fb4a2032aba162c94a16611444683fb84ea098cd807ea570a04c724aca27",
-      "size_bytes": 24010
+      "revision": "1.0.31",
+      "sha256": "8687ffbb6f65a1faab885decb11678ebb258082e917148a023c03624110644d1",
+      "size_bytes": 27479
     },
     "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md": {
       "path": "docs/components/INSTITUTIONAL_AUTHORITY_COOKBOOK.md",
@@ -8646,9 +8646,9 @@
     },
     "src/riverview_core/institutional_authority/registry.py": {
       "path": "src/riverview_core/institutional_authority/registry.py",
-      "revision": "1.0.13",
-      "sha256": "00df3d49bd78bcbf26084bd84916b6664b2acb4eff2382d7aefe95c64e79fc4f",
-      "size_bytes": 43194
+      "revision": "1.0.15",
+      "sha256": "473b8182b18c4f2b8bb2d0bb14c6075181bdfb35e83769227b2a89e32bd8ae55",
+      "size_bytes": 116620
     },
     "src/riverview_core/institutional_authority/service_principal_credentials.py": {
       "revision": "1.1.0",
@@ -9540,9 +9540,9 @@
     },
     "tests/test_institutional_authority.py": {
       "path": "tests/test_institutional_authority.py",
-      "revision": "1.0.17",
-      "sha256": "a94c6737e2e414308277709b2597db6331749bf0b970acfc645bb515b7fe525e",
-      "size_bytes": 21677
+      "revision": "1.0.24",
+      "sha256": "fe977b5c6725a36a98cda544fe346e3d77ce601f95cd79f8a3a1a7827e4b8876",
+      "size_bytes": 60118
     },
     "tests/test_institutional_authority_boundary.py": {
       "path": "tests/test_institutional_authority_boundary.py",
@@ -9839,7 +9839,7 @@
       "size_bytes": 84644
     }
   },
-  "manifest_revision": "1.1.348",
+  "manifest_revision": "1.1.349",
   "revision": "1.1.356",
   "updated_at": "2026-10-27T13:22:54+00:00"
 }
