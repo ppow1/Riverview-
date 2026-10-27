@@ -1,7 +1,8 @@
 # Riverview~ Controlled Source
 # File: tests/test_delegation_routes.py
 # Component: STEWARD-DELEGATION-APPROVAL-API
-# Revision: 1.0.3
+# Revision: 1.0.4
+# Changed: 2026-10-27 UTC | C2-359-ENCODED-DELEGATION-ID | Cover encoded POST routing without recording an approval decision.
 # Purpose: Verify narrow Steward delegation API routing and composite-source overlay
 # Execution Model: Local unittest with fake account and authority adapters
 # Observability: unittest case names, counts and exit status
@@ -22,7 +23,9 @@ from types import SimpleNamespace
 from riverview_core.status_dashboard.delegation_projection import (
     list_grants, list_requests, revoke_grant,
 )
-from riverview_core.status_dashboard.delegation_routes import dispatch, is_route
+from riverview_core.status_dashboard.delegation_routes import (
+    canonicalize_delegation_path, dispatch, is_route,
+)
 from scripts.apply_delegation_projection_overlay import apply
 
 
@@ -284,6 +287,19 @@ class DelegationRequestCreationTests(unittest.TestCase):
         denied.command = "POST"
         dispatch(denied, urlsplit(path), "r")
         self.assertEqual(denied.response[0], 403)
+
+    def test_encoded_request_id_colon_reaches_existing_decision_validation(self):
+        path = ("/api/v1/steward/delegation-grant-requests/"
+                "delegation-request%3aabc123/decision")
+        self.assertEqual(canonicalize_delegation_path(path), path.replace("%3a", ":"))
+        self.assertTrue(is_route("POST", path))
+
+        # A malformed body is intentionally used: it exercises the authenticated
+        # route without recording an approval or rejection.
+        handler = _Handler(_Adapter(), body={})
+        handler.command = "POST"
+        dispatch(handler, urlsplit(path), "route-test")
+        self.assertEqual(handler.response, (400, {"error": "invalid_delegation_decision"}))
 
     def test_command_gateway_registration_requires_authenticated_steward_confirmation(self):
         registry = _Registry()
