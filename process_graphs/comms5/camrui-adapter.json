@@ -1,6 +1,6 @@
 {
   "graph_id": "rv:comms5:camrui-adapter",
-  "graph_revision": "1.0.16",
+  "graph_revision": "1.0.17",
   "component_id": "COMMS5-CAMRUI-ADAPTER",
   "workflow_id": "comms5.camrui.compatibility.v1",
   "diagram_order": 91,
@@ -392,6 +392,81 @@
         "tests/test_external_reasoning_exchange.py",
         "tests/test_external_reasoning_mcp.py"
       ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:host-command-execution",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Gateway task entry requires exact host-and-privilege caller and executor grants, rechecks authority before dispatch, and keeps credential/configuration choices server-side.",
+      "source_references": [
+        "src/riverview_core/comms5/command_gateway.py"
+      ],
+      "documentation_references": [
+        "docs/components/command-gateway/README.md"
+      ],
+      "verification_evidence": [
+        "tests/test_command_gateway.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:host-command-durable-queue",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Persist task identity, grant/reservation evidence, command digest, execution deadline, and queued state before returning an immediate result or queued/running task ID; command text stays in worker memory.",
+      "source_references": [
+        "src/riverview_core/comms5/command_gateway.py"
+      ],
+      "documentation_references": [
+        "docs/components/command-gateway/README.md"
+      ],
+      "verification_evidence": [
+        "tests/test_command_gateway.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:host-command-background-worker",
+      "node_revision": "1.0.0",
+      "type": "process",
+      "label": "Run one bounded worker with a configurable job deadline, bounded output, and durable terminal status and audit events.",
+      "source_references": [
+        "src/riverview_core/comms5/command_gateway.py"
+      ],
+      "documentation_references": [
+        "docs/components/command-gateway/README.md"
+      ],
+      "verification_evidence": [
+        "tests/test_command_gateway.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:host-command-restart-recovery",
+      "node_revision": "1.0.0",
+      "type": "recovery",
+      "label": "Mark queued/running tasks interrupted after agent restart; do not replay because command text is not persisted.",
+      "source_references": [
+        "src/riverview_core/comms5/command_gateway.py"
+      ],
+      "documentation_references": [
+        "docs/components/command-gateway/README.md"
+      ],
+      "verification_evidence": [
+        "tests/test_command_gateway.py"
+      ]
+    },
+    {
+      "id": "rv:comms5:camrui-adapter:host-command-status-cancel",
+      "node_revision": "1.0.0",
+      "type": "verification",
+      "label": "Recheck exact caller host/privilege grant and bind status/cancel to caller, operation, host, idempotency key, and command digest.",
+      "source_references": [
+        "src/riverview_core/comms5/command_gateway.py"
+      ],
+      "documentation_references": [
+        "docs/components/command-gateway/README.md"
+      ],
+      "verification_evidence": [
+        "tests/test_command_gateway.py"
+      ]
     }
   ],
   "edges": [
@@ -512,6 +587,42 @@
       "to": "rv:comms5:camrui-adapter:current-runtime-operation-denial",
       "type": "diagnostic_branch",
       "label": "missing identity, unavailable ledger, expiry, or fence conflict returns a bounded failure"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:catalog",
+      "to": "rv:comms5:camrui-adapter:host-command-execution",
+      "type": "prerequisite",
+      "label": "C1 command route restoration is required to expose this Gateway task interface"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:host-command-execution",
+      "to": "rv:comms5:camrui-adapter:host-command-durable-queue",
+      "type": "runtime_transition",
+      "label": "authorized exact-grant dispatch creates one idempotent queued task"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:host-command-durable-queue",
+      "to": "rv:comms5:camrui-adapter:host-command-background-worker",
+      "type": "runtime_transition",
+      "label": "worker claims task under its independent execution deadline"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:host-command-background-worker",
+      "to": "rv:comms5:camrui-adapter:host-command-status-cancel",
+      "type": "verification",
+      "label": "caller reads bounded durable result, status, and audit identifier"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:host-command-durable-queue",
+      "to": "rv:comms5:camrui-adapter:host-command-restart-recovery",
+      "type": "recovery_route",
+      "label": "restart marks unfinished work interrupted without duplicate execution"
+    },
+    {
+      "from": "rv:comms5:camrui-adapter:host-command-status-cancel",
+      "to": "rv:comms5:camrui-adapter:host-command-background-worker",
+      "type": "runtime_transition",
+      "label": "authorized cancellation cancels queued work or signals running process"
     }
   ]
 }
