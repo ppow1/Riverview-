@@ -11,6 +11,29 @@ History: Git and revision backup manifest
 -->
 # Issue #359 parallel Dashboard runbook
 
+## CURRENT STATUS — 2026-10-27 14:54 EDT (supersedes historical staging gates below)
+
+This document originally described an inactive parallel deployment. **Those historical preparation/activation steps are no longer applicable to Issue #359's current environment.** The Steward explicitly authorized discarding the disposable, stranded test transaction; the Dashboard was cleanly stopped and the old backend disconnected. Do not follow the old instructions below to preserve PID 390251 / backend 390316 or start a parallel Dashboard on port 8770.
+
+- Active corrected Dashboard release: `1ae512d92d6ca8749566355930308e731bdd2405` (PR #361, per-thread PostgreSQL connections, commit-before-success). Deployment reported active PID 656705. Database/config backups were verified.
+- Follow-up approval route correction deployed as `8325d3ffe8e53f3deaab4c9e14e471467454a08b`: URL-encoded `%3A` request-ID delimiter is normalized; 21 focused route tests passed. The earlier `405 read_only_method` is resolved.
+- The authenticated Steward approved the **existing** two requests through the V2 browser console on 2026-10-27 ~14:53 EDT. Connected Comms5 independently returned both grants ACTIVE, correct actions and `host:camrui` scope:
+  - Caller: `grant:54dafa24f70d4ee296b737e867091884` (`steward:camrui`, `comms5.command.submit.task.camrui.standard`, unlimited uses), expires 16:53:06 EDT.
+  - Executor: `grant:06dad5aa461d46fd9af4924a73f4e0a5` (`service:command-gateway`, `comms5.command.execute.task.camrui.standard`, 20 uses), expires 16:53:07 EDT.
+- **Live ChatGPT Comms5 command submission works**: standard Camrui command `hostname; id -un; pwd` accepted, execution `56f6b895-a6cc-4637-b2ac-16f0c42af095`, exact grants recognized, reservation consumed, audit recorded. Durable status returned FAILED, exit 255, stderr `ssh: Could not resolve hostname camrui: No such host is known.` Final audit event `97494068-6d56-451a-8fac-8f6b00bb371f`. See Issue #359 comment 6450854186.
+- **Remaining acceptance blocker:** Command Gateway's SSH target name `camrui` does not resolve in its actual execution environment. Verify the registered host mapping and transport under Gateway service identity. Camrui LAN IP previously documented as `192.168.1.155`; verify before use. Do not change grants or database authorization to address SSH resolution. Test the same harmless command and retrieve durable status; require exit 0 and expected hostname/user/output before closing Issue #359.
+- ChatGPT's current Riverview Comms 1.1 interface exposes callable `comms5_command_task_submit` and `comms5_command_task_status`; another C2 session's tool catalog may differ. A Comms5 transport probe verifies the adapter path, **not** SSH host execution.
+
+### Immediate next steps
+
+1. Inspect and fix only the Command Gateway SSH target configuration / host resolution for `camrui`, including where the gateway actually runs. Avoid assuming the Camrui local shell and Gateway process share SSH configuration.
+2. Run a bounded harmless command through Comms5, then retrieve durable status and audit evidence. Check grants have not expired.
+3. Record result in Issue #359 and close only on successful end-to-end execution.
+
+---
+
+### Historical parallel deployment plan (superseded; retained for audit)
+
 ## Scope and invariants
 
 This candidate uses the corrected per-thread AuthorityRegistry and a separate
