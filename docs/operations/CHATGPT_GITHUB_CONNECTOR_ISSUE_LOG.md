@@ -1,6 +1,6 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CHATGPT_GITHUB_CONNECTOR_ISSUE_LOG.md
-File Revision: 1.0.2
+File Revision: 1.0.3
 Changed: 2026-10-27
 -->
 # ChatGPT ↔ GitHub connector issue log
@@ -46,7 +46,15 @@ For each failure record date/time, tool, input category (never secrets), exact e
 - Interpretation: failure was not a blanket prohibition on GitHub issue writes; precise cause of earlier safety rejection remains unknown.
 - Follow-up: compare request shape and length, record exact error and read-back; do not claim a definitive cause.
 
+### GH-CONN-005 — Windows Comms5 tool-level filtering: reproducible capability audit
+- Date: 2026-10-27 ~16:05 EDT. Host: desktop-ja3rpnq; tool: comms5_command_task_submit; same active Windows standard grants.
+- Earlier read-only Windows service inventory calls (one detailed Gateway inventory, one minimal Get-Service query) were rejected with exact message `This tool call was blocked by OpenAI's safety checks. Please double check what you are sending.` No execution ID or Gateway receipt returned; specific filtering rationale not exposed.
+- Subsequent baseline commands all executed on Windows and returned exit 0, with durable execution/audit IDs: `Write-Output 'RV_AUDIT_OK'` (d2808f96-f5f4-4013-a1a8-983f1f2fa5ae), `Get-Date -Format o` (6fe8c13c-8f96-40a0-a977-5a9017f12246), `$PSVersionTable.PSVersion.ToString()` (a294565e-f690-41a5-bfc8-cc348beba631). PowerShell version 5.1.26100.9596.
+- Interpretation: Windows transport and grants are operational; tool filtering is selective or variable. Do not infer a blanket inability to execute Windows commands, or claim the blocked requests reached Riverview. These observations do not establish an exhaustive allow/deny list or explain OpenAI filtering internals.
+- Follow-up: maintain a small, bounded capability matrix for legitimate read-only inventory, repo operations, session management, and approved deployment steps; log exact command class, tool outcome, execution ID when present, date, host, and outcome. Avoid high-volume boundary probing or attempts to evade filtering. Favor dedicated typed Comms5 operations for persistent Codex sessions rather than relying on arbitrary shell command text.
+
 ## Active punch list
+- P1: Establish and maintain a reproducible Comms5 Windows/Linux capability acceptance matrix with preflight checks and explicit tool-filter vs Gateway vs host failure classification.
 - P1: Reconcile Comms5 direct Codex operation registration and ChatGPT tool schema.
 - P1: Validate native GitHub issue and contents/object write alternatives, with read-back and no duplicate writes.
 - P1: Prove ChatGPT → governed Codex worker → durable objective status → result.
