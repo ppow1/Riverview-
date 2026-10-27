@@ -8399,9 +8399,9 @@
     },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
-      "revision": "1.0.3",
-      "sha256": "a76fea0236b7e9ff00242760dd12db3a1cbdc43833bbc6dbd92e7911d45e2ec9",
-      "size_bytes": 146547
+      "revision": "1.0.4",
+      "sha256": "0eeac3a96805a2b9cdcdb96dbf81b07ec0e9d24e0bc7908f02aeb4553fe6143c",
+      "size_bytes": 153074
     },
     "src/riverview_core/diagnostics.py": {
       "path": "src/riverview_core/diagnostics.py",

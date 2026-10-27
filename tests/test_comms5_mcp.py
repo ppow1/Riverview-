@@ -1,6 +1,7 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.9
+File Revision: 1.1.10
+Changed: 2026-10-27 UTC | RV-COMMS5-DISPATCH-359 | Cover direct dispatch discovery and authenticated routing without executing work during discovery.
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
@@ -39,6 +40,54 @@ def rpc(method, params=None, request_id=1):
 
 
 class Comms5MCPTests(unittest.TestCase):
+    def test_direct_dispatch_discovery_and_authenticated_route_agree(self):
+        name = "submit_direct_engineering_task"
+        tool_name = "comms5_" + name
+        calls = []
+
+        class DirectBackend:
+            supported_tools = {tool_name}
+
+            def call_authenticated(self, tool, arguments, *, principal=None):
+                if principal != "steward":
+                    raise PermissionError("steward required")
+                calls.append((tool, arguments))
+                return {"status": "submitted", "objective_id": "objective:acceptance"}
+
+        application = Comms5Application("x" * 48, backend=DirectBackend())
+
+        def call(tool, arguments=None, principal="steward"):
+            return application.handle(rpc("tools/call", {
+                "name": tool, "arguments": arguments or {}}), principal=principal)
+
+        capabilities = call("comms5_capabilities")["result"]["structuredContent"]
+        help_value = call("comms5_help")["result"]["structuredContent"]
+        examples = call("comms5_examples")["result"]["structuredContent"]
+        schema = next(tool["inputSchema"] for tool in
+            application.handle(rpc("tools/list"))["result"]["tools"]
+            if tool["name"] == tool_name)
+        operation = next(item for item in capabilities["operations"] if item["name"] == name)
+        help_operation = next(item for item in help_value["capabilities"]["operations"]
+                              if item["name"] == name)
+        described = call("comms5_describe_operation", {"operation": name})["result"]["structuredContent"]
+        for value in (operation, help_operation, described, help_value["operations"][name]):
+            self.assertEqual(value["required"], schema["required"])
+            self.assertEqual(value["authorization"], "EXISTING_SCOPED_GRANTS")
+            self.assertIn("assignment.create", value["description"])
+            self.assertIn("objective.submit", value["description"])
+        self.assertEqual(described["camrui_implementation_status"], "IMPLEMENTED")
+        self.assertEqual(help_value["examples"][name], examples[name])
+        self.assertEqual(calls, [])  # Discovery must never submit work.
+        result = call(tool_name, examples[name])["result"]["structuredContent"]
+        self.assertEqual(result["objective_id"], "objective:acceptance")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], tool_name)
+        denied = call(tool_name, examples[name], principal="provider")
+        self.assertEqual(denied["result"]["structuredContent"]["status"], "NOT_AUTHORIZED")
+        invalid = call(tool_name, {**examples[name], "worker": "caller-selected"})
+        self.assertEqual(invalid["error"]["code"], -32602)
+        self.assertEqual(len(calls), 1)
+
     def test_command_task_discovery_matches_schemas_and_exact_grants(self):
         class CommandBackend:
             supported_tools = {"comms5_command_task_submit", "comms5_command_task_status"}
