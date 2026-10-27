@@ -1,6 +1,6 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CHATGPT_GITHUB_CONNECTOR_ISSUE_LOG.md
-File Revision: 1.0.3
+File Revision: 1.0.4
 Changed: 2026-10-27
 -->
 # ChatGPT ↔ GitHub connector issue log
@@ -72,3 +72,5 @@ ID | date | tool/path | intended action | error/result | server receipt | fallba
 Do not log tokens, SSH private keys, command secrets, or sensitive output.
 
 - P2 `[GRACE-AUTONOMY-LOCAL-SCRIPT-RUNNER, DEFERRED]`: Build a versioned library of user-approved, preinstalled PowerShell/Bash scripts on the Windows development machine and Camrui, callable from ChatGPT/Grace via existing authorized Comms5 command execution or a narrow typed operation (e.g., script ID + validated parameters). Preserve host-specific resource access, explicit user authorization, allowlisting, audit trails, result/status retrieval, and local execution permissions. Goal: reliably trigger previously authorized local operations without repeatedly transmitting complex shell command bodies. This is NOT an authorization bypass; tool/platform restrictions still apply. Do not interrupt the current Issue #359 dual-host Codex session-control work to implement this.
+
+- P2 `[COMMS5-CROSS-CONVERSATION-GRANT-RESOLUTION, DEFERRED]`: An authorized ChatGPT conversation can lack the exact active execution grant ID required by `comms5_command_task_submit`, although grants persist in Riverview independently of chat context. Add an authenticated, scoped grant-resolution/discovery path (or backend binding) for host, operation, privilege, principal, expiration, and remaining uses; do not require users to transfer IDs across chats. Preserve backend authorization and audit. Acceptance: two separate authorized conversations can execute the same eligible operation without manually sharing grant IDs, while invalid/expired/out-of-scope grants fail. Related: Issue #359 caller authorization binding. Do not interrupt current Codex dual-host commissioning.
