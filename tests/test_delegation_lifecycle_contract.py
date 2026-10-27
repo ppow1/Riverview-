@@ -208,3 +208,87 @@ def test_comms5_adapter_allows_only_exact_command_gateway_host_grants():
             policy_ref="policy:delegation.v1", request_ref="unknown command grant",
             max_uses=1, duration_spec={"unit": "days", "value": 7},
             idempotency_key="command-host-request-unknown-action")
+
+
+def test_command_task_use_adapter_uses_gateway_identity_and_exact_action_scope():
+    from riverview_core.institutional_authority import AuthorityDenied
+
+    class Registry:
+        def __init__(self):
+            self.calls = []
+
+        def reserve_delegated_grant(self, credential, grant_id, action, scope,
+                                    operation_ref, *, idempotency_key):
+            self.calls.append(("reserve", credential, grant_id, action, scope,
+                               operation_ref, idempotency_key))
+            return {"reservation_id": "reservation-1", "status": "reserved"}
+
+        def consume_delegated_grant(self, credential, reservation_id, result_ref):
+            self.calls.append(("consume", credential, reservation_id, result_ref))
+
+        def release_delegated_grant(self, credential, reservation_id, reason_code):
+            self.calls.append(("release", credential, reservation_id, reason_code))
+
+    registry = Registry()
+    adapter = object.__new__(Comms5DelegationAuthorityAdapter)
+    adapter._registry = registry
+    adapter._command_gateway_credential = lambda: "server-side-command-gateway-token"
+    reservation = adapter.reserve_command_task_grant(
+        "grant:executor", "comms5.command.execute.task.desktop-ja3rpnq.standard",
+        "host:desktop-ja3rpnq", "comms5-command:operation-1",
+        idempotency_key="operation-1")
+    assert reservation["status"] == "reserved"
+    adapter.consume_command_task_grant("reservation-1", "execution-1")
+    assert registry.calls == [
+        ("reserve", "server-side-command-gateway-token", "grant:executor",
+         "comms5.command.execute.task.desktop-ja3rpnq.standard",
+         "host:desktop-ja3rpnq", "comms5-command:operation-1", "operation-1"),
+        ("consume", "server-side-command-gateway-token", "reservation-1", "execution-1"),
+    ]
+    with pytest.raises(AuthorityDenied):
+        adapter.reserve_command_task_grant(
+            "grant:executor", "comms5.command.submit.task.desktop-ja3rpnq.standard",
+            "host:desktop-ja3rpnq", "comms5-command:operation-2",
+            idempotency_key="operation-2")
+    assert len(registry.calls) == 2
+
+
+def test_command_gateway_systemd_credential_must_authenticate_fixed_service(monkeypatch, tmp_path):
+    from riverview_core.institutional_authority import AuthorityDenied
+    from riverview_core.institutional_authority import comms5_adapter
+
+    class Context:
+        def __enter__(self):
+            return object()
+
+        def __exit__(self, *_):
+            return False
+
+    class Database:
+        def transaction(self):
+            return Context()
+
+        def cursor(self):
+            return Context()
+
+    class Registry:
+        db = Database()
+
+        def _path(self, _cursor):
+            pass
+
+        def _authenticate(self, _cursor, token):
+            assert token == "systemd-gateway-credential"
+            return {"principal_id": "service:command-gateway", "principal_kind": "service"}
+
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(tmp_path))
+    monkeypatch.setattr(comms5_adapter, "_read_credential",
+        lambda path, *, systemd_name: "systemd-gateway-credential")
+    adapter = object.__new__(Comms5DelegationAuthorityAdapter)
+    adapter._registry = Registry()
+    assert adapter._command_gateway_credential() == "systemd-gateway-credential"
+
+    Registry._authenticate = lambda *_: {
+        "principal_id": "steward:camrui", "principal_kind": "steward"}
+    with pytest.raises(AuthorityDenied):
+        adapter._command_gateway_credential()

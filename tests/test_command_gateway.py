@@ -79,6 +79,24 @@ class _AuthorityRegistry:
         self.calls.append(("release", credential, reservation_id, reason_code))
 
 
+class _CommandGrantAuthority:
+    def __init__(self, reservation_status="reserved"):
+        self.reservation_status = reservation_status
+        self.calls = []
+
+    def reserve_command_task_grant(self, grant_id, action, scope, operation_ref,
+                                   *, idempotency_key):
+        self.calls.append(("reserve", grant_id, action, scope, operation_ref,
+                           idempotency_key))
+        return {"reservation_id": "reservation-1", "status": self.reservation_status}
+
+    def consume_command_task_grant(self, reservation_id, result_ref):
+        self.calls.append(("consume", reservation_id, result_ref))
+
+    def release_command_task_grant(self, reservation_id, reason_code):
+        self.calls.append(("release", reservation_id, reason_code))
+
+
 class CommandGatewayTests(unittest.TestCase):
     def test_submit_authorizes_caller_and_reserves_exact_host_execution_grant(self):
         authority, authorizer, agent = _AuthorityRegistry(), _Authorizer(), Mock()
@@ -123,7 +141,8 @@ class CommandGatewayTests(unittest.TestCase):
         agent.submit.assert_not_called()
 
     def test_task_submission_requires_distinct_host_and_privilege_grants(self):
-        authority, authorizer, agent = _AuthorityRegistry(), _Authorizer(), Mock()
+        authority, command_authority, authorizer, agent = (
+            _AuthorityRegistry(), _CommandGrantAuthority(), _Authorizer(), Mock())
         command = "Get-Service | Select-Object -First 1 Name"
         digest = __import__("hashlib").sha256(command.encode()).hexdigest()
         agent.submit.return_value = {
@@ -134,7 +153,8 @@ class CommandGatewayTests(unittest.TestCase):
             "host_id": "desktop-ja3rpnq", "command_sha256": digest,
         }
         gateway = WindowsCommandGateway(authority_registry=authority, authorizer=authorizer,
-            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=command_authority)
         result = gateway.submit_task("steward:camrui", {
             "host_id": "desktop-ja3rpnq", "command": command,
             "privilege_level": "standard", "execution_grant_id": "execution-grant",
@@ -143,22 +163,27 @@ class CommandGatewayTests(unittest.TestCase):
         execution = "comms5.command.execute.task.desktop-ja3rpnq.standard"
         self.assertEqual(authorizer.calls, [("steward:camrui", action, "host:desktop-ja3rpnq"),
                                             ("credential", execution, "host:desktop-ja3rpnq")])
-        self.assertEqual(authority.calls[0][3:5], (execution, "host:desktop-ja3rpnq"))
+        self.assertEqual(command_authority.calls[0][2:4], (execution, "host:desktop-ja3rpnq"))
         sent = agent.submit.call_args.args[0]
         self.assertEqual(sent["command"], command)
         self.assertEqual(sent["operation"], "command_task_standard")
         self.assertEqual(sent["command_sha256"], digest) if "command_sha256" in sent else None
         self.assertEqual(result["command_sha256"], digest)
         self.assertEqual(result["authorization_evidence"]["action"], execution)
+        self.assertEqual(command_authority.calls[1], ("consume", "reservation-1",
+                                                      "00000000-0000-4000-8000-000000000002"))
+        self.assertEqual(authority.calls, [])
 
     def test_task_target_and_elevated_authority_are_exact_and_distinct(self):
-        authority, authorizer, agent = _AuthorityRegistry(), _Authorizer(), Mock()
+        authority, command_authority, authorizer, agent = (
+            _AuthorityRegistry(), _CommandGrantAuthority(), _Authorizer(), Mock())
         agent.submit.return_value = {"execution_id": "exec", "execution_status": "failed",
             "stdout": "", "stderr": "", "exit_code": 1, "audit_event_id": "audit",
             "idempotency_key": "key", "host_id": "octominer1",
             "command_sha256": "a" * 64}
         gateway = WindowsCommandGateway(authority_registry=authority, authorizer=authorizer,
-            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=command_authority)
         gateway.submit_task("steward:camrui", {"host_id": "octominer1", "command": "id",
             "privilege_level": "elevated", "execution_grant_id": "execution-grant",
             "idempotency_key": "task-elevated"})
@@ -171,6 +196,18 @@ class CommandGatewayTests(unittest.TestCase):
                 "privilege_level": "standard", "execution_grant_id": "execution-grant",
                 "idempotency_key": "task-unknown"})
         self.assertEqual(TASK_HOSTS["octominer1"][1], "host:octominer1")
+
+    def test_task_submission_fails_closed_without_protected_grant_authority(self):
+        authority, authorizer, agent = _AuthorityRegistry(), _Authorizer(), Mock()
+        gateway = WindowsCommandGateway(authority_registry=authority, authorizer=authorizer,
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+        with self.assertRaisesRegex(PermissionError, "protected_command_grant_authority_unavailable"):
+            gateway.submit_task("steward:camrui", {
+                "host_id": "desktop-ja3rpnq", "command": "hostname",
+                "privilege_level": "standard", "execution_grant_id": "executor",
+                "idempotency_key": "missing-protected-authority"})
+        self.assertEqual(authority.calls, [])
+        agent.submit.assert_not_called()
 
     def test_task_status_requires_same_host_grant_and_command_digest(self):
         agent = Mock()

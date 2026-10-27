@@ -1,6 +1,6 @@
 """Bounded Windows PowerShell/SSH command gateway for Comms5.
 
-File Revision: 1.1.0
+File Revision: 1.1.1
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY
 Authority: Existing AuthorityRegistry grants and systemd-loaded service credential.
 Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Add host-scoped standard/elevated task commands and durable result attribution.
@@ -86,7 +86,7 @@ class WindowsCommandGateway:
     """Authorize and dispatch one fixed operation through AuthorityRegistry."""
 
     def __init__(self, *, authority_registry, authorizer, ledger_db,
-                 grantee_credential: str, agent_client):
+                 grantee_credential: str, agent_client, command_grant_authority=None):
         if (authority_registry is None or authorizer is None or ledger_db is None or
                 not isinstance(grantee_credential, str) or len(grantee_credential) < 32 or
                 agent_client is None):
@@ -96,9 +96,11 @@ class WindowsCommandGateway:
         self.ledger_db = ledger_db
         self.grantee_credential = grantee_credential
         self.agent = agent_client
+        self.command_grant_authority = command_grant_authority
 
     @classmethod
-    def from_environment(cls, *, authority_registry, authorizer, ledger_db):
+    def from_environment(cls, *, authority_registry, authorizer, ledger_db,
+                         command_grant_authority=None):
         credential_dir = os.environ.get("CREDENTIALS_DIRECTORY")
         if not credential_dir:
             raise RuntimeError("command_gateway_credentials_not_loaded")
@@ -108,7 +110,8 @@ class WindowsCommandGateway:
             os.environ.get("RIVERVIEW_COMMAND_AGENT_URL", "https://desktop-ja3rpnq:8443"),
             root / "command-agent-token", ca_file=root / "command-agent-ca.pem")
         return cls(authority_registry=authority_registry, authorizer=authorizer,
-                   ledger_db=ledger_db, grantee_credential=grantee, agent_client=client)
+                   ledger_db=ledger_db, grantee_credential=grantee, agent_client=client,
+                   command_grant_authority=command_grant_authority)
 
     @staticmethod
     def _idempotency(principal: str, operation: str, key: object) -> str:
@@ -243,6 +246,8 @@ class WindowsCommandGateway:
         if not isinstance(execution_grant_id, str) or not 1 <= len(execution_grant_id) <= 128:
             raise ValueError("execution_grant_id_invalid")
         caller_action, execution_action = self._task_actions(arguments["host_id"], privilege)
+        if self.command_grant_authority is None:
+            raise CommandGatewayDenied("protected_command_grant_authority_unavailable")
         try:
             with self.ledger_db.transaction():
                 with self.ledger_db.cursor() as cursor:
@@ -256,8 +261,8 @@ class WindowsCommandGateway:
                                  arguments["idempotency_key"])
         operation_ref = "comms5-command:" + idem
         try:
-            reservation = self.registry.reserve_delegated_grant(
-                self.grantee_credential, execution_grant_id, execution_action, scope,
+            reservation = self.command_grant_authority.reserve_command_task_grant(
+                execution_grant_id, execution_action, scope,
                 operation_ref, idempotency_key=idem)
         except Exception as exc:
             if type(exc).__name__ in {"AuthorityDenied", "RegistryUnavailable"}:
@@ -273,8 +278,8 @@ class WindowsCommandGateway:
             if current.get("grant_id") != execution_grant_id:
                 raise CommandGatewayDenied("execution_grant_changed_before_dispatch")
         except Exception as exc:
-            self.registry.release_delegated_grant(
-                self.grantee_credential, reservation["reservation_id"],
+            self.command_grant_authority.release_command_task_grant(
+                reservation["reservation_id"],
                 "authority_revoked_before_dispatch")
             if isinstance(exc, CommandGatewayDenied):
                 raise
@@ -289,15 +294,15 @@ class WindowsCommandGateway:
         try:
             result = self.agent.submit(request)
         except Exception:
-            self.registry.release_delegated_grant(self.grantee_credential,
+            self.command_grant_authority.release_command_task_grant(
                 reservation["reservation_id"], "command_agent_unavailable")
             raise
         status = result.get("execution_status")
         if status == "denied":
-            self.registry.release_delegated_grant(self.grantee_credential,
+            self.command_grant_authority.release_command_task_grant(
                 reservation["reservation_id"], "command_agent_rejected")
         elif status in {"queued", "running", "completed", "failed", "timed_out", "interrupted"}:
-            self.registry.consume_delegated_grant(self.grantee_credential,
+            self.command_grant_authority.consume_command_task_grant(
                 reservation["reservation_id"], result["execution_id"])
         else:
             raise CommandAgentUnavailable("command_agent_status_invalid")

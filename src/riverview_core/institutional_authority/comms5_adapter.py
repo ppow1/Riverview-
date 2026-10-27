@@ -1,5 +1,6 @@
-# Revision: 1.3.0
+# Revision: 1.3.1
 # Changed: 2026-10-26 UTC | COMMS5-COMMAND-GATEWAY-IDENTITY | Register the fixed Gateway service principal through protected identity.manage.
+# Changed: 2026-10-27 UTC | COMMS5-COMMAND-GRANT-ROLE-FIX | Reserve and consume host-task grants through protected manager authority and the fixed authenticated Gateway service identity.
 """Protected adapter for Comms5 delegated grant lifecycle and identity registration.
 
 The adapter owns the manager connection and Steward credential. Neither value
@@ -31,6 +32,11 @@ _HOST_SCOPED_ACTIONS = {
     **{f"comms5.command.{verb}.task.{host}.{level}": f"host:{host}"
        for host in ("desktop-ja3rpnq", "camrui", "octominer1", "octominer2")
        for verb in ("submit", "execute") for level in ("standard", "elevated")},
+}
+_COMMAND_TASK_EXECUTION_SCOPES = {
+    f"comms5.command.execute.task.{host}.{level}": f"host:{host}"
+    for host in ("desktop-ja3rpnq", "camrui", "octominer1", "octominer2")
+    for level in ("standard", "elevated")
 }
 _UNCHANGED = object()
 from riverview_core.comms5.delegation_policy import (
@@ -324,6 +330,44 @@ class Comms5DelegationAuthorityAdapter:
             raise AuthorityDenied("promotion actor does not match protected Steward identity")
         return self._registry.release_delegated_grant(self._steward_token,
             reservation_id, reason_code)
+
+    def _command_gateway_credential(self):
+        """Read the fixed systemd credential for the registered Gateway service."""
+        credential_dir = os.environ.get("CREDENTIALS_DIRECTORY")
+        if not credential_dir:
+            raise AuthorityDenied("protected Command Gateway identity is unavailable")
+        token = _read_credential(Path(credential_dir) / "command-gateway-grantee",
+                                 systemd_name="command-gateway-grantee")
+        with self._registry.db.transaction():
+            with self._registry.db.cursor() as cur:
+                self._registry._path(cur)
+                principal = self._registry._authenticate(cur, token)
+        if (principal.get("principal_id") != COMMAND_GATEWAY_PRINCIPAL_ID or
+                principal.get("principal_kind") != "service"):
+            raise AuthorityDenied("registered Command Gateway service identity is required")
+        return token
+
+    @staticmethod
+    def _validate_command_task_action(action, scope_ref):
+        if (not isinstance(action, str) or
+                _COMMAND_TASK_EXECUTION_SCOPES.get(action) != scope_ref):
+            raise AuthorityDenied("exact host-scoped Command Gateway execution action is required")
+
+    def reserve_command_task_grant(self, grant_id, action, scope_ref, operation_ref,
+                                   *, idempotency_key):
+        """Reserve an exact host task grant under protected manager DB authority."""
+        self._validate_command_task_action(action, scope_ref)
+        token = self._command_gateway_credential()
+        return self._registry.reserve_delegated_grant(token, grant_id, action,
+            scope_ref, operation_ref, idempotency_key=idempotency_key)
+
+    def consume_command_task_grant(self, reservation_id, result_ref):
+        token = self._command_gateway_credential()
+        return self._registry.consume_delegated_grant(token, reservation_id, result_ref)
+
+    def release_command_task_grant(self, reservation_id, reason_code):
+        token = self._command_gateway_credential()
+        return self._registry.release_delegated_grant(token, reservation_id, reason_code)
 
     def authorize_operation(self, *, principal_id, tool, operation_ref):
         if not is_delegable_tool(tool):

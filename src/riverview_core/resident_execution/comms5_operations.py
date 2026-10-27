@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -217,7 +217,8 @@ class Comms5Operations:
             gateway = WindowsCommandGateway.from_environment(
                 authority_registry=self.authority_registry,
                 authorizer=self.pipeline.authorizer,
-                ledger_db=self.pipeline.ledger.db)
+                ledger_db=self.pipeline.ledger.db,
+                command_grant_authority=self.delegation_grant_requests)
             if tool == "comms5_command_submit":
                 return gateway.submit(actor, arguments)
             if tool == "comms5_command_status":
