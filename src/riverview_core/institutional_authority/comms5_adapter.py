@@ -1,5 +1,6 @@
-# Revision: 1.1.0
+# Revision: 1.2.0
 # Changed: 2026-10-26 UTC | RV-ISSUE343-BASE-INTEGRATION | Preserve protected ChatGPT principal registration and add exact host-scoped delegation pairs.
+# Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Reserve and consume exact host-task grants through the registered Command Gateway service identity.
 """Protected adapter for Comms5 delegated grant lifecycle and identity registration.
 
 The adapter owns the manager connection and Steward credential. Neither value
@@ -27,7 +28,16 @@ _HOST_SCOPED_ACTIONS = {
     "comms5.command.execute.readonly.powershell_identity.standard": "host:desktop-ja3rpnq",
     "comms5.command.submit.ssh_camrui_hostname": "host:camrui",
     "comms5.command.execute.readonly.ssh_camrui_hostname.standard": "host:camrui",
+    **{f"comms5.command.{verb}.task.{host}.{level}": f"host:{host}"
+       for host in ("desktop-ja3rpnq", "camrui", "octominer1", "octominer2")
+       for verb in ("submit", "execute") for level in ("standard", "elevated")},
 }
+_COMMAND_TASK_EXECUTION_SCOPES = {
+    f"comms5.command.execute.task.{host}.{level}": f"host:{host}"
+    for host in ("desktop-ja3rpnq", "camrui", "octominer1", "octominer2")
+    for level in ("standard", "elevated")
+}
+_COMMAND_GATEWAY_PRINCIPAL_ID = "service:command-gateway"
 _UNCHANGED = object()
 from riverview_core.comms5.delegation_policy import (
     DELEGATED_ACTION, DELEGATED_POLICY, DELEGATED_PROJECT_SCOPE, is_delegable_tool,
@@ -293,6 +303,42 @@ class Comms5DelegationAuthorityAdapter:
             raise AuthorityDenied("promotion actor does not match protected Steward identity")
         return self._registry.release_delegated_grant(self._steward_token,
             reservation_id, reason_code)
+
+    def _command_gateway_credential(self):
+        """Load and verify only the fixed service credential provisioned for Gateway."""
+        credential_dir = os.environ.get("CREDENTIALS_DIRECTORY")
+        if not credential_dir:
+            raise AuthorityDenied("protected Command Gateway identity is unavailable")
+        token = _read_credential(Path(credential_dir) / "command-gateway-grantee",
+                                 systemd_name="command-gateway-grantee")
+        with self._registry.db.transaction():
+            with self._registry.db.cursor() as cur:
+                self._registry._path(cur)
+                principal = self._registry._authenticate(cur, token)
+        if (principal.get("principal_id") != _COMMAND_GATEWAY_PRINCIPAL_ID or
+                principal.get("principal_kind") != "service"):
+            raise AuthorityDenied("registered Command Gateway service identity is required")
+        return token
+
+    @staticmethod
+    def _validate_command_task_action(action, scope_ref):
+        if not isinstance(action, str) or _COMMAND_TASK_EXECUTION_SCOPES.get(action) != scope_ref:
+            raise AuthorityDenied("exact host-scoped Command Gateway execution action is required")
+
+    def reserve_command_task_grant(self, grant_id, action, scope_ref, operation_ref,
+                                   *, idempotency_key):
+        self._validate_command_task_action(action, scope_ref)
+        token = self._command_gateway_credential()
+        return self._registry.reserve_delegated_grant(token, grant_id, action,
+            scope_ref, operation_ref, idempotency_key=idempotency_key)
+
+    def consume_command_task_grant(self, reservation_id, result_ref):
+        token = self._command_gateway_credential()
+        return self._registry.consume_delegated_grant(token, reservation_id, result_ref)
+
+    def release_command_task_grant(self, reservation_id, reason_code):
+        token = self._command_gateway_credential()
+        return self._registry.release_delegated_grant(token, reservation_id, reason_code)
 
     def authorize_operation(self, *, principal_id, tool, operation_ref):
         if not is_delegable_tool(tool):

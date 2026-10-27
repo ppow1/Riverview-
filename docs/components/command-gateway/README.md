@@ -1,4 +1,4 @@
-<!-- Document Revision: 1.1.1 -->
+<!-- Document Revision: 1.1.2 -->
 
 # Riverview Command Gateway
 
@@ -99,7 +99,10 @@ default, configurable on the agent with
 `RIVERVIEW_COMMAND_JOB_TIMEOUT_SECONDS` from 1 to 86,400 seconds. The agent
 waits at most 2 seconds for an immediate result; if the task is still active,
 submission returns `queued` or `running` with its durable `execution_id` and
-`task_id`. This leaves room inside the 20-second Comms5-to-agent HTTP deadline.
+`task_id`. The Dashboard gives `comms5_command_task_submit` a 25-second response
+window, which exceeds the fixed probe deadline; all other Comms5 operations keep
+their ordinary 3-second Dashboard timeout. The agent HTTPS timeout remains 20
+seconds.
 
 ## Windows agent setup
 
@@ -394,8 +397,9 @@ key. Status and cancellation both recheck the same host-scoped caller grant.
 `timed_out`, `cancelled`, or `interrupted`, with timestamps, bounded output,
 exit code, execution/task ID, authorization evidence, and the latest audit event
 identifier. The Gateway's `cancel_task` operation and authenticated agent
-DELETE endpoint provide idempotent cancellation; catalog and route exposure
-remain with C1's separate Comms5 restoration. Queued work becomes `cancelled`;
+DELETE endpoint provide idempotent cancellation. Comms5 publishes task submit
+and status tools; cancellation remains available through the authenticated
+agent API. Queued work becomes `cancelled`;
 running work receives a cancellation signal and its process is terminated.
 Completed work is returned unchanged.
 

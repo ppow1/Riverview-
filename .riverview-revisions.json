@@ -25,7 +25,7 @@
       "size_bytes": 1611115
     },
     ".riverview-revisions.json": {
-      "revision": "1.1.341"
+      "revision": "1.1.350"
     },
     "AI_HINTS.md": {
       "path": "AI_HINTS.md",
@@ -725,9 +725,9 @@
     },
     "docs/components/command-gateway/README.md": {
       "path": "docs/components/command-gateway/README.md",
-      "revision": "1.1.1",
-      "sha256": "88c1455646dc613ac457ae285e5a619d2238d929cd97384007e99957ad4e3e68",
-      "size_bytes": 22660
+      "revision": "1.1.2",
+      "sha256": "7af8e2156d986924d1bc670729142d1163fa2d367df3ad432cd0450f00655f24",
+      "size_bytes": 22871
     },
     "docs/delegation-grants/examples.json": {
       "path": "docs/delegation-grants/examples.json",
@@ -8381,15 +8381,15 @@
     },
     "src/riverview_core/comms5/command_gateway.py": {
       "path": "src/riverview_core/comms5/command_gateway.py",
-      "revision": "1.1.1",
-      "sha256": "20cd7e48098748dac2184b41d9142009d87eeb81c44b8445538febda049d1dd4",
-      "size_bytes": 56961
+      "revision": "1.1.2",
+      "sha256": "aede1ee1b3e5c0af5fdbd5419277cffd44d2fb31857470a3448aaa9be291e88f",
+      "size_bytes": 57266
     },
     "src/riverview_core/comms5/dashboard_backend.py": {
       "path": "src/riverview_core/comms5/dashboard_backend.py",
-      "revision": "1.0.10",
-      "sha256": "84c728924d92004ad59e0bc304f69ab6489b616284fc83a510d08699738ed56b",
-      "size_bytes": 15111
+      "revision": "1.1.0",
+      "sha256": "2606bf9f331829e75184b70a2a8291570ef86dabc7eaf3f88deb579f141561d8",
+      "size_bytes": 16336
     },
     "src/riverview_core/comms5/server.py": {
       "path": "src/riverview_core/comms5/server.py",
@@ -8399,9 +8399,9 @@
     },
     "src/riverview_core/comms5/tool_catalog.json": {
       "path": "src/riverview_core/comms5/tool_catalog.json",
-      "revision": "1.0.2",
-      "sha256": "a27b2fab391d6c8d7ca2657650a5bd7f25bba4a5f07f560f0c23a5a68858275a",
-      "size_bytes": 138740
+      "revision": "1.0.3",
+      "sha256": "a76fea0236b7e9ff00242760dd12db3a1cbdc43833bbc6dbd92e7911d45e2ec9",
+      "size_bytes": 146547
     },
     "src/riverview_core/diagnostics.py": {
       "path": "src/riverview_core/diagnostics.py",
@@ -8759,9 +8759,9 @@
     },
     "src/riverview_core/resident_execution/comms5_operations.py": {
       "path": "src/riverview_core/resident_execution/comms5_operations.py",
-      "revision": "1.0.8",
-      "sha256": "de27e619a17ad7d2f384118d80525be6a3cd4955cd0cdbd6ad9aac0f363ad0d3",
-      "size_bytes": 85957
+      "revision": "1.1.0",
+      "sha256": "454f8a4a626a4f43d6f1ee7e2da9e5b73fdd339a8739f0515b4ba58b451b969b",
+      "size_bytes": 86710
     },
     "src/riverview_core/resident_execution/conversation.py": {
       "path": "src/riverview_core/resident_execution/conversation.py",
@@ -9329,15 +9329,15 @@
     },
     "tests/test_command_gateway.py": {
       "path": "tests/test_command_gateway.py",
-      "revision": "1.1.0",
-      "sha256": "22f10ea604d39cc10a20d6d908f340ad601cc3b932603f02e9a0ec385cb21887",
-      "size_bytes": 34906
+      "revision": "1.1.1",
+      "sha256": "30076a6580c55c846dd98f9f7f4e1693f3d4e429aadef416d62e4bad9189dbcf",
+      "size_bytes": 35792
     },
     "tests/test_comms5_current_runtime.py": {
       "path": "tests/test_comms5_current_runtime.py",
-      "revision": "1.0.7",
-      "sha256": "d465690c194ee01e671d83843d2a1ffa5112a3a20c8ca53f8b213c65cc60f6c7",
-      "size_bytes": 39975
+      "revision": "1.0.8",
+      "sha256": "4ccecf9ee76c4b052e7c053605d82ea0d7d571964d41e2846ac6c7991f405ccb",
+      "size_bytes": 41491
     },
     "tests/test_comms5_deployment.py": {
       "path": "tests/test_comms5_deployment.py",
@@ -9347,9 +9347,9 @@
     },
     "tests/test_comms5_mcp.py": {
       "path": "tests/test_comms5_mcp.py",
-      "revision": "1.1.7",
-      "sha256": "f0f796aaf44bfc51fa0356029569423992d0b748251f4061a563d7d6537b8ed8",
-      "size_bytes": 24939
+      "revision": "1.1.9",
+      "sha256": "d1bbf13fb1cf3b2c43f6c270f13aac1a3baa1797e7618445df0397a3334a15b0",
+      "size_bytes": 29883
     },
     "tests/test_comms5_packaging.py": {
       "path": "tests/test_comms5_packaging.py",
@@ -9800,9 +9800,15 @@
       "revision": "1.0.36",
       "sha256": "4c94df2e11880bacd0ba88962f1f2561301f30d56e9d9449ca5599f222db5cca",
       "size_bytes": 84644
+    },
+    "src/riverview_core/institutional_authority/comms5_adapter.py": {
+      "revision": "1.2.0",
+      "path": "src/riverview_core/institutional_authority/comms5_adapter.py",
+      "sha256": "365854757797be5a98d51f3251cf7712ffef12496f0718644bb7f081592023b3",
+      "size_bytes": 18186
     }
   },
   "manifest_revision": "1.1.341",
-  "revision": "1.1.348",
-  "updated_at": "2026-10-26T17:07:43+00:00"
+  "revision": "1.1.350",
+  "updated_at": "2026-10-27T02:56:09+00:00"
 }

@@ -1,6 +1,6 @@
 """Focused tests for the bounded Comms5 Windows command gateway.
 
-File Revision: 1.1.0
+File Revision: 1.1.1
 Component: COMMS5-WINDOWS-COMMAND-GATEWAY-TESTS
 Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Verify long execution, polling, cancellation, idempotency, revocation, and restart recovery.
 """
@@ -83,6 +83,16 @@ class _AuthorityRegistry:
     def release_delegated_grant(self, credential, reservation_id, reason_code):
         self.calls.append(("release", credential, reservation_id, reason_code))
 
+    def reserve_command_task_grant(self, grant_id, action, scope, operation_ref, *, idempotency_key):
+        return self.reserve_delegated_grant("g" * 48, grant_id, action, scope,
+                                            operation_ref, idempotency_key=idempotency_key)
+
+    def consume_command_task_grant(self, reservation_id, result_ref):
+        return self.consume_delegated_grant("g" * 48, reservation_id, result_ref)
+
+    def release_command_task_grant(self, reservation_id, reason_code):
+        return self.release_delegated_grant("g" * 48, reservation_id, reason_code)
+
 
 class CommandGatewayTests(unittest.TestCase):
     def _store(self, *args, **kwargs):
@@ -144,7 +154,8 @@ class CommandGatewayTests(unittest.TestCase):
             "host_id": "desktop-ja3rpnq", "command_sha256": digest,
         }
         gateway = WindowsCommandGateway(authority_registry=authority, authorizer=authorizer,
-            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=authority)
         result = gateway.submit_task("steward:camrui", {
             "host_id": "desktop-ja3rpnq", "command": command,
             "privilege_level": "standard", "execution_grant_id": "execution-grant",
@@ -174,7 +185,8 @@ class CommandGatewayTests(unittest.TestCase):
         agent.status.side_effect = [{"execution_status": "not_found"}, existing]
         agent.submit.return_value = existing
         gateway = WindowsCommandGateway(authority_registry=authority, authorizer=authorizer,
-            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=authority)
         arguments = {"host_id": "desktop-ja3rpnq", "command": command,
             "privilege_level": "standard", "execution_grant_id": "execution-grant",
             "idempotency_key": "retry-key"}
@@ -192,7 +204,8 @@ class CommandGatewayTests(unittest.TestCase):
                 raise type("GrantDenied", (Exception,), {})()
         authorizer = RevokedAuthorizer()
         gateway = WindowsCommandGateway(authority_registry=authority, authorizer=authorizer,
-            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=authority)
         with self.assertRaisesRegex(Exception, "execution_grant_inactive_before_dispatch"):
             gateway.submit_task("steward:camrui", {"host_id": "camrui", "command": "hostname",
                 "privilege_level": "standard", "execution_grant_id": "execution-grant",
@@ -208,7 +221,8 @@ class CommandGatewayTests(unittest.TestCase):
             "idempotency_key": "key", "host_id": "octominer1",
             "command_sha256": "a" * 64}
         gateway = WindowsCommandGateway(authority_registry=authority, authorizer=authorizer,
-            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=authority)
         gateway.submit_task("steward:camrui", {"host_id": "octominer1", "command": "id",
             "privilege_level": "elevated", "execution_grant_id": "execution-grant",
             "idempotency_key": "task-elevated"})
@@ -230,7 +244,8 @@ class CommandGatewayTests(unittest.TestCase):
             "execution_grant_id": "executor", "reservation_id": "reservation"}
         authorizer = _Authorizer()
         gateway = WindowsCommandGateway(authority_registry=_AuthorityRegistry(), authorizer=authorizer,
-            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=_AuthorityRegistry())
         value = gateway.task_status("steward:camrui", {"host_id": "camrui",
             "command_sha256": "c" * 64, "privilege_level": "standard",
             "idempotency_key": "key-status"})
@@ -248,7 +263,8 @@ class CommandGatewayTests(unittest.TestCase):
             "execution_grant_id": "executor", "reservation_id": "reservation"}
         authorizer = _Authorizer()
         gateway = WindowsCommandGateway(authority_registry=_AuthorityRegistry(), authorizer=authorizer,
-            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent)
+            ledger_db=_Ledger(), grantee_credential="g" * 48, agent_client=agent,
+            command_grant_authority=_AuthorityRegistry())
         value = gateway.cancel_task("steward:camrui", {"host_id": "camrui",
             "command_sha256": "d" * 64, "privilege_level": "standard",
             "idempotency_key": "key-cancel"})
