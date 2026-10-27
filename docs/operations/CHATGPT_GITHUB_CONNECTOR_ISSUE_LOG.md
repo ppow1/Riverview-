@@ -1,6 +1,6 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CHATGPT_GITHUB_CONNECTOR_ISSUE_LOG.md
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-27
 -->
 # ChatGPT ↔ GitHub connector issue log
@@ -38,6 +38,13 @@ For each failure record date/time, tool, input category (never secrets), exact e
 - Date: 2026-10-27.
 - Async PowerShell Get-ChildItem A:\Riverview-New-Core\docs\operations failed path-not-found under RiverviewCmdAgent; not evidence that the interactive user's A: checkout is missing.
 - Next: inspect service-account-visible local paths without copying keys or weakening ACLs.
+
+### GH-CONN-004 — Native issue creation succeeds on retry with bounded body
+- Date: 2026-10-27.
+- Tool: mcp__GitHub__create_issue.
+- Result: created [issue #359](https://github.com/ppow1/Riverview-/issues/359) using concise scoped body, after earlier safety rejection of a longer request.
+- Interpretation: failure was not a blanket prohibition on GitHub issue writes; precise cause of earlier safety rejection remains unknown.
+- Follow-up: compare request shape and length, record exact error and read-back; do not claim a definitive cause.
 
 ## Active punch list
 - P1: Reconcile Comms5 direct Codex operation registration and ChatGPT tool schema.
