@@ -1,0 +1,40 @@
+{
+  "manifest_revision": "1.0.0",
+  "task_id": "RV-COMMS5-DISPATCH-359",
+  "files": [
+    {
+      "path": "src/riverview_core/comms5/tool_catalog.json",
+      "predecessor_sha256": "a76fea0236b7e9ff00242760dd12db3a1cbdc43833bbc6dbd92e7911d45e2ec9",
+      "backup": ".riverview-backups/RV-COMMS5-DISPATCH-359/src/riverview_core/comms5/tool_catalog.json",
+      "source_commit": "9f08b46d40bb8edfd7ea40f7ad65aa355af4971f",
+      "restore": "Verify SHA-256, then copy the backup bytes to the original path.",
+      "prior_revision": "1.0.3",
+      "new_revision": "1.0.4"
+    },
+    {
+      "path": "tests/test_comms5_mcp.py",
+      "predecessor_sha256": "d1bbf13fb1cf3b2c43f6c270f13aac1a3baa1797e7618445df0397a3334a15b0",
+      "backup": ".riverview-backups/RV-COMMS5-DISPATCH-359/tests/test_comms5_mcp.py",
+      "source_commit": "9f08b46d40bb8edfd7ea40f7ad65aa355af4971f",
+      "restore": "Verify SHA-256, then copy the backup bytes to the original path.",
+      "prior_revision": "1.1.9",
+      "new_revision": "1.1.10"
+    },
+    {
+      "path": ".riverview-revisions.json",
+      "predecessor_sha256": "1365a215ec08868d4d35c7212043bc19c724ae311d0a7b8dc26c5eb89747512b",
+      "backup": ".riverview-backups/RV-COMMS5-DISPATCH-359/.riverview-revisions.json",
+      "source_commit": "9f08b46d40bb8edfd7ea40f7ad65aa355af4971f",
+      "restore": "Verify SHA-256, then copy the backup bytes to the original path."
+    },
+    {
+      "path": "docs/operations/CHATGPT_GITHUB_CONNECTOR_ISSUE_LOG.md",
+      "prior_revision": "1.0.1",
+      "new_revision": "1.0.2",
+      "predecessor_sha256": "a0f8524fa252039bdcb7acf79b77e70f2c9b9d0515679b73f7563aea7bfbf6ff",
+      "backup": ".riverview-backups/RV-COMMS5-DISPATCH-359/docs/operations/CHATGPT_GITHUB_CONNECTOR_ISSUE_LOG.md",
+      "source_blob": "85124ddb5dc4365f8826583573935d17af602793",
+      "restore": "Verify SHA-256 then copy backup bytes to original path; predecessor originated on main."
+    }
+  ]
+}
