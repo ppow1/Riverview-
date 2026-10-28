@@ -2,7 +2,11 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.35
+# Revision: 1.1.38
+# Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-CONSTRUCTION-DIAGNOSTICS | Verify safe diagnostics for request serialization and prompt byte boundaries.
+# Changed: 2026-10-26 UTC | RV-GRACE-EXACT-CRITERIA-OUTPUT-SCHEMA | Assert generated step schemas enumerate exact persisted non-lifecycle criteria.
+# Changed: 2026-10-26 UTC | RV-GRACE-LIFECYCLE-CRITERIA-SCHEMA-ALIGNMENT | Verify only persisted lifecycle criteria are schema-permitted as system-owned.
+# Changed: 2026-10-25 UTC | RV-GRACE-ARTIFACT-SCHEMA-VALIDATOR-ALIGNMENT | Verify generated artifact string constraints match typed validation.
 # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify the exact one-time criteria-binding recovery instruction preserves original scope.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Check the ComfyUI typed plan schema alongside existing artifact and source-change variants.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional JSON-schema chat mode is sent only when requested and bounded.
@@ -58,6 +62,7 @@
 from io import BytesIO
 from dataclasses import replace
 import json
+import re
 import logging
 import unittest
 from unittest.mock import patch
@@ -142,6 +147,54 @@ class LocalReasoningProviderTests(unittest.TestCase):
         proposal = self.provider.propose(self.request)
         self.assertIsInstance(proposal, PlanProposal)
         self.assertEqual(proposal.system_owned_criteria, (criterion,))
+
+    def test_steward_system_owned_schema_allows_only_original_lifecycle_criteria(self):
+        lifecycle = "- Create exactly one Engineering assignment for the report."
+        ordinary = "No file modifications"
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": [lifecycle, ordinary],
+        })
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Report the read-only inspection",
+            "system_owned_criteria": [lifecycle],
+            "steps": [{"step_id": "inspect", "objective": "Inspect and report",
+                "acceptance_criteria": [ordinary], "depends_on": [],
+                "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.md",
+                    "media_type": "text/markdown", "acceptance_criteria": [ordinary]}]}]}))
+
+        proposal = self.provider.propose(self.request)
+
+        self.assertIsInstance(proposal, PlanProposal)
+        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
+        system_owned = schema["properties"]["system_owned_criteria"]
+        self.assertEqual(system_owned["maxItems"], 1)
+        self.assertEqual(system_owned["items"]["enum"], [lifecycle])
+
+    def test_steward_system_owned_schema_forbids_non_lifecycle_criteria(self):
+        self.request = replace(self.request, assignment={
+            **self.request.assignment,
+            "acceptance_criteria": ["Return exact Git HEAD", "No file modifications"],
+        })
+        self.response_body = self._response(text=json.dumps({
+            "summary": "Inspect repository state", "system_owned_criteria": [],
+            "steps": [{"step_id": "inspect", "objective": "Inspect and report",
+                "acceptance_criteria": ["Return exact Git HEAD", "No file modifications"],
+                "depends_on": [], "execution_capability": "engineering.codex-cli-artifact.v1",
+                "artifact_requirements": [{"name": "report", "path": "report.md",
+                    "media_type": "text/markdown",
+                    "acceptance_criteria": ["Return exact Git HEAD", "No file modifications"]}]}]}))
+
+        proposal = self.provider.propose(self.request)
+
+        self.assertIsInstance(proposal, PlanProposal)
+        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
+        self.assertEqual(schema["properties"]["system_owned_criteria"]["maxItems"], 0)
+        step_variants = schema["properties"]["steps"]["items"]["oneOf"]
+        for variant in step_variants:
+            self.assertEqual(variant["properties"]["acceptance_criteria"]["items"]["enum"],
+                             ["Return exact Git HEAD", "No file modifications"])
 
     def test_unmapped_exact_original_criterion_is_bound_to_single_step(self):
         lifecycle = "- Create exactly one Engineering assignment for the report."
@@ -342,6 +395,8 @@ class LocalReasoningProviderTests(unittest.TestCase):
                 self.assertEqual(diagnostic["field_path"], path)
                 self.assertEqual(diagnostic["expected_type"], expected)
                 self.assertEqual(diagnostic["actual_type"], actual)
+                self.assertNotIn("observed_bytes", diagnostic)
+                self.assertNotIn("limit_bytes", diagnostic)
                 self.assertNotIn("TOP_SECRET", captured.output[0])
                 self.assertNotIn("unsupported-private-value", captured.output[0])
 
@@ -372,6 +427,87 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertEqual(diagnostic["expected_type"], "non-empty array")
         self.assertEqual(diagnostic["actual_type"], "array")
         self.assertIsNone(diagnostic["exception_type"])
+
+    def test_request_context_serialization_failures_are_sanitized_and_do_not_call_http(self):
+        class PrivateContextValue:
+            def __repr__(self):
+                return "PRIVATE_CONTEXT_SENTINEL"
+
+        circular = {"private": "PRIVATE_CONTEXT_SENTINEL"}
+        circular["self"] = circular
+        cases = ((PrivateContextValue(), "TypeError"),
+                 (circular, "ValueError"))
+        for value, exception_type in cases:
+            with self.subTest(exception_type=exception_type):
+                self.request = replace(self.request, assignment={
+                    **self.request.assignment, "objective": value})
+                with self.assertLogs("riverview_core.local_reasoning_provider",
+                                     level=logging.WARNING) as captured:
+                    result = self.provider.propose(self.request)
+                self.assertEqual(result.detail_code, "PROPOSAL_REQUEST_INVALID")
+                diagnostic = json.loads(captured.records[0].getMessage())
+                self.assertEqual(diagnostic["validation_stage"],
+                                 "request_context_serialization")
+                self.assertEqual(diagnostic["field_path"], "$")
+                self.assertEqual(diagnostic["expected_type"],
+                                 "JSON-serializable proposal request")
+                self.assertEqual(diagnostic["exception_type"], exception_type)
+                self.assertNotIn("PRIVATE_CONTEXT_SENTINEL", captured.output[0])
+                self.assertEqual(self.request_calls, [])
+
+    def test_request_body_serialization_failure_is_sanitized_and_does_not_call_http(self):
+        class PrivateBodyValue:
+            def __repr__(self):
+                return "PRIVATE_BODY_SENTINEL"
+
+        self.request = replace(self.request,
+            external_reasoning_targets=(PrivateBodyValue(),))
+        with self.assertLogs("riverview_core.local_reasoning_provider",
+                             level=logging.WARNING) as captured:
+            result = self.provider.propose(self.request)
+        self.assertEqual(result.detail_code, "PROPOSAL_REQUEST_INVALID")
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(diagnostic["validation_stage"], "request_body_serialization")
+        self.assertEqual(diagnostic["field_path"], "$")
+        self.assertEqual(diagnostic["expected_type"],
+                         "JSON-serializable proposal request")
+        self.assertEqual(diagnostic["exception_type"], "TypeError")
+        self.assertNotIn("PRIVATE_BODY_SENTINEL", captured.output[0])
+        self.assertEqual(self.request_calls, [])
+
+    def test_empty_request_context_has_zero_byte_diagnostic_and_no_http(self):
+        with patch.object(LocalReasoningProvider, "_content", return_value=""):
+            with self.assertLogs("riverview_core.local_reasoning_provider",
+                                 level=logging.WARNING) as captured:
+                result = self.provider.propose(self.request)
+        self.assertEqual(result.detail_code, "PROPOSAL_REQUEST_INVALID")
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(diagnostic["validation_stage"], "request_context_empty")
+        self.assertEqual(diagnostic["field_path"], "$")
+        self.assertEqual(diagnostic["observed_bytes"], 0)
+        self.assertEqual(diagnostic["limit_bytes"], self.provider.MAX_PROMPT_BYTES)
+        self.assertEqual(self.request_calls, [])
+
+    def test_multibyte_request_context_limit_uses_utf8_bytes_and_no_http(self):
+        context = "é" * (self.provider.MAX_PROMPT_BYTES // 2 + 1)
+        self.assertLess(len(context), self.provider.MAX_PROMPT_BYTES)
+        with patch.object(LocalReasoningProvider, "_content", return_value=context):
+            with self.assertLogs("riverview_core.local_reasoning_provider",
+                                 level=logging.WARNING) as captured:
+                result = self.provider.propose(self.request)
+        self.assertEqual(result.detail_code, "PROPOSAL_REQUEST_INVALID")
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(diagnostic["validation_stage"], "request_context_too_large")
+        self.assertEqual(diagnostic["observed_bytes"], len(context.encode("utf-8")))
+        self.assertEqual(diagnostic["limit_bytes"], self.provider.MAX_PROMPT_BYTES)
+        self.assertEqual(self.request_calls, [])
+
+    def test_request_context_at_exact_utf8_byte_limit_is_accepted(self):
+        context = "x" * self.provider.MAX_PROMPT_BYTES
+        with patch.object(LocalReasoningProvider, "_content", return_value=context):
+            result = self.provider.propose(self.request)
+        self.assertIsInstance(result, PlanProposal)
+        self.assertEqual(self.requests[0]["messages"][1]["content"], context)
 
     def test_retry_prompt_repairs_prior_plan_omitting_negative_criterion(self):
         required = "Do not modify source files, repository contents, services, production configuration, or credentials."
@@ -584,6 +720,17 @@ class LocalReasoningProviderTests(unittest.TestCase):
         self.assertIn("execution_capability", artifact_schema["required"])
         self.assertNotIn("authorized_paths", artifact_schema["properties"])
         self.assertNotIn("artifact_requirements", source_schema["properties"])
+        artifact_properties = artifact_schema["properties"]["artifact_requirements"]["items"]["properties"]
+        self.assertEqual(artifact_properties["name"]["pattern"],
+                         r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+        self.assertEqual(artifact_properties["path"]["pattern"],
+                         r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$")
+        self.assertEqual(artifact_properties["acceptance_criteria"]["items"]["pattern"], r".*\S.*")
+        self.assertRegex("smoke-evidence", artifact_properties["name"]["pattern"])
+        self.assertNotRegex("smoke evidence", artifact_properties["name"]["pattern"])
+        self.assertIsNotNone(re.fullmatch(artifact_properties["path"]["pattern"],
+                                          "reports/grace-smoke.md"))
+        self.assertIsNone(re.fullmatch(artifact_properties["path"]["pattern"], "../unsafe"))
         self.assertEqual(comfyui_schema["properties"]["execution_capability"]["enum"],
                          ["engineering.comfyui-image.v1"])
         self.assertEqual(set(comfyui_schema["required"]), {"step_id", "objective",
