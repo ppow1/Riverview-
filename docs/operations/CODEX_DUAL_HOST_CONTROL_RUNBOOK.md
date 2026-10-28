@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CODEX_DUAL_HOST_CONTROL_RUNBOOK.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.2
+File Revision: 1.0.3
 Changed: 2026-10-27 | RV-CODEX-DUAL-HOST-RUNBOOK
 -->
 # Windows and Camrui: shell access, Codex start, result, and exact-session resume
@@ -76,6 +76,183 @@ Reference: [SSH standard](https://github.com/ppow1/Riverview-/blob/codex/grace-c
 and [Camrui local execution recovery](https://github.com/ppow1/Riverview-/blob/codex/grace-camrui-local-recovery/docs/operations/GRACE_CAMRUI_LOCAL_EXECUTION_RECOVERY_2026-10-17.md).
 The latter describes a Codex runner already on Camrui; this ChatGPT Work container
 must not assume it is that runner.
+
+## Weekly renewal: all four host grants, unlimited uses
+
+Current verified state at October 27, 2026, 21:18 EDT: all four grants below are
+active with `max_uses: null` (unlimited). Windows expires November 2 at 19:55:25
+EST; Camrui expires November 3 at 16:53:06–07 EST. These are existing windows,
+not a fresh seven days from the unlimited-use correction.
+
+The current Camrui executor is `grant:8327c8d7a74b4bf78e5529e53057fe69`.
+It supersedes the capped `grant:5a2dadaf2c204632a8682e5831fd892d`.
+Approved correction request: `delegation-request:7cd7cf546c934fa38e2d208a60140396`;
+SHA-256 `0b84f1d75b22f13ddb0d85c83d788b73045abc9928dea2294b3708ec537c6f75`.
+Earlier capped-grant observations below are historical, not current limits.
+
+### 1. Create the next week's four renewal requests through Comms5
+
+First read each current grant with `comms5_get_delegation_grant_status`.
+Use its latest active successor ID, not an old revoked predecessor. For each
+binding, call `comms5_request_delegation_grant_change` with the corresponding
+JSON below. Replace `<renewal-date>` in the idempotency key once per weekly
+renewal; keep that same key on retries of the identical request.
+
+**Use `change_kind: "extend"`, `duration_spec: {"unit":"days","value":7}`, and
+explicit `max_uses: null` for every request.** Do not use `upgrade` or
+`extend_upgrade`: unchanged operation/scope with a longer lifetime or more uses
+is an extension. The previous combined-change request
+`delegation-request:b956e6955a9f4fb2b2bc1cdf3d9770d9` failed approval with 409;
+do not retry or approve it.
+
+An extension adds seven calendar days to the later of existing expiry and
+approval time. It does not reset an unexpired grant to seven days from now.
+Renew near expiry for continuous access. Do not also supply `valid_until` in
+these weekly requests. Unlimited count and expiry are independent fields.
+
+**Windows caller**
+
+```json
+{
+  "grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+  "action": "comms5.command.submit.task.desktop-ja3rpnq.standard",
+  "scope_ref": "host:desktop-ja3rpnq",
+  "policy_ref": "policy:delegation.v1",
+  "change_kind": "extend",
+  "duration_spec": {
+    "unit": "days",
+    "value": 7
+  },
+  "max_uses": null,
+  "request_ref": "Issue #359: Steward-requested weekly renewal; unlimited uses; preserve host and action",
+  "idempotency_key": "issue359-weekly-<renewal-date>-1"
+}
+```
+
+**Windows executor**
+
+```json
+{
+  "grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+  "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+  "scope_ref": "host:desktop-ja3rpnq",
+  "policy_ref": "policy:delegation.v1",
+  "change_kind": "extend",
+  "duration_spec": {
+    "unit": "days",
+    "value": 7
+  },
+  "max_uses": null,
+  "request_ref": "Issue #359: Steward-requested weekly renewal; unlimited uses; preserve host and action",
+  "idempotency_key": "issue359-weekly-<renewal-date>-2"
+}
+```
+
+**Camrui caller**
+
+```json
+{
+  "grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+  "action": "comms5.command.submit.task.camrui.standard",
+  "scope_ref": "host:camrui",
+  "policy_ref": "policy:delegation.v1",
+  "change_kind": "extend",
+  "duration_spec": {
+    "unit": "days",
+    "value": 7
+  },
+  "max_uses": null,
+  "request_ref": "Issue #359: Steward-requested weekly renewal; unlimited uses; preserve host and action",
+  "idempotency_key": "issue359-weekly-<renewal-date>-3"
+}
+```
+
+**Camrui executor**
+
+```json
+{
+  "grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+  "action": "comms5.command.execute.task.camrui.standard",
+  "scope_ref": "host:camrui",
+  "policy_ref": "policy:delegation.v1",
+  "change_kind": "extend",
+  "duration_spec": {
+    "unit": "days",
+    "value": 7
+  },
+  "max_uses": null,
+  "request_ref": "Issue #359: Steward-requested weekly renewal; unlimited uses; preserve host and action",
+  "idempotency_key": "issue359-weekly-<renewal-date>-4"
+}
+```
+
+Record all four returned request IDs and SHA-256 hashes. Read each pending
+request back; require the correct grantee/action/scope, `change_kind: extend`,
+seven-day duration and `max_uses: null`. Request creation is not approval.
+
+### 2. Approve the four inspected requests in the Steward browser console
+
+Open the authenticated `https://192.168.1.155/v2/` page, F12 → Console.
+Replace the four placeholder ID/hash pairs with this renewal's actual receipts.
+This uses the existing Steward session and CSRF protection; no credential is
+copied. It stops on the first failed approval. Earlier successful approvals
+remain applied; retry with the same request, approval reference and idempotency
+key after inspecting the failure. Do not reuse last week's hashes.
+
+```javascript
+(async () => {
+  // Replace all four rows with NEW request IDs and hashes from this renewal.
+  const requests = [
+    {name: "Windows caller", id: "<request ID>", hash: "<request SHA-256>"},
+    {name: "Windows executor", id: "<request ID>", hash: "<request SHA-256>"},
+    {name: "Camrui caller", id: "<request ID>", hash: "<request SHA-256>"},
+    {name: "Camrui executor", id: "<request ID>", hash: "<request SHA-256>"}
+  ];
+  if (requests.some(r => !/^delegation-request:[0-9a-f]+$/.test(r.id) ||
+      !/^[0-9a-f]{64}$/.test(r.hash)) ||
+      new Set(requests.map(r => r.id)).size !== 4) {
+    console.error("Supply four distinct inspected renewal request IDs and hashes.");
+    return;
+  }
+  const item = document.cookie.split(";").map(s => s.trim())
+    .find(s => s.startsWith("rv_account_csrf="));
+  if (!item) { console.error("Sign in as the authorized Steward on this origin."); return; }
+  if (!confirm("Approve these four inspected seven-day extensions, all unlimited?")) return;
+  for (const r of requests) {
+    const response = await fetch("/api/v1/steward/delegation-grant-requests/" +
+      encodeURIComponent(r.id) + "/decision", {
+      method: "POST", credentials: "same-origin",
+      headers: {"Content-Type": "application/json", "Accept": "application/json",
+        "X-Riverview-CSRF": decodeURIComponent(item.slice("rv_account_csrf=".length))},
+      body: JSON.stringify({
+        decision: "approve", expected_request_sha256: r.hash,
+        idempotency_key: "weekly-unlimited-approve-" + r.id.split(":")[1],
+        approval_ref: "Steward approval: seven-day extension with unlimited uses"
+      })
+    });
+    const result = await response.json();
+    console.log(r.name, response.status, result);
+    if (!response.ok) { console.error("Stopped; preserve successful receipts and inspect failure."); return; }
+  }
+  console.log("Four approval responses received. Verify each successor through Comms5.");
+})();
+```
+
+### 3. Verify and save successor IDs
+
+For every successful response, call `comms5_get_delegation_grant_status` with its
+returned `grant_id`. Require active status, no revocation, exact principal/action/
+scope, `max_uses: null`, and the intended new expiry. Retained `used_count` is an
+audit counter, not a cap when max_uses is null. Approval replaces the old grant;
+use the NEW executor IDs in subsequent `comms5_command_task_submit` calls.
+Save all four new IDs, request hashes, expiry times and approval receipts in this
+runbook/handoff for the next renewal. Do not call the operation complete merely
+because the console displays `Promise {<pending>}`.
+
+403 `csrf_or_session_check_failed`: check the signed-in page and CSRF header.
+409 `delegation_state_conflict`: read the request and predecessor; check change
+kind, prior decision and current successor. Do not create duplicates blindly.
+A partially approved batch is not an atomic all-four renewal.
 
 ## Access: why seven days does not by itself identify usable execution authority
 
@@ -509,3 +686,12 @@ Predecessor revision 1.0.1 is retained byte-for-byte at
 `544269572f27fb5e758d708aaad9a310952fbff4`. Restore that file's bytes to this path to restore
 the previous documentation revision; use the separate authorized_keys backup for
 production rollback.
+
+## Revision 1.0.3 renewal update
+
+Adds the verified unlimited Camrui successor and reusable four-grant weekly
+request/console-approval procedure. Console JavaScript syntax was checked without
+executing requests; no renewal was submitted as part of documenting this process.
+Predecessor revision 1.0.2 is retained byte-for-byte at
+`docs/history/CODEX_DUAL_HOST_CONTROL_RUNBOOK_rev1.0.2.md`, original Git blob
+`94db181d5792e21a841406341eb2167931bb6ffc`. Restore those bytes to restore the preceding document.
