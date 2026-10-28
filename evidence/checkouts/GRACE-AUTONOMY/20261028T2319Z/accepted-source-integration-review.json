@@ -1,0 +1,112 @@
+{
+  "candidate": {
+    "files": {
+      "src/riverview_core/resident_execution/pipeline.py": {
+        "candidate_path": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/repo/src/riverview_core/resident_execution/pipeline.py",
+        "candidate_revision": "1.1.46",
+        "candidate_sha256": "dfab86a2b7dd91f9b16d444bea6b79210e3d0e3318f9f3496075617b5b27ff64",
+        "live_predecessor_sha256": "0d32ef4439890e37b32d0f186cda73c39d6ec171e4bb246dd298e02e7a9a0873",
+        "predecessor_revision": "1.1.45",
+        "predecessor_sha256": "0d32ef4439890e37b32d0f186cda73c39d6ec171e4bb246dd298e02e7a9a0873"
+      },
+      "src/riverview_core/resident_execution/service.py": {
+        "candidate_path": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/repo/src/riverview_core/resident_execution/service.py",
+        "candidate_revision": "1.0.62",
+        "candidate_sha256": "ec382d9775dc5f116f684db22ca06fa260bdcff405c640948d8f24c3bdb4d772",
+        "live_predecessor_sha256": "3a31111efe3bea0910be6571cef97076dc1a9562fbc57cdff526ca2507394c2d",
+        "predecessor_revision": "1.0.61",
+        "predecessor_sha256": "3a31111efe3bea0910be6571cef97076dc1a9562fbc57cdff526ca2507394c2d"
+      },
+      "tests/test_grace_execution.py": {
+        "candidate_path": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/repo/tests/test_grace_execution.py",
+        "candidate_revision": "1.0.89",
+        "candidate_sha256": "c704d077167d3c82f7e49603389bb793b061c67a3cab51edbd2df70ed8af8f66",
+        "live_predecessor_sha256": "8eb2b8f39d0e04794ad9df5848dda0d27182c331e4162f6bcea372058e974e23",
+        "predecessor_revision": "1.0.88",
+        "predecessor_sha256": "8eb2b8f39d0e04794ad9df5848dda0d27182c331e4162f6bcea372058e974e23"
+      }
+    },
+    "operation": "clone exact predecessor with cp -a; overlay only pipeline.py and service.py preserving predecessor mode/owner; compare all other paths; atomically switch owner current symlink; pointer rollback restores exact predecessor",
+    "release_path": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-publication-fence-20261028-r1",
+    "source_marker": "Retained 9f56 SOURCE_COMMIT and predecessor PACKAGE_SHA256SUMS identify base; overlay is identified by candidate path and runtime hashes.",
+    "version_note": "Owner-session pipeline baseline 1.1.45 \u2192 candidate 1.1.46. A separate Dashboard pipeline also reports 1.1.46; it is a different path and different bytes."
+  },
+  "checks": {
+    "bash_n": "PASS",
+    "read_only_dry_run": "BLOCKED exit 2 systemd_bus_unavailable; no protected writes",
+    "source_diagnostic_test_class": "not rerun; five focused helper regression tests are the candidate change verification"
+  },
+  "deployment_readiness": {
+    "blocker": "Systemd bus access is denied in sandbox, so loaded/active unit state and host dry-run cannot be confirmed. Operator host dry-run is required before any separate runtime operation.",
+    "database_migration_required": false,
+    "full_published_release_required": false,
+    "ready": false
+  },
+  "helper": {
+    "commands": [
+      "owner-release-update.sh --dry-run",
+      "owner-release-update.sh --apply",
+      "owner-release-update.sh --rollback"
+    ],
+    "guard_path": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/owner_release_guard.py",
+    "guard_sha256": "d6f14337de0c5adee8e093a32075f07717b7f12b092b39b120744a8d3d0a68f1",
+    "path": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/owner-release-update.sh",
+    "predecessor_path": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/owner-release-update.rev1.0.0.sh",
+    "predecessor_sha256": "386a9731ea10ccc3e01e3c8a282eb07555efa05ff2f0adc3e8ec5012edbce097",
+    "protected_operations_run": false,
+    "revision": "1.0.2",
+    "sha256": "554e968d4b807d74fbc7c96b40373a6d270918ad44e5f20314f4e6b3fd62043e"
+  },
+  "owner_session": {
+    "active_state": "unconfirmed; systemctl show denied by sandbox systemd bus access",
+    "current_realpath": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce",
+    "current_symlink": "/opt/riverview-grace-execution/current",
+    "knowledge_dropin_sha256": "c8b8a50756b8fd2a0a60008da674a0c69d94b13e5156b7fc9e749054c628ed00",
+    "source_worker_dropin_sha256": "832d11c8c9ac7c759e8a4c0ed603a36988ee500a24fff82857650065db347749",
+    "source_worker_mapping": "not changed; exact installed drop-in hash is guarded",
+    "unit": "riverview-grace-execution-owner-session.service",
+    "unit_sha256": "a206fe7f9bc1fc3c04acd2a7f16d376073dd7ef79eae65747bfcd4bbc43f84ca"
+  },
+  "runbook": {
+    "existing_reference": "docs/components/GRACE_EXECUTION_COOKBOOK.md, Persistent ChatGPT owner-session service",
+    "path": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/owner-release-update.md",
+    "sha256": "afbb5056260b06c6607af46da66d3c439f523cc243c116c9a3f63a5b787e8a6c"
+  },
+  "schema": "rv.grace.accepted-source-integration-review.v1.1",
+  "scope": "Accepted artifact-publication guard and bounded service diagnostic/fence only. Runtime candidate overlays pipeline.py and service.py; test/history remain staged. No schema, grant, worker policy, unit, drop-in, Comms5, Dashboard, objective, protected write, or service operation.",
+  "source_patch": {
+    "assignment_id": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+    "attempt_id": "7b66e0e6-32e7-4c75-96b8-959b09450ff7",
+    "base_commit": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+    "integrated_patch_sha256": "215d34e8f7fed5a3098328de534abcbb3bdc9f9139088af8a510d67a286fd8ce",
+    "objective_id": "objective:addb10e0-fa77-5d49-92ae-efaf710d81f7",
+    "sha256": "9f6ea0aa04b7f5367f66d133c2b75cde38925630ea198f7d745fa86b0d0b21cf"
+  },
+  "stage_path": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage",
+  "tests": {
+    "cases": [
+      "recursive busy cgroup refuses before staging",
+      "stopped rollback allowed only with empty cgroup",
+      "rollback does not require candidate health",
+      "predecessor hash mismatch fails closed",
+      "wrong rollback pointer fails closed",
+      "stopped systemd unit with no cgroup can roll back"
+    ],
+    "command": "PYTHONPATH=.riverview-write-acceptance/grace-accepted-forward-stage/tests python3 -m unittest -v test_grace_owner_release_update",
+    "exit_code": 0,
+    "file": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/tests/test_grace_owner_release_update.py",
+    "passed": 6,
+    "sha256": "e4f535bdddba4cadfca1b6d302972bd710d4e1e6edf816d891234c1acfb59860",
+    "skipped": 0
+  },
+  "functional_delta_comparison": {
+    "accepted_functional_lines": 66,
+    "exact_match": true
+  },
+  "runtime_tests": {
+    "passed": 7,
+    "skipped": 0,
+    "exit_code": 0,
+    "command": "PYTHONPATH=src:scripts /opt/riverview-core/.venv/bin/python -m unittest -v tests.test_grace_execution.GraceReasoningFailureDiagnosticTests"
+  }
+}

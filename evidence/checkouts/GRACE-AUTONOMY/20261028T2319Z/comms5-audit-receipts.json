@@ -1,0 +1,71 @@
+{
+  "integration_execution": {
+    "execution_id": "b1554b65-5fc3-4182-92ff-3e93629e9941",
+    "idempotency_key": "grace-admission-forward-integrate-20261028-01",
+    "command_sha256": "eaa2fadb7c8bb528bf46aba16871850545f11d4b83dd7a924ed9cded875ee99c"
+  },
+  "helper_final_verification": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "f697e90f-196e-4004-9edb-91067354d261",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-admission-helper-pin-20261028-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-admission-helper-pin-20261028-01/events.jsonl\", \"pid\": 2426276, \"exit_code\": 0, \"messages\": [\"Applied the exact patch after archiving all three predecessors. `bash -n` passed; helper suite: **6 passed, 0 skipped, exit 0**.\\n\\n- Script SHA256: `554e968d4b807d74fbc7c96b40373a6d270918ad44e5f20314f4e6b3fd62043e`\\n- Guard SHA256: `d6f14337de0c5adee8e093a32075f07717b7f12b092b39b120744a8d3d0a68f1`\\n- Test SHA256: `e4f535bdddba4cadfca1b6d302972bd710d4e1e6edf816d891234c1acfb59860`\\n\\nNo deployment or protected writes.\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T23:18:42.222294+00:00",
+    "completed_at": "2026-10-28T23:18:43.016255+00:00",
+    "deadline_at": "2026-10-29T00:18:07.210686+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "aa82e84c-0ec4-4d2c-8088-3ab53d9f2dc6",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "f697e90f-196e-4004-9edb-91067354d261",
+      "audit_event_id": "d0f81271-3e10-4b31-ac51-cec7bcd284cb",
+      "idempotency_key": "cmd-63dc80b2fb1831d0074352b5689655e4f6903653f55d75e212dc39a2e73a04bb"
+    },
+    "host_id": "camrui",
+    "task_id": "f697e90f-196e-4004-9edb-91067354d261",
+    "command_sha256": "71dd4d8a213bc02e5f04a48068e464c958b5e5c1e0746526fb1865143a643619",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "windows_launcher_stage": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "caabbc1f-ecba-463a-a0da-521410caeba7",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "PARSER_ERRORS=0\r\n\r\n\r\nHash : 1BD9F43A124B4F47989339086F584E6AC61F819734D10D670127EF2596916329\r\nPath : C:\\Users\\Public\\Documents\\Riverview\\GraceAdmission\\Update-RiverviewGraceAdmission.ps1\r\n\r\n\r\n\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T23:18:41.198668+00:00",
+    "completed_at": "2026-10-28T23:18:42.204293+00:00",
+    "deadline_at": "2026-10-29T00:18:03.836679+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "65e0cb5c-3de2-41d2-9f36-7935f3e1f1c4",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "caabbc1f-ecba-463a-a0da-521410caeba7",
+      "audit_event_id": "27aad299-99a5-4d16-a9a4-e6935c1b3edd",
+      "idempotency_key": "cmd-61a99cb0d5fd33cded4a51b4a1a30fe35ae20754708eb6b4ac82239c024927ef"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "caabbc1f-ecba-463a-a0da-521410caeba7",
+    "command_sha256": "df05bf779f306c63738a9e0ff14ff0b92ea9c3ae55042783e48c920f02453b2d",
+    "implementation_status": "IMPLEMENTED"
+  }
+}
