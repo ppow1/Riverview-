@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CAMRUI_GATEWAY_CODEX_COMMISSIONING.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-27 | RV-CAMRUI-GATEWAY-CODEX
 -->
 # Camrui Codex control through the existing Comms5 Gateway
@@ -9,8 +9,9 @@ Changed: 2026-10-27 | RV-CAMRUI-GATEWAY-CODEX
 ## Outcome and authority
 
 The Steward explicitly confirmed authorization to continue the integration repair.
-No renewed grant or repeated approval is requested. The change is prepared and
-staged on Windows; Camrui installation and direct acceptance remain outstanding.
+No renewed grant or repeated approval is requested. The change was installed through the established operator bootstrap; ChatGPT
+subsequently completed direct Camrui identity/start/result/exact-thread-resume
+acceptance through Comms5 on October 27, 2026 at 20:18–20:19 EDT.
 This extends the existing Gateway SSH key from hostname-only to bounded read-only
 Codex control. It creates no key, copies no private key or login token, adds no
 service, and does not replace Comms5, CME, Engineering or the operator connection.
@@ -157,11 +158,71 @@ The bootstrap has native Windows parser validation PASS (execution
 `ca229d8c-7762-44b2-894c-03c0b627d7a3`). Twelve offline tests PASS for CLI process
 handling, exact resume, idempotency and failure propagation, restricted command
 parsing, traversal/duplicate-field rejection, fixed result path, exact key matching
-and preservation of other key/options. Tests do not call real Codex or mutate
-production authorized_keys. Camrui installation and direct acceptance are not
-claimed until their actual results arrive.
+and preservation of other key/options. Offline tests do not call real Codex or mutate production authorized_keys.
+The separate live installation and direct acceptance evidence is recorded below.
 
 The broader Grace direct Engineering objective/assignment/verifier path remains
 separate from this minimal existing-Gateway Codex connection. No persistent PTY
 or general-purpose Bash permission is implied by successful read-only session
 control. The existing read-only sandbox policy remains enforced.
+
+
+## Installed release and direct ChatGPT acceptance — PASS
+
+The Steward's bootstrap report returned INSTALL_EXIT_CODE=0 and status installed.
+Only the fingerprint-matched line 3 forced command changed; restrict remained.
+Predecessor authorized_keys SHA-256:
+`3a93308f5162d7c6071064008c8ac176c904ae05c7c9530ae5dd8cc614d28ebb`.
+Installed candidate SHA-256:
+`a0114ae1b0cf0ea134d820cffa9262e6fa0125ddec11779301e82d6144d97dfc`.
+Verified rollback directory reported by installer:
+`/home/admin1/.local/state/riverview/gateway-codex-commissioning/20261028T001757837228Z`.
+Installed source hashes in that report:
+- entry: `ac91f7474a0916e0d3d8529f91353b8eb72421eb7e69202abb954b7efd55db90`
+- CLI helper: `9eee1d0dce6916ff8f85b8b693f7de078013112ea6a68b5a81f36a64effc6231`
+
+After bootstrap, ChatGPT itself made each of the following Comms5 calls. The
+Steward did not relay any session-control command or result in this acceptance.
+
+| Step | Durable execution | Actual result |
+| --- | --- | --- |
+| Identity | `d4ffb532-f625-4e55-b125-ee04dc2ca09d` | RV_GATEWAY_CODEX_ENTRY_OK, admin1-Default-string, admin1, /home/admin1, exit 0 |
+| Start | `be116efe-189e-4992-b2de-0c72794082cd` | Initial RUNNING; later durable status COMPLETED, exit 0 |
+| Retrieve start result | `9e15fec6-95e6-45ff-ac27-d19e49060c6a` | Fixed run artifact returned WILLOW-947 |
+| Resume | `1da817a9-9927-459e-b22d-21204a50ce09` | Initial RUNNING; later durable status COMPLETED, exit 0 |
+| Retrieve resume result | `852faa4f-865e-4536-a477-d39963da7104` | Same exact thread; WILLOW-947 recalled without repeating it in follow-up |
+| Reject unsupported caller-selected cwd | `641f9c75-f9ea-4850-aac1-ffd6c60c49df` | denied, exit 2, no arbitrary target accepted |
+| Retain hostname probe | `de1ee334-adc7-441d-ba21-5267d58e2688` | admin1-Default-string, exit 0 |
+
+Directly created and resumed Codex thread:
+`01a17fdf-6d58-7050-92cc-1762ac986518`.
+Start run ID: `camrui-direct-start-20261028-01`.
+Resume run ID: `camrui-direct-resume-20261028-01`.
+Their fixed result/events artifacts live under
+`/home/admin1/.local/state/riverview/gateway-codex/<run_id>/`.
+
+Start final audit: `a64b6f06-a3d8-4ccd-972b-122311873a71`.
+Resume final audit: `277c524b-edfe-4509-8dec-b2ab69cffef8`.
+Resumed artifact retrieval audit: `ff376a58-9223-4f32-baa2-6051ed08a370`.
+Full sanitized receipts/command digests and the exact resume prompt are retained in
+`evidence/checkouts/WINDOWS-CODEX-COMMS5/20261028T0019Z/direct-camrui.md`.
+
+Quota observation after these checks: executor grant
+`grant:5a2dadaf2c204632a8682e5831fd892d` is active, 14 of 20 uses consumed,
+6 remaining, expires November 3, 2026 at 16:53:07 EST. Status-only Comms5 polling
+needs no new executor use; the typed SSH result operation is itself a new host
+command and does consume a use. Do not confuse seven-day duration with unlimited
+count. No grant extension or new approval was requested for this acceptance.
+
+This closes the minimal direct read-only Codex start/return-for-result/resume
+proof for Camrui, alongside the earlier direct Windows proof. It does not claim
+generic Bash access, Codex-internal tool execution, source-changing Engineering,
+persistent PTY attachment, or full Grace/CME objective verification. Issue #359
+retains those separate integration concerns; do not label the whole institution
+complete from this session-continuity test.
+
+Revision 1.0.0 is preserved byte-for-byte in
+`docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.0.md`, original Git blob
+`ef96b698604cc9ab79dc34afbeb3573532f5f635`. Restore those bytes to the original
+path to restore the preceding documentation revision; this is distinct from the
+production authorized_keys rollback described above.

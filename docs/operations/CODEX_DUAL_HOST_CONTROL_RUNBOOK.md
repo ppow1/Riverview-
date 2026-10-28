@@ -1,10 +1,19 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CODEX_DUAL_HOST_CONTROL_RUNBOOK.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.1
+File Revision: 1.0.2
 Changed: 2026-10-27 | RV-CODEX-DUAL-HOST-RUNBOOK
 -->
 # Windows and Camrui: shell access, Codex start, result, and exact-session resume
+
+**Current direct session-control status: PASS on Windows and Camrui.** After the
+approved one-time bootstrap, ChatGPT directly initiated Camrui start, returned for
+its result, and resumed exact thread `01a17fdf-6d58-7050-92cc-1762ac986518` with
+correct marker recall and exit 0. See
+[installed Gateway procedure and live acceptance](CAMRUI_GATEWAY_CODEX_COMMISSIONING.md).
+Camrui control is bounded read-only Codex control, not unrestricted Bash. Earlier
+blocker observations below remain historical evidence; the later installed
+Gateway procedure supersedes the hostname-only session-control blocker.
 
 This is the continuation index for [Issue #359](https://github.com/ppow1/Riverview-/issues/359).
 Use existing identities and the existing Comms5 asynchronous command interface.
@@ -19,7 +28,7 @@ it does not create an execution service, dispatcher, credential, or authority.
 | Windows Comms5 shell/Codex | `DESKTOP-JA3RPNQ\RiverviewCmdAgent` | Fresh 19:36 EDT real Luna start, later status read and exact UUID resume recalled ORCHARD-592; both exit 0 | Codex-internal shell attempts were blocked by its environment policy; helper itself remains offline-tested |
 | Windows operator SSH → Camrui | `wille` client → `admin1@192.168.1.155` | Steward's CAMRUI_EXECUTION_OK, `admin1`, `/home/admin1`, SSH exit 0 | Do not infer Gateway account access from this success |
 | Camrui local Codex | `admin1` | Issue #359 records start and resume of `01a17ee1-4a3b-7951-b26d-3f44ecda6c25`, hostname returned | New remote Comms5 acceptance not established |
-| Gateway SSH → Camrui | Gateway's independently configured SSH identity | Fresh 19:30 EDT Comms5 submission and later status returned hostname only, exit 0; requested marker/user/pwd absent | Arbitrary Bash and remote Codex start/resume fail acceptance through this identity |
+| Gateway SSH → Camrui | Existing dedicated key → bounded forced command → admin1 | Fresh direct ChatGPT identity/start/result/exact-UUID resume PASS at 20:18–20:19 EDT; read-only scope | General Bash and source-changing Engineering are outside this proof |
 
 Windows persisted session `01a17f83-f243-7962-83ba-d5844dfc7496` is historical
 acceptance evidence, not a shared default session. Create a bounded smoke session
@@ -396,8 +405,9 @@ instead of launching another process; changed inputs with the same ID fail.
 | Correct output but wrapper failure | Native exit code and separated stderr | Preserve both; do not parse normal stderr as a failed task |
 | Resume loses context | Exact UUID, OS account, Codex home and model | Resume under the original identity; do not copy auth/session files |
 
-The current documentation is complete enough to reproduce the established
-procedures, but **dual-host Comms5 acceptance remains incomplete**. New helper
+The documented direct read-only start/result/resume session-control acceptance
+now passes on both hosts; generic shell and full Grace Engineering acceptance
+remain distinct. New helper
 tests are offline process/recording tests, not live Codex authentication or SSH
 tests. To close acceptance, retain fresh caller/executor references and actual
 start → leave/poll → result → exact-ID resume evidence for each intended path.
@@ -483,3 +493,19 @@ Prior dual-host runbook revision 1.0.0 is preserved at
 `788edbd070eccab909815b2eab51b02ce076997c`. Verify the following SHA-256 before
 restoring those bytes to the original path:
 `d5a67fb4e56fb0835f597833455140287a3ae388f262cc09bfc038c44815947a`.
+
+
+## Revision 1.0.2 acceptance update
+
+The Gateway's original key was commissioned through the approved fingerprint-bound
+installer; the operator's key was not copied or changed. Direct Comms5 receipts,
+exact run IDs, thread UUID, artifact messages, rejection/hostname compatibility
+tests and rollback metadata are in the linked Gateway commissioning runbook.
+Camrui grant observation after commissioning tests: 14 of 20 used, 6 remaining;
+expiry November 3 at 16:53:07 EST. No repeated approval was required.
+
+Predecessor revision 1.0.1 is retained byte-for-byte at
+`docs/history/CODEX_DUAL_HOST_CONTROL_RUNBOOK_rev1.0.1.md`, original Git blob
+`544269572f27fb5e758d708aaad9a310952fbff4`. Restore that file's bytes to this path to restore
+the previous documentation revision; use the separate authorized_keys backup for
+production rollback.
