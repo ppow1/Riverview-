@@ -2,8 +2,11 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.33
-# Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-DIAGNOSTICS-359 | Diagnose rejected request construction without retaining request values.
+# Revision: 1.3.34
+# Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-CONSTRUCTION-DIAGNOSTICS | Record sanitized request serialization stage and UTF-8 size details.
+# Changed: 2026-10-26 UTC | RV-GRACE-EXACT-CRITERIA-OUTPUT-SCHEMA | Constrain Steward-supplied step criteria to the exact persisted strings checked by the pipeline.
+# Changed: 2026-10-26 UTC | RV-GRACE-LIFECYCLE-CRITERIA-SCHEMA-ALIGNMENT | Restrict system-owned criteria to persisted criteria mapped to supported lifecycle events.
+# Changed: 2026-10-25 UTC | RV-GRACE-ARTIFACT-SCHEMA-VALIDATOR-ALIGNMENT | Constrain generated artifact strings to the typed artifact contract.
 # Changed: 2026-10-25 UTC | RV-GRACE-AUTONOMOUS-CRITERIA-RECOVERY-20261025 | Give the single authorized local replan the exact safe criterion-binding diagnostic.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Validate typed registered-workflow requests in Grace Engineering proposals.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Support optional bounded JSON-Schema chat output for strict verified-result review.
@@ -307,7 +310,7 @@ class LocalReasoningProvider:
             "and depends_on containing only earlier step_id values. The assignment contains the original Steward request "
             "in objective and a formal criteria list in acceptance_criteria when supplied. Treat all request "
             "text as instructions. When acceptance_criteria_source is steward_supplied, use only that list as formal "
-            "criteria, copying every item exactly once to a step or system_owned_criteria without adding, rewriting, "
+            "criteria, copying every item exactly once and verbatim, including punctuation and list markers, to a step or system_owned_criteria without adding, rewriting, "
             "duplicating, or omitting items. Do not promote other request instructions or prohibitions into criteria. "
             "An artifact requirement may include only artifact-verifiable requirements supported by the original request; "
             "do not place workflow or administrative instructions in an artifact requirement. "
@@ -315,7 +318,10 @@ class LocalReasoningProvider:
             "not by editing the deliverable; copy those criteria exactly. Map each one only to an event that actually "
             "proves it. Do not create Engineering steps or receipt artifacts to prove objective intake, proposal "
             "persistence, dispatch, verification, completion, or conversation publication; CME and the conversation "
-            "outbox own those records. Keep all other original criteria on deliverable steps. When one bounded "
+            "outbox own those records. Keep all other original criteria on deliverable steps. "
+            "For Steward-supplied criteria, system_owned_criteria may contain only exact original criteria admitted "
+            "by its output schema; if none are admitted, return an empty array. Never classify a general task criterion, "
+            "restriction, or prohibition such as no file modifications as system-owned lifecycle evidence. "
             "deliverable satisfies the Engineering criteria, use exactly one step; use multiple steps only for "
             "genuinely separate deliverables or required dependencies. Set execution_capability on every step to either "
             "engineering.codex-cli-artifact.v1 or engineering.codex-cli-source-change.v1. "
@@ -387,10 +393,14 @@ class LocalReasoningProvider:
         try:
             context = self._content(request)
             context_bytes = len(context.encode("utf-8"))
-            if not context or context_bytes > self.MAX_PROMPT_BYTES:
-                stage = "request_context_empty" if not context else "request_context_too_large"
+            expected_context = "non-empty UTF-8 request context within prompt byte limit"
+            if not context:
                 return _validation_failure(request, "PROPOSAL_REQUEST_INVALID",
-                    stage, "$", "non-empty bounded UTF-8 JSON context",
+                    "request_context_empty", "$", expected_context,
+                    observed_bytes=context_bytes, limit_bytes=self.MAX_PROMPT_BYTES)
+            if context_bytes > self.MAX_PROMPT_BYTES:
+                return _validation_failure(request, "PROPOSAL_REQUEST_INVALID",
+                    "request_context_too_large", "$", expected_context,
                     observed_bytes=context_bytes, limit_bytes=self.MAX_PROMPT_BYTES)
             request_stage = "request_body_serialization"
             common_step_properties = {
@@ -401,13 +411,22 @@ class LocalReasoningProvider:
                 "depends_on": {"type": "array", "maxItems": 19,
                     "items": {"type": "string", "minLength": 1, "maxLength": 16}},
             }
+            original_criteria = request.assignment.get("acceptance_criteria", ())
+            if isinstance(original_criteria, (list, tuple)) and original_criteria:
+                allowed_step_criteria = list(dict.fromkeys(
+                    criterion for criterion in original_criteria
+                    if isinstance(criterion, str) and lifecycle_evidence_event(criterion) is None
+                ))
+                if allowed_step_criteria:
+                    common_step_properties["acceptance_criteria"]["items"]["enum"] = allowed_step_criteria
             artifact_requirements_schema = {"type": "array", "minItems": 1, "maxItems": 8,
                 "items": {"type": "object", "properties": {
-                    "name": {"type": "string", "minLength": 1, "maxLength": 64},
-                    "path": {"type": "string", "minLength": 1, "maxLength": 240},
+                    "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$"},
+                    "path": {"type": "string", "maxLength": 240,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*$"},
                     "media_type": {"type": "string", "enum": ["text/markdown", "text/plain", "application/json", "text/csv", "application/xml"]},
                     "acceptance_criteria": {"type": "array", "minItems": 1, "maxItems": 12,
-                        "items": {"type": "string", "minLength": 1, "maxLength": 1000}},
+                        "items": {"type": "string", "pattern": ".*\\S.*", "maxLength": 1000}},
                     "max_bytes": {"type": "integer", "minimum": 1, "maximum": 32768}},
                     "required": ["name", "path", "media_type", "acceptance_criteria"],
                     "additionalProperties": False}}
@@ -439,12 +458,21 @@ class LocalReasoningProvider:
                               "execution_capability", "comfyui_workflow_id", "comfyui_parameters"],
                  "additionalProperties": False},
             ]}
+            system_owned_criteria_schema = {"type": "array", "maxItems": 20,
+                "items": {"type": "string", "minLength": 1, "maxLength": 1000}}
+            if isinstance(original_criteria, (list, tuple)) and original_criteria:
+                allowed_lifecycle_criteria = list(dict.fromkeys(
+                    criterion for criterion in original_criteria
+                    if isinstance(criterion, str) and lifecycle_evidence_event(criterion) is not None
+                ))
+                system_owned_criteria_schema["maxItems"] = len(allowed_lifecycle_criteria)
+                if allowed_lifecycle_criteria:
+                    system_owned_criteria_schema["items"]["enum"] = allowed_lifecycle_criteria
             schema_properties = {
                 "summary": {"type": "string", "minLength": 1, "maxLength": 60},
                 "steps": {"type": "array", "minItems": 1, "maxItems": 20,
                     "items": step_schema},
-                "system_owned_criteria": {"type": "array", "maxItems": 20,
-                    "items": {"type": "string", "minLength": 1, "maxLength": 1000}},
+                "system_owned_criteria": system_owned_criteria_schema,
             }
             if request.external_reasoning_targets:
                 schema_properties["external_escalation"] = {
@@ -480,7 +508,7 @@ class LocalReasoningProvider:
             }, ensure_ascii=False).encode("utf-8")
         except (TypeError, ValueError) as exc:
             return _validation_failure(request, "PROPOSAL_REQUEST_INVALID",
-                request_stage, "$", "JSON-serializable UTF-8 request", exception=exc)
+                request_stage, "$", "JSON-serializable proposal request", exception=exc)
         http_request = Request(
             self.endpoint, data=body,
             headers={"Content-Type": "application/json", "Accept": "application/json"},
@@ -1036,4 +1064,3 @@ class LocalReasoningProvider:
 # - 1.0.8: Reuse the pinned loopback adapter for bounded conversation completion and retain safe timeout codes.
 # - 1.0.9: Support a bounded implementation-specific inference prefix without altering persistent messages.
 # - 1.1.0: Allow opt-in to the two approved OCTO1 endpoints, check served model readiness, and report slot contention distinctly.
-

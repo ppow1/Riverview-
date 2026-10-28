@@ -1,10 +1,17 @@
 <!-- Riverview Controlled Document
 File: docs/development/GRACE_AUTONOMY_CONTINUATION_20261028.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.2
+File Revision: 1.0.3
 Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-DIAGNOSTICS-359
 -->
 # Autonomy Grace continuation — request-construction blocker
+
+**Current update, October 28:** the Camrui launcher is installed and source editing,
+tests and exact-session resume passed. The diagnostic patch has now been ported
+to the exact deployed-source files and passed 55 provider tests on Camrui. Its
+hash-verified candidate files are published in PR #364. Earlier read-only and
+source-access blockers below are historical. No production deployment or Run 2
+retry/state change has occurred.
 
 ## Current milestone and authoritative status
 
@@ -195,3 +202,79 @@ Predecessor of this record, revision 1.0.0, is retained at
 `docs/history/GRACE_AUTONOMY_CONTINUATION_20261028_rev1.0.0.md`.
 
 Revision 1.0.2 removes an inferred current-source test count; predecessor 1.0.1 is retained in docs/history/GRACE_AUTONOMY_CONTINUATION_20261028_rev1.0.1.md.
+
+## Exact-current-source implementation and verification
+
+The installed workspace clone is pinned to actual deployed source
+9f56cb72f3bd2961babf2527a26bd843526e18ce. The same existing Codex thread
+01a17fdf-6d58-7050-92cc-1762ac986518 performed the port in that clone, preserving
+the newer exact-criterion/schema refinements. Source revision is now 1.3.34,
+test revision 1.1.38. New failures retain PROPOSAL_REQUEST_INVALID with safe,
+correlated construction-stage/UTF-8 diagnostics.
+
+Actual Camrui command for both baseline and candidate:
+`PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_local_reasoning_provider.py' -v`
+Baseline: 50 tests, PASS, exit 0. Candidate: 55 tests, PASS, exit 0.
+git diff --check: PASS, exit 0. No live model/provider or production database
+was used in these tests. The test revision header was corrected after the
+55-test pass because deployed tests were already revision 1.1.37; only metadata
+changed afterward, and tests were not needlessly repeated.
+
+Current-file SHA256, independently verified after transfer:
+- local_reasoning_provider.py:
+  11d5b55c5c2acd7075d497f0cbe99b3e6fc2a3522f330ccf37af73da7d592abc
+- test_local_reasoning_provider.py:
+  c83d1b4fc3fc275833923ba3a4ff60d22d5bc0fc5713719bb6384e355a1c2daf
+
+Runtime predecessor bytes (different from the older published recovery base)
+are now durably retained in this PR:
+- docs/history/local_reasoning_provider_9f56cb7_predecessor.py: 9c78392cad50ea20adafa467a44533fbd1efe44160518010164ec19a9137a0b2
+- docs/history/test_local_reasoning_provider_9f56cb7_predecessor.py: 12ac376267576f12fd7ff6bc5b6e7223d3c98d64b60d721c6e991f75f59c0a7a
+
+The source/test reconstruction matched the complete hashes of the actual
+preserved Camrui predecessors. The complete candidate patch was transferred
+through bounded existing Codex result reads, decompressed and checked against
+SHA256 bf39788877cc1fa387966c6512db0b90ef21627d516f0ba979307a27e630d957;
+it applied cleanly to the known published b79ea4d files. Both resulting file
+hashes match Camrui. Static compilation passed. This was transfer/integrity
+verification, not another claimed test run.
+
+Camrui local Git branch/commit creation was denied by protected .git metadata.
+No sandbox bypass, new credentials or permission changes were used. Source
+editing and test execution worked; the existing GitHub connector publishes
+the candidate branch/files. The prepared working-tree patch and local recovery
+record remain in the Engineering clone, and smoke files were preserved.
+
+Review scope: this PR is still based on the existing published recovery branch,
+because actual deployed 9f56cb7 is not published in GitHub. Its provider/test diff
+therefore includes already-deployed October 25–26 schema/prompt refinements,
+plus this diagnostic change. The new feature in this task is diagnostics only;
+the existing refinements were preserved, not replaced or newly deployed.
+
+Do NOT deploy the entire older PR base over production. Release integration
+must use the exact current deployed tree with only the reviewed patch and
+the existing release/rollback procedure. No service restart, release pointer,
+authorization, criteria, objective state or retry fence has changed. The
+actual underlying Run 2 request failure is not yet diagnosed by a deployed
+version of this patch. Full Grace autonomy remains incomplete.
+
+Trace:
+- Port task cde51998-baed-45c1-89fd-f710e1619fec, terminal audit
+  87c4fd49-f5c3-4859-abc7-5087f30cea9d, exit 0.
+- Result retrieval 5a40da32-5d70-42cd-aa55-629ac27c5414, audit
+  21a9a0b7-71c0-4f42-968c-805ccd6a69a7.
+- Metadata/artifact export 58e6bc65-9fb0-4e29-99d2-7e986cbff43c, terminal audit
+  2a55f34d-9493-4376-8a61-5e1a5b08005d, exit 0.
+- Raw/current candidate provenance and bounded transfer receipts:
+  evidence/checkouts/GRACE-AUTONOMY/20261028T1230Z/current-source-diagnostics.md.
+
+Immediate previous PR source/test revisions 1.3.33 / 1.1.36 are preserved in
+docs/history/local_reasoning_provider_rev1.3.33.py and
+docs/history/test_local_reasoning_provider_rev1.1.36.py.
+Predecessor of this record (1.0.2):
+docs/history/GRACE_AUTONOMY_CONTINUATION_20261028_rev1.0.2.md.
+
+Next: review the exact-current-source candidate and integrate/package it from
+the current deployed release line. Production deployment and institutional
+recovery remain explicit boundaries; do not retry the fenced objective merely
+because the inspection/CLI path now works.
