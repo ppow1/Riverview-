@@ -1,6 +1,6 @@
 """Focused tests for Comms5 operations on current Riverview services.
 
-File Revision: 1.0.10
+File Revision: 1.0.11
 Component: COMMS5-CURRENT-RUNTIME-OPERATIONS-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify intent/authority projection and combined durable objective/proposal listing.
@@ -12,6 +12,7 @@ Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Count t
 Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Account for preserved direct dispatch and fixed command gateway tools.
 Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Route async task operations through the existing host-scoped grant boundary.
 Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Verify Comms5 cancellation dispatch stays within the same host-scoped Gateway boundary.
+Changed: 2026-10-28 UTC | GRACE-CURRENT-COMMS5-CANCEL-20261028 | Verify exact-grant cancellation and bounded verifier diagnostics.
 """
 
 import unittest
@@ -421,8 +422,11 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
             "worker_id": "codex", "lease_generation": 1, "capability": "engineering.codex-cli-artifact.v1",
             "effect_class": "retry_safe", "status": "succeeded", "attempt_id": "attempt-1",
             "started_at": now, "finished_at": now, "failure_class": None}]]
-        cursor.fetchone.return_value = {"decision": "ACCEPTED", "verifier_revision": "v1",
-                                        "created_at": now}
+        cursor.fetchone.return_value = {"decision": "REJECTED", "verifier_revision": "v1",
+            "created_at": now, "summary": "private verifier prompt must not escape",
+            "criteria": {"artifact_hash": True, "private criterion": "secret"},
+            "evidence_references": ["file:///var/lib/riverview/artifact.json",
+                "file:///etc/shadow", "workspace://evidence/result.json", "sha256:" + "a" * 64]}
         pipeline.ledger.db.cursor.return_value = cursor
         pipeline.authorizer.require_principal.return_value = {"grant_id": "grant:objective-submit"}
         pipeline.objective_events.return_value = [{"event_type": "objective.received",
@@ -434,12 +438,19 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         self.assertEqual(result["objective"]["state"], "WORK_ORDER_CREATED")
         self.assertEqual(result["assignment"]["state"], "running")
         self.assertEqual(result["steps"][0]["assignment_id"], "assignment:test-1")
-        self.assertEqual(result["verification"]["decision"], "ACCEPTED")
+        self.assertEqual(result["verification"]["decision"], "REJECTED")
+        self.assertIsNone(result["verification"]["summary"])
+        self.assertEqual(result["verification"]["criteria_status"], {"artifact_hash": True})
+        self.assertEqual(result["verification"]["artifact_references"], [
+            "file:///var/lib/riverview/artifact.json", "workspace://evidence/result.json",
+            "sha256:" + "a" * 64])
         self.assertEqual(result["execution_intents"][0]["worker_id"], "codex")
         self.assertEqual(result["submission_authority"]["grant_id"], "grant:objective-submit")
         self.assertNotIn("private objective body", serialized)
         self.assertNotIn("private criterion", serialized)
         self.assertNotIn("secret", serialized)
+        self.assertNotIn("private verifier prompt", serialized)
+        self.assertNotIn("/etc/shadow", serialized)
 
     def test_recent_submissions_combines_objectives_and_proposals_without_bodies(self):
         now = datetime.now(timezone.utc)
@@ -583,9 +594,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 42)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 43)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(42 - len(status), 0)
+        self.assertEqual(43 - len(status), 0)
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler

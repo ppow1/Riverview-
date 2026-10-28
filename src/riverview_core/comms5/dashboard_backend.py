@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.2.3
+# Revision: 1.2.4
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
@@ -42,6 +42,7 @@ _PROPOSAL_TOOLS = {
     "comms5_revise_specification", "comms5_prepare_proposal_for_decision",
     "comms5_seed_status", "comms5_seed_lineage", "comms5_cancel_draft",
     "comms5_supersede_seed", "comms5_confirm_and_promote_seed",
+    "comms5_cancel_objective",
 }
 _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_objective_status", "comms5_recent_steward_submissions",
@@ -107,6 +108,7 @@ class DashboardReadBackend:
         "comms5_cancel_draft": "IMPLEMENTED",
         "comms5_supersede_seed": "IMPLEMENTED",
         "comms5_confirm_and_promote_seed": "IMPLEMENTED",
+        "comms5_cancel_objective": "IMPLEMENTED",
         "comms5_revalidate_and_queue_work": "IMPLEMENTED",
         "comms5_set_resource_policy": "IMPLEMENTED",
         "comms5_set_resource_policy_lock": "IMPLEMENTED",

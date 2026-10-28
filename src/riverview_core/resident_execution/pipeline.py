@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/pipeline.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.1.45
+# Revision: 1.1.46
+# Changed: 2026-10-28 UTC | GRACE-CURRENT-COMMS5-CANCEL-20261028 | Honor authenticated InstitutionalPrincipal through the exact assignment.cancel grant check.
 # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Validate consumed performance feedback against its actual S4 escalation or CME-recovery trigger instead of pinning every rework to S4.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-APPEND-ONLY-LOCK-20261025 | Serialize S4 exception consumption on objective rows; keep append-only event history reads free of UPDATE locks.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Validate the evaluation source against the exact current S4 exhausted-rejection event.
@@ -1769,8 +1770,13 @@ class GraceExecutionPipeline:
                             locked["status"] not in {
                                 "GROUNDED", "WORK_ORDER_CREATED", "CANCELLED"}):
                         raise ObjectiveStateError("objective changed before cancellation")
-                    actor = self.authorizer.require(
-                        cur, credential, "assignment.cancel", authority_ref)
+                    from ..institutional_authority.grants import InstitutionalPrincipal
+                    if isinstance(credential, InstitutionalPrincipal):
+                        actor = self.authorizer.require_principal(
+                            cur, credential.principal_id, "assignment.cancel", authority_ref)
+                    else:
+                        actor = self.authorizer.require(
+                            cur, credential, "assignment.cancel", authority_ref)
                     if locked["status"] == "CANCELLED":
                         cur.execute("""SELECT event_type,payload FROM grace_objective_events
                             WHERE objective_id=%s AND idempotency_key IN (%s,%s)

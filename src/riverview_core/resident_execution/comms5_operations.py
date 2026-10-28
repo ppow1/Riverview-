@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.1.1
+# Revision: 1.1.2
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -18,6 +18,7 @@
 # Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Dispatch fixed command operations after existing authenticated Steward/delegation checks.
 # Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Dispatch host-task submit/status through the existing exact-grant Gateway and allow only host-scoped delegated operations.
 # Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Expose authenticated, host-scoped task cancellation through Comms5.
+# Changed: 2026-10-28 UTC | GRACE-CURRENT-COMMS5-CANCEL-20261028 | Route objective cancellation through the exact-grant lifecycle and expose bounded verifier diagnostics.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md; Comms5 contract 5.0
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -34,6 +35,47 @@ from ..institutional_authority.grants import InstitutionalPrincipal
 
 
 _UNSET = object()
+_SAFE_VERIFICATION_SUMMARIES = frozenset({
+    "all deterministic artifact checks passed",
+    "one or more deterministic artifact checks failed",
+    "repository contract test report independently verified",
+    "repository contract test report failed independent verification",
+    "ComfyUI output artifacts independently verified",
+    "ComfyUI output artifact verification failed",
+    "Bounded artifact set independently verified against its persisted assignment contract",
+    "Bounded artifact set failed independent contract, integrity, or provenance verification",
+    "Assignment artifact set, formats, integrity, provenance and criteria binding verified",
+    "Assignment artifact set failed independent contract, integrity, type or provenance verification",
+    "scoped source patch independently accepted",
+    "scoped source patch failed independent verification",
+})
+_SAFE_CRITERION_KEY = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+_SAFE_FILE_ARTIFACT_REF = re.compile(r"^file:///var/lib/riverview(?:[-A-Za-z0-9._/]{1,360})$")
+_SAFE_WORKSPACE_ARTIFACT_REF = re.compile(r"^workspace://[A-Za-z0-9._/-]{1,240}$")
+_SAFE_ARTIFACT_DIGEST_REF = re.compile(r"^sha256:[0-9a-f]{64}$")
+
+def _bounded_verification_diagnostics(row):
+    """Keep verifier output to known summaries, boolean statuses, and artifact references."""
+    summary = row.get("summary") if isinstance(row, dict) else None
+    if summary not in _SAFE_VERIFICATION_SUMMARIES:
+        summary = None
+    raw_criteria = row.get("criteria") if isinstance(row, dict) else None
+    criteria_status = {}
+    if isinstance(raw_criteria, dict):
+        for name, passed in sorted(raw_criteria.items(), key=lambda item: str(item[0]))[:32]:
+            if isinstance(name, str) and _SAFE_CRITERION_KEY.fullmatch(name) and type(passed) is bool:
+                criteria_status[name] = passed
+    raw_refs = row.get("evidence_references") if isinstance(row, dict) else None
+    artifact_references = []
+    if isinstance(raw_refs, (list, tuple)):
+        for ref in raw_refs[:16]:
+            if (isinstance(ref, str) and len(ref) <= 400 and ".." not in ref.split("/") and
+                    any(pattern.fullmatch(ref) for pattern in (
+                        _SAFE_FILE_ARTIFACT_REF, _SAFE_WORKSPACE_ARTIFACT_REF,
+                        _SAFE_ARTIFACT_DIGEST_REF))):
+                artifact_references.append(ref)
+    return {"summary": summary, "criteria_status": criteria_status,
+            "artifact_references": artifact_references}
 from ..comms5.delegation_policy import is_delegable_tool
 
 HOST_SCOPED_COMMAND_TOOLS = frozenset({
@@ -66,6 +108,7 @@ class Comms5Operations:
         "comms5_prepare_proposal_for_decision",
         "comms5_seed_status", "comms5_seed_lineage", "comms5_cancel_draft",
         "comms5_supersede_seed", "comms5_confirm_and_promote_seed",
+        "comms5_cancel_objective",
         "comms5_resource_policy_status", "comms5_form_and_queue_work",
         "comms5_objective_status", "comms5_recent_steward_submissions",
         "comms5_revalidate_and_queue_work", "comms5_set_resource_policy",
@@ -449,6 +492,30 @@ class Comms5Operations:
                 delegated_authorized=delegated_authorized)
             return {**self._receipt(record), "status": "draft_saved", "executed": True}
 
+        if tool == "comms5_cancel_objective":
+            if self.pipeline is None:
+                raise RuntimeError("objective_pipeline_unavailable")
+            if arguments.get("explicit_steward_confirmation") is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            objective_id = arguments.get("objective_id")
+            reason = arguments.get("reason")
+            if (not isinstance(objective_id, str) or not objective_id.startswith("objective:")
+                    or len(objective_id) > 140):
+                raise ValueError("invalid_objective_id")
+            if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > 1000:
+                raise ValueError("a bounded cancellation reason is required")
+            objective = self.pipeline.get_objective(objective_id)
+            if objective is None:
+                raise Comms5OperationNotFound("objective_not_found")
+            scope_ref = objective.get("scope_ref")
+            if not isinstance(scope_ref, str) or not scope_ref:
+                raise ValueError("objective_scope_unavailable")
+            result = self.pipeline.cancel_work_order(
+                objective_id, credential=InstitutionalPrincipal(actor),
+                authority_ref=scope_ref, reason=reason)
+            return {"status": result["status"], "executed": True,
+                    "objective_id": objective_id, "revision": result["revision"]}
+
         if tool == "comms5_objective_status":
             if self.pipeline is None:
                 raise RuntimeError("objective_pipeline_unavailable")
@@ -473,7 +540,8 @@ class Comms5Operations:
             if assignment_id:
                 with self.pipeline.ledger.db.cursor() as cur:
                     self.pipeline.ledger._set_search_path(cur)
-                    cur.execute("""SELECT decision,verifier_revision,recorded_at AS created_at
+                    cur.execute("""SELECT decision,verifier_revision,recorded_at AS created_at,
+                            criteria,summary,evidence_references
                         FROM verification_records WHERE assignment_id=%s
                         ORDER BY verification_id DESC LIMIT 1""", (assignment_id,))
                     verification = cur.fetchone()
@@ -518,6 +586,7 @@ class Comms5Operations:
                     "updated_at": row["updated_at"].isoformat()} for row in steps],
                 "verification": ({key: verification[key].isoformat() if hasattr(verification[key], "isoformat")
                     else verification[key] for key in ("decision", "verifier_revision", "created_at")}
+                    | _bounded_verification_diagnostics(verification)
                     if verification else None),
                 "execution_intents": [{key: (row[key].isoformat() if hasattr(row[key], "isoformat")
                     else str(row[key]) if key == "attempt_id" and row[key] is not None else row[key])
