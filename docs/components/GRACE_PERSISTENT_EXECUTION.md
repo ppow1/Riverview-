@@ -2,8 +2,7 @@
 Riverview~ Controlled Document
 File: docs/components/GRACE_PERSISTENT_EXECUTION.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.24
-File Revision: 1.0.25
+File Revision: 1.0.26
 Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Make all-step accepted verification authoritative for terminal completion and document restart reconciliation.
 Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve the authenticated exact-grant grounded cancellation and audit contract.
 Changed: 2026-10-21 UTC | RV-W4-GRACE-FOCUSED-CORRECTIONS | Document lifecycle criteria, ready-work-first cycle order, and Grace's durable completion decision
@@ -153,3 +152,43 @@ This branch does not provision credentials or grants, install/enable the
 drop-in, apply production migrations, or activate the source worker.
 
 Canonical graph: `process_graphs/grace/operational-integration.json`. Generated views are updated with `python3 scripts/process_graph.py generate`; validate with `python3 scripts/process_graph.py check` and `python3 scripts/process_graph.py validate`.
+
+## Request construction diagnostics — RV-GRACE-REQUEST-DIAGNOSTICS-359
+
+The existing request-driven local provider retains `PROPOSAL_REQUEST_INVALID`
+as the runtime outcome. Before any inference HTTP request, the existing
+`resident_proposal_validation_diagnostic` structured-log event now identifies:
+
+| validation_stage | Meaning | First read-only check |
+| --- | --- | --- |
+| request_context_serialization | Context cannot be serialized/encoded | Check exception_type and the producer's typed request contract |
+| request_context_empty | Empty serialized context | Check provider context builder; observed_bytes is zero |
+| request_context_too_large | UTF-8 context exceeds unchanged bound | Compare observed_bytes with limit_bytes; inspect approved context sources |
+| request_body_serialization | Context passed, request envelope cannot serialize | Check typed envelope fields against the existing request contract |
+
+Logs retain request_id, correlation_id, fixed stage, exception class, and byte
+counts only where known. They do not retain prompt/context values, model output,
+exception messages, credentials, or dynamic object representations. The existing
+runtime failure event and objective status remain authoritative; this log does
+not authorize retry or change objective state. Valid requests and exact-boundary
+UTF-8 requests retain the existing HTTP behavior.
+
+This is the existing proposal-validation/error branch of the persistent Grace
+workflow, not a new service, event ledger, dispatcher, capability or workflow
+transition. Its observability is inherited from the provider's existing structured
+logging and parent Grace runtime. No additional UI or process-graph node is needed
+for this diagnostic-only refinement.
+
+Recovery: correlate the objective's existing reasoning request with the sanitized
+stage, correct the actual producer/size defect, and use the established authorized
+recovery path. Do not reset attempt fences, increase limits, alter criteria, or
+resubmit the objective merely to obtain a different error. Installing this patch
+does not automatically recover the already-fenced Run 2 attempt.
+
+Predecessors for this change are retained byte-for-byte in
+`docs/history/local_reasoning_provider_rev1.3.32.py`,
+`docs/history/test_local_reasoning_provider_rev1.1.35.py`, and
+`docs/history/GRACE_PERSISTENT_EXECUTION_rev1.0.25.md`.
+See `docs/development/GRACE_AUTONOMY_CONTINUATION_20261028.md` for source
+provenance, hashes, tests, live findings and the exact next action.
+

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.1.35
+# Revision: 1.1.36
+# Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-DIAGNOSTICS-359 | Cover value-free request failures, UTF-8 limits and unchanged HTTP boundary.
 # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify the exact one-time criteria-binding recovery instruction preserves original scope.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Check the ComfyUI typed plan schema alongside existing artifact and source-change variants.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Verify optional JSON-schema chat mode is sent only when requested and bounded.
@@ -124,6 +125,66 @@ class LocalReasoningProviderTests(unittest.TestCase):
             raise HTTPError(request.full_url, self.response_status,
                             "fixture failure", {}, self.error_stream)
         return _Response(self.response_body)
+
+    def test_request_construction_failures_are_correlated_and_value_free(self):
+        circular = {"private": "PRIVATE_REQUEST_VALUE"}
+        circular["self"] = circular
+        cases = [
+            ("request_context_serialization", TypeError,
+             replace(self.request, prior_plan={"private": object()})),
+            ("request_context_serialization", ValueError,
+             replace(self.request, prior_plan=circular)),
+            ("request_body_serialization", TypeError,
+             replace(self.request, token_budget=object())),
+        ]
+        for stage, exception, request in cases:
+            with self.subTest(stage=stage, exception=exception.__name__):
+                request = replace(request, correlation_id="objective-test-359")
+                with self.assertLogs("riverview_core.local_reasoning_provider",
+                                     level=logging.WARNING) as captured:
+                    result = self.provider.propose(request)
+                diagnostic = json.loads(captured.records[0].getMessage())
+                self.assertEqual(result.detail_code, "PROPOSAL_REQUEST_INVALID")
+                self.assertEqual(diagnostic["validation_stage"], stage)
+                self.assertEqual(diagnostic["exception_type"], exception.__name__)
+                self.assertEqual(diagnostic["request_id"], request.request_id)
+                self.assertEqual(diagnostic["correlation_id"], "objective-test-359")
+                self.assertNotIn("PRIVATE_REQUEST_VALUE", str(captured.output))
+                self.assertNotIn("object at", str(captured.output))
+                self.urlopen.assert_not_called()
+
+    def test_request_size_diagnostic_counts_utf8_bytes_and_never_sends_http(self):
+        self.request = replace(self.request, prior_plan={"private": "PRIVATE_REQUEST_VALUEé"})
+        size = len(self.provider._content(self.request).encode("utf-8"))
+        with patch.object(self.provider, "MAX_PROMPT_BYTES", size - 1):
+            with self.assertLogs("riverview_core.local_reasoning_provider",
+                                 level=logging.WARNING) as captured:
+                result = self.provider.propose(self.request)
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(result.detail_code, "PROPOSAL_REQUEST_INVALID")
+        self.assertEqual(diagnostic["validation_stage"], "request_context_too_large")
+        self.assertEqual(diagnostic["observed_bytes"], size)
+        self.assertEqual(diagnostic["limit_bytes"], size - 1)
+        self.assertNotIn("PRIVATE_REQUEST_VALUE", str(captured.output))
+        self.urlopen.assert_not_called()
+
+    def test_empty_request_context_is_rejected_before_http(self):
+        with patch.object(self.provider, "_content", return_value=""):
+            with self.assertLogs("riverview_core.local_reasoning_provider",
+                                 level=logging.WARNING) as captured:
+                result = self.provider.propose(self.request)
+        diagnostic = json.loads(captured.records[0].getMessage())
+        self.assertEqual(result.detail_code, "PROPOSAL_REQUEST_INVALID")
+        self.assertEqual(diagnostic["validation_stage"], "request_context_empty")
+        self.assertEqual(diagnostic["observed_bytes"], 0)
+        self.urlopen.assert_not_called()
+
+    def test_request_at_exact_utf8_limit_remains_accepted(self):
+        size = len(self.provider._content(self.request).encode("utf-8"))
+        with patch.object(self.provider, "MAX_PROMPT_BYTES", size):
+            result = self.provider.propose(self.request)
+        self.assertIsInstance(result, PlanProposal)
+        self.assertEqual(self.urlopen.call_count, 1)
 
     def test_lifecycle_criterion_restores_only_structural_bullet_from_source(self):
         criterion = "- Create exactly one Engineering assignment for the report."
@@ -975,3 +1036,4 @@ class LocalReasoningProviderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

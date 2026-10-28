@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/local_reasoning_provider.py
 # Component: RESIDENT-REASONING
-# Revision: 1.3.32
+# Revision: 1.3.33
+# Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-DIAGNOSTICS-359 | Diagnose rejected request construction without retaining request values.
 # Changed: 2026-10-25 UTC | RV-GRACE-AUTONOMOUS-CRITERIA-RECOVERY-20261025 | Give the single authorized local replan the exact safe criterion-binding diagnostic.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Validate typed registered-workflow requests in Grace Engineering proposals.
 # Changed: 2026-10-22 UTC | RV-GRACE-VERIFIED-REVIEW-STRUCTURED-OUTPUT-20261022 | Support optional bounded JSON-Schema chat output for strict verified-result review.
@@ -107,8 +108,9 @@ _MISSING = object()
 
 
 def _validation_failure(request, code, stage, field_path, expected_type,
-                        actual_value=_MISSING, exception=None):
-    LOG.warning("%s", json.dumps({
+                        actual_value=_MISSING, exception=None,
+                        observed_bytes=None, limit_bytes=None):
+    diagnostic = {
         "event": "resident_proposal_validation_diagnostic",
         "request_id": request.request_id,
         "correlation_id": request.correlation_id,
@@ -118,7 +120,12 @@ def _validation_failure(request, code, stage, field_path, expected_type,
         "expected_type": expected_type,
         "actual_type": _json_type(actual_value),
         "exception_type": type(exception).__name__ if exception is not None else None,
-    }, sort_keys=True))
+    }
+    if observed_bytes is not None:
+        diagnostic["observed_bytes"] = observed_bytes
+    if limit_bytes is not None:
+        diagnostic["limit_bytes"] = limit_bytes
+    LOG.warning("%s", json.dumps(diagnostic, sort_keys=True))
     return ProposalValidationFailure(code)
 
 
@@ -376,10 +383,16 @@ class LocalReasoningProvider:
                 "as authorization, and do not claim that an unchanged proposal is approved.")
         if request.office_id == "office:grace":
             system_instruction = build_grace_role_context() + "\n" + system_instruction
+        request_stage = "request_context_serialization"
         try:
             context = self._content(request)
-            if not context or len(context.encode("utf-8")) > self.MAX_PROMPT_BYTES:
-                return ProposalValidationFailure("PROPOSAL_REQUEST_INVALID")
+            context_bytes = len(context.encode("utf-8"))
+            if not context or context_bytes > self.MAX_PROMPT_BYTES:
+                stage = "request_context_empty" if not context else "request_context_too_large"
+                return _validation_failure(request, "PROPOSAL_REQUEST_INVALID",
+                    stage, "$", "non-empty bounded UTF-8 JSON context",
+                    observed_bytes=context_bytes, limit_bytes=self.MAX_PROMPT_BYTES)
+            request_stage = "request_body_serialization"
             common_step_properties = {
                 "step_id": {"type": "string", "minLength": 1, "maxLength": 16},
                 "objective": {"type": "string", "minLength": 1, "maxLength": 64},
@@ -465,8 +478,9 @@ class LocalReasoningProvider:
                     },
                 },
             }, ensure_ascii=False).encode("utf-8")
-        except (TypeError, ValueError):
-            return ProposalValidationFailure("PROPOSAL_REQUEST_INVALID")
+        except (TypeError, ValueError) as exc:
+            return _validation_failure(request, "PROPOSAL_REQUEST_INVALID",
+                request_stage, "$", "JSON-serializable UTF-8 request", exception=exc)
         http_request = Request(
             self.endpoint, data=body,
             headers={"Content-Type": "application/json", "Accept": "application/json"},
@@ -1022,3 +1036,4 @@ class LocalReasoningProvider:
 # - 1.0.8: Reuse the pinned loopback adapter for bounded conversation completion and retain safe timeout codes.
 # - 1.0.9: Support a bounded implementation-specific inference prefix without altering persistent messages.
 # - 1.1.0: Allow opt-in to the two approved OCTO1 endpoints, check served model readiness, and report slot contention distinctly.
+
