@@ -1,0 +1,150 @@
+--- a/src/riverview_core/resident_execution/pipeline.py
++++ b/src/riverview_core/resident_execution/pipeline.py
+@@ -2,7 +2,9 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_execution/pipeline.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.1.46
++# Revision: 1.1.48
++# Changed: 2026-10-28 UTC | GRACE-SOURCE-SCOPE-FAIL-CLOSED-20261028 | Reject artifact-capability plans requiring unsupported repository publication before persistence.
++# Changed: 2026-10-28 UTC | GRACE-SOURCE-SCOPE-ARTIFACT-ONLY-20261028 | Apply the verifier publication detector only to artifact-capability steps.
+ # Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Validate consumed performance feedback against its actual S4 escalation or CME-recovery trigger instead of pinning every rework to S4.
+ # Changed: 2026-10-25 UTC | RV-GRACE-S4-APPEND-ONLY-LOCK-20261025 | Serialize S4 exception consumption on objective rows; keep append-only event history reads free of UPDATE locks.
+ # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Validate the evaluation source against the exact current S4 exhausted-rejection event.
+@@ -98,6 +100,20 @@
+ 
+ class ObjectiveStateError(ObjectiveError):
+     """The requested lifecycle transition is invalid or its evidence incomplete."""
++
++
++def _validate_artifact_publication_capability(steps):
++    """Reject artifact-capability plans requiring unsupported repository publication."""
++    from .codex_workflow import CodexArtifactVerifier
++
++    for step in steps:
++        if step.execution_capability != "engineering.codex-cli-artifact.v1":
++            continue
++        contract = [asdict(requirement) for requirement in step.artifact_requirements]
++        if CodexArtifactVerifier._publication_required(contract, step.acceptance_criteria):
++            raise ObjectiveStateError(
++                "repository publication cannot be verified by the registered artifact capability; "
++                "require a publication-capable workflow before proposing")
+ 
+ 
+ class ObjectiveContextReader:
+@@ -548,6 +564,7 @@
+                         external_exchange=None, review_evidence=None):
+         if not isinstance(proposal, PlanProposal):
+             raise TypeError("proposal must satisfy the existing PlanProposal contract")
++        _validate_artifact_publication_capability(proposal.steps)
+         objective = self.get_objective(objective_id)
+         if objective is None or objective["status"] != "GROUNDED":
+             raise ObjectiveStateError("verified objective evidence is required before proposal")
+--- a/src/riverview_core/resident_execution/service.py
++++ b/src/riverview_core/resident_execution/service.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_execution/service.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.61
++# Revision: 1.0.63
++# Changed: 2026-10-28 UTC | GRACE-SOURCE-SCOPE-FAIL-CLOSED-20261028 | Persist a fixed diagnostic and revision fence for artifact-capability publication obligations.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Fail closed after interrupted one-shot recovery and suppress unauthorized external escalation from that local retry.
+ # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Use the durable exchange consumption duplicate flag in consumed performance-evaluation replay.
+ # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Queue S4 evaluation from current exhausted rejection evidence without reusing S3 evidence.
+@@ -167,6 +168,7 @@
+     PERSISTED_PROPOSAL_BLOCK_CODES = frozenset({
+         "PROPOSAL_CRITERIA_BINDING_REJECTED",
+         "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
++        "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+     })
+     AUTONOMOUS_LOCAL_RECOVERY_CODE = "PROPOSAL_CRITERIA_BINDING_REJECTED"
+ 
+@@ -559,6 +561,9 @@
+                     "PROPOSAL_SOURCE_PATH_UNAUTHORIZED",
+                 "artifact path is absent from the Steward-approved objective scope":
+                     "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
++                "repository publication cannot be verified by the registered artifact capability; "
++                "require a publication-capable workflow before proposing":
++                    "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+                 "external advisory provenance is invalid":
+                     "PROPOSAL_EXTERNAL_ADVISORY_INVALID",
+                 "external advisory correlation is invalid":
+--- a/tests/test_grace_execution.py
++++ b/tests/test_grace_execution.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED TEST
+ # File: tests/test_grace_execution.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.89
++# Revision: 1.0.91
++# Changed: 2026-10-28 UTC | GRACE-SOURCE-SCOPE-ARTIFACT-ONLY-20261028 | Reject artifact publication obligations before lookup while preserving pinned source-change provenance criteria.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Assert interrupted one-shot recovery is terminalized and never replayed.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Prove local recovery cannot spend externally and interrupted one-shot reasoning is never replayed.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify one exact local criteria-binding recovery supersedes, but preserves, the pending Steward request.
+@@ -408,6 +409,57 @@
+ 
+ 
+ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
++    def test_publication_required_artifact_plan_is_rejected_with_fixed_diagnostic(self):
++        from riverview_core.resident_execution.pipeline import (
++            GraceExecutionPipeline, ObjectiveStateError, _validate_artifact_publication_capability,
++        )
++        from riverview_core.resident_execution.service import GraceExecutionService
++        from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
++
++        publish = "The repository commit is published to GitHub and its remote content is verified."
++        proposal = PlanProposal("Prepare implementation", (
++            PlanStep("implementation", "Create a patch artifact", (publish,)),), 0)
++        with self.assertRaisesRegex(ObjectiveStateError,
++                "repository publication cannot be verified by the registered artifact capability"):
++            _validate_artifact_publication_capability(proposal.steps)
++        pipeline = object.__new__(GraceExecutionPipeline)
++        pipeline.get_objective = lambda _objective_id: self.fail(
++            "rejected publication plan must stop before objective lookup or persistence")
++        with self.assertRaises(ObjectiveStateError):
++            pipeline.record_proposal("objective:offline-publication:r1", proposal)
++        self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
++            ObjectiveStateError("repository publication cannot be verified by the registered artifact capability; "
++                "require a publication-capable workflow before proposing")),
++            "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE")
++        self.assertIn("PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
++                      GraceExecutionService.PERSISTED_PROPOSAL_BLOCK_CODES)
++
++        artifact_contract = PlanProposal("Prepare evidence", (
++            PlanStep("evidence", "Write a bounded artifact", ("The artifact is valid.",),
++                artifact_requirements=(ArtifactRequirement("report", "report.md",
++                    "text/markdown", (publish,)),)),), 0)
++        with self.assertRaises(ObjectiveStateError):
++            _validate_artifact_publication_capability(artifact_contract.steps)
++        with self.assertRaises(ObjectiveStateError):
++            pipeline.record_proposal("objective:offline-artifact-contract:r1", artifact_contract)
++
++    def test_nonpublication_artifact_and_explicit_source_change_remain_supported(self):
++        from riverview_core.resident_execution.pipeline import _validate_artifact_publication_capability
++        from riverview_core.resident_reasoning import PlanProposal, PlanStep
++
++        artifact = PlanProposal("Prepare evidence", (
++            PlanStep("evidence", "Write bounded evidence", ("The artifact is valid.",)),), 0)
++        source_change = PlanProposal("Change a scoped source file", (
++            PlanStep("source", "Change one authorized source file",
++                ("The patch applies to the pinned repository commit and named tests pass",),
++                execution_capability="engineering.codex-cli-source-change.v1",
++                authorized_paths=("src/example.py", "tests/test_example.py"),
++                test_targets=("tests/test_example.py",), repository_reference="repo://org/repo",
++                repository_revision="a" * 40),), 0)
++
++        _validate_artifact_publication_capability(artifact.steps)
++        _validate_artifact_publication_capability(source_change.steps)
++
+     def test_artifact_path_fence_suppresses_again_after_service_reconstruction(self):
+         from types import SimpleNamespace
+         from riverview_core.resident_execution.service import GraceExecutionService
+@@ -461,6 +513,7 @@
+         self.assertEqual(set(pipeline.ledger.db.value.params[1]), {
+             "PROPOSAL_CRITERIA_BINDING_REJECTED",
+             "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
++            "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+         })
+         self.assertEqual(pipeline.ledger.db.value.params[2:], ("2", "objective:artifact-path-fence:r2"))
+ 
