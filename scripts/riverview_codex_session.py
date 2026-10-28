@@ -2,7 +2,7 @@
 # Riverview Controlled Source
 # File: scripts/riverview_codex_session.py
 # Component: WINDOWS-CODEX-COMMS5
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Invoke the existing Codex CLI and retain JSON events and exact resume ID.
 # Execution Model: Request-driven CLI; existing Comms5 owns asynchronous execution.
 # Observability: Per-run request.json, events.jsonl, stderr.txt, result.json; JSON stdout.
@@ -30,6 +30,8 @@ def write_json(path, value):
 
 
 def main():
+    if os.name == 'posix':
+        os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--codex', required=True, help='Existing Codex executable or codex.js')
     parser.add_argument('--node', help='Existing Node executable; required for codex.js')
@@ -66,10 +68,10 @@ def main():
     request = dict(host_label=args.host_label, cwd=str(cwd), command=command,
                    prompt_sha256=hashlib.sha256(args.prompt.encode()).hexdigest())
     root = Path(args.state_root).expanduser().resolve()
-    root.mkdir(parents=True, exist_ok=True)
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
     run = root / args.run_id
     try:
-        run.mkdir()
+        run.mkdir(mode=0o700)
     except FileExistsError:
         prior = run / 'request.json'
         if not prior.is_file() or json.loads(prior.read_text()) != request:
