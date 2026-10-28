@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/development/GRACE_AUTONOMY_CONTINUATION_20261028.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-DIAGNOSTICS-359
 -->
 # Autonomy Grace continuation — request-construction blocker
@@ -141,3 +141,55 @@ diagnostic/recovery path to identify the request-construction cause without
 replaying provider calls. Repair the actual producer/size defect and resume
 Run 2 only within its existing institutional authorization. Keep its criteria
 and historical failure events intact; do not start Run 3 to evade the blocker.
+
+## Exact deployed-source provenance follow-up
+
+Read-only exact-thread analysis found the actual source object at
+`/tmp/riverview-grace-worker-diagnostics`, clean worktree,
+branch `codex/grace-worker-diagnostics-20261026`.
+Commit `9f56cb72f3bd2961babf2527a26bd843526e18ce`, parent
+`e37e87f9068395c946c0ae54f77312f654a3ffc8`, subject
+"Persist Grace source-test diagnostics in worker intents".
+The deployed provider file and exact commit file match SHA-256
+`9c78392cad50ea20adafa467a44533fbd1efe44160518010164ec19a9137a0b2`;
+both retain header revision 1.3.32. GitHub has neither that commit nor its branch.
+
+Comparison against b79ea4d confirms newer proposal prompt/schema refinements and
+two additional tests. Neither request-invalid branch nor _validation_failure
+changed. Preserve those newer changes when porting this additive diagnostic
+patch. Comparison is read-only evidence, not an exact-current-source test pass.
+The comparison response was bounded/truncated after its compatibility statement;
+the listed unchanged branches and changed-function evidence were fully received.
+Do not infer missing trailing text.
+
+Provenance run `grace-release-provenance-20261028-01`:
+execution `a0b1e66f-07ef-4356-b7eb-3b8893e9173d`, exit 0,
+terminal audit `48185afa-54e5-49c7-979f-37d7247e9631`.
+Result retrieval `459ce8da-6831-4ed0-9b3e-a25c1b5d0255`, exit 0,
+audit `4b73c5fc-5db4-4190-8e11-f235cf7a00ea`.
+Comparison run `grace-release-source-compare-20261028-01`:
+execution `cbb7bde0-8492-4105-926a-369eb66f0496`, exit 0,
+terminal audit `999d633d-7e30-482e-a2af-c91ff644c9d2`.
+Result retrieval `1f5e7e69-dcd1-4b07-a410-f5e8e8ea928b`, exit 0,
+audit `2545e214-11c9-4c19-bab0-6b6fd7e2ef62`.
+All four Codex analysis runs are terminal; resume the same exact thread for
+further work. No Comms5 advisory requests were returned by the bounded list
+(limit 10); that is not an audit of all historic/provider requests.
+
+Concrete next authorized implementation path: an existing Camrui operator with
+source-write authority creates an isolated worktree at exact 9f56cb7, ports ONLY
+the diagnostic/test/doc changes, preserves the real exact predecessors, runs the
+current 54-provider-test baseline plus new regressions, and publishes the result
+for the established release procedure. The current fixed read-only Codex entry
+cannot create that worktree, patch source or deploy; host execution grants do not
+override this sandbox or grant institutional recovery authority. No credentials,
+SSH identity, forced command, grants or retry fences were changed to cross it.
+Production deployment and a recovery attempt remain separate approved actions.
+Do not treat the expected current 54-test baseline as executed: only the older
+published 48 baseline and 52 candidate tests were actually run in this Work session.
+
+PR #364 commit `2c324c5301a5ad294ae6b34aab270d71c4b17efa` contains the candidate;
+readback of its provider source matched the tested bytes. Seven changed paths
+are limited to source/test/doc, three exact predecessor copies and this handoff.
+Predecessor of this record, revision 1.0.0, is retained at
+`docs/history/GRACE_AUTONOMY_CONTINUATION_20261028_rev1.0.0.md`.
