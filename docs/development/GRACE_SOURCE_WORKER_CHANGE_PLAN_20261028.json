@@ -1,6 +1,6 @@
 {
-  "revision": "1.0.0",
-  "status": "prepared_not_applied",
+  "revision": "1.0.1",
+  "status": "approved_not_applied",
   "purpose": "Enable the next explicitly scoped Grace source-patch assignment using the existing source worker",
   "repository_reference": "repo://ppow1/Riverview-",
   "worker_id": "worker:grace-engineering-source-change",
@@ -38,6 +38,7 @@
     "Stage a clean immutable checkout at the exact proposed commit using existing local repository objects; do not use uncommitted workspace edits"
   ],
   "rollback": "Restore the exact saved source-worker override bytes and metadata through the existing service procedure; retain prior release, candidate release and audit evidence.",
-  "authorization_boundary": "The three added allowed paths expand the source worker filesystem policy. Steward approval of this exact change is required before application. Existing host command grants are not substitutes.",
-  "publication_boundary": "The source worker returns a scoped patch and test evidence. No publisher is added or assumed."
+  "authorization_boundary": "The exact additional paths and source-only repin are approved. Do not request this approval again. Existing host grants remain unchanged. Verify the active runner's source/artifact repository separation before applying; a shared mapping must not repin the artifact worker.",
+  "publication_boundary": "The source worker returns a scoped patch and test evidence. No publisher is added or assumed.",
+  "approval_ref": "Steward explicitly replied Approved to this exact source-worker update in the 2026-10-28 continuation conversation."
 }
