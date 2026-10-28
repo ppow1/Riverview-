@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.0.7
+# Revision: 1.0.8
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -15,6 +15,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Require fresh trusted repository grounding for stale-base rework and preserve dependency/completion semantics.
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Make repeated policy transitions auditable after intervening changes without losing retry safety.
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Route four advisory exchange tools through an explicit authenticated Steward bridge.
+# Changed: 2026-10-28 UTC | GRACE-FRESH-INTAKE-CONTROL-GAP-20261028 | Route Steward-confirmed objective cancellation through the existing exact-grant pipeline lifecycle.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md; Comms5 contract 5.0
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -52,6 +53,7 @@ class Comms5Operations:
         "comms5_supersede_seed", "comms5_confirm_and_promote_seed",
         "comms5_resource_policy_status", "comms5_form_and_queue_work",
         "comms5_objective_status", "comms5_recent_steward_submissions",
+        "comms5_cancel_objective",
         "comms5_revalidate_and_queue_work", "comms5_set_resource_policy",
         "comms5_set_resource_policy_lock",
         "comms5_authorize_grace_experiment",
@@ -339,6 +341,31 @@ class Comms5Operations:
                 "event_lineage": [{"event_type": row["event_type"],
                     "actor_id": row["actor_id"], "occurred_at": row["occurred_at"].isoformat()}
                     for row in events]}
+
+        if tool == "comms5_cancel_objective":
+            if self.pipeline is None:
+                raise RuntimeError("objective_pipeline_unavailable")
+            if arguments.get("explicit_steward_confirmation") is not True:
+                raise PermissionError("explicit Steward confirmation is required")
+            objective_id = arguments.get("objective_id")
+            reason = arguments.get("reason")
+            if (not isinstance(objective_id, str) or not objective_id.startswith("objective:")
+                    or len(objective_id) > 140):
+                raise ValueError("invalid_objective_id")
+            if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > 1000:
+                raise ValueError("a bounded cancellation reason is required")
+            objective = self.pipeline.get_objective(objective_id)
+            if objective is None:
+                raise Comms5OperationNotFound("objective_not_found")
+            scope_ref = objective.get("scope_ref")
+            if not isinstance(scope_ref, str) or not scope_ref:
+                raise ValueError("objective_scope_unavailable")
+            from ..institutional_authority.grants import InstitutionalPrincipal
+            result = self.pipeline.cancel_work_order(
+                objective_id, credential=InstitutionalPrincipal(actor),
+                authority_ref=scope_ref, reason=reason)
+            return {"status": result["status"], "executed": True,
+                    "objective_id": objective_id, "revision": result["revision"]}
 
         if tool == "comms5_form_and_queue_work":
             if arguments.get("explicit_steward_confirmation") is not True:

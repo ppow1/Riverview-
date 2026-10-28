@@ -1,12 +1,13 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.6
+File Revision: 1.1.7
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify transport probes return caller and dashboard correlation evidence and reject unauthenticated direct use.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify the Steward queue request uses the attested dashboard operation bridge and preserves its truthful queued state.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Verify the 25-tool catalog, preserved legacy catalog, and authenticated reasoning bridge dispatch.
+Changed: 2026-10-28 UTC | GRACE-FRESH-INTAKE-CONTROL-GAP-20261028 | Verify registered objective cancellation is dispatched only through the attested Steward bridge.
 """
 
 import hashlib
@@ -42,8 +43,9 @@ class Comms5MCPTests(unittest.TestCase):
         canonical = json.dumps(catalog["tools"][:21], separators=(",", ":"), ensure_ascii=False).encode()
         self.assertEqual(hashlib.sha256(canonical).hexdigest(), "d13698b1ad415d152f481c1a5360166ef1519b4ebd74944f0836f3341701a807")
         result = app().handle(rpc("tools/list"))["result"]["tools"]
-        self.assertEqual(len(result), 32)
+        self.assertEqual(len(result), 33)
         self.assertIn("comms5_authorize_grace_experiment", [tool["name"] for tool in result])
+        self.assertIn("comms5_cancel_objective", [tool["name"] for tool in result])
         self.assertEqual([tool["name"] for tool in result], [tool["name"] for tool in catalog["tools"]])
         exchange_names = ["reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
             "reasoning_exchange_submit_response", "reasoning_exchange_status"]
@@ -166,6 +168,24 @@ class Comms5MCPTests(unittest.TestCase):
                 backend.call_authenticated("comms5_form_and_queue_work", request,
                                            principal="resident:grace")
 
+    def test_dashboard_backend_routes_objective_cancellation_only_for_attested_steward(self):
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("a" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            request = {"objective_id": "objective:stale-dev", "reason": "Replace stale request",
+                       "explicit_steward_confirmation": True}
+            result = {"status": "CANCELLED", "executed": True,
+                      "objective_id": "objective:stale-dev", "revision": 3}
+            with patch.object(backend, "_post_operation", return_value=result) as operation:
+                self.assertEqual(backend.call_authenticated("comms5_cancel_objective",
+                    request, principal="steward"), result)
+                operation.assert_called_once_with("comms5_cancel_objective", request)
+            with self.assertRaisesRegex(PermissionError, "Steward"):
+                backend.call_authenticated("comms5_cancel_objective", request,
+                                           principal="resident:grace")
+
     def test_objective_lookup_uses_exact_id_route_and_reports_missing_record(self):
         with tempfile.TemporaryDirectory() as directory:
             credential = Path(directory) / "dashboard-token"
@@ -259,6 +279,7 @@ class Comms5MCPTests(unittest.TestCase):
             self.assertEqual(statuses["comms5_seed_status"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_submit_steward_seed"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_confirm_and_promote_seed"], "IMPLEMENTED")
+            self.assertEqual(statuses["comms5_cancel_objective"], "IMPLEMENTED")
 
     def test_dashboard_backend_rejects_noncanonical_objective_list_paths(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -381,7 +402,7 @@ class Comms5MCPTests(unittest.TestCase):
             with urlopen(request, timeout=2) as response:
                 result = json.loads(response.read())
                 self.assertEqual(response.status, 200)
-            self.assertEqual(len(result["result"]["tools"]), 32)
+            self.assertEqual(len(result["result"]["tools"]), 33)
         finally:
             server.shutdown()
             server.server_close()

@@ -1,6 +1,6 @@
 """Focused tests for Comms5 operations on current Riverview services.
 
-File Revision: 1.0.6
+File Revision: 1.0.7
 Component: COMMS5-CURRENT-RUNTIME-OPERATIONS-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify intent/authority projection and combined durable objective/proposal listing.
@@ -9,6 +9,7 @@ Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify durable CME 
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Update runtime catalog and verify new policy tool accounting.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Cover persisted policy projections and fixed operation dispatch without mutable MCP routing.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Count the four bounded Steward exchange operations in live backend implementation status.
+Changed: 2026-10-28 UTC | GRACE-FRESH-INTAKE-CONTROL-GAP-20261028 | Verify objective cancellation reuses authenticated Comms5 identity and the exact-grant pipeline.
 """
 
 import unittest
@@ -360,6 +361,86 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         self.assertEqual(result["status"], "approved_not_promoted")
         self.assertTrue(result["approval_recorded"])
         self.assertEqual(result["missing_prerequisite"], "objective.submit")
+
+    def test_comms5_objective_cancellation_reuses_exact_grant_pipeline(self):
+        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+
+        pipeline = MagicMock()
+        pipeline.get_objective.return_value = {
+            "objective_id": "objective:stale-dev", "scope_ref": "work-order:engineering"}
+        pipeline.cancel_work_order.return_value = {
+            "status": "CANCELLED", "revision": 8, "request": "private body"}
+        operations = Comms5Operations(self.registry, self.lifecycle,
+                                      objective_pipeline=pipeline)
+        args = {"objective_id": "objective:stale-dev",
+                "reason": "Steward replaces stale development request.",
+                "explicit_steward_confirmation": True}
+        result = operations.execute("comms5_cancel_objective", args,
+                                    principal_id="steward:camrui")
+
+        self.assertEqual(result, {"status": "CANCELLED", "executed": True,
+            "objective_id": "objective:stale-dev", "revision": 8})
+        call = pipeline.cancel_work_order.call_args
+        self.assertIsInstance(call.kwargs["credential"], InstitutionalPrincipal)
+        self.assertEqual(call.kwargs["credential"].principal_id, "steward:camrui")
+        self.assertEqual(call.kwargs["authority_ref"], "work-order:engineering")
+        self.assertEqual(call.kwargs["reason"], args["reason"])
+
+        pipeline.cancel_work_order.reset_mock()
+        with self.assertRaisesRegex(PermissionError, "explicit Steward confirmation"):
+            operations.execute("comms5_cancel_objective",
+                {**args, "explicit_steward_confirmation": False},
+                principal_id="steward:camrui")
+        pipeline.cancel_work_order.assert_not_called()
+
+    def test_grounded_cancel_accepts_authenticated_principal_but_still_checks_exact_grant(self):
+        from contextlib import nullcontext
+        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
+        from riverview_core.resident_execution.pipeline import GraceExecutionPipeline
+
+        class Cursor:
+            def __init__(self):
+                self.row = None
+
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+
+            def execute(self, query, params=()):
+                if "SELECT status,scope_ref,assignment_id,revision" in query:
+                    self.row = {"status": "GROUNDED", "scope_ref": "work-order:engineering",
+                                "assignment_id": None, "revision": 7}
+                elif "FROM assignments" in query and "has_assignment" in query:
+                    self.row = {"has_assignment": False, "has_dispatch": False,
+                                "has_step_activity": False}
+                elif "UPDATE grace_objectives SET status='CANCELLED'" in query:
+                    self.row = {"revision": 8, "updated_at": datetime.now(timezone.utc)}
+                else:
+                    raise AssertionError("unexpected cancellation SQL")
+
+            def fetchone(self): return self.row
+
+        cursor = Cursor()
+        db = SimpleNamespace(transaction=nullcontext, cursor=lambda: cursor)
+        pipeline = object.__new__(GraceExecutionPipeline)
+        pipeline.ledger = SimpleNamespace(db=db, _set_search_path=lambda cur: None)
+        pipeline.authorizer = MagicMock()
+        pipeline.authorizer.require_principal.return_value = {"principal_id": "steward:camrui"}
+        pipeline.get_objective = MagicMock(side_effect=[
+            {"status": "GROUNDED", "scope_ref": "work-order:engineering"},
+            {"status": "CANCELLED", "revision": 8}])
+        pipeline._event = MagicMock()
+
+        result = pipeline.cancel_work_order("objective:stale-dev",
+            credential=InstitutionalPrincipal("steward:camrui"),
+            authority_ref="work-order:engineering", reason="Replaced by bounded request")
+
+        self.assertEqual(result["status"], "CANCELLED")
+        pipeline.authorizer.require_principal.assert_called_once_with(cursor,
+            "steward:camrui", "assignment.cancel", "work-order:engineering")
+        pipeline.authorizer.require.assert_not_called()
+        self.assertEqual(pipeline._event.call_args.args[4], "steward:camrui")
+        self.assertEqual(pipeline._event.call_args.args[5]["reason"],
+                         "Replaced by bounded request")
 
     def test_objective_status_returns_durable_lineage_without_objective_body(self):
         pipeline = MagicMock()

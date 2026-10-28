@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.0.9
+# Revision: 1.0.10
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
@@ -10,6 +10,7 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Route stale-base recovery and durable worker policy operations through the existing authenticated operation endpoint.
 # Changed: 2026-10-17 UTC | RV-COMMS5-PR100-CORRELATION-HEADER-20261017 | Keep ordinary status reads compatible with responses lacking optional request-correlation headers.
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Allow only the four review-exchange names through the existing attested Steward dashboard operation route.
+# Changed: 2026-10-28 UTC | GRACE-FRESH-INTAKE-CONTROL-GAP-20261028 | Include objective cancellation in the existing attested operation bridge.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
 
@@ -36,6 +37,7 @@ _PROPOSAL_TOOLS = {
     "comms5_revise_specification", "comms5_prepare_proposal_for_decision",
     "comms5_seed_status", "comms5_seed_lineage", "comms5_cancel_draft",
     "comms5_supersede_seed", "comms5_confirm_and_promote_seed",
+    "comms5_cancel_objective",
 }
 _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_objective_status", "comms5_recent_steward_submissions",
@@ -72,7 +74,7 @@ class DashboardOperationConflict(RuntimeError):
 
 
 class DashboardReadBackend:
-    """Call only fixed read endpoints on the loopback dashboard.
+    """Call fixed read endpoints and attested operations on the loopback dashboard.
 
     The dashboard bearer is supplied as a systemd credential. This adapter does
     not accept caller-provided URLs, paths, headers, or credentials and never
@@ -95,6 +97,7 @@ class DashboardReadBackend:
         "comms5_cancel_draft": "IMPLEMENTED",
         "comms5_supersede_seed": "IMPLEMENTED",
         "comms5_confirm_and_promote_seed": "IMPLEMENTED",
+        "comms5_cancel_objective": "IMPLEMENTED",
         "comms5_revalidate_and_queue_work": "IMPLEMENTED",
         "comms5_set_resource_policy": "IMPLEMENTED",
         "comms5_set_resource_policy_lock": "IMPLEMENTED",

@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.88
+# Revision: 1.0.89
 # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Assert interrupted one-shot recovery is terminalized and never replayed.
 # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Prove local recovery cannot spend externally and interrupted one-shot reasoning is never replayed.
 # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify one exact local criteria-binding recovery supersedes, but preserves, the pending Steward request.
@@ -21,6 +21,7 @@
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify Grace persists the exact configured worker capability set.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Verify Grace selects ComfyUI only when the explicitly keyed worker exists.
 # Changed: 2026-10-23 UTC | RV-DASHBOARD-GROUNDED-OBJECTIVE-CANCEL-20261023 | Preserve cancellation authorization, audit, idempotency, queue exclusion, and active-work protection tests.
+# Changed: 2026-10-28 UTC | GRACE-FRESH-INTAKE-CONTROL-GAP-20261028 | Exercise grounded cancellation with a trusted InstitutionalPrincipal under the same exact grant.
 # Changed: 2026-10-22 UTC | RV-GRACE-DURABLE-COMPLETION-001 | Prove four-step verified completion recovers after restart and ignores conversational review disagreement.
 # Changed: 2026-10-22 UTC | RV-W4-PR216-REVIEW-FOLLOWUP | Verify concurrent grounding failures serialize into distinct durable attempts and duplicate attempt replay is a no-op.
 # Changed: 2026-10-22 UTC | RV-W4-GRACE-ACTIONABLE-DIAGNOSTICS-20261022 | Cover durable sanitized grounding failure codes, persistence, exception redaction, and retry history.
@@ -3808,8 +3809,9 @@ class GraceExecutionTests(unittest.TestCase):
                 reason="Obsolete test objective")
         self.assertEqual(self.pipeline.get_objective(objective_id)["status"], "GROUNDED")
 
+        from riverview_core.institutional_authority.grants import InstitutionalPrincipal
         cancelled = self.pipeline.cancel_work_order(objective_id,
-            credential=self.credentials["steward"], authority_ref=self.scope,
+            credential=InstitutionalPrincipal("steward:test"), authority_ref=self.scope,
             reason="Obsolete test objective")
         self.assertEqual(cancelled["status"], "CANCELLED")
         self.assertEqual(cancelled["revision"], initial_revision + 1)

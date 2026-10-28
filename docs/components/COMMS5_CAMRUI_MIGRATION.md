@@ -2,7 +2,7 @@
 Riverview Controlled Document
 File: docs/components/COMMS5_CAMRUI_MIGRATION.md
 Component: COMMS5-CAMRUI-ADAPTER
-File Revision: 1.0.13
+File Revision: 1.0.14
 Status: Source implementation and live deployment tracker
 Date: 2026-10-17
 History: New file; no predecessor existed.
@@ -16,6 +16,7 @@ Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Implement the final th
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record complete test-suite and isolated PostgreSQL verification counts; keep production acceptance unverified under the current change boundary.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Record fresh read-only production state and exact commissioning blockers; no production changes made.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Refresh checkout evidence after integrating the latest target-branch commits.
+Changed: 2026-10-28 UTC | GRACE-FRESH-INTAKE-CONTROL-GAP-20261028 | Expose objective cancellation through the existing authenticated route and assignment.cancel grant.
 Previous: 2026-10-17 UTC | RV-COMMS5-TOOL-CATALOG-AUDIT-001 | Link exact preserved input schemas and record current loopback deployment state.
 Previous: 2026-10-17 UTC | RV-COMMS5-DASHBOARD-READ-001 | Record read-only dashboard projection implementation before production deployment.
 -->
@@ -53,6 +54,7 @@ Exact historical input schemas, annotations, authentication metadata, and captur
     repository drift fails closed for renewed specification approval.
     | STEWARD-GATED_WRITE | IMPLEMENTED: requires explicit Steward confirmation, current exact `assignment.create`, durable eligible pre-execution stale-base failure, and fresh VERIFIED grounding; appends a same-scope successor and queues it for Grace/CME | Original failed assignment remains blocked and unaccepted. Successor is independently executed and verified; direct dependents are retargeted and still require Grace review. No result is synthesized. |
 | `comms5_cancel_draft` | Append-only cancel of a draft; never cancels an objective or work order. | STEWARD-GATED_WRITE | IMPLEMENTED as an explicit-confirmation transition of the current proposal to ARCHIVED | Current proposal event is append-only and transition is idempotent; rejects stale/ineligible states |
+| `comms5_cancel_objective` | Cancel one eligible objective through the existing exact-grant objective lifecycle. | STEWARD-GATED_WRITE | Source implementation reuses `GraceExecutionPipeline.cancel_work_order` with the Comms5-attested principal and exact `assignment.cancel` check | Requires explicit confirmation and bounded reason; grounded cancellation fails closed if assignment/dispatch activity exists; the append-only event records the existing actor, reason, revision, and timestamp. No new grant or objective lifecycle is introduced. |
 | `comms5_supersede_seed` | Append an old-draft-to-new-draft replacement relation. | STEWARD-GATED_WRITE | IMPLEMENTED as an explicit-confirmation SUPERSEDED transition linked to a current DRAFT replacement | Relationship is recorded in proposal lifecycle event; replacement must remain unreviewed DRAFT |
 
 ## Runtime boundary
