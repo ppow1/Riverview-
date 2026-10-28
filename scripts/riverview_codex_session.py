@@ -2,7 +2,7 @@
 # Riverview Controlled Source
 # File: scripts/riverview_codex_session.py
 # Component: WINDOWS-CODEX-COMMS5
-# Revision: 1.0.2
+# Revision: 1.0.3
 # Purpose: Invoke the existing Codex CLI and retain JSON events and exact resume ID.
 # Execution Model: Request-driven CLI; existing Comms5 owns asynchronous execution.
 # Observability: Per-run request.json, events.jsonl, stderr.txt, result.json; JSON stdout.
@@ -56,9 +56,9 @@ def main():
     if args.node:
         command = [args.node, args.codex]
     if os.name == 'nt':
-        # The Gateway is a Limited Windows account; use the documented native
-        # restricted-token implementation, without administrator setup/accounts.
-        command += ['-c', 'windows.sandbox="unelevated"']
+        # Native MXC was verified on desktop-ja3rpnq under the Limited Gateway
+        # account; it needs neither administrator setup nor sandbox-user accounts.
+        command += ['-c', 'windows.sandbox="mxc"']
     # exec owns its sandbox/CD options; root CLI options are not inherited here.
     # Keep these before resume so both fresh and resumed turns use the workspace.
     command += ['--ask-for-approval', 'never', 'exec',

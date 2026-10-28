@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CAMRUI_GATEWAY_CODEX_COMMISSIONING.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.2
+File Revision: 1.0.3
 Changed: 2026-10-27 | RV-CAMRUI-GATEWAY-CODEX
 -->
 **Source-editing correction prepared, October 27, 2026:** the original installed
@@ -243,3 +243,9 @@ The update preserves the existing forced-command key entry; only two Python
 wrapper files change. See the linked update procedure for tests, installation,
 current Windows limitations and rollback. Predecessor document is preserved at
 docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.1.md.
+
+## Revision 1.0.3 — current correction handoff
+
+The linked workspace-update runbook now records verified Windows source edits
+and independent tests. Camrui remains pending the staged operator update.
+Predecessor: docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.2.md.

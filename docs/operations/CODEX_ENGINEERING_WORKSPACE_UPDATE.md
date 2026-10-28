@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CODEX_ENGINEERING_WORKSPACE_UPDATE.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-28 UTC | RV-CODEX-ENGINEERING-WRITE
 -->
 # Correct the Codex launcher for Engineering source work
@@ -17,12 +17,13 @@ Current status:
 - Corrected source and rollback-capable Camrui operator updater: PREPARED.
 - Offline regression suite: 16/16 PASS, exit 0.
 - Staged Windows package SHA-256:
-  `c8b0521e9275347c3b27259a874258d4a10dbf86d6462144dc00c00ae9b0530b`.
+  `3d27a29d8fdaa3285bb6b2b6e0f6bc8c88c150a04e1c915ee0df7221cbec9394`.
 - Operator PowerShell script native parser: PASS, zero errors.
 - Windows helper: INSTALLED under Gateway LOCALAPPDATA.
-- Windows effective Codex turn policy: workspace-write, verified from its
-  persisted turn_context. Source-writing acceptance: FAIL, separate native
-  sandbox process initialization failure described below.
+- Windows effective Codex turn policy: workspace-write; native MXC selected.
+  Real source creation and exact-thread second edit: PASS using cmd.exe shell.
+  Independent Node tests through Comms5 PowerShell: PASS after both edits.
+  Codex-internal Node startup and apply_patch still fail; retain that limitation.
 - Camrui helper/entry update: NOT INSTALLED. Its currently installed helper
   remains read-only until the one operator installation below.
 
@@ -32,7 +33,7 @@ insufficient: it can mean the model merely reported a denied operation.
 
 ## Corrected invocation and workspace
 
-`scripts/riverview_codex_session.py` revision 1.0.2 now constructs:
+`scripts/riverview_codex_session.py` revision 1.0.3 now constructs:
 
 ```text
 codex --ask-for-approval never exec --sandbox workspace-write --cd <workspace> [resume] --json --model gpt-6-luna ... -
@@ -42,7 +43,7 @@ The exec subcommand owns its sandbox/CD flags. Keep them before resume.
 Noninteractive attempts outside the workspace fail rather than waiting invisibly
 for terminal approval. No danger-full-access or sandbox-bypass flag is used.
 The Windows Limited Gateway account additionally selects the documented native
-restricted-token implementation with `-c windows.sandbox="unelevated"`.
+MXC implementation with `-c windows.sandbox="mxc"`.
 See [official Windows sandbox documentation](https://learn.chatgpt.com/docs/windows/windows-sandbox).
 This per-invocation option changes neither accounts nor global Codex config.
 
@@ -146,7 +147,7 @@ Caller:
 `grant:6422d222eca74cb3b328bf3a80384a59`.
 No new grants are needed for the commissioned host command path.
 
-## Windows live evidence and remaining native failure
+## Windows historical failures and current verified editing route
 
 Installed helper:
 `%LOCALAPPDATA%\Riverview\CodexControl\workspace-write-v1\riverview_codex_session.py`.
@@ -184,3 +185,63 @@ Next Windows action: diagnose native sandbox startup/ACL/logon compatibility
 under RiverviewCmdAgent; retain workspace boundaries and the actual Limited OS
 identity. Do not mask this by removing the sandbox or silently using wille's
 identity. Ordinary Comms5 PowerShell execution remains working.
+
+## October 28 continuation — Windows source editing verified
+
+MXC is supported on this actual device (build 26340.9596). Probe execution
+c9577909-f36c-49de-991d-ba0e1dc33b2d returned MXC_OK, exit 0, audit
+9f16c038-c5c2-49f1-ad1a-919b5dee3b82. A separate native MXC cmd.exe workspace-write
+probe created/read mxc_probe.txt, exit 0, execution
+6bbf2a62-a2db-450c-b0b7-a08c77eaebaf, audit
+0e6c028e-aa63-43a8-9665-bee354589962.
+
+Helper revision 1.0.3 selects windows.sandbox="mxc" only on Windows.
+It is installed and independently hash-read as:
+`2bae3eec74d40b1de090e2f7d566667bcc53a74b31ead04bc76902d56b5ac46b`.
+The pre-MXC helper is retained beside it as riverview_codex_session.py.pre-mxc.py.
+No account creation, administrator setup, sandbox bypass, credentials or grants
+were used. The 16 offline regression tests pass after this change.
+
+Codex apply_patch remains a failing tool on this path. The working supported
+route is the shell tool with `C:\Windows\System32\cmd.exe` selected as its
+shell, instead of the automatically selected x86 PowerShell. This route retains
+the native MXC workspace sandbox.
+
+- Same exact thread: 01a18064-a577-72c3-b907-d26424113128.
+- Run windows-write-acceptance-20261028-07, execution
+  3e4b5590-29a4-4b23-bf27-8db9905d7a37, final audit
+  e6da71f5-47f1-4d9a-9da9-076dffeb91e9: actual cmd.exe tool events created
+  sum.cjs and test_sum.cjs and read back both files.
+- Codex-internal Node launch still returned -1073741502; no internal test PASS
+  is claimed. Independent authorized Gateway PowerShell launched the actual
+  test file with Node, exit 0, execution
+  6c66bb70-f7aa-4265-b2fb-b4d3e6cdfa5c, audit
+  fcc3e44e-b100-4554-ae4d-b3f54d62b5b3.
+- Run windows-write-acceptance-20261028-08 resumed the exact same thread and
+  appended an additional negative-input assertion using cmd.exe, then read back
+  the changed file. Execution 4f37528e-7e8b-4ed9-985f-a833d554b1e6, exit 0,
+  audit 897bb9a2-7a56-4298-8f12-3e8fba78d1f4.
+- Independent resumed-file Node verification: exit 0, execution
+  1f7785ce-9efc-4965-8022-5ac302021b21, audit
+  15b6c5d3-8f34-4ba8-8ac4-5731f52b6510.
+
+Thus Windows Codex can actually edit files and preserve editing continuity.
+Tests run through the separately authorized existing PowerShell Gateway.
+This does not claim that Node now starts inside Codex's native sandbox or that
+the full Grace Engineering milestone has completed.
+
+The staged operator package was rebuilt from the verified installed helper and
+the three unchanged updater sources; its current SHA-256 is the updated value
+at the top of this document. It contains only those four public code files.
+
+Fresh Camrui identity read at 04:42 UTC still reports cwd=/home/admin1 and no
+workspace-write metadata, proving the installed correction is still PENDING.
+Execution dd1902b9-d724-4080-827a-07fc7b812c28, audit
+6ec0c4b3-4b2c-466a-9c89-333fa35550f6. Use the one operator installation command
+above; after it returns INSTALL_EXIT_CODE=0, ChatGPT independently verifies
+Camrui edits, actual tests and exact-thread resume through Comms5.
+
+Source predecessor revision 1.0.2 is retained at
+docs/history/riverview_codex_session_rev1.0.2.py.
+Predecessor of this procedure (1.0.0) is retained at
+docs/history/CODEX_ENGINEERING_WORKSPACE_UPDATE_rev1.0.0.md.
