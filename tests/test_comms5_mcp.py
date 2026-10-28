@@ -1,6 +1,6 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.10
+File Revision: 1.1.11
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
@@ -8,6 +8,7 @@ Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify transport pr
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify the Steward queue request uses the attested dashboard operation bridge and preserves its truthful queued state.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Verify the 25-tool catalog, preserved legacy catalog, and authenticated reasoning bridge dispatch.
 Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Verify command tools and restored direct-dispatch catalog on the generalized delegation baseline.
+Changed: 2026-10-28 UTC | GRACE-CURRENT-COMMS5-CANCEL-20261028 | Verify objective cancellation discovery and implementation counts.
 """
 
 import hashlib
@@ -89,7 +90,7 @@ class Comms5MCPTests(unittest.TestCase):
         canonical = json.dumps(catalog["tools"][:21], separators=(",", ":"), ensure_ascii=False).encode()
         self.assertEqual(hashlib.sha256(canonical).hexdigest(), "d13698b1ad415d152f481c1a5360166ef1519b4ebd74944f0836f3341701a807")
         result = app().handle(rpc("tools/list"))["result"]["tools"]
-        self.assertEqual(len(result), 42)
+        self.assertEqual(len(result), 43)
         self.assertIn("comms5_authorize_grace_experiment", [tool["name"] for tool in result])
         self.assertIn("comms5_submit_direct_engineering_task", [tool["name"] for tool in result])
         self.assertIn("comms5_command_submit", [tool["name"] for tool in result])
@@ -137,7 +138,7 @@ class Comms5MCPTests(unittest.TestCase):
         help_result = application.handle(rpc("tools/call", {"name": "comms5_help", "arguments": {}}))
         help_value = json.loads(help_result["result"]["content"][0]["text"])
         self.assertEqual(help_value["contract"]["contract"], "riverview-comms-contract:5.0")
-        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 33)
+        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 34)
         capabilities = application.handle(rpc("tools/call", {"name": "comms5_capabilities", "arguments": {}}))
         capability_value = json.loads(capabilities["result"]["content"][0]["text"])
         self.assertEqual(sum(op["camrui_implementation_status"] == "IMPLEMENTED" for op in capability_value["operations"]), 5)

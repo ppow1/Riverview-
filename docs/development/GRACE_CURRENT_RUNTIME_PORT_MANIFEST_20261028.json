@@ -1,0 +1,100 @@
+{
+  "advisory_mismatch": "Not repaired; persisted payload is unavailable, so cme_advisory_fields_invalid does not establish a concrete field mismatch.",
+  "base_comms5_release": "b6b5ce715508590cc8e56051c00bf7ed17fdbf79",
+  "base_dashboard_release": "8325d3ffe8e53f3deaab4c9e14e471467454a08b",
+  "entries": [
+    {
+      "baseline_revision": "# Revision: 1.2.3",
+      "baseline_sha256": "d902c6a443283b6663f4e00e7bb7b50682b4085723b2f767887c1292bdd8e550",
+      "candidate_revision": "# Revision: 1.2.4",
+      "candidate_sha256": "1e1368e8e8c7174273db6179cca7e8a26e2ecbbaf934b8c73578eda664bf94c8",
+      "path": "src/riverview_core/comms5/dashboard_backend.py"
+    },
+    {
+      "baseline_revision": null,
+      "baseline_sha256": "4d7cf965217af0ba9ab088f2f95368bfdc3286dcc5aa74ec81644b62b8f8e4b6",
+      "candidate_revision": null,
+      "candidate_sha256": "ed027c30449b028b191e72c816880802b8cb4c5421d3c0b1aba00669494b1c52",
+      "path": "src/riverview_core/comms5/tool_catalog.json"
+    },
+    {
+      "baseline_revision": "# Revision: 1.1.1",
+      "baseline_sha256": "997711eb1eb9cd4a69f585d0ff9ae3b632de4cb9b51e79eeb4ab38f7c1ce1d37",
+      "candidate_revision": "# Revision: 1.1.2",
+      "candidate_sha256": "91dff1171bd3fe631c07363665b0b045c539e69cebfb86b5035563dcc1b6ac50",
+      "path": "src/riverview_core/resident_execution/comms5_operations.py"
+    },
+    {
+      "baseline_revision": "# Revision: 1.1.45",
+      "baseline_sha256": "0d32ef4439890e37b32d0f186cda73c39d6ec171e4bb246dd298e02e7a9a0873",
+      "candidate_revision": "# Revision: 1.1.46",
+      "candidate_sha256": "62a993f41b6536be5e8e844269d0aee9e3856361f2af251cf3205dd5ec808fd3",
+      "path": "src/riverview_core/resident_execution/pipeline.py"
+    },
+    {
+      "baseline_revision": "File Revision: 1.0.10",
+      "baseline_sha256": "8725f8cf28468858c300ac9f9d3d2d0e88ab0286374c6ad3756dde33f2a27486",
+      "candidate_revision": "File Revision: 1.0.11",
+      "candidate_sha256": "93bdc2130d7fc8c0254cdf35b1e07db706e23c5ec9c86d40c25e0f6b017b0a15",
+      "path": "tests/test_comms5_current_runtime.py"
+    },
+    {
+      "baseline_revision": "File Revision: 1.1.10",
+      "baseline_sha256": "07ec652f0a8d9130ec5cc35775e628c22265da13118b88dc5b66e42804cad028",
+      "candidate_revision": "File Revision: 1.1.11",
+      "candidate_sha256": "5d19040fe833448de0f6aa52cfc78980d25294a655ee709c6072e0cb564c7ceb",
+      "path": "tests/test_comms5_mcp.py"
+    },
+    {
+      "baseline_revision": null,
+      "baseline_sha256": null,
+      "candidate_revision": null,
+      "candidate_sha256": "0af70969063ee7bee07bb729d9822f271c58140e08136104837447eaa684b0bc",
+      "path": "tests/test_grace_current_cancellation_diagnostics.py"
+    }
+  ],
+  "health_checks": "Baseline health before protected release creation; Comms5 127.0.0.1:11826/healthz; Dashboard 127.0.0.1:8767/api/v1/status expects 401/403; both units active. Candidate/rollback repeat the same health checks.",
+  "offline_operator_guards": "4 fixture guard tests passed, exit 0; bash -n passed. One catalog-only test rerun after preserving exact catalog formatting: 1 passed, exit 0.",
+  "offline_runtime_command": "PYTHONPATH=/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-current-source-8325d3-stage/candidate/src python3 -m unittest -v test_grace_current_cancellation_diagnostics test_comms5_current_runtime.Comms5CurrentRuntimeTests.test_objective_status_returns_durable_lineage_without_objective_body test_comms5_current_runtime.Comms5CurrentRuntimeTests.test_live_backend_status_counts_fully_implemented_operations test_comms5_mcp.Comms5MCPTests.test_historical_catalog_is_complete_and_contract_metadata_works test_comms5_mcp.Comms5MCPTests.test_dashboard_backend_rejects_non_loopback_and_reports_partial_capabilities test_comms5_mcp.Comms5MCPTests.test_dashboard_backend_uses_attested_internal_operation_for_objective_status test_comms5_mcp.Comms5MCPTests.test_dashboard_failure_is_visible_and_non_successful test_comms5_mcp.Comms5MCPTests.test_schema_validation_rejects_extra_and_missing_arguments",
+  "offline_runtime_cwd": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-current-source-8325d3-stage/candidate/tests",
+  "offline_runtime_suite": "10 focused tests passed, exit 0 (recorded prior unchanged).",
+  "operator_commands": [
+    "bash scripts/grace_current_controls_20261028.sh --dry-run",
+    "bash scripts/grace_current_controls_20261028.sh --apply",
+    "bash scripts/grace_current_controls_20261028.sh --rollback"
+  ],
+  "operator_dry_run": "r2 script bash -n passed; --dry-run exit 0; both predecessor pointers unchanged. This mode verifies file/pointer guards without service writes.",
+  "operator_script": "scripts/grace_current_controls_20261028.sh",
+  "operator_script_sha256": "d4526f6753e4f3ae8acd2845a447935457cd32ff48f78dc0e7d8c708cf42a14c",
+  "protected_writes": "r1 operator apply attempted and automatically rolled back after health timeout; exact predecessor pointers independently verified. r2 not applied.",
+  "publication_note": "The package is based on exact readable live releases; no claim that source commit 9f56cb7 is published.",
+  "runtime_scope": [
+    "src/riverview_core/comms5/dashboard_backend.py",
+    "src/riverview_core/comms5/tool_catalog.json",
+    "src/riverview_core/resident_execution/comms5_operations.py",
+    "src/riverview_core/resident_execution/pipeline.py"
+  ],
+  "schema": "rv.grace.current-source-port.v1",
+  "test_scope": [
+    "tests/test_comms5_current_runtime.py",
+    "tests/test_comms5_mcp.py",
+    "tests/test_grace_current_cancellation_diagnostics.py"
+  ],
+  "file_revision": "1.0.1",
+  "operator_script_revision": "1.0.1",
+  "installation_attempts": [
+    {
+      "revision": "1.0.0",
+      "script_sha256": "f56ba6dc22717168c2caad0374a298b88f4e2eafb34157e2bf223b109462ef7d",
+      "apply_exit_code": 2,
+      "error": "post_restart_health_timeout",
+      "confirmed_defect": "Dashboard probe 8766 did not match observed listener 8767",
+      "comms_startup_cause": "unconfirmed; reported connection refusal on configured 11826",
+      "rollback": "both exact predecessor pointers independently confirmed"
+    }
+  ],
+  "current_installer_tests": {
+    "command": "python -m unittest discover -s tests -p test_grace_controls_installer_lifecycle.py -v",
+    "result": "4 passed, exit 0; fake HTTP fixture accepts only observed ports; activation/explicit rollback, automatic restart-failure rollback, candidate drift, unhealthy baseline"
+  }
+}

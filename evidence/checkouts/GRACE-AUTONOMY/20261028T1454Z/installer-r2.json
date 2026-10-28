@@ -1,0 +1,108 @@
+{
+  "revision": "1.0.0",
+  "operator_r1": {
+    "script_hash": "f56ba6dc22717168c2caad0374a298b88f4e2eafb34157e2bf223b109462ef7d",
+    "dry_run_exit": 0,
+    "apply_exit": 2,
+    "error": "post_restart_health_timeout"
+  },
+  "failure_inspection": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "327b4381-7f04-4c0f-975b-23c7fd78b1c1",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-controls-install-failure-20261028-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-controls-install-failure-20261028-01/events.jsonl\", \"pid\": 2005747, \"exit_code\": 0, \"messages\": [\"I\\u2019ll verify the active pointers and service configuration first, then correlate the 10:46 startup logs with the installer\\u2019s health probe. I\\u2019ll keep this read-only and preserve the failed attempt evidence.\", \"The installed dashboard reports listening on `127.0.0.1:8767`, while the installer probes `8766`; that probe is stale. The installer also requires Comms5 on `11826`, matching its checked-in unit declaration. I\\u2019m checking the local listener table and startup records next to distinguish a probe mismatch from a Comms5 startup failure.\", \"The rollback pointers resolve to the exact baseline releases. The accessible Comms5 journal records stop/start events only, with no traceback or bind failure; systemd status is blocked by the sandbox bus boundary. Since `11826` matches both the installed unit and Comms5 source, I can confirm the probe target is configured correctly but cannot identify why its listener refused the connection. I\\u2019m recording that distinction and the separately confirmed Dashboard port mismatch.\", \"Rollback pointers resolve to the exact predecessors: Comms5 `b6b5ce7\\u2026` and Dashboard `8325d3f\\u2026`. Apply exited 2 with `post_restart_health_timeout`; the reported Comms5 refusal was at configured port 11826. Its startup cause is unconfirmed: accessible journal has no traceback or bind error, and sandbox access to systemd/socket state was denied.\\n\\nConfirmed separate probe mismatch: Dashboard listens on 8767, but the installer probes 8766 at [grace_current_controls_20261028.sh](/home/admin1/.local/share/riverview/engineering/Riverview/scripts/grace_current_controls_20261028.sh:81). No installer/runtime edits or retry; finding saved in [GRACE_INSTALL_HEALTH_FAILURE_20261028.md](/home/admin1/.local/share/riverview/engineering/Riverview/docs/development/GRACE_INSTALL_HEALTH_FAILURE_20261028.md). Next: diagnose Comms startup on the host, then correct the Dashboard probe and validate existing candidate directories before another apply.\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T14:51:11.918603+00:00",
+    "completed_at": "2026-10-28T14:51:12.717891+00:00",
+    "deadline_at": "2026-10-28T15:51:11.909605+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "992bea3e-57e1-4050-8865-beea356b14d3",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "327b4381-7f04-4c0f-975b-23c7fd78b1c1",
+      "audit_event_id": "69a579a2-a83c-4912-b3e5-2d5025062ce4",
+      "idempotency_key": "cmd-569e0af3d97c384b03149d5cb5533ffaa2f4ff9af3ea226859403287614f0f61"
+    },
+    "host_id": "camrui",
+    "task_id": "327b4381-7f04-4c0f-975b-23c7fd78b1c1",
+    "command_sha256": "efa182099fd58ea0637add33a3f40dc31963f37926ad728d1cd1a9867a78293d",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "script_correction": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "3209de0e-a1aa-49fc-931b-19a8dbab39df",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-installer-port-correction-20261028-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-installer-port-correction-20261028-01/events.jsonl\", \"pid\": 2009904, \"exit_code\": 0, \"messages\": [\"I\\u2019ll verify the script\\u2019s current hash and backup path, apply only the supplied one-file patch, then check the expected hash, `bash -n`, and the read-only dry run. I won\\u2019t run apply or touch service paths.\", \"Applied only the supplied script patch. Revision 1.0.0 predecessor preserved at `scripts/history/grace_current_controls_20261028_rev1.0.0.sh`.\\n\\n- New script SHA256: `d4526f6753e4f3ae8acd2845a447935457cd32ff48f78dc0e7d8c708cf42a14c`\\n- `bash -n`: passed\\n- `--dry-run`: exit 0\\n- Pointers unchanged: Comms5 `b6b5ce7\\u2026`; Dashboard `8325d3f\\u2026`\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T14:54:22.939647+00:00",
+    "completed_at": "2026-10-28T14:54:23.693900+00:00",
+    "deadline_at": "2026-10-28T15:54:22.929647+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "e9e634bb-060e-4c33-bb08-085e643e8d15",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "3209de0e-a1aa-49fc-931b-19a8dbab39df",
+      "audit_event_id": "4b39d1ec-5003-4a70-b1c8-4da32acd33ec",
+      "idempotency_key": "cmd-a44634709455199b852b2761b289b7b7bba9b6d570b12e09e548e652a6b93ecf"
+    },
+    "host_id": "camrui",
+    "task_id": "3209de0e-a1aa-49fc-931b-19a8dbab39df",
+    "command_sha256": "8e4f6b5142f3fd525f46402149857167a20ecbd13b80e3037316fe535a12efdd",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "windows_launcher": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "d9e07faa-9aa3-4074-8867-42b9df99a10d",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "STAGED_PATH=C:\\Users\\Public\\Documents\\Riverview\\GraceControls\\Update-RiverviewGraceControls.ps1\r\nPOWERSHELL_PARSE_ERRORS=0\r\n\r\n\r\nAlgorithm : SHA256\r\nHash      : 3BEA6B9995589BB92264FCF8F955E5DDB083843F458FF8878E0627310FA919CF\r\nPath      : C:\\Users\\Public\\Documents\\Riverview\\GraceControls\\Update-RiverviewGraceControls.ps1\r\n\r\n\r\n\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T14:54:39.314592+00:00",
+    "completed_at": "2026-10-28T14:54:39.753418+00:00",
+    "deadline_at": "2026-10-28T15:54:39.301416+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "2ab77924-e636-4087-b7f0-7ebabd65f801",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "d9e07faa-9aa3-4074-8867-42b9df99a10d",
+      "audit_event_id": "6458199e-06d5-405b-9e15-7db802265816",
+      "idempotency_key": "cmd-f76a9d1295841f40a6b0168e28aa5d9d06fbaf30ba4fa7fbdd4832b535ded38b"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "d9e07faa-9aa3-4074-8867-42b9df99a10d",
+    "command_sha256": "4d215098f4e1552ca33f82db913f537cd1b7a72504885d7ff2f33e50c452c727",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "lifecycle_tests": "4 passed, exit 0; temporary roots/fake services; no protected writes",
+  "r2_script_sha256": "d4526f6753e4f3ae8acd2845a447935457cd32ff48f78dc0e7d8c708cf42a14c",
+  "r2_activation": "NOT PERFORMED"
+}

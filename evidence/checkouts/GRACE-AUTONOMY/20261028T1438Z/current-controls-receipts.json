@@ -1,0 +1,113 @@
+{
+  "revision": "1.0.0",
+  "date": "2026-10-28",
+  "thread_id": "01a17fdf-6d58-7050-92cc-1762ac986518",
+  "port_result": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "fb573859-d625-452f-a936-9f95eb09c4d2",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-current-controls-port-20261028-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-current-controls-port-20261028-01/events.jsonl\", \"pid\": 1971394, \"exit_code\": 0, \"messages\": [\"I\\u2019ll stage copies from the two exact current release targets, compare the actual operation/pipeline files the Dashboard loads, then port only the cancellation hunks into isolated staging. I\\u2019ll inspect the authorized read projection and advisory contract before deciding whether either diagnostics/advisory change is justified; no release or service path will be modified.\", \"The Dashboard release is the actual home of `comms5_operations.py` and `pipeline.py`; the Comms5 unit\\u2019s own release contains only the MCP adapter. I\\u2019m now inspecting the complete current cancellation, dispatch, and projection paths plus matching release tests before staging or editing anything.\", \"I\\u2019ve preserved byte-for-byte release copies in staging. I\\u2019m finishing the narrow cancellation and verifier-projection changes there, then I\\u2019ll run only focused offline tests and prepare the hash-guarded release script without executing it.\", \"The staged delta now routes cancellation through the current pipeline\\u2019s exact `assignment.cancel` principal check and exposes verifier diagnostics through a strict whitelist. The advisory mismatch still has no persisted payload/fixture proving a specific contract defect, so I\\u2019m leaving that behavior untouched.\", \"The focused offline set passes (10 tests). Running the broader current-runtime suite exposed two pre-existing tests that bind localhost sockets, which this sandbox denies; I\\u2019m recording that boundary and keeping verification scoped to the passing offline coverage.\", \"The staged baseline still matches the captured release bytes; only four runtime source files and three test files differ in the candidate. The prepared activation/rollback script checks the exact base pointers and hashes, but the immutable candidate release directories do not exist yet, so I\\u2019ve left the script unexecuted.\", \"Staged against Comms5 `b6b5ce7` and Dashboard `8325d3f`. The four runtime files and their revisions, preserved baseline SHA256 values, and candidate hashes are in [PORT_MANIFEST.json](/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-current-source-8325d3-stage/PORT_MANIFEST.json). Cancellation uses the existing exact `assignment.cancel` check; verifier output is bounded to approved metadata. No advisory repair: its failure cause remains unconfirmed.\\n\\n**Tests:** 10 focused offline tests passed, exit 0. Broader runtime checks requiring localhost sockets were denied by the sandbox.\\n\\n[Update/rollback script](/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-current-source-8325d3-stage/activate_or_rollback.sh) passed `bash -n` and was not run. Protected release creation, activation, and service restarts require the host operator. [Handoff](/home/admin1/.local/share/riverview/engineering/Riverview/docs/devel\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T14:19:11.840125+00:00",
+    "completed_at": "2026-10-28T14:19:12.639561+00:00",
+    "deadline_at": "2026-10-28T15:19:11.831127+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "6ba4f536-f687-4572-ace6-e49b696824ab",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "fb573859-d625-452f-a936-9f95eb09c4d2",
+      "audit_event_id": "badc6a28-041f-4394-be48-f4e163873fe2",
+      "idempotency_key": "cmd-a0663e1ca03a097fc2a543909a094dc59769f56d1589de33c7240b5c18021670"
+    },
+    "host_id": "camrui",
+    "task_id": "fb573859-d625-452f-a936-9f95eb09c4d2",
+    "command_sha256": "76cd8350026c7d8a18cd5dacd876763cb235d242f6322307aeda9a27b2165cd9",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "package_result": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "108f255e-8800-4c7b-9630-ce95a33461a7",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-current-controls-package-20261028-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-current-controls-package-20261028-01/events.jsonl\", \"pid\": 1983011, \"exit_code\": 0, \"messages\": [\"CHUNK 1/19 H4sIAAAAAAACA+196XrbSJLgfz1FNto9RbV4ALwpj3paJdG2tmxJK8nVXavVQCCQlNBFEiwAtK1yab95h90nnCfZiMgDCRA8JHm6Z/cbV322BGRGRkZGxp2JWq3GvEYS+404/MTjTyH/7PpRzBt+NJ0mnUbgJfejyIsDd+T5P/NZUJ8/7Ozt7bHRUzv9+c+s5lR7bA//+vOfd9jv2YXqzY6iWRpHkwkP2GW0iH2Or9+EE77PnjgM9DuKpvNoxmfpPjs6+/DhslM7Ovxw8fGkdnh8eH41vNipwdD8U5iE0WyfOfVmvbWzV3zURkjni3geJYDE8Av+y0bRYhYAjv4ijgF+LV7M0nDKWTTnsZdC34Sl93G0uLtHJABHBHK4SO+jOEwfEEyYpOHsjmnUmR/zAECF3oTNJ4uEwduYJ0nNS1OepEiPlH/GhvM4nPnh3JvQFO+92R0P9lnTbnZrjl1zeuzj1RH7jV38WJOTfvPx9Ojq5Oz08H0NWzk2tIH30SLlACyCCcGY3gxQAHpNeJpNL0m9FFApmVV6z9k4/AJtPJgV4u17iGQ4S3k8A3jGxHBJPT+t08q3m9Uu24O/xdrjH0ssoxsj3bmbzLkfjhEejGhV9et5zOdezF2FsjuOYjeAtgm1y8NKOA9cgb4Bgp5Owhn37rjx2PdmPp+4QeyN0yVAC5h8AktDnc1O0WwcxlMXCIcoTaNUNdnZMwFI4NHob9xPgX1xgMcd5p6cAgfCmrhXZ2fvL9kBc88vzs7PLvWT39jXPCoaxPLEYu7DGsBzYhFAejQNE6QLNBIbzu4h3R27bxC+BE1Bg31mnXw4fz/8MAQkjxVJ1pBlc4eV5FrqurcCtYyCm0cDVvImYQAsSQP+suAL7n6O4p+3mRpPoX9C0sedR5PQf3heL3cS+SUD1jZI2jSKJjDn1JtEd/W/JdFso5hd7kFL3m31Scziv32\\n\", \"CHUNK 2/19 96F+tmTcFGmYLM50ijVIv+VmS2qpaaZhOsNERPQDpQPscpNevsMnvoyRlsh/DftAh4Ikfh3Pas1k3RpQPWBQzEJEzlHhLndnogR5WUbJ9AlF/x5k/8ZKkqpsF4R3HBvgz4HAXooQJAw7iPeUz/4H9zB/qILd/WYSwBiScPGIVxr/ADwS+lvggx0AceaBdYnYXezOACBvnnoPOADkGWBHWExI8DOV5nf13gT+yDhtxwAfAy2Y8eK0nRe9xE8KYCUw7BykGvAD91wxE45RQByQXkzSBf6deOGOLmS/EOM4hXcQgZ5UEJgKBpJ4vUpp9CL2CReyNJjDFRRCmjH+Cnc9OjuuwCOEM2l3CjKaetf/VSh/muIZi4xiLunrlD+O7xRTggdiwUM7yOA15grCQhG4YGGCTFBTRHTTks8XU2r9GFvg5jea1v3mteD77Bd743jRehPBD5KcRTJ3HjvlL07p5rFoKjeTea3a6ZQPMUQfGyFf/em3XBl5tfPO12358ZT0ilpJn3AlQYrIOP5CaswDEIz6CxqivCAGDkVxgpDIQgO57PrtL7619B37zvqjfmradx++w9j+82q+AZd3dr918darQAjGFcWLBnwHiosi5NP3lGS0jeFO1vADWHpjLm5wbyzT2JgmHkbzZLEqFxsbZxNwLzmaTh3egnWUj2rBpvKBdIp7Db9wYKzWfwhCzv0TxJDBAwDgJBwMIDBpiOUTgOmM6lBdNQJ62Hb6SbAckB/y/1LQoqwWRT0wnFD7gS10ABhFJbFvFrABQCSLZ3Br+9fDoyn13dnnlHh2+fz+8cN9eHJ5eWd+W4JNwGmqSSvkm93eIGxlZxUcLKI2E/MmZRdpm+y6RW3pGrTLxRLu7IADrZDxmAnCt/GPTBbSYeql//zon5AR+UszV2WnEZmBo8y+wdoS+bgQqOoGFCOrIreuVBRkYpki5pAcg+ZTgQp\\n\", \"CHUNK 3/19 6rRcB0LFu5vI6QXcBAl5Zk1gUJggM3gEXQisksUJO8Uhv9JZwF0eeE3Xlo/YAeuLo3DHEWcCF2QS6j8BRDpV58xw3CK9FQWyRANr0Mhk7xlK0v1yxHYQSBKlLonACkyx0te4HIr9ksYsk9MA6ogi9Ec8/3+TxFmj9XeoulWC24NSXWicZ59BkojZjBHkG2TR9w6yb3rhDhrloR3Ar5ZXxDBNWj7Ov1UF2EO3OOI1zS3OWiVtEqOCLw7PLynW5ft/5eMhnmrxbIpQVaoeBWjuQ0+0VyaM9Oums1bw7r8QlItJItQHm/ZiTmxAbXrJvt6PqSAsmWtXQWfy+lIZ//Z9IaIMZmsGPAOYQ9xmfCO1zSGsfD98O3h2CRuxfDw2P37PT9T+7wr8Ojj+gpWy+ndV5fICENnzlbYtyAKAcEWDTrXivhlFcI4PkCB+H0QVoBCXhcS2DYbWS1dBa1ALmAlc0iGFLDZDyp2+cZm3qhsFY9hBGL1jvK1dVm+dWSNpSyk9gbNguIhPtoEhgKMaMPEXnZLE7SAIziKv7L47gK3UJ0KgJeXZpIleWWngn5Ng5BCAmHIm9OG69fIJNp5P+SyS+3k82t920lmhBR//8ItMOPV++Gp1cnR1qoWU8i5d9RYO3UdvZknGdJaC1Fy4qhCD4BQYP7Vbdhn8P0XodHZaBJzbQ0LoFijCtFXQLQjHJm7Ug0gVke3s1wneoCV9MEnAN/SBM2A5aLBZC3bpqVOcGo5iBixioEzIR8nk9Cn6RcNr86e3tx9vH0eHicjZcIuXrvwdBgbmb44tYOwmSO9oQwVYFlCyEMWNgZoBizcRT7vKYjHeCJTEKEAYJxEiS0uGTWzLAFwxmXSMuC0NPhS2llyXU905Q6QV1aFClF8woXQa9JRmUMgJDs8BIpVjNtlxAnrAf8vdQsymzD2YWkIPOhHATGKs6//9v/dmzbZv69h\\n\", \"CHUNK 4/19 7FtkJ67dWFQimXSodgcOxpoDdV6Zmue41uJ7SiKJtybldChhB1w1YBnaXeSGlXUeS14YgScDXKMEPVpPQtLIRd5i3U4AhWOCyDAGLyAPk6qVG76YI4lIC6NdoWP/yPGE5JlabxTfPwfMZ7UoSVD/ijflI069sCKgkcimBWlkR9NykCdy3dbAcu0CsnVmsrB7HfqNmEcgS8reLrIAtmbVXxgYkxxiixbk5t67s1GbJdVvykv9M7etMVMzs5zXp4vbpaNt4LqMc23ot33/3b47REdhhtyGwg5F+W3O/ceJpEXQNti4klxjxvOxhG9XpnDAH1FxqqrzfCGyl7pJOLazPG2ADDDgUnEvWaWRT75cXjx48nwL/+LHZ2dXl2cvX8PivHy7OPF0XBtGnnbMctTyh8vLsDuql18BOPrw7B2dj68OEQn8rKYXob/iullp97MpZcv71Gz5o0CaQzoTK2RjSXDJ0ueC78qQYhD7QV9AK9osk8WB7BcLcC5z15rrwddFS4TEZh0znSrGrCRKdkEjFBO8M9GaNN5o3BC+exzhVzM76B7/CAMHWG6gCDFBEsGZhKOuf/gw+iilUhX9SlB2dfLuZTabnZlavuoSantw9PjGrrwfzn8CX///uQUlvs3dqxsHGG6KnfVIJs3BoWdTbTUBmvIcA2SkGKnSb0cKZVvl+xwePnT6ZFG7+rw8ofLWqvTM/GibBRFgUXsriHT7KutzpqwMd+KCKewNSeT6DPT0VKV3cqCTAbrbkC8iQhqCtaODk+Phu/hhax1yJGnmhuNJpHPmuWqHurI78sj9+XIby8Oj4Z6A+kSDRxeVipAU1WpsMKgzhMto1XGY9J6Nss2YMOQiw/2sHc3gwmFvqSSlHTJPgN3LEExILZ70jg5vbw6ufooCil0rv6yPg1eqy2q5CQDLYvQ3oW4YWB7vA2Fg1DP9DJWqizmSQN4EzBN\\n\", \"CHUNK 5/19 UsrbUknHwbf8Q1ur1cat1epU22Jv4X/ux9PL4RU7kHSt7O7suZeHb4YuyNCTN+hFwkTdy4/AxxcnQ6xPGMfRr+B98rTyVVY4AA/q8Dqyqw9+QRqOKTxOW4bNwQYwSiLQ7wITdRqRb7iu49gDYZ11jDmsX4jEzIiMZTEMX8QpyK2Ao+8FKwUbQi7v9t3FaCYUCUMZLxIOrPP44eOJTshKpJNN46/olxukOGXlkOjGQPkV4zDvDqV3SoE4rMsIqWDIcP3UrNdDLyGD6lilyp47tDYoRmQ4f6WUOszGNoeooosCllqSg2cAozIkeAowPTYCTFAGLtFzBfStJ4BG0jazkGJOVHUwIb3zS6DyN2u7bMFej3r/HV2cXMEWhM33w/An2HYxr6MUAgiV2PrXa6/26821iJy5N1/tarf1+MrSnd+cvB+6hxdXJ28wJ3oxfLMEYIxGUKPR+OTFjUk4ykyhyr/sX9eMqFwDg3Ktrv24a8D/y9nFD5fnILXXD4KxBFB2Po5kRvoaItLXtk2cNaTjk7fDy3KAIle7n8/+A4SdPfAimCvlumtS1TVkeyWOPu/uyxWyrB84n2c6QG7KNGI/z6LPM1DKYDDEYNBXmfS+ZSSZy4CxZrmYj3nMgXuSOkAV4EXvB5xB9Ll+B9LSko+sXRaOGZh+M8w2+hyRqoIG8tNdxsGgZ6cgHgUQaKfgoLcJVtk62byflUxlo2fAYg/MXLWlDLTUsyfgpbrIADdA+/qoMTYhGENKUAaSGKVAH6wq1QPOLwExzINcxzr8M00qu1VMIxxMvOko8Bg+Axs+jSv407V9s7t7vd9q3hjgl9ERg0GnXVq/kn1WHy8mE8q0UWPRDqVERaC4i5Ex5IbCOCVEuUYAN0Aa0TNbA+CWxKQ/x/gSoOdmbPSEpVBMaPQG4Nc3q5YDR6+yyiTEOqp0MZ/w3eKaQBNcCtX6et/pltC\\n\", \"CHUNK 6/19 1YgLmY4OuEz7DJ7vsnw9Y27bpmVWvW4qH4V09Ad8d5t6wqMsyMWlqs4eKTBUY60KQEU35CiFWygHgnxXysMrWCbLqJnglsmo3R0c9h+XlqYvwME1EcgVltdhXLSH21QbGys48W8G7wpMCslbJkNCp5Cm4/2DLTVm9LrzceubqyMpFFk6FWZW44h14ii5WGaLlSJU2l0fg5x670s/RNaymjYiWZ7e7vup0q5reb1rX+01qezfV9y6Xo+YLQ5cmgFZRsVK1BM5zK4CfUB9bXVsHK4qJ2+0BFXEPmtWWnVtX9Ue7oW5WqHNQ9nA331ftiD/+MeGTcZ1mFc5T2DN+FAegCiy9GyxaVjfxPomlE7EbKii+ihccmDxbKxBbyL3gWq0pKl6SdITCPJxz5CxUACh9S/Z67IUgmi/EEYBhHEdxxQheKgDuYuZ9AkMQ95K1uzSYp6KNUjmsDXKSOkKpijNdidE5+lfEAxIpXsw55JIHVCYmw68F/MxQLOzyAq65QG2hp0yYLPWR0dxlOlRIWWQqxgQudQ2aD1GaQ6oOreM0wXiYgc9+Eb6eT0zKyoSwy/7EnLa9u5KaP3qThVrdcEbbx103c5hLYSpizvlJiGd1DIrPK7sKsfxTQs227a1QyyrwyhJX26wxLFaO83HBspnmibY05QzKpv0iYiZnKkp1GqVvEHGTnYBAIBnhYRFXcrJQo+n4BTSXxrZ6tXk9dNP8kujHW9HbEMnUb80ulwUzRfJKSYTS1wUhx+MSqya/C7KjQgcnMJkwXahchKwyrXhYLrBbYs7oxBVO8MCggGCQA/HPEuLKTlHCV0zlWj24WZa/K0ypQha4MDErlrFxYwj96AZcjR22RqQvacf9vHJZLdLZNxHppBp7LUxKdNq2ceTCFPM6cgETLhmYIvp5/pjw4I7H9WBU9xcx+EkgJrwEq1FLutPmKOtN2jzhXuzfu2\\n\", \"CHUNK 7/19 BA31eg/+5Oraw/vKnLxayAW3s5fD88umLKKKsqv9lVC1MVyhnVesoOL5E7hZJPy1ng28FfY66bjllVGdUlHtfOyt5vLs4+5MI0rsAjYX95N7wY5lfy4A9rIJ1dHA8v2Pc/5aGBJj0eXh6x9ycfTq6YA5QA9ywHtLq7Ww40FzY8IIKOOfhIwMsVwYYdkU3p9LsFwzu3FxfzQFIS91v0+dp8clMPk0hE6yq7j8JBjD6Tr57yeXJTXQZq5aJa+6zyFTz3/Ry61/AkBxk3xb2XgE8XV5YagkTQTa0VxCC/eKkn4YtV8eglWplHoXA0+ItMXs1T1u5jOVf9tkWYyXyxAl2Ybm75tFu/W0bQrNoUo5eYi95n14KqGBtYS031fmsiJkYngoT0Q/mKDvd0Til1cupVI2WFnlI9FYLQ3Z+UIdbC6omJYbOfkQ/u/wfkg82h8mngi+HlyTHmr84ujt4NL69E8nc599vuLCd/291vkiB7F82A2/NpzHLDYDldtrKgjRIxK1KHneyMsUAR0Br+iGSAny+GVxc/KfQ60OpH6WrqAyaYoyB+xMD7GPxqTIblkhiA2AKwvWwznvietGGxNPXDsIZiGJbrgYF1fAe6jWEvKk4es3koitk4NYg5FbWlEQDaeibt2uH5+fD0uIYl4bX3Z0c/mHO5RIUyAc+VcPuCwX/KENPMxM/4v7aCYUMkr2Ej8XmuOlAc2rsX+UE6+JKwccw5zuHj+fHh1ZDh4dHkCVgPfzx8X7u6OHn7dnhRSn1acvBbFoKaMkOhqJ4xhDrnQhO89xaYSwKi04x0BaNI2fe6A9hte06vZ1ed1kpFo/7glHiQWY0qMPh1fTeShKrQEaU1Bu9c0qru0cXw8Eo8FfsCtrj1uLu/GqIw7XTR4SXWPxQtPCbPY7IRH2Ou0nSlrBVmE5ncyrjXAY64Lv2tSnkvaRCZNj1MZWlPWtW85\\n\", \"{\\\"bases\\\":{\\\"Comms5\\\":\\\"b6b5ce715508590cc8e56051c00bf7ed17fdbf79\\\",\\\"Dashboard\\\":\\\"8325d3ffe8e53f3deaab4c9e14e471467454a08b\\\",\\\"PR368\\\":\\\"0ae1aea\\\"},\\\"patch\\\":\\\".riverview-write-acceptance/grace-current-controls-review.patch.gz.b64\\\",\\\"raw_diff_sha256\\\":\\\"f4a9199eda7ca73c8bb0be9528df010e0179705bd1b771b248c9f47a3acbf3bd\\\",\\\"base64_chars\\\":17572,\\\"chunks\\\":\\\"1\\u20137 of 19 emitted; remainder retained\\\",\\\"operator\\\":\\\"bash scripts/grace_current_controls_20261028.sh --dry-run|--apply|--rollback\\\",\\\"checks\\\":\\\"bash -n; live dry-run passed; offline guards 4/4 passed; prior runtime 10 passed. No protected writes.\\\"}\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T14:27:06.606256+00:00",
+    "completed_at": "2026-10-28T14:27:07.451194+00:00",
+    "deadline_at": "2026-10-28T15:27:06.596256+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "04d39e45-d52b-4055-acca-1bb71a2da516",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "108f255e-8800-4c7b-9630-ce95a33461a7",
+      "audit_event_id": "34fee871-31a8-414c-838f-8fe1fec36a83",
+      "idempotency_key": "cmd-ed03268389afd1e110213b2a8bd6e4e676796c43903a8e8c68ea273099ba7095"
+    },
+    "host_id": "camrui",
+    "task_id": "108f255e-8800-4c7b-9630-ce95a33461a7",
+    "command_sha256": "2d0ce66f97eb966aa41b570b39e7097619bf565026791e03b699f73879b89e47",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "windows_launcher": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "e211b557-0f75-4e39-8f5e-da70ca31811f",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "STAGED_PATH=C:\\Users\\Public\\Documents\\Riverview\\GraceControls\\Update-RiverviewGraceControls.ps1\r\nPOWERSHELL_PARSE_ERRORS=0\r\n\r\n\r\nAlgorithm : SHA256\r\nHash      : D6D1A5D9AA9545421FE1B195754C46A850FECC08D3DA4D865B8A71F5E6A04D3C\r\nPath      : C:\\Users\\Public\\Documents\\Riverview\\GraceControls\\Update-RiverviewGraceControls.ps1\r\n\r\n\r\n\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T14:38:08.052494+00:00",
+    "completed_at": "2026-10-28T14:38:08.504247+00:00",
+    "deadline_at": "2026-10-28T15:38:08.043018+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "170f471e-4efd-4002-a651-7b8399cde762",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "e211b557-0f75-4e39-8f5e-da70ca31811f",
+      "audit_event_id": "555d832d-e1f8-471a-9525-e5d6010728cb",
+      "idempotency_key": "cmd-aad58b7e8b1c87c2e9c63cb7207d523d308cc9ffe49f8e6bcbc83b32a233cf1d"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "e211b557-0f75-4e39-8f5e-da70ca31811f",
+    "command_sha256": "bfb0b63c05590da4a6e8b7c7f0dc34ec8a9f87fa4671960f7ce30bff63ce8afe",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "patch_sha256": "f4a9199eda7ca73c8bb0be9528df010e0179705bd1b771b248c9f47a3acbf3bd",
+  "runtime_sha256": {
+    "dashboard_backend.py": "1e1368e8e8c7174273db6179cca7e8a26e2ecbbaf934b8c73578eda664bf94c8",
+    "tool_catalog.json": "ed027c30449b028b191e72c816880802b8cb4c5421d3c0b1aba00669494b1c52",
+    "comms5_operations.py": "91dff1171bd3fe631c07363665b0b045c539e69cebfb86b5035563dcc1b6ac50",
+    "pipeline.py": "62a993f41b6536be5e8e844269d0aee9e3856361f2af251cf3205dd5ec808fd3"
+  },
+  "work_fixture_validation": {
+    "command": "python -m unittest discover -s tests -p test_grace_controls_installer_lifecycle.py -v",
+    "result": "3 tests passed; isolated temporary releases and fake services; exit 0"
+  },
+  "deployment": "NOT_PERFORMED; protected service update requires operator identity"
+}
