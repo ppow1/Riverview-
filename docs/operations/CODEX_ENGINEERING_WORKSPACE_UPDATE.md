@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CODEX_ENGINEERING_WORKSPACE_UPDATE.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.1
+File Revision: 1.0.2
 Changed: 2026-10-28 UTC | RV-CODEX-ENGINEERING-WRITE
 -->
 # Correct the Codex launcher for Engineering source work
@@ -17,7 +17,7 @@ Current status:
 - Corrected source and rollback-capable Camrui operator updater: PREPARED.
 - Offline regression suite: 16/16 PASS, exit 0.
 - Staged Windows package SHA-256:
-  `3d27a29d8fdaa3285bb6b2b6e0f6bc8c88c150a04e1c915ee0df7221cbec9394`.
+  `0be897dbf8815aa4345c8cb1c17cc1ddbc08db04580bc340c4651ccf5eb08717`.
 - Operator PowerShell script native parser: PASS, zero errors.
 - Windows helper: INSTALLED under Gateway LOCALAPPDATA.
 - Windows effective Codex turn policy: workspace-write; native MXC selected.
@@ -245,3 +245,41 @@ Source predecessor revision 1.0.2 is retained at
 docs/history/riverview_codex_session_rev1.0.2.py.
 Predecessor of this procedure (1.0.0) is retained at
 docs/history/CODEX_ENGINEERING_WORKSPACE_UPDATE_rev1.0.0.md.
+
+## Installer revision 1.0.1 — existing private-group ancestry
+
+The first operator dry run stopped before installing anything because the updater
+rejected /home/admin1/.local/lib/riverview mode 0775. Read-only inspection through
+the existing Camrui thread confirmed:
+home 0750, .local 0700, .local/lib 0775, .local/lib/riverview 0775, and
+gateway-codex 0700; all admin1:admin1. Admin1's primary group contains only admin1.
+
+The corrected updater accepts group-write access ONLY for the operator's own
+private primary group. It checks both supplementary group members and primary
+group accounts, and still rejects other-user ownership, world-write, shared
+group-write, symlinks and paths outside the operator home. It performs no chmod
+on existing directories.
+
+19 offline tests pass (exit 0), including the reported 0775 case, unchanged
+directory modes, shared/world-writable/symlink rejection, and both kinds of
+additional group membership. Exact replacement validation was executed read-only
+on Camrui in Python memory: PATH_VALIDATION_OK and GIT_OBJECT_OK.
+Validation run workspace-installer-path-validate-20261028-01,
+execution a26192b0-962d-4e46-a03c-a5bdd795fa76,
+terminal audit d938efb6-fb3d-4bd2-b9f4-43d672ba4e81.
+Result read execution 25c3d14d-56e4-491c-827a-78b734beae3f,
+audit 6a90e57e-0e7a-4532-b2d7-9ffbd89e7319.
+
+The corrected updater is re-staged in the SAME Windows directory. Its SHA-256:
+e443cb9b515a6534a54653ebc37ef1be7901a92a175d4872991c83e29c72f645.
+The current package hash at the top supersedes the earlier packages. Staging
+execution e71f4437-ff06-4a8b-91e5-ac43e5d519dc, exit 0,
+audit 5fb162a0-1dfd-4396-9525-aa380a15fa72.
+The unchanged operator PowerShell command above now copies this corrected file.
+
+Camrui installation remains pending the operator rerun; this validation did not
+rewrite the installed entry, helpers, SSH keys, permissions, grants or services.
+Preserved exact predecessors:
+docs/history/upgrade_camrui_codex_workspace_rev1.0.0.py,
+docs/history/test_codex_workspace_upgrade_rev1.0.0.py,
+docs/history/CODEX_ENGINEERING_WORKSPACE_UPDATE_rev1.0.1.md.

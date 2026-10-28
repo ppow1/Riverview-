@@ -2,7 +2,8 @@
 # Riverview Controlled Source
 # File: scripts/upgrade_camrui_codex_workspace.py
 # Component: WINDOWS-CODEX-COMMS5
-# Revision: 1.0.0
+# Revision: 1.0.1
+# Changed: 2026-10-28 | RV-CODEX-ENGINEERING-WRITE | Accept existing owner-private primary-group directory access without chmod.
 # Purpose: Replace the two installed read-only wrappers and create an isolated source checkout.
 # Execution Model: Explicit operator update under existing admin1 SSH login; no service restart.
 # Observability: Verified predecessor backup, file hashes, checkout revision and JSON result.
@@ -13,6 +14,7 @@
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import grp
 import json
 import os
 from pathlib import Path
@@ -38,16 +40,33 @@ def git(*args):
     return subprocess.check_output(['git', *map(str, args)], text=True).strip()
 
 
+def private_primary_group(uid, gid):
+    user = pwd.getpwuid(uid)
+    group = grp.getgrgid(gid)
+    return (gid == user.pw_gid and set(group.gr_mem) <= {user.pw_name}
+            and all(item.pw_uid == uid for item in pwd.getpwall()
+                    if item.pw_gid == gid))
+
+
 def validate_paths(root, workspace):
+    home = Path.home()
+    uid = os.getuid()
+    gid = os.getgid()
+    private_group = private_primary_group(uid, gid)
     for target in (root, workspace):
+        if not target.is_relative_to(home):
+            raise ValueError('installation path must remain under the operator home')
         for path in (target, *target.parents):
-            if path == Path('/home'):
-                break
             if path.is_symlink():
                 raise ValueError('symlink path refused: ' + str(path))
-            if path.exists() and (path.stat().st_uid != os.getuid() or
-                                  path.stat().st_mode & 0o022):
-                raise ValueError('path must be owned and not group/world writable: ' + str(path))
+            if path.exists():
+                info = path.stat()
+                group_write = bool(info.st_mode & 0o020)
+                if (info.st_uid != uid or info.st_mode & 0o002 or
+                        (group_write and not (private_group and info.st_gid == gid))):
+                    raise ValueError('path must be operator-owned without write access by other users: ' + str(path))
+            if path == home:
+                break
 
 
 def replace_files(root, source, backup, expected):
