@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CODEX_ENGINEERING_WORKSPACE_UPDATE.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.2
+File Revision: 1.0.3
 Changed: 2026-10-28 UTC | RV-CODEX-ENGINEERING-WRITE
 -->
 # Correct the Codex launcher for Engineering source work
@@ -14,7 +14,7 @@ grants remain unchanged. This is a launcher correction, not a new grant, key,
 dispatcher or service.
 
 Current status:
-- Corrected source and rollback-capable Camrui operator updater: PREPARED.
+- Corrected source and rollback-capable Camrui operator updater: INSTALLED.
 - Offline regression suite: 16/16 PASS, exit 0.
 - Staged Windows package SHA-256:
   `0be897dbf8815aa4345c8cb1c17cc1ddbc08db04580bc340c4651ccf5eb08717`.
@@ -24,11 +24,11 @@ Current status:
   Real source creation and exact-thread second edit: PASS using cmd.exe shell.
   Independent Node tests through Comms5 PowerShell: PASS after both edits.
   Codex-internal Node startup and apply_patch still fail; retain that limitation.
-- Camrui helper/entry update: NOT INSTALLED. Its currently installed helper
-  remains read-only until the one operator installation below.
+- Camrui helper/entry update: INSTALLED; direct Comms5 source editing, Python
+  tests and exact-thread second edit/test now PASS (October 28, 2026).
 
-Do not label this correction complete until Camrui independently edits files,
-runs tests and resumes an exact thread through Comms5. Codex exit 0 alone is
+The Camrui launcher correction passed direct file-edit/test/exact-thread-resume
+acceptance. The full Grace autonomous Engineering workflow remains separate. Codex exit 0 alone is
 insufficient: it can mean the model merely reported a denied operation.
 
 ## Corrected invocation and workspace
@@ -283,3 +283,55 @@ Preserved exact predecessors:
 docs/history/upgrade_camrui_codex_workspace_rev1.0.0.py,
 docs/history/test_codex_workspace_upgrade_rev1.0.0.py,
 docs/history/CODEX_ENGINEERING_WORKSPACE_UPDATE_rev1.0.1.md.
+
+## Installed Camrui acceptance — October 28, 2026, 08:24–08:27 EDT
+
+The established wille operator installer returned INSTALL_EXIT_CODE=0. Actual
+backup: /home/admin1/.local/state/riverview/gateway-codex-upgrades/20261028T122349793352Z.
+The operator report records:
+- predecessor entry SHA256 ac91f7474a0916e0d3d8529f91353b8eb72421eb7e69202abb954b7efd55db90;
+- predecessor helper SHA256 9eee1d0dce6916ff8f85b8b693f7de078013112ea6a68b5a81f36a64effc6231;
+- installed entry SHA256 d1217d4a13ae81136aeb54eafcbc81090905eb38e1a5032a40ff15a89f022d1d;
+- installed helper SHA256 2bae3eec74d40b1de090e2f7d566667bcc53a74b31ead04bc76902d56b5ac46b.
+Authorized_keys was unchanged. The new independent clone is pinned to
+9f56cb72f3bd2961babf2527a26bd843526e18ce.
+
+ChatGPT then independently made all acceptance calls through Comms5:
+1. identity confirmed admin1, workspace_ready=true, sandbox=workspace-write, cwd
+   /home/admin1/.local/share/riverview/engineering/Riverview. Execution
+   647f8ccf-a187-4d44-a193-f959df4f3da2, exit 0,
+   audit 60662ad2-c9d5-4a10-898a-30e23f88c501.
+2. Run camrui-write-acceptance-20261028-01 resumed existing exact Codex thread
+   01a17fdf-6d58-7050-92cc-1762ac986518. Initial RUNNING receipt, later terminal
+   completed exit 0. Execution 02d4631b-e6db-454d-9e48-678cf02cc3e4,
+   final audit e6657832-4785-4ec8-ad50-e573b322f227.
+   Codex created .riverview-write-acceptance/sum.py and test_sum.py, verified cwd
+   and HEAD, and reported actual Python3 unittest output: Ran 1 test, OK, exit 0.
+   Fixed-result retrieval a8aa360b-204b-4e42-a2b1-4e505d0a371f, audit
+   3fd2287d-7056-4f19-b20e-85e98172f0db.
+3. A separate new run camrui-write-acceptance-20261028-02 resumed that same exact
+   thread, read the existing files, added a separate negative-input test, and ran
+   verbose unittest. Result: 2 tests, OK, exit 0. Execution
+   b24222b3-3a36-4b32-8d7c-cc4f545b5512, final audit
+   d8a8bbea-b4a6-40cd-908a-b7261f8176d3. Result retrieval
+   1c7ca01a-1cae-435e-a287-3871993979fe, audit
+   72196130-3bfe-4c14-9688-a0e5d58b8fc3.
+   Reported SHA256:
+   sum.py ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772;
+   test_sum.py 5a61fbe9e585a5a521148496a72eef400e4b57698fc45b94f17891c3413d94ce.
+
+All accepted runs use the existing OS account, Codex login, caller grant and
+unlimited executor grant. No operator relayed the acceptance commands. The fixed
+result projection exposes bounded Codex messages and CLI metadata; complete tool
+events remain in each account-local events.jsonl. The test counts and file hashes
+above are from those retrieved Codex result messages, not a new independent
+institutional verifier decision. Do not infer Grace objective completion.
+
+Durable acceptance receipts and command digests are retained at
+evidence/checkouts/WINDOWS-CODEX-COMMS5/20261028T1226Z/camrui-workspace-write.md.
+The former read-only blocker for source editing is resolved. Ordinary commands
+within the Codex workspace now run through the same typed launcher; the SSH
+entry itself still accepts its documented typed protocol.
+
+Predecessor of this runbook (1.0.2):
+docs/history/CODEX_ENGINEERING_WORKSPACE_UPDATE_rev1.0.2.md.

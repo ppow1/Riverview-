@@ -1,13 +1,13 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CODEX_DUAL_HOST_CONTROL_RUNBOOK.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.5
+File Revision: 1.0.6
 Changed: 2026-10-27 | RV-CODEX-DUAL-HOST-RUNBOOK
 -->
 **Engineering correction:** the earlier read-only session-control proof below
 is insufficient for source implementation. Use the
-[workspace-write update](CODEX_ENGINEERING_WORKSPACE_UPDATE.md). The corrected
-source and operator installer are prepared; Camrui installation is still pending.
+[workspace-write update](CODEX_ENGINEERING_WORKSPACE_UPDATE.md). The correction is installed on Camrui; source creation, Python tests and a
+second edit/test in the exact same session passed through Comms5.
 Windows source creation and exact-session second edits now pass via cmd.exe
 inside native MXC; independent Node tests pass through the PowerShell Gateway.
 Codex-internal Node launch and apply_patch remain failing tools on that path.
@@ -718,3 +718,11 @@ Predecessor: docs/history/CODEX_DUAL_HOST_CONTROL_RUNBOOK_rev1.0.3.md.
 The linked workspace update retains real source edits, exact thread IDs, test
 results and remaining native-tool limitations. Predecessor retained at
 docs/history/CODEX_DUAL_HOST_CONTROL_RUNBOOK_rev1.0.4.md.
+
+## Revision 1.0.6 — installed Camrui source-editing acceptance
+
+See CODEX_ENGINEERING_WORKSPACE_UPDATE.md for the installed backup/hash record,
+new Engineering clone, direct Comms5 editing/tests/resume evidence and actual
+session UUID. Earlier read-only/pending observations are historical. This does
+not mark the full Grace workflow complete. Predecessor retained at
+docs/history/CODEX_DUAL_HOST_CONTROL_RUNBOOK_rev1.0.5.md.

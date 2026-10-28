@@ -1,14 +1,14 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CAMRUI_GATEWAY_CODEX_COMMISSIONING.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.3
+File Revision: 1.0.4
 Changed: 2026-10-27 | RV-CAMRUI-GATEWAY-CODEX
 -->
-**Source-editing correction prepared, October 27, 2026:** the original installed
+**Source-editing correction installed and accepted, October 28, 2026:** the original installed
 launcher below hardcoded read-only mode. The corrected launcher and installer
 are in [Codex Engineering workspace update](CODEX_ENGINEERING_WORKSPACE_UPDATE.md).
-Camrui installation of that correction is PENDING; the earlier read-only
-acceptance is historical and does not prove source-editing readiness.
+Camrui direct editing, Python tests and exact-session editing now pass;
+the earlier read-only acceptance is historical. See the linked current record.
 
 # Camrui Codex control through the existing Comms5 Gateway
 
@@ -249,3 +249,11 @@ docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.1.md.
 The linked workspace-update runbook now records verified Windows source edits
 and independent tests. Camrui remains pending the staged operator update.
 Predecessor: docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.2.md.
+
+## Revision 1.0.4 — installed source-editing correction
+
+Operator installation succeeded with a verified backup, preserving authorized_keys.
+Direct ChatGPT Comms5 acceptance created source/tests, ran Python unittest, then
+resumed exact thread 01a17fdf-6d58-7050-92cc-1762ac986518 for a second edit and two
+passing tests. See the workspace-update record and receipt artifact. Predecessor:
+docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.3.md.
