@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/development/GRACE_AUTONOMY_CONTINUATION_20261028.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.1
+File Revision: 1.0.2
 Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-DIAGNOSTICS-359
 -->
 # Autonomy Grace continuation — request-construction blocker
@@ -179,13 +179,13 @@ further work. No Comms5 advisory requests were returned by the bounded list
 Concrete next authorized implementation path: an existing Camrui operator with
 source-write authority creates an isolated worktree at exact 9f56cb7, ports ONLY
 the diagnostic/test/doc changes, preserves the real exact predecessors, runs the
-current 54-provider-test baseline plus new regressions, and publishes the result
+current provider-test baseline plus new regressions, and publishes the result
 for the established release procedure. The current fixed read-only Codex entry
 cannot create that worktree, patch source or deploy; host execution grants do not
 override this sandbox or grant institutional recovery authority. No credentials,
 SSH identity, forced command, grants or retry fences were changed to cross it.
 Production deployment and a recovery attempt remain separate approved actions.
-Do not treat the expected current 54-test baseline as executed: only the older
+No exact-current-source suite was executed: only the older
 published 48 baseline and 52 candidate tests were actually run in this Work session.
 
 PR #364 commit `2c324c5301a5ad294ae6b34aab270d71c4b17efa` contains the candidate;
@@ -193,3 +193,5 @@ readback of its provider source matched the tested bytes. Seven changed paths
 are limited to source/test/doc, three exact predecessor copies and this handoff.
 Predecessor of this record, revision 1.0.0, is retained at
 `docs/history/GRACE_AUTONOMY_CONTINUATION_20261028_rev1.0.0.md`.
+
+Revision 1.0.2 removes an inferred current-source test count; predecessor 1.0.1 is retained in docs/history/GRACE_AUTONOMY_CONTINUATION_20261028_rev1.0.1.md.
