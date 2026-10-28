@@ -1,6 +1,6 @@
 """Exercise release activation/rollback in an isolated fixture, with fake services.
 
-Controlled test revision: 1.0.0 (2026-10-28).
+Controlled test revision: 1.0.1 (2026-10-28).
 The script copy points only into TemporaryDirectory; no real service is called.
 """
 import hashlib
@@ -73,9 +73,17 @@ class InstallerLifecycleTests(unittest.TestCase):
             '&& [ "${FAIL_DASH_ONCE:-0}" = 1 ] && [ ! -e "$FIXTURE_FAILED" ]; then\n'
             'touch "$FIXTURE_FAILED"\nexit 1\nfi\nexit 0\n')
         curl = commands / "curl"
-        curl.write_text('#!/bin/sh\ncase "$*" in *api/v1/status*) printf 401;; esac\nexit 0\n')
+        curl.write_text('#!/bin/sh\n'
+            'if [ "${FAIL_BASE_HEALTH:-0}" = 1 ]; then exit 7; fi\n'
+            'case "$*" in\n'
+            '*http://127.0.0.1:8767/api/v1/status*) printf 401;;\n'
+            '*http://127.0.0.1:11826/healthz*) :;;\n'
+            '*) exit 7;;\nesac\nexit 0\n')
+        seq = commands / "seq"
+        seq.write_text('#!/bin/sh\nprintf "1\\n"\n')
         systemctl.chmod(0o755)
         curl.chmod(0o755)
+        seq.chmod(0o755)
         self.env = dict(os.environ, PATH=str(commands) + ":" + os.environ["PATH"],
             FIXTURE_LOG=str(self.root / "calls.log"), FIXTURE_FAILED=str(self.root / "failed"))
         self.env.pop("RIVERVIEW_CONTROLS_TEST_ROOT", None)
@@ -94,7 +102,7 @@ class InstallerLifecycleTests(unittest.TestCase):
         for component, base in self.bases.items():
             current = (self.root / component / "current").resolve()
             self.assertNotEqual(current, base)
-            self.assertTrue(current.name.endswith("-grace-controls-20261028-r1"))
+            self.assertTrue(current.name.endswith("-grace-controls-20261028-r2"))
         self.assertEqual((self.bases["comms5"] / "src/riverview_core/comms5/dashboard_backend.py").read_bytes(), b"pass\n")
         rolled_back = self.run_mode("--rollback")
         self.assertEqual(rolled_back.returncode, 0, rolled_back.stderr)
@@ -115,6 +123,14 @@ class InstallerLifecycleTests(unittest.TestCase):
         self.assert_base_pointers()
         self.assertFalse((self.root / "calls.log").exists())
         self.assertEqual(len(list((self.root / "comms5/releases").iterdir())), 1)
+
+    def test_unhealthy_baseline_refuses_release_creation(self):
+        result = self.run_mode("--apply", FAIL_BASE_HEALTH="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("baseline_health_timeout", result.stderr)
+        self.assert_base_pointers()
+        self.assertEqual(len(list((self.root / "comms5/releases").iterdir())), 1)
+        self.assertNotIn("restart", (self.root / "calls.log").read_text())
 
 
 if __name__ == "__main__":

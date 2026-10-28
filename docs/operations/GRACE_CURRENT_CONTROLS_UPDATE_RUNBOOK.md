@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/operations/GRACE_CURRENT_CONTROLS_UPDATE_RUNBOOK.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-28 UTC
 -->
 # Install the current Grace development controls
@@ -47,7 +47,7 @@ BatchMode and sudo -n fail instead of prompting for credentials.
 The prepared Camrui entry is
 /home/admin1/.local/share/riverview/engineering/Riverview/scripts/grace_current_controls_20261028.sh.
 Reviewed SHA256:
-f56ba6dc22717168c2caad0374a298b88f4e2eafb34157e2bf223b109462ef7d.
+d4526f6753e4f3ae8acd2845a447935457cd32ff48f78dc0e7d8c708cf42a14c.
 It uses the prepared candidate files in
 .riverview-write-acceptance/grace-current-source-8325d3-stage/candidate/src
 under that Engineering checkout, whose four hashes are pinned in the script.
@@ -88,8 +88,9 @@ idempotency. Do not substitute draft cancellation for objective cancellation.
 
 - 10 focused current-source offline tests passed on Camrui.
 - 4 installer guard tests passed; real live dry-run matched pointers/hashes.
-- 3 additional isolated lifecycle tests passed in Work scratch: apply/explicit
-  rollback, failed-restart automatic rollback, and candidate-drift refusal.
+- 4 current isolated lifecycle tests passed in Work scratch: apply/explicit
+  rollback, failed-restart automatic rollback, candidate drift and unhealthy
+  baseline refusal.
   These used temporary release roots and fake service commands, not live services.
 - Bash syntax, Python compilation and Windows PowerShell parsing passed.
 - PostgreSQL integration and live deployment/cancellation remain unverified.
@@ -114,3 +115,27 @@ assignment:grace:d391056762e0a6f718dd6489e8cdcc6bb367d46e is rework_required.
 This is partial workflow progress, not full Autonomy Grace completion.
 Old objective objective:proposal:4ab91570-c31a-5420-994b-33474fe567ed:r2
 has not been cancelled yet.
+
+## Installation correction — current revision 1.0.1
+
+The first operator apply passed file guards but exited 2 at post-restart health.
+Both release pointers were independently confirmed restored to exact predecessors.
+The installer incorrectly used Dashboard port 8766; the observed daemon listens
+on 8767. The reported Comms5 connection refusal was on configured port 11826;
+no separate startup cause was established from accessible logs.
+
+The current script uses Dashboard 8767, checks baseline service/HTTP health before
+creating releases, suppresses expected warming-up curl stderr, and includes the
+health phase/unit states in failure reports. It uses fresh r2 candidate names;
+the failed r1 directories remain intact as evidence. Runtime candidate bytes and
+their 10 passing focused tests are unchanged. Four current lifecycle tests pass
+with a fake HTTP service that rejects the old Dashboard port, including refusal
+of an unhealthy baseline before release creation. The corrected script hash and
+read-only preflight are independently verified; r2 activation is not claimed.
+The Windows launcher is already updated at the same path and parsed with zero
+errors. Run the same operator command above; no grant renewal is involved.
+
+Correction result execution 3209de0e-a1aa-49fc-931b-19a8dbab39df,
+audit 4b39d1ec-5003-4a70-b1c8-4da32acd33ec.
+Windows r2 launcher staging d9e07faa-9aa3-4074-8867-42b9df99a10d,
+audit 6458199e-06d5-405b-9e15-7db802265816.

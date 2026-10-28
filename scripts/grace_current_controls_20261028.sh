@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Grace cancellation + bounded verifier metadata release entry point.
+# Revision: 1.0.1 | 2026-10-28 | Correct observed Dashboard port; check baseline health before writes.
 # Default/--dry-run is read-only. --apply and --rollback require root on the service host.
 set -Eeuo pipefail
 
@@ -32,8 +33,8 @@ fi
 readonly COMM_ROOT DASH_ROOT
 readonly COMM_BASE="$COMM_ROOT/releases/$COMM_ID"
 readonly DASH_BASE="$DASH_ROOT/releases/$DASH_ID"
-readonly COMM_NEXT="$COMM_ROOT/releases/${COMM_ID}-grace-controls-20261028-r1"
-readonly DASH_NEXT="$DASH_ROOT/releases/${DASH_ID}-grace-controls-20261028-r1"
+readonly COMM_NEXT="$COMM_ROOT/releases/${COMM_ID}-grace-controls-20261028-r2"
+readonly DASH_NEXT="$DASH_ROOT/releases/${DASH_ID}-grace-controls-20261028-r2"
 
 fail() { echo "release_guard_failed:$1" >&2; exit 2; }
 sha() { sha256sum "$1" | awk '{print $1}'; }
@@ -71,19 +72,22 @@ json.loads((root/"riverview_core/comms5/tool_catalog.json").read_text(encoding="
 PY
 }
 health() {
-  local attempt http_code
+  local attempt http_code=unavailable phase=${1:-post_restart}
   for attempt in $(seq 1 15); do
     if systemctl is-active --quiet riverview-comms5-camrui.service &&
        systemctl is-active --quiet riverview-status-dashboard.service &&
-       curl -fsS --max-time 4 http://127.0.0.1:11826/healthz -o /dev/null; then
+       curl -fsS --max-time 4 http://127.0.0.1:11826/healthz -o /dev/null 2>/dev/null; then
       # Dashboard status requires its existing bearer. Do not read credentials here;
       # a 401/403 confirms the loopback HTTP handler and protected route respond.
-      http_code=$(curl -sS --max-time 4 -o /dev/null -w "%{http_code}" http://127.0.0.1:8766/api/v1/status 2>/dev/null || true)
+      http_code=$(curl -sS --max-time 4 -o /dev/null -w "%{http_code}" http://127.0.0.1:8767/api/v1/status 2>/dev/null || true)
       if [[ "$http_code" == 401 || "$http_code" == 403 ]]; then return 0; fi
     fi
     sleep 2
   done
-  fail "post_restart_health_timeout"
+  echo "health_phase=$phase dashboard_port=8767 dashboard_http=$http_code" >&2
+  echo "comms5_state=$(systemctl is-active riverview-comms5-camrui.service 2>/dev/null || true)" >&2
+  echo "dashboard_state=$(systemctl is-active riverview-status-dashboard.service 2>/dev/null || true)" >&2
+  fail "${phase}_health_timeout"
 }
 
 if [[ "$mode" == --dry-run ]]; then
@@ -100,6 +104,7 @@ fi
 if [[ "$mode" == --apply ]]; then
   check_inputs
   [[ ! -e "$COMM_NEXT" && ! -e "$DASH_NEXT" ]] || fail "candidate_release_name_already_exists"
+  health baseline
   activated=0
   rollback_on_error() {
     local rc=$?
@@ -141,7 +146,7 @@ PY
   set_link "$DASH_ROOT" "$DASH_NEXT"
   systemctl restart riverview-comms5-camrui.service
   systemctl restart riverview-status-dashboard.service
-  health
+  health candidate
   activated=0
   trap - EXIT
   echo "APPLY_OK: only Comms5 and Dashboard releases were switched and checked"
@@ -158,6 +163,6 @@ else
   set_link "$DASH_ROOT" "$DASH_BASE"
   systemctl restart riverview-comms5-camrui.service
   systemctl restart riverview-status-dashboard.service
-  health
+  health rollback
   echo "ROLLBACK_OK: both exact predecessor pointers restored and checked"
 fi

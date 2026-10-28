@@ -53,7 +53,7 @@
       "path": "tests/test_grace_current_cancellation_diagnostics.py"
     }
   ],
-  "health_checks": "Comms5 /healthz HTTP success; both existing units active; Dashboard protected /api/v1/status expects 401/403 without reading credentials.",
+  "health_checks": "Baseline health before protected release creation; Comms5 127.0.0.1:11826/healthz; Dashboard 127.0.0.1:8767/api/v1/status expects 401/403; both units active. Candidate/rollback repeat the same health checks.",
   "offline_operator_guards": "4 fixture guard tests passed, exit 0; bash -n passed. One catalog-only test rerun after preserving exact catalog formatting: 1 passed, exit 0.",
   "offline_runtime_command": "PYTHONPATH=/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-current-source-8325d3-stage/candidate/src python3 -m unittest -v test_grace_current_cancellation_diagnostics test_comms5_current_runtime.Comms5CurrentRuntimeTests.test_objective_status_returns_durable_lineage_without_objective_body test_comms5_current_runtime.Comms5CurrentRuntimeTests.test_live_backend_status_counts_fully_implemented_operations test_comms5_mcp.Comms5MCPTests.test_historical_catalog_is_complete_and_contract_metadata_works test_comms5_mcp.Comms5MCPTests.test_dashboard_backend_rejects_non_loopback_and_reports_partial_capabilities test_comms5_mcp.Comms5MCPTests.test_dashboard_backend_uses_attested_internal_operation_for_objective_status test_comms5_mcp.Comms5MCPTests.test_dashboard_failure_is_visible_and_non_successful test_comms5_mcp.Comms5MCPTests.test_schema_validation_rejects_extra_and_missing_arguments",
   "offline_runtime_cwd": "/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-current-source-8325d3-stage/candidate/tests",
@@ -63,10 +63,10 @@
     "bash scripts/grace_current_controls_20261028.sh --apply",
     "bash scripts/grace_current_controls_20261028.sh --rollback"
   ],
-  "operator_dry_run": "bash scripts/grace_current_controls_20261028.sh --dry-run: DRY_RUN_OK, exit 0; exact current pointers, predecessor hashes, candidate hashes and in-memory compile verified, no writes.",
+  "operator_dry_run": "r2 script bash -n passed; --dry-run exit 0; both predecessor pointers unchanged. This mode verifies file/pointer guards without service writes.",
   "operator_script": "scripts/grace_current_controls_20261028.sh",
-  "operator_script_sha256": "f56ba6dc22717168c2caad0374a298b88f4e2eafb34157e2bf223b109462ef7d",
-  "protected_writes": "not run",
+  "operator_script_sha256": "d4526f6753e4f3ae8acd2845a447935457cd32ff48f78dc0e7d8c708cf42a14c",
+  "protected_writes": "r1 operator apply attempted and automatically rolled back after health timeout; exact predecessor pointers independently verified. r2 not applied.",
   "publication_note": "The package is based on exact readable live releases; no claim that source commit 9f56cb7 is published.",
   "runtime_scope": [
     "src/riverview_core/comms5/dashboard_backend.py",
@@ -79,5 +79,22 @@
     "tests/test_comms5_current_runtime.py",
     "tests/test_comms5_mcp.py",
     "tests/test_grace_current_cancellation_diagnostics.py"
-  ]
+  ],
+  "file_revision": "1.0.1",
+  "operator_script_revision": "1.0.1",
+  "installation_attempts": [
+    {
+      "revision": "1.0.0",
+      "script_sha256": "f56ba6dc22717168c2caad0374a298b88f4e2eafb34157e2bf223b109462ef7d",
+      "apply_exit_code": 2,
+      "error": "post_restart_health_timeout",
+      "confirmed_defect": "Dashboard probe 8766 did not match observed listener 8767",
+      "comms_startup_cause": "unconfirmed; reported connection refusal on configured 11826",
+      "rollback": "both exact predecessor pointers independently confirmed"
+    }
+  ],
+  "current_installer_tests": {
+    "command": "python -m unittest discover -s tests -p test_grace_controls_installer_lifecycle.py -v",
+    "result": "4 passed, exit 0; fake HTTP fixture accepts only observed ports; activation/explicit rollback, automatic restart-failure rollback, candidate drift, unhealthy baseline"
+  }
 }

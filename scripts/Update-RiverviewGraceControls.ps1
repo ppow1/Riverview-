@@ -1,6 +1,6 @@
 # Riverview Controlled Source
 # File: scripts/Update-RiverviewGraceControls.ps1
-# Revision: 1.0.0 | 2026-10-28
+# Revision: 1.0.1 | 2026-10-28
 # Uses the established Windows operator SSH alias; captures a clipboard report.
 Clear-Host
 $ErrorActionPreference = 'Continue'
@@ -20,7 +20,7 @@ if ($graceIdentity -ne 'desktop-ja3rpnq\wille') {
     return
 }
 $graceEntry = '/home/admin1/.local/share/riverview/engineering/Riverview/scripts/grace_current_controls_20261028.sh'
-$graceExpectedHash = 'f56ba6dc22717168c2caad0374a298b88f4e2eafb34157e2bf223b109462ef7d'
+$graceExpectedHash = 'd4526f6753e4f3ae8acd2845a447935457cd32ff48f78dc0e7d8c708cf42a14c'
 $graceSshArgs = @('-n', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10',
     '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=2', 'camrui')
 Write-Host 'Checking the prepared Camrui update script...'
