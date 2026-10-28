@@ -1,7 +1,7 @@
 <!-- Riverview Controlled Document
 File: docs/development/GRACE_DEVELOPMENT_REPLACEMENT_20261028.md
 Component: RESIDENT-ORCHESTRATION
-File Revision: 1.0.0
+File Revision: 1.0.1
 Changed: 2026-10-28 UTC | Steward development-system direction
 -->
 # Fresh development request replaces stale recovery priority
@@ -58,3 +58,30 @@ Inspect existing adapter and promotion endpoint, implement only demonstrated
 defects with focused tests, preserve predecessors, report unavailable components.
 No deployment, direct database mutation, grants or credential changes authorized
 by this bounded adapter task.
+
+## Canonical reconciliation supersedes the initial error projection
+
+The first promotion call timed out at the connector while backend processing
+continued. A subsequent seed_status read showed APPROVED; same-idempotency-key
+retry returned GROUNDED, reused:true, intake_request_created:false.
+Canonical replacement objective:
+objective:proposal:f6af71cc-39f4-5457-99bd-de9110c23cd2:r2.
+Created 2026-10-28 09:03:58 EDT, grounded 09:04:01 EDT.
+The earlier assertion above that no new objective was created is superseded.
+
+The source evidence was verified (seven references). Grace attempted reasoning
+09:04:03 EDT; a failure was recorded 09:06:07 EDT. Subsequent bounded status
+projection shows repeated reasoning_attempted events without an assignment,
+through at least 09:10:43 EDT. These events do not by themselves prove actual
+provider calls or spend. No terminal acceptance/completion is claimed.
+
+A redundant specification draft proposal:feef14a4-ef45-4622-a3d5-2c0221275d75
+was created while checking the specification-backed intake contract, then
+cancelled through comms5_cancel_draft. Canonical state ARCHIVED. It never
+created work; keep only the original prepared replacement.
+
+Next: inspect this current workflow fault, not the stale request's historical
+failure. Old objective is still not cancelled: connected tools lack an objective
+cancellation write and no authorized alternate client was available.
+Preserve the failed/attempted events. Do not blindly create more replacement
+requests or claim the malformed connector error proved no backend mutation.
