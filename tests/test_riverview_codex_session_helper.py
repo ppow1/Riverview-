@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: tests/test_riverview_codex_session_helper.py
 # Component: WINDOWS-CODEX-COMMS5
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Offline verification of CLI invocation, output capture and exact resume binding.
 # Execution Model: unittest with disposable fake child process, no network or credentials.
 # Observability: unittest results and exit codes.
@@ -31,7 +31,9 @@ class SessionHelperTests(unittest.TestCase):
 from pathlib import Path
 prompt=sys.stdin.read()
 argv=sys.argv[1:]
-assert argv[:3]==['--sandbox','read-only','exec']
+assert argv[:5]==['--ask-for-approval','never','exec','--sandbox','workspace-write']
+assert argv[argv.index('--cd')+1]==str(Path.cwd())
+assert 'exec' in argv
 assert argv[-1]=='-'
 assert argv[argv.index('--model')+1]=='gpt-6-luna'
 counter=Path('calls.txt')

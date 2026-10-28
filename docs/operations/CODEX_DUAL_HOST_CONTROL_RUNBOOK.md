@@ -1,9 +1,16 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CODEX_DUAL_HOST_CONTROL_RUNBOOK.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.3
+File Revision: 1.0.4
 Changed: 2026-10-27 | RV-CODEX-DUAL-HOST-RUNBOOK
 -->
+**Engineering correction:** the earlier read-only session-control proof below
+is insufficient for source implementation. Use the
+[workspace-write update](CODEX_ENGINEERING_WORKSPACE_UPDATE.md). The corrected
+source and operator installer are prepared; Camrui installation is still pending.
+Windows effective workspace-write was verified, but native child-process startup
+failed; Windows source-editing acceptance remains FAIL.
+
 # Windows and Camrui: shell access, Codex start, result, and exact-session resume
 
 **Current direct session-control status: PASS on Windows and Camrui.** After the
@@ -695,3 +702,12 @@ executing requests; no renewal was submitted as part of documenting this process
 Predecessor revision 1.0.2 is retained byte-for-byte at
 `docs/history/CODEX_DUAL_HOST_CONTROL_RUNBOOK_rev1.0.2.md`, original Git blob
 `94db181d5792e21a841406341eb2167931bb6ffc`. Restore those bytes to restore the preceding document.
+
+## Revision 1.0.4 — distinguish source-editing readiness
+
+Links the corrective workspace-write launcher and the required live file-edit/
+test/resume acceptance, rather than treating marker recall as Engineering access.
+The actual Windows helper is installed under the Gateway account's LOCALAPPDATA
+Riverview/CodexControl/workspace-write-v1. Existing historical CLI examples with
+--sandbox read-only remain evidence, not the current Engineering invocation.
+Predecessor: docs/history/CODEX_DUAL_HOST_CONTROL_RUNBOOK_rev1.0.3.md.
