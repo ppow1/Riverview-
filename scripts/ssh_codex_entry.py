@@ -2,12 +2,13 @@
 # Riverview Controlled Source
 # File: scripts/ssh_codex_entry.py
 # Component: WINDOWS-CODEX-COMMS5
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Proposed restricted SSH entry for existing Gateway Codex control.
 # Execution Model: Forced command; existing SSH and Comms5 own transport/lifecycle.
 # Observability: Bounded JSON replies and existing account-local CLI artifacts.
 # Dependencies: Existing riverview_codex_session.py, admin1 Codex installation/login.
-# Authority: No arbitrary shell; existing hostname probe plus typed read-only Codex calls.
+# Authority: Typed Codex calls with source editing/testing in a dedicated Engineering checkout.
+# Changed: 2026-10-28 | RV-CODEX-ENGINEERING-WRITE | Use the commissioned Engineering workspace, not read-only home.
 # Changed: 2026-10-27 | RV-CAMRUI-GATEWAY-CODEX | Prepared, not installed.
 # Tests: tests/test_ssh_codex_entry.py; live commissioning requires Steward approval.
 # History: New file; no predecessor.
@@ -23,6 +24,7 @@ import sys
 INSTALL = Path('/home/admin1/.local/lib/riverview/gateway-codex')
 STATE = Path('/home/admin1/.local/state/riverview/gateway-codex')
 CODEX = '/home/admin1/.local/bin/codex'
+WORKSPACE = Path('/home/admin1/.local/share/riverview/engineering/Riverview')
 RUN = re.compile(r'[A-Za-z0-9._-]{1,100}')
 THREAD = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
 
@@ -68,9 +70,9 @@ def parse_request(original):
 
 def cli_arguments(request):
     command = [sys.executable, str(INSTALL/'riverview_codex_session.py'),
-        '--codex', CODEX, '--cwd', '/home/admin1', '--state-root', str(STATE),
+        '--codex', CODEX, '--cwd', str(WORKSPACE), '--state-root', str(STATE),
         '--run-id', request['run_id'], '--host-label', 'camrui',
-        '--model', 'gpt-6-luna', '--non-repository-smoke-test', '--prompt', request['prompt']]
+        '--model', 'gpt-6-luna', '--prompt', request['prompt']]
     if request['operation'] == 'resume':
         command += ['--resume', request['thread_id']]
     return command
@@ -127,7 +129,8 @@ def main():
             import pwd
             print(json.dumps({'status': 'available', 'marker': 'RV_GATEWAY_CODEX_ENTRY_OK',
                 'hostname': socket.gethostname(), 'user': pwd.getpwuid(os.getuid()).pw_name,
-                'cwd': '/home/admin1', 'protocol': 'rv-codex-session.v1'}))
+                'cwd': str(WORKSPACE), 'sandbox': 'workspace-write',
+                'workspace_ready': WORKSPACE.is_dir(), 'protocol': 'rv-codex-session.v1'}))
             return 0
         if operation == 'status':
             print(json.dumps(read_result(request)))

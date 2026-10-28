@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: tests/test_ssh_codex_entry.py
 # Component: WINDOWS-CODEX-COMMS5
-# Revision: 1.0.0
+# Revision: 1.0.1
 # Purpose: Verify restricted request parsing and fingerprint-bound authorized-key edits.
 # Execution Model: Offline unittest with temporary files; no SSH, credentials or model calls.
 # Observability: Test results and exit code.
@@ -43,7 +43,8 @@ class EntryTests(unittest.TestCase):
         request=self.request(operation='start',run_id='acceptance-1',prompt='hello; $(id)')
         argv=entry.cli_arguments(request)
         self.assertEqual(argv[argv.index('--codex')+1],'/home/admin1/.local/bin/codex')
-        self.assertEqual(argv[argv.index('--cwd')+1],'/home/admin1')
+        self.assertEqual(argv[argv.index('--cwd')+1],str(entry.WORKSPACE))
+        self.assertNotIn('--non-repository-smoke-test',argv)
         self.assertEqual(argv[argv.index('--model')+1],'gpt-6-luna')
         self.assertEqual(argv[argv.index('--prompt')+1],'hello; $(id)')
         thread='01a17fd0-a4ae-73a2-9f0c-9f864cd82102'

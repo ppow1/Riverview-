@@ -1,9 +1,15 @@
 <!-- Riverview Controlled Document
 File: docs/operations/CAMRUI_GATEWAY_CODEX_COMMISSIONING.md
 Component: WINDOWS-CODEX-COMMS5
-File Revision: 1.0.1
+File Revision: 1.0.4
 Changed: 2026-10-27 | RV-CAMRUI-GATEWAY-CODEX
 -->
+**Source-editing correction installed and accepted, October 28, 2026:** the original installed
+launcher below hardcoded read-only mode. The corrected launcher and installer
+are in [Codex Engineering workspace update](CODEX_ENGINEERING_WORKSPACE_UPDATE.md).
+Camrui direct editing, Python tests and exact-session editing now pass;
+the earlier read-only acceptance is historical. See the linked current record.
+
 # Camrui Codex control through the existing Comms5 Gateway
 
 ## Outcome and authority
@@ -226,3 +232,28 @@ Revision 1.0.0 is preserved byte-for-byte in
 `ef96b698604cc9ab79dc34afbeb3573532f5f635`. Restore those bytes to the original
 path to restore the preceding documentation revision; this is distinct from the
 production authorized_keys rollback described above.
+
+## Revision 1.0.2 — correct the Engineering restriction
+
+The corrected helper defaults to workspace-write and passes sandbox/CD options
+to the exec subcommand before resume. The Camrui entry uses a dedicated clone at
+/home/admin1/.local/share/riverview/engineering/Riverview, seeded from actual
+deployed source commit 9f56cb72f3bd2961babf2527a26bd843526e18ce.
+The update preserves the existing forced-command key entry; only two Python
+wrapper files change. See the linked update procedure for tests, installation,
+current Windows limitations and rollback. Predecessor document is preserved at
+docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.1.md.
+
+## Revision 1.0.3 — current correction handoff
+
+The linked workspace-update runbook now records verified Windows source edits
+and independent tests. Camrui remains pending the staged operator update.
+Predecessor: docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.2.md.
+
+## Revision 1.0.4 — installed source-editing correction
+
+Operator installation succeeded with a verified backup, preserving authorized_keys.
+Direct ChatGPT Comms5 acceptance created source/tests, ran Python unittest, then
+resumed exact thread 01a17fdf-6d58-7050-92cc-1762ac986518 for a second edit and two
+passing tests. See the workspace-update record and receipt artifact. Predecessor:
+docs/history/CAMRUI_GATEWAY_CODEX_COMMISSIONING_rev1.0.3.md.

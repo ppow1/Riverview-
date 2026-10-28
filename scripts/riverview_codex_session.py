@@ -2,12 +2,13 @@
 # Riverview Controlled Source
 # File: scripts/riverview_codex_session.py
 # Component: WINDOWS-CODEX-COMMS5
-# Revision: 1.0.1
+# Revision: 1.0.3
 # Purpose: Invoke the existing Codex CLI and retain JSON events and exact resume ID.
 # Execution Model: Request-driven CLI; existing Comms5 owns asynchronous execution.
 # Observability: Per-run request.json, events.jsonl, stderr.txt, result.json; JSON stdout.
 # Dependencies: Python 3.10+, authenticated existing Codex CLI; optional Node executable.
-# Authority: Current OS account; read-only Codex sandbox; no credentials or grants changed.
+# Authority: Current OS account; workspace-write Codex sandbox; no credentials or grants changed.
+# Changed: 2026-10-28 | RV-CODEX-ENGINEERING-WRITE | Restore source editing/testing in the explicit working root.
 # Changed: 2026-10-27 | RV-CODEX-DUAL-HOST-RUNBOOK | Portable invocation/logging helper.
 # Contracts: docs/operations/CODEX_DUAL_HOST_CONTROL_RUNBOOK.md
 # Tests: Offline fake-CLI start/resume and idempotency checks; live host tests outstanding.
@@ -54,8 +55,14 @@ def main():
     command = [args.codex]
     if args.node:
         command = [args.node, args.codex]
-    # Global sandbox applies to both exec and exec resume. Preserve existing auth.
-    command += ['--sandbox', 'read-only', 'exec']
+    if os.name == 'nt':
+        # Native MXC was verified on desktop-ja3rpnq under the Limited Gateway
+        # account; it needs neither administrator setup nor sandbox-user accounts.
+        command += ['-c', 'windows.sandbox="mxc"']
+    # exec owns its sandbox/CD options; root CLI options are not inherited here.
+    # Keep these before resume so both fresh and resumed turns use the workspace.
+    command += ['--ask-for-approval', 'never', 'exec',
+                '--sandbox', 'workspace-write', '--cd', str(cwd)]
     if args.resume:
         command += ['resume']
     command += ['--json', '--model', args.model]
