@@ -1,0 +1,66 @@
+{
+  "status": "UPDATED",
+  "operator_identity": "desktop-ja3rpnq\\wille",
+  "script_sha256": "dfd631baa181b57aeca91bc157d633f3a1a72fe73bae18453656713bafabecc7",
+  "dry_run_exit_code": 0,
+  "apply_exit_code": 0,
+  "old_config_sha256": "f72a87d7f559372f6d8332a1fc3be4c1eb6e0fda8c6b6f3a16a0d48e798080d6",
+  "new_config_sha256": "832d11c8c9ac7c759e8a4c0ed603a36988ee500a24fff82857650065db347749",
+  "repository_reference": "repo://ppow1/Riverview-",
+  "repository_revision": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+  "source_release_created": true,
+  "allowlist": [
+    "tests/test_local_reasoning_provider.py",
+    "src/riverview_core/resident_execution/pipeline.py",
+    "src/riverview_core/resident_execution/service.py",
+    "tests/test_grace_execution.py"
+  ],
+  "backup": "/etc/systemd/system/riverview-grace-execution-owner-session.service.d/~~~~~~~~~~~~~~~~rv-source-worker.conf.pre-f72a87d7f559372f6d8332a1fc3be4c1eb6e0fda8c6b6f3a16a0d48e798080d6",
+  "other_workers_or_grants_changed": false,
+  "independent_verification_execution": "15de0ad7-a780-4fdd-a97f-9ebc7f370fda",
+  "independent_verification_result_execution": "7770564f-58be-468a-a738-c2189c59dc26",
+  "independent_verification_audit": "2852f4e7-4bb0-4628-af91-d4e9c13080d7",
+  "configured_checkout_head_verified": true,
+  "tracked_cleanliness_verified": true,
+  "provenance_markers_verified": true,
+  "fresh_objective_id": "objective:addb10e0-fa77-5d49-92ae-efaf710d81f7",
+  "fresh_assignment_id": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+  "fresh_submission_key": "grace-source-admission-implementation-20261028-01",
+  "fresh_capability": "engineering.codex-cli-source-change.v1",
+  "fresh_worker": "worker:grace-engineering-source-change",
+  "stage": "objective_completed_independent_source_verification_accepted",
+  "planning_route": "existing direct Engineering submission; Grace reasoning bypassed for this boundary test",
+  "verification": {
+    "decision": "ACCEPTED",
+    "verifier_revision": "1.0.1",
+    "created_at": "2026-10-28T17:41:05.902257-04:00",
+    "summary": "scoped source patch independently accepted",
+    "criteria_status": {
+      "changed_paths_within_authorized_work_order_scope": true,
+      "fixed_tests_passed_in_offline_sandbox": true,
+      "scoped_patch_independently_replayed": true
+    },
+    "artifact_references": []
+  },
+  "execution_intents": [
+    {
+      "assignment_id": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+      "worker_id": "worker:grace-engineering-source-change",
+      "lease_generation": 1,
+      "capability": "engineering.codex-cli-source-change.v1",
+      "effect_class": "retry_safe",
+      "status": "succeeded",
+      "attempt_id": "7b66e0e6-32e7-4c75-96b8-959b09450ff7",
+      "started_at": "2026-10-28T17:38:41.879867-04:00",
+      "finished_at": "2026-10-28T17:40:41.071284-04:00",
+      "failure_class": null
+    }
+  ],
+  "objective_state": "COMPLETED",
+  "assignment_state": "completed",
+  "accepted_patch_sha256": "9f6ea0aa04b7f5367f66d133c2b75cde38925630ea198f7d745fa86b0d0b21cf",
+  "accepted_patch_bytes": 6837,
+  "source_artifact": "/var/lib/riverview-grace-owner-session/source-worker/artifacts/codex-source-a8383c98b392c543b6f891aed14b4be1a5a64e9065f76f41b2769ba957966548.patch",
+  "artifact_retrieval_execution": "a3075bae-72c0-43f5-8c8d-dd441bf4551f",
+  "artifact_retrieval_audit": "18277c5f-588f-49fc-a2bc-ac09f34770ea"
+}

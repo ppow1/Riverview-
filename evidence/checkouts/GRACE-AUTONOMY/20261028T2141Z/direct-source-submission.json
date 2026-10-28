@@ -1,0 +1,23 @@
+{
+  "repository_reference": "repo://ppow1/Riverview-",
+  "repository_revision": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+  "authorized_paths": [
+    "src/riverview_core/resident_execution/pipeline.py",
+    "src/riverview_core/resident_execution/service.py",
+    "tests/test_grace_execution.py"
+  ],
+  "test_targets": [
+    "tests/test_grace_execution.py"
+  ],
+  "task": "Implement the reviewed artifact-only publication admission correction in the existing Grace pipeline. Before proposal persistence, reject engineering.codex-cli-artifact.v1 steps whose acceptance criteria or artifact requirements require repository publication, reusing the existing CodexArtifactVerifier publication detector only for artifact steps. Record fixed diagnostic PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE with the existing objective-revision fence. Preserve ordinary artifact contracts and correctly scoped source-change plans whose criteria refer to a pinned repository commit. Restrict changes to the three authorized files. Return a scoped patch and test evidence; do not deploy, publish, change policy or alter existing objective history.",
+  "acceptance_criteria": [
+    "Artifact-capability publication requirements in step criteria and artifact requirements are rejected before proposal persistence with the fixed diagnostic and existing revision fence.",
+    "Non-publication artifact plans and scoped source-change pinned-commit provenance criteria retain their existing behavior.",
+    "Changes stay within the exact authorized paths and tests/test_grace_execution.py passes."
+  ],
+  "evidence_requirements": [
+    "Scoped patch digest, exact changed paths and pinned base revision.",
+    "Independent scoped patch replay and named test-target result."
+  ],
+  "idempotency_key": "grace-source-admission-implementation-20261028-01"
+}

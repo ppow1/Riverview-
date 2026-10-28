@@ -1,14 +1,15 @@
-<!-- Controlled document revision 1.0.0 | 2026-10-28 -->
+<!-- Controlled document revision 1.0.1 | 2026-10-28 -->
 # Approved Grace source-worker update
 
 Steward explicitly approved the exact source-only repin and three additional paths
 in PR #369. This authorization is already recorded; do not request it again.
-Current status: prepared and tested, not applied. Source-worker acceptance remains
-unverified until the operator update and a fresh independently verified assignment.
+Current status: operator update completed and independently checked. The fresh direct
+Engineering source-change objective completed with independent verification ACCEPTED.
+Grace-generated planning and repository publication are not established by this run.
 
 ## Operator command
 
-Run once in the existing desktop-ja3rpnq\wille PowerShell session:
+Initial operator command (already completed; do not rerun after UPDATED):
 
 ```powershell
 & 'C:\Users\Public\Documents\Riverview\GraceSourceWorker\Update-RiverviewGraceSourceWorker.ps1'
@@ -65,7 +66,7 @@ Camrui update-review execution: b8c42efe-9b92-43ee-a3e7-259d6ab0c849.
 Final audit: 8d59c523-69ba-424b-8785-d0a841b1d728.
 Exact Codex thread: 01a17fdf-6d58-7050-92cc-1762ac986518.
 The sandbox dry-run stopped with systemd_bus_unavailable, exit 2; this is why the
-operator entry is required. No live update has been performed.
+operator entry is required. The operator has since applied the update successfully; see the acceptance record below.
 
 ## Rollback and continuation
 
@@ -83,3 +84,37 @@ assignment restricted to the approved files/test target. Preserve its objective,
 execution, patch digest and independent verifier evidence. Do not claim full Grace
 autonomy from the updater or from Codex session success. Source execution returns
 a scoped patch and tests; repository publication is still a separate capability.
+
+## Verified source-change acceptance — October 28, 2026
+
+Operator apply exited 0 with UPDATED. New configuration SHA256:
+832d11c8c9ac7c759e8a4c0ed603a36988ee500a24fff82857650065db347749.
+Independent Camrui inspection matched that hash, target HEAD and clean tracked tree.
+
+Fresh objective: objective:addb10e0-fa77-5d49-92ae-efaf710d81f7.
+Assignment: assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a.
+Attempt: 7b66e0e6-32e7-4c75-96b8-959b09450ff7.
+Existing worker: worker:grace-engineering-source-change.
+Capability: engineering.codex-cli-source-change.v1.
+Canonical objective and assignment both COMPLETED. Independent verifier 1.0.1
+ACCEPTED at 17:41:05 EDT: authorized changed paths, offline named tests and independent
+patch replay all true. This used direct Engineering submission, bypassing Grace's
+reasoning; it is not full autonomous workflow acceptance.
+
+Actual worker-produced patch SHA256:
+9f6ea0aa04b7f5367f66d133c2b75cde38925630ea198f7d745fa86b0d0b21cf (6837 bytes).
+Retained at patches/grace_artifact_publication_admission_worker_ACCEPTED_20261028.patch.
+The raw patch is receipt evidence. Source revision headers/predecessor archives must
+be reconciled during forward integration before deployment. Do not apply it together
+with the earlier manually prepared patch. Neither admission fix is deployed yet.
+
+The current status endpoint omits the source result's base-revision field and patch
+reference. Recorded requested target and the inspected source checkout are pinned to
+9f56cb72f3bd2961babf2527a26bd843526e18ce. Filesystem inspection found the patch by the
+exact assignment-key convention and independently hash-checked it; application to
+the target passes, but applicability alone is not claimed as proof of origin.
+
+Full receipt, payload and safe provenance are in evidence/checkouts/GRACE-AUTONOMY/
+20261028T2141Z/. Next stage: forward-integrate the accepted correction through the
+existing release/review process and exercise Grace-generated planning with full
+repository/path/test scope. Preserve all completed records and existing sessions.

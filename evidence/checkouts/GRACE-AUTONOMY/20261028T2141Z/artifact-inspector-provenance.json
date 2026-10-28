@@ -1,0 +1,32 @@
+{
+  "artifact_filename_matches_assignment_key": true,
+  "assignment_id": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+  "attempt_id": "7b66e0e6-32e7-4c75-96b8-959b09450ff7",
+  "base_revision_status": "unconfirmed: no local result metadata outside prohibited database; applicability does not prove produced-from revision",
+  "capability": "engineering.codex-cli-source-change.v1",
+  "changed_paths": [
+    "src/riverview_core/resident_execution/pipeline.py",
+    "src/riverview_core/resident_execution/service.py",
+    "tests/test_grace_execution.py"
+  ],
+  "comparison_target_release_head": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+  "objective_id": "objective:addb10e0-fa77-5d49-92ae-efaf710d81f7",
+  "patch_apply_check_against_9f56_release": true,
+  "patch_bytes": 6837,
+  "patch_sha256": "9f6ea0aa04b7f5367f66d133c2b75cde38925630ea198f7d745fa86b0d0b21cf",
+  "recorded_base_revision": null,
+  "reported_verifier": {
+    "authorized_scope": true,
+    "decision": "ACCEPTED",
+    "independent_replay": true,
+    "revision": "1.0.1",
+    "source": "user-provided report; not recovered from local result record",
+    "tests_passed": true,
+    "timestamp": "2026-10-28T17:41:05-04:00"
+  },
+  "schema": "riverview.accepted-source-worker-artifact.provenance.v1",
+  "source_artifact_assignment_key_sha256": "a8383c98b392c543b6f891aed14b4be1a5a64e9065f76f41b2769ba957966548",
+  "source_artifact_mode": "0600",
+  "source_artifact_path": "/var/lib/riverview-grace-owner-session/source-worker/artifacts/codex-source-a8383c98b392c543b6f891aed14b4be1a5a64e9065f76f41b2769ba957966548.patch",
+  "worker_id": "worker:grace-engineering-source-change"
+}

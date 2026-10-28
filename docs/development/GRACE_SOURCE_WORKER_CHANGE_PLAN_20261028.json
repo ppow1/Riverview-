@@ -1,17 +1,23 @@
 {
-  "revision": "1.0.1",
-  "status": "approved_not_applied",
+  "revision": "1.0.2",
+  "status": "applied_source_execution_independently_verified",
   "purpose": "Enable the next explicitly scoped Grace source-patch assignment using the existing source worker",
   "repository_reference": "repo://ppow1/Riverview-",
   "worker_id": "worker:grace-engineering-source-change",
   "capability": "engineering.codex-cli-source-change.v1",
   "declared_current": {
-    "repository_revision": "4391e3f1283277ee0582000e7170c497d791f7f2",
-    "repository_path": "/opt/riverview-engineering-source-worker/releases/4391e3f1283277ee0582000e7170c497d791f7f2",
+    "repository_revision": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+    "repository_path": "/opt/riverview-engineering-source-worker/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce",
     "allowed_paths": [
-      "tests/test_local_reasoning_provider.py"
+      "tests/test_local_reasoning_provider.py",
+      "src/riverview_core/resident_execution/pipeline.py",
+      "src/riverview_core/resident_execution/service.py",
+      "tests/test_grace_execution.py"
     ],
-    "loaded_and_active_state": "unconfirmed"
+    "test_targets": [
+      "tests/test_grace_execution.py"
+    ],
+    "loaded_and_active_state": "Operator postcheck succeeded; source worker subsequently executed a COMPLETED/ACCEPTED source assignment"
   },
   "proposed": {
     "repository_revision": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
@@ -40,5 +46,17 @@
   "rollback": "Restore the exact saved source-worker override bytes and metadata through the existing service procedure; retain prior release, candidate release and audit evidence.",
   "authorization_boundary": "The exact additional paths and source-only repin are approved. Do not request this approval again. Existing host grants remain unchanged. Verify the active runner's source/artifact repository separation before applying; a shared mapping must not repin the artifact worker.",
   "publication_boundary": "The source worker returns a scoped patch and test evidence. No publisher is added or assumed.",
-  "approval_ref": "Steward explicitly replied Approved to this exact source-worker update in the 2026-10-28 continuation conversation."
+  "approval_ref": "Steward explicitly replied Approved to this exact source-worker update in the 2026-10-28 continuation conversation.",
+  "predecessor": {
+    "repository_revision": "4391e3f1283277ee0582000e7170c497d791f7f2",
+    "repository_path": "/opt/riverview-engineering-source-worker/releases/4391e3f1283277ee0582000e7170c497d791f7f2",
+    "allowed_paths": [
+      "tests/test_local_reasoning_provider.py"
+    ],
+    "loaded_and_active_state": "unconfirmed"
+  },
+  "applied_config_sha256": "832d11c8c9ac7c759e8a4c0ed603a36988ee500a24fff82857650065db347749",
+  "acceptance_objective": "objective:addb10e0-fa77-5d49-92ae-efaf710d81f7",
+  "acceptance_assignment": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+  "accepted_patch_sha256": "9f6ea0aa04b7f5367f66d133c2b75cde38925630ea198f7d745fa86b0d0b21cf"
 }

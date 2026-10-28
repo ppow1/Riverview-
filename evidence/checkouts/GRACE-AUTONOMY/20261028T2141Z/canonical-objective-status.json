@@ -1,0 +1,114 @@
+{
+  "status": "available",
+  "executed": true,
+  "objective": {
+    "objective_id": "objective:addb10e0-fa77-5d49-92ae-efaf710d81f7",
+    "state": "COMPLETED",
+    "scope_ref": "work-order:engineering",
+    "submitter_id": "steward:camrui",
+    "revision": 5,
+    "assignment_id": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+    "source_revision": "26c71277f45338239a707f09e118eb70bcd449c4",
+    "source_sha256": "16dbfe553988bdfb2678024a274fbf480ce31544a10c83c619e520605a6b8321",
+    "created_at": "2026-10-28T17:38:36.974738-04:00",
+    "updated_at": "2026-10-28T17:41:06.077328-04:00",
+    "evidence": {
+      "status": "VERIFIED",
+      "source_reference_count": 7,
+      "source_revision": "26c71277f45338239a707f09e118eb70bcd449c4",
+      "source_sha256": "16dbfe553988bdfb2678024a274fbf480ce31544a10c83c619e520605a6b8321",
+      "retrieval_complete": true,
+      "error_code": null
+    }
+  },
+  "submission_authority": {
+    "status": "currently_authorized",
+    "principal_id": "steward:camrui",
+    "action": "objective.submit",
+    "scope_ref": "work-order:engineering",
+    "grant_id": "grace-demo:steward-objective-submit"
+  },
+  "assignment": {
+    "id": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+    "state": "completed",
+    "owner": "engineering",
+    "workflow_id": "grace.objective-work-order.v1",
+    "workflow_step": "independent_verification",
+    "correlation_id": "objective:addb10e0-fa77-5d49-92ae-efaf710d81f7"
+  },
+  "steps": [
+    {
+      "step_id": "direct-engineering",
+      "order": 1,
+      "depends_on": [],
+      "state": "verified",
+      "assignment_id": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+      "dispatch_count": 1,
+      "updated_at": "2026-10-28T17:41:06.061939-04:00"
+    }
+  ],
+  "verification": {
+    "decision": "ACCEPTED",
+    "verifier_revision": "1.0.1",
+    "created_at": "2026-10-28T17:41:05.902257-04:00",
+    "summary": "scoped source patch independently accepted",
+    "criteria_status": {
+      "changed_paths_within_authorized_work_order_scope": true,
+      "fixed_tests_passed_in_offline_sandbox": true,
+      "scoped_patch_independently_replayed": true
+    },
+    "artifact_references": []
+  },
+  "execution_intents": [
+    {
+      "assignment_id": "assignment:grace:c97ba87c1fc684d83ae24ff3f17705ae6bb55d8a",
+      "worker_id": "worker:grace-engineering-source-change",
+      "lease_generation": 1,
+      "capability": "engineering.codex-cli-source-change.v1",
+      "effect_class": "retry_safe",
+      "status": "succeeded",
+      "attempt_id": "7b66e0e6-32e7-4c75-96b8-959b09450ff7",
+      "started_at": "2026-10-28T17:38:41.879867-04:00",
+      "finished_at": "2026-10-28T17:40:41.071284-04:00",
+      "failure_class": null
+    }
+  ],
+  "event_lineage": [
+    {
+      "event_type": "objective.received",
+      "actor_id": "steward:camrui",
+      "occurred_at": "2026-10-28T17:38:36.977314-04:00"
+    },
+    {
+      "event_type": "objective.grounded",
+      "actor_id": "grace:knowledge-provider",
+      "occurred_at": "2026-10-28T17:38:38.020005-04:00"
+    },
+    {
+      "event_type": "work_order.proposed",
+      "actor_id": "steward:camrui",
+      "occurred_at": "2026-10-28T17:38:38.068742-04:00"
+    },
+    {
+      "event_type": "comms5.direct_codex_dispatch_submitted",
+      "actor_id": "steward:camrui",
+      "occurred_at": "2026-10-28T17:38:38.099178-04:00"
+    },
+    {
+      "event_type": "work_order.dispatched",
+      "actor_id": "service:grace-engineering-dispatch",
+      "occurred_at": "2026-10-28T17:38:39.778736-04:00"
+    },
+    {
+      "event_type": "execution.step_verified",
+      "actor_id": "verifier:independent",
+      "occurred_at": "2026-10-28T17:41:06.079286-04:00"
+    },
+    {
+      "event_type": "objective.completed",
+      "actor_id": "verifier:independent",
+      "occurred_at": "2026-10-28T17:41:06.082784-04:00"
+    }
+  ],
+  "implementation_status": "IMPLEMENTED"
+}
