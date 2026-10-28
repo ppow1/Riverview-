@@ -1,0 +1,81 @@
+{
+  "schema": "rv.grace.source-integration-installed.v1",
+  "operator_report": {
+    "identity": "desktop-ja3rpnq\\wille",
+    "script_sha256": "554e968d4b807d74fbc7c96b40373a6d270918ad44e5f20314f4e6b3fd62043e",
+    "dry_run_exit_code": 0,
+    "apply_exit_code": 0,
+    "status": "UPDATED"
+  },
+  "independent_inspection": {
+    "pointer": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-publication-fence-20261028-r1",
+    "pipeline_sha256": "dfab86a2b7dd91f9b16d444bea6b79210e3d0e3318f9f3496075617b5b27ff64",
+    "service_sha256": "ec382d9775dc5f116f684db22ca06fa260bdcff405c640948d8f24c3bdb4d772",
+    "source_worker_dropin_sha256": "832d11c8c9ac7c759e8a4c0ed603a36988ee500a24fff82857650065db347749",
+    "source_worker_head": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+    "health": "systemd bus denied; no readable local heartbeat record; startup unconfirmed"
+  },
+  "inspection_execution_receipt": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "527a4804-a64d-41fd-94a5-7130720367a0",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-admission-installed-verify-20261028-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-admission-installed-verify-20261028-01/events.jsonl\", \"pid\": 2437880, \"exit_code\": 0, \"messages\": [\"I\\u2019ll verify the installed release and drop-in using readable local state, then inspect the intake/task code and existing coverage for a non-duplicate source-plan regression. I\\u2019ll record only observed facts and keep the objective unsubmitted.\", \"The current pointer and both installed runtime hashes match the operator\\u2019s report. The source-worker base is readable at the exact 9f56 commit and clean; systemd bus access is denied, and I found no readable local heartbeat record, so I can\\u2019t independently confirm startup health. I found a separate intake issue: source repository identity and commit authorization use substring matching, which can admit a ref or shortened commit embedded in the Steward\\u2019s exact target. I\\u2019m verifying the declared source-only configuration and recording a bounded regression request for that issue.\", \"Verified `/opt/riverview-grace-execution/current` points to `...-grace-publication-fence-20261028-r1`; pipeline SHA `dfab86a2\\u2026ff64` and service SHA `ec382d97\\u2026d772` match. The source-worker drop-in SHA remains `832d11c8\\u20267749`; checkout HEAD is `9f56cb72\\u2026e18ce`, clean.\\n\\nStartup health is unconfirmed: systemd bus access was denied, and no local heartbeat record was found.\\n\\nI recorded a distinct intake gap: `pipeline.py:649-657` uses substring matching, so a repo-ref prefix or shortened SHA may pass authorization. The proposed scoped regression task (857 chars; pipeline plus `test_grace_execution.py`) is saved but not submitted.\\n\\n[verification.json](/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-accepted-forward-stage/verification.json)\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-28T23:34:10.937864+00:00",
+    "completed_at": "2026-10-28T23:34:11.769071+00:00",
+    "deadline_at": "2026-10-29T00:31:51.643690+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "11f5237d-a8b9-49aa-a087-c705732d4645",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "527a4804-a64d-41fd-94a5-7130720367a0",
+      "audit_event_id": "6bac3f37-6797-4f91-8b91-d6245518df5d",
+      "idempotency_key": "cmd-912a5cd99b729a13af9fc08a5dd19f011391a0383767492184acba81b834dcc4"
+    },
+    "host_id": "camrui",
+    "task_id": "527a4804-a64d-41fd-94a5-7130720367a0",
+    "command_sha256": "e88dbd0d47a4e7e26004f489869991c9e976e42f465ff549cd8d9ee61e1f903e",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "cme": {
+    "status": "available",
+    "source": "riverview_dashboard_status_projection",
+    "cme": {
+      "status": "healthy",
+      "service_id": "cme.monitor.v1",
+      "instance_id": "1a469a33-e66a-47e0-a156-f2d40459042f",
+      "last_heartbeat_at": "2026-10-28T19:31:53.352324-04:00",
+      "heartbeat_age_seconds": 5.167,
+      "last_scan_at": "2026-10-28T19:31:53.352324-04:00",
+      "last_error_type": null,
+      "assignments_observed": 8,
+      "workers_registered": 7,
+      "workers_enabled": 3,
+      "source": "cme_monitor_health"
+    },
+    "observed_at": "2026-10-28T19:31:58.490500-04:00",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "next_draft": {
+    "status": "READY_FOR_STEWARD_DECISION",
+    "executed": true,
+    "seed_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+    "proposal_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+    "revision": 2,
+    "lifecycle_status": "DRAFT",
+    "content_sha256": "d684c4b42147e9bec9ff276edc09bc0e0823ffeeb30308c4038db9b82faeae8a",
+    "implementation_status": "IMPLEMENTED",
+    "approval_recorded": false,
+    "request": "At repo repo://ppow1/Riverview- revision 9f56cb72f3bd2961babf2527a26bd843526e18ce, fix source-target authorization in src/riverview_core/resident_execution/pipeline.py:649-657: substring matching admits a ref prefix and a 40-character revision prefix of a Steward-authorized 64-character SHA. Require exact ref and full-revision tokens with safe prose boundaries. Modify only src/riverview_core/resident_execution/pipeline.py and tests/test_grace_execution.py; authorized_paths=[src/riverview_core/resident_execution/pipeline.py,tests/test_grace_execution.py]; test_targets=[tests/test_grace_execution.py]. Add offline tests rejecting both prefixes before proposal persistence and accepting the exact repo ref and full pin. Run the focused source-scope test. Do not change publication checks, service/worker policy, authority, routing, or claim publication."
+  }
+}
