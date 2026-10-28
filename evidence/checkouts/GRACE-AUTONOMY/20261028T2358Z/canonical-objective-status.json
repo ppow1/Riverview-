@@ -1,0 +1,345 @@
+{
+  "status": "available",
+  "executed": true,
+  "objective": {
+    "objective_id": "objective:proposal:ce65c8fc-fa3e-580c-a6fa-2df4d08f57c5:r2",
+    "state": "COMPLETED",
+    "scope_ref": "work-order:engineering",
+    "submitter_id": "steward:camrui",
+    "revision": 9,
+    "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:41242b9fae56fad4",
+    "source_revision": "26c71277f45338239a707f09e118eb70bcd449c4",
+    "source_sha256": "16dbfe553988bdfb2678024a274fbf480ce31544a10c83c619e520605a6b8321",
+    "created_at": "2026-10-28T19:50:51.387683-04:00",
+    "updated_at": "2026-10-28T19:55:31.367373-04:00",
+    "evidence": {
+      "status": "VERIFIED",
+      "source_reference_count": 7,
+      "source_revision": "26c71277f45338239a707f09e118eb70bcd449c4",
+      "source_sha256": "16dbfe553988bdfb2678024a274fbf480ce31544a10c83c619e520605a6b8321",
+      "retrieval_complete": true,
+      "error_code": null
+    }
+  },
+  "submission_authority": {
+    "status": "currently_authorized",
+    "principal_id": "steward:camrui",
+    "action": "objective.submit",
+    "scope_ref": "work-order:engineering",
+    "grant_id": "grace-demo:steward-objective-submit"
+  },
+  "assignment": {
+    "id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:41242b9fae56fad4",
+    "state": "completed",
+    "owner": "engineering",
+    "workflow_id": "grace.objective-work-order.v1",
+    "workflow_step": "independent_verification",
+    "correlation_id": "objective:proposal:ce65c8fc-fa3e-580c-a6fa-2df4d08f57c5:r2"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "order": 1,
+      "depends_on": [],
+      "state": "verified",
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142",
+      "dispatch_count": 1,
+      "updated_at": "2026-10-28T19:53:09.809097-04:00"
+    },
+    {
+      "step_id": "s2",
+      "order": 2,
+      "depends_on": [
+        "s1"
+      ],
+      "state": "verified",
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:ad328846aa18b32a",
+      "dispatch_count": 1,
+      "updated_at": "2026-10-28T19:54:21.693751-04:00"
+    },
+    {
+      "step_id": "s3",
+      "order": 3,
+      "depends_on": [
+        "s2"
+      ],
+      "state": "verified",
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:41242b9fae56fad4",
+      "dispatch_count": 1,
+      "updated_at": "2026-10-28T19:55:31.344983-04:00"
+    }
+  ],
+  "verification": {
+    "decision": "ACCEPTED",
+    "verifier_revision": "1.0.1",
+    "created_at": "2026-10-28T19:55:31.178593-04:00",
+    "summary": "scoped source patch independently accepted",
+    "criteria_status": {
+      "changed_paths_within_authorized_work_order_scope": true,
+      "fixed_tests_passed_in_offline_sandbox": true,
+      "scoped_patch_independently_replayed": true
+    },
+    "artifact_references": []
+  },
+  "execution_intents": [
+    {
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142",
+      "worker_id": "worker:grace-engineering-source-change",
+      "lease_generation": 1,
+      "capability": "engineering.codex-cli-source-change.v1",
+      "effect_class": "retry_safe",
+      "status": "succeeded",
+      "attempt_id": "146bea9f-2c47-4f2c-b0d5-6ab750d602f7",
+      "started_at": "2026-10-28T19:51:39.904292-04:00",
+      "finished_at": "2026-10-28T19:52:53.725117-04:00",
+      "failure_class": null
+    },
+    {
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:41242b9fae56fad4",
+      "worker_id": "worker:grace-engineering-source-change",
+      "lease_generation": 1,
+      "capability": "engineering.codex-cli-source-change.v1",
+      "effect_class": "retry_safe",
+      "status": "succeeded",
+      "attempt_id": "18507e91-7547-4dce-8751-eb9a8f3e9c8d",
+      "started_at": "2026-10-28T19:54:29.464121-04:00",
+      "finished_at": "2026-10-28T19:55:13.858834-04:00",
+      "failure_class": null
+    },
+    {
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:ad328846aa18b32a",
+      "worker_id": "worker:grace-engineering-source-change",
+      "lease_generation": 1,
+      "capability": "engineering.codex-cli-source-change.v1",
+      "effect_class": "retry_safe",
+      "status": "succeeded",
+      "attempt_id": "f8b5ecc1-b113-483c-a075-7ab72a18e196",
+      "started_at": "2026-10-28T19:53:18.694760-04:00",
+      "finished_at": "2026-10-28T19:54:04.337855-04:00",
+      "failure_class": null
+    }
+  ],
+  "event_lineage": [
+    {
+      "event_type": "objective.received",
+      "actor_id": "steward:camrui",
+      "occurred_at": "2026-10-28T19:50:51.389826-04:00"
+    },
+    {
+      "event_type": "objective.grounded",
+      "actor_id": "grace:knowledge-provider",
+      "occurred_at": "2026-10-28T19:50:52.516743-04:00"
+    },
+    {
+      "event_type": "execution.reasoning_attempted",
+      "actor_id": "service:grace-execution",
+      "occurred_at": "2026-10-28T19:50:53.311397-04:00"
+    },
+    {
+      "event_type": "work_order.proposed",
+      "actor_id": "office:office:grace",
+      "occurred_at": "2026-10-28T19:51:37.614528-04:00"
+    },
+    {
+      "event_type": "work_order.dispatched",
+      "actor_id": "service:grace-engineering-dispatch",
+      "occurred_at": "2026-10-28T19:51:37.773957-04:00"
+    },
+    {
+      "event_type": "execution.step_verified",
+      "actor_id": "verifier:independent",
+      "occurred_at": "2026-10-28T19:53:09.826338-04:00"
+    },
+    {
+      "event_type": "external_reasoning.requested",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:53:10.876493-04:00"
+    },
+    {
+      "event_type": "external_reasoning.delivery_claimed",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:53:11.009528-04:00"
+    },
+    {
+      "event_type": "external_reasoning.delivered",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:53:11.028319-04:00"
+    },
+    {
+      "event_type": "external_reasoning.claimed",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:53:11.048080-04:00"
+    },
+    {
+      "event_type": "external_reasoning.provider_attempt_started",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:53:11.083148-04:00"
+    },
+    {
+      "event_type": "external_reasoning.provider_attempt_settled",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:53:15.798096-04:00"
+    },
+    {
+      "event_type": "external_reasoning.response_received",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:53:15.825970-04:00"
+    },
+    {
+      "event_type": "external_reasoning.consumption_claimed",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:53:15.872997-04:00"
+    },
+    {
+      "event_type": "resident.performance.evaluation_recorded",
+      "actor_id": "office:grace",
+      "occurred_at": "2026-10-28T19:53:15.890196-04:00"
+    },
+    {
+      "event_type": "resident.performance.feedback_consumed",
+      "actor_id": "office:grace",
+      "occurred_at": "2026-10-28T19:53:15.904323-04:00"
+    },
+    {
+      "event_type": "external_reasoning.grace_consumed",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:53:15.968802-04:00"
+    },
+    {
+      "event_type": "work_order.dispatched",
+      "actor_id": "service:grace-engineering-dispatch",
+      "occurred_at": "2026-10-28T19:53:16.201276-04:00"
+    },
+    {
+      "event_type": "execution.step_verified",
+      "actor_id": "verifier:independent",
+      "occurred_at": "2026-10-28T19:54:21.709600-04:00"
+    },
+    {
+      "event_type": "external_reasoning.requested",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:54:22.856055-04:00"
+    },
+    {
+      "event_type": "external_reasoning.delivery_claimed",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:54:22.991158-04:00"
+    },
+    {
+      "event_type": "external_reasoning.delivered",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:54:23.009010-04:00"
+    },
+    {
+      "event_type": "external_reasoning.claimed",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:54:23.027316-04:00"
+    },
+    {
+      "event_type": "external_reasoning.provider_attempt_started",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:54:23.061659-04:00"
+    },
+    {
+      "event_type": "external_reasoning.provider_attempt_settled",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:54:27.078278-04:00"
+    },
+    {
+      "event_type": "external_reasoning.response_received",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:54:27.136908-04:00"
+    },
+    {
+      "event_type": "external_reasoning.consumption_claimed",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:54:27.176825-04:00"
+    },
+    {
+      "event_type": "resident.performance.evaluation_recorded",
+      "actor_id": "office:grace",
+      "occurred_at": "2026-10-28T19:54:27.194062-04:00"
+    },
+    {
+      "event_type": "resident.performance.feedback_consumed",
+      "actor_id": "office:grace",
+      "occurred_at": "2026-10-28T19:54:27.206331-04:00"
+    },
+    {
+      "event_type": "external_reasoning.grace_consumed",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:54:27.243854-04:00"
+    },
+    {
+      "event_type": "work_order.dispatched",
+      "actor_id": "service:grace-engineering-dispatch",
+      "occurred_at": "2026-10-28T19:54:27.486043-04:00"
+    },
+    {
+      "event_type": "execution.step_verified",
+      "actor_id": "verifier:independent",
+      "occurred_at": "2026-10-28T19:55:31.370982-04:00"
+    },
+    {
+      "event_type": "objective.completed",
+      "actor_id": "verifier:independent",
+      "occurred_at": "2026-10-28T19:55:31.374136-04:00"
+    },
+    {
+      "event_type": "external_reasoning.requested",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:55:32.780157-04:00"
+    },
+    {
+      "event_type": "external_reasoning.delivery_claimed",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:55:32.925866-04:00"
+    },
+    {
+      "event_type": "external_reasoning.delivered",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:55:32.942603-04:00"
+    },
+    {
+      "event_type": "external_reasoning.claimed",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:55:32.963584-04:00"
+    },
+    {
+      "event_type": "external_reasoning.provider_attempt_started",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:55:33.000749-04:00"
+    },
+    {
+      "event_type": "external_reasoning.provider_attempt_settled",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:55:36.252723-04:00"
+    },
+    {
+      "event_type": "external_reasoning.response_received",
+      "actor_id": "service:provider-gpt-6-luna",
+      "occurred_at": "2026-10-28T19:55:36.282489-04:00"
+    },
+    {
+      "event_type": "external_reasoning.consumption_claimed",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:55:36.324275-04:00"
+    },
+    {
+      "event_type": "resident.performance.evaluation_recorded",
+      "actor_id": "office:grace",
+      "occurred_at": "2026-10-28T19:55:36.339212-04:00"
+    },
+    {
+      "event_type": "resident.performance.feedback_consumed",
+      "actor_id": "office:grace",
+      "occurred_at": "2026-10-28T19:55:36.354096-04:00"
+    },
+    {
+      "event_type": "external_reasoning.grace_consumed",
+      "actor_id": "resident:grace",
+      "occurred_at": "2026-10-28T19:55:36.394160-04:00"
+    }
+  ],
+  "implementation_status": "IMPLEMENTED"
+}

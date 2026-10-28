@@ -1,0 +1,94 @@
+{
+  "status": "available",
+  "executed": true,
+  "seed_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+  "proposal_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+  "revision": 2,
+  "lifecycle_status": "APPROVED",
+  "content_sha256": "d684c4b42147e9bec9ff276edc09bc0e0823ffeeb30308c4038db9b82faeae8a",
+  "proposal": {
+    "proposal_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+    "created_by": "steward:camrui",
+    "origin_kind": "steward_authored",
+    "privacy_classification": "institutional",
+    "retention_policy": "standard",
+    "retention_until": null,
+    "current_revision": 2,
+    "lifecycle_status": "APPROVED",
+    "content_sha256": "d684c4b42147e9bec9ff276edc09bc0e0823ffeeb30308c4038db9b82faeae8a",
+    "idempotency_key": "grace-exact-source-binding-draft-20261028-01",
+    "idempotency_request_sha256": "7a44d588eadc2e684a5db474b02990e80d2f949d0d10d679feff1c4129a95ca0",
+    "created_at": "2026-10-28T19:35:44.678749-04:00",
+    "updated_at": "2026-10-28T19:50:51.292036-04:00"
+  },
+  "revision_record": {
+    "proposal_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+    "revision": 2,
+    "title": "Bind source plans to exact approved repository targets",
+    "summary": "Grace plans and dispatches a scoped fix for repository and revision prefix authorization.",
+    "objective": "At repo repo://ppow1/Riverview- revision 9f56cb72f3bd2961babf2527a26bd843526e18ce, fix source-target authorization in src/riverview_core/resident_execution/pipeline.py:649-657: substring matching admits a ref prefix and a 40-character revision prefix of a Steward-authorized 64-character SHA. Require exact ref and full-revision tokens with safe prose boundaries. Modify only src/riverview_core/resident_execution/pipeline.py and tests/test_grace_execution.py; authorized_paths=[src/riverview_core/resident_execution/pipeline.py,tests/test_grace_execution.py]; test_targets=[tests/test_grace_execution.py]. Add offline tests rejecting both prefixes before proposal persistence and accepting the exact repo ref and full pin. Run the focused source-scope test. Do not change publication checks, service/worker policy, authority, routing, or claim publication.",
+    "scope": "repo://ppow1/Riverview- at 9f56cb72f3bd2961babf2527a26bd843526e18ce; change only src/riverview_core/resident_execution/pipeline.py and tests/test_grace_execution.py; test_targets tests/test_grace_execution.py.",
+    "proposed_approach": "Grace generates a source-change plan using engineering.codex-cli-source-change.v1; existing Engineering worker implements exact target token matching and offline regression tests; existing independent verifier assesses the patch.",
+    "constraints": [
+      "No changes to publication checks, service configuration, worker policy, grants, identities or routing.",
+      "Produce a scoped patch and test evidence; no deployment or repository publication."
+    ],
+    "acceptance_criteria": [
+      "A repository-reference prefix is rejected before proposal persistence.",
+      "A 40-character prefix of an approved 64-character revision is rejected before proposal persistence.",
+      "The exact approved repository reference and full revision remain accepted, with focused offline source-scope regressions passing."
+    ],
+    "tags": [
+      "grace-autonomy",
+      "source-scope",
+      "exact-target-binding"
+    ],
+    "source_references": [],
+    "provenance": {
+      "client": {
+        "client_id": "chatgpt-work-grace-source-continuation-20261028",
+        "client_name": "ChatGPT Work",
+        "client_type": "chatgpt"
+      },
+      "source": "authenticated_comms5",
+      "contract": "riverview-comms-contract:5.0"
+    },
+    "created_by": "steward:camrui",
+    "created_at": "2026-10-28T19:35:57.473135-04:00",
+    "lifecycle_status": "APPROVED",
+    "content_sha256": "d684c4b42147e9bec9ff276edc09bc0e0823ffeeb30308c4038db9b82faeae8a"
+  },
+  "work_order_links": [
+    {
+      "proposal_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+      "proposal_revision": 2,
+      "objective_id": "objective:proposal:ce65c8fc-fa3e-580c-a6fa-2df4d08f57c5:r2",
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142",
+      "approved_purpose": "Engineering work-order intake for: At repo repo://ppow1/Riverview- revision 9f56cb72f3bd2961babf2527a26bd843526e18ce, fix source-target authorization in src/riverview_core/resident_execution/pipeline.py:649-657: substring matching admits a ref prefix and a 40-character revision prefix of a Steward-authorized 64-character SHA. Require exact ref and full-revision tokens with safe prose boundaries. Modify only src/riverview_core/resident_execution/pipeline.py and tests/test_grace_execution.py; authorized_paths=[src/riverview_core/resident_execution/pipeline.py,tests/test_grace_execution.py]; test_targets=[tests/test_grace_execution.py]. Add offline tests rejecting both prefixes before proposal persistence and accepting the exact repo ref and full pin. Run the focused source-scope test. Do not change publication checks, service/worker policy, authority, routing, or claim publication.",
+      "linked_by": "steward:camrui",
+      "authority_reference": "objective.submit-grant:grace-demo:steward-objective-submit",
+      "linked_at": "2026-10-28T19:51:38.349237-04:00"
+    },
+    {
+      "proposal_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+      "proposal_revision": 2,
+      "objective_id": "objective:proposal:ce65c8fc-fa3e-580c-a6fa-2df4d08f57c5:r2",
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:ad328846aa18b32a",
+      "approved_purpose": "Engineering work-order intake for: At repo repo://ppow1/Riverview- revision 9f56cb72f3bd2961babf2527a26bd843526e18ce, fix source-target authorization in src/riverview_core/resident_execution/pipeline.py:649-657: substring matching admits a ref prefix and a 40-character revision prefix of a Steward-authorized 64-character SHA. Require exact ref and full-revision tokens with safe prose boundaries. Modify only src/riverview_core/resident_execution/pipeline.py and tests/test_grace_execution.py; authorized_paths=[src/riverview_core/resident_execution/pipeline.py,tests/test_grace_execution.py]; test_targets=[tests/test_grace_execution.py]. Add offline tests rejecting both prefixes before proposal persistence and accepting the exact repo ref and full pin. Run the focused source-scope test. Do not change publication checks, service/worker policy, authority, routing, or claim publication.",
+      "linked_by": "steward:camrui",
+      "authority_reference": "objective.submit-grant:grace-demo:steward-objective-submit",
+      "linked_at": "2026-10-28T19:53:17.056045-04:00"
+    },
+    {
+      "proposal_id": "proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3",
+      "proposal_revision": 2,
+      "objective_id": "objective:proposal:ce65c8fc-fa3e-580c-a6fa-2df4d08f57c5:r2",
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:41242b9fae56fad4",
+      "approved_purpose": "Engineering work-order intake for: At repo repo://ppow1/Riverview- revision 9f56cb72f3bd2961babf2527a26bd843526e18ce, fix source-target authorization in src/riverview_core/resident_execution/pipeline.py:649-657: substring matching admits a ref prefix and a 40-character revision prefix of a Steward-authorized 64-character SHA. Require exact ref and full-revision tokens with safe prose boundaries. Modify only src/riverview_core/resident_execution/pipeline.py and tests/test_grace_execution.py; authorized_paths=[src/riverview_core/resident_execution/pipeline.py,tests/test_grace_execution.py]; test_targets=[tests/test_grace_execution.py]. Add offline tests rejecting both prefixes before proposal persistence and accepting the exact repo ref and full pin. Run the focused source-scope test. Do not change publication checks, service/worker policy, authority, routing, or claim publication.",
+      "linked_by": "steward:camrui",
+      "authority_reference": "objective.submit-grant:grace-demo:steward-objective-submit",
+      "linked_at": "2026-10-28T19:54:28.406818-04:00"
+    }
+  ],
+  "implementation_status": "IMPLEMENTED"
+}

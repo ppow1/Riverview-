@@ -1,0 +1,76 @@
+{
+  "artifacts": [
+    {
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142",
+      "retained_copy": ".riverview-write-acceptance/grace-generated-source-acceptance-20261028/artifacts/step1-assignment-420bb870.patch",
+      "sha256": "4df4e5ae22fac1c3bc3728f8e74adef323d6dc3a01700d5305c54e94ff0ca80c",
+      "size_bytes": 3999,
+      "source_artifact": "/var/lib/riverview-grace-owner-session/source-worker/artifacts/codex-source-2cb1dcb593b7a65f211753e6b381e1e989b5fa2b505ab9691f27095433181e2a.patch",
+      "step": "step1"
+    },
+    {
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:ad328846aa18b32a",
+      "retained_copy": ".riverview-write-acceptance/grace-generated-source-acceptance-20261028/artifacts/step2-assignment-ad328846.patch",
+      "sha256": "35d8fe7544b2c2ff72a30f703082e8a3238835752178a245357a629985c4e253",
+      "size_bytes": 4370,
+      "source_artifact": "/var/lib/riverview-grace-owner-session/source-worker/artifacts/codex-source-ac63c173e9bda7725003acf53fb7aa5efa5613ff9fa2fb5a0ca7d25cb7300e23.patch",
+      "step": "step2"
+    },
+    {
+      "assignment_id": "assignment:grace:420bb870966b7aba349be4db40fcd5f39b245142:step:41242b9fae56fad4",
+      "retained_copy": ".riverview-write-acceptance/grace-generated-source-acceptance-20261028/artifacts/step3-assignment-41242b9f.patch",
+      "sha256": "1ad0b7920968c28fb70b4300da23acf8e18b8d8d1b765b0cea95f67990372fd7",
+      "size_bytes": 5347,
+      "source_artifact": "/var/lib/riverview-grace-owner-session/source-worker/artifacts/codex-source-7f72b5a5b524b0603026426af01e1358627713a528d9f90e7164960960fc35de.patch",
+      "step": "step3"
+    }
+  ],
+  "base": {
+    "checkout_clean": true,
+    "commit": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+    "repository_reference": "repo://ppow1/Riverview-",
+    "repository_root": "/opt/riverview-engineering-source-worker/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce"
+  },
+  "chain_semantics": {
+    "evidence": [
+      "All patch index lines name the same base blobs: pipeline 0cb42bc2 and test f915b6f7.",
+      "The step-3 diff includes the step-1/step-2 target-token logic and the expanded regression method.",
+      "At 9f56, pipeline.verified_source_change_predecessor returns the latest verified predecessor patch (one patch); codex_source_change.py applies supplied predecessor patch(es) before diffing against pinned revision (lines 261-277 and 340-342)."
+    ],
+    "finding": "The final step-3 patch is a complete base-relative cumulative patch; it is sufficient alone for the final code state. Do not concatenate the three patches.",
+    "limitation": "Exact persisted dependency edges and worker result receipts were not readable from artifact/workspace files; the objective completion and three verifier acceptances are Steward-reported. The complete final patch was independently checked against the base."
+  },
+  "final_patch": {
+    "changed_paths": [
+      "src/riverview_core/resident_execution/pipeline.py",
+      "tests/test_grace_execution.py"
+    ],
+    "git_apply_check_against_exact_base": "PASS (read-only; no source files changed)",
+    "retained_copy": ".riverview-write-acceptance/grace-generated-source-acceptance-20261028/artifacts/step3-assignment-41242b9f.patch",
+    "sha256": "1ad0b7920968c28fb70b4300da23acf8e18b8d8d1b765b0cea95f67990372fd7",
+    "size_bytes": 5347
+  },
+  "objective_id": "objective:proposal:ce65c8fc-fa3e-580c-a6fa-2df4d08f57c5:r2",
+  "objective_status": "COMPLETED revision 9, 2026-10-28 19:55:31 EDT (Steward-reported; protected objective/result records not reread)",
+  "read_limits": {
+    "database_or_protected_records": "Not read.",
+    "retained_workspaces_or_result_files": "No readable files found under the configured source-worker workspace tree.",
+    "source_artifacts": "Readable; copied byte-for-byte and hashed.",
+    "tests_or_candidate_code_execution": "Not run."
+  },
+  "review_findings": {
+    "changed_paths_only": [
+      "src/riverview_core/resident_execution/pipeline.py",
+      "tests/test_grace_execution.py"
+    ],
+    "functional_finding": "Target matching now uses token boundaries for both repository ref and revision. The regression demonstrates rejection of an authorized 64-hex SHA shortened to its first 40 characters; it does not claim arbitrary shortened SHA forms pass PlanStep.",
+    "scope": "Patch is not installed. Current deployed artifact-publication guard remains untouched.",
+    "test_execution_evidence": "No tests rerun. User reports all 3 steps independently verified; worker test stdout/result metadata was not present in readable artifact/workspace files.",
+    "tests_in_patch": [
+      "Reject 40-char prefix of a Steward-pinned 64-char SHA before persistence.",
+      "Reject repository-ref prefixes/suffix variants before persistence.",
+      "Accept exact full pin and exact repository ref in prose wrappers (backticks, punctuation, quotes/brackets), reaching the persistence boundary."
+    ]
+  },
+  "schema": "rv.grace.generated.source.acceptance.review.v1"
+}
