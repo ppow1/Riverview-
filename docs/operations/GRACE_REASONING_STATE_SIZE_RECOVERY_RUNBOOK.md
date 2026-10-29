@@ -1,4 +1,4 @@
-<!-- Controlled document revision 1.0.1 | 2026-10-29 EDT -->
+<!-- Controlled document revision 1.0.2 | 2026-10-29 EDT -->
 # Grace delivery planning: state sizing and retry correction
 
 ## Observed failure
@@ -18,7 +18,12 @@ The earlier eviction candidate was rejected and is not part of the final change.
 Root retrieved bytes and verified full gzip and raw-export SHA256, then reviewed the patch/helper. A transmitted base64 typo was corrected against published per-chunk digest and confirmed by the complete gzip and JSON digests. No source bytes were substituted.
 Helper review caught a duplicated staging-path segment; revision1.0.1 corrects it. Camrui verified both actual staged paths/hashes and bash syntax. Read-only dry-run reached the idle/systemd boundary and stopped with systemd_bus_unavailable; no protected write or restart. Original report helper1.0.0 and its hypothetical /home/admin1 entry are historical; use only the exact entry below.
 
-## One operator command
+## Post-install database boundary finding
+Read-only retained-session inspection at10:29:41.959EDT found proposal_state_persistence failing with OFFICE_STATE_STORE_UNAVAILABLE, ValueError/InvalidParameterValue SQLSTATE22023. The database function in institutional_authority/migrations/0003_resident_office_state_api.sql checks octet_length(p_state::text) on JSONB against65536. Compact Python JSON and PostgreSQL JSONB text are not equivalent representations. Thus matching the registry client serialization did not establish agreement with the database guard.
+The generic exception branch maps this database rejection to OFFICE_STATE_STORE_UNAVAILABLE, which is absent from the terminal fence set. That explains continuing reasoning attempts. The earlier66922bytes is historical spaced-Python sizing, not a current database byte count. Current failure diagnostics lack the required bucket counts. Do not classify every22023 as a size failure or fence transient database outages.
+Successor preparation is running in the retained Camrui thread, run grace-db-state-boundary-fix-20261029-01, executioncc98c712-fadf-4ed9-ba10-9e4980230872. Scope: distinguish only a proven size rejection, emit value-free metrics and persist the existing revision fence, with regression tests. No installation, schema/cap change or cache eviction has occurred. Exact results must be reviewed before an operator update command is issued.
+
+## Historical operator command (already applied)
 In the established desktop-ja3rpnq\wille PowerShell session:
 
 ~~~powershell
