@@ -10,7 +10,7 @@ from psycopg.conninfo import conninfo_to_dict
 from riverview_core.institutional_authority import AuthorityRegistry
 from riverview_core.postgres_ledger import PostgresLedger
 
-SCRIPT = Path(__file__).with_name("diagnose_grace_artifact_scope.py")
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "diagnose_grace_artifact_scope.py"
 spec = importlib.util.spec_from_file_location("scope_diagnostic", SCRIPT)
 module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
