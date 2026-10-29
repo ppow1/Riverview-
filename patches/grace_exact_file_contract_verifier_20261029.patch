@@ -1,0 +1,301 @@
+--- a/src/riverview_core/resident_execution/codex_workflow.py
++++ b/src/riverview_core/resident_execution/codex_workflow.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_execution/codex_workflow.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.2.25
++# Revision: 1.2.26
++# Changed: 2026-10-29 UTC | RV-GRACE-EXACT-FILE-CONTRACT-20261029 | Verify persisted file path, exact UTF-8 bytes, and strict UTF-8 encoding clauses against their owning artifact only.
+ # Changed: 2026-10-26 UTC | RV-GRACE-PYTEST-DIAGNOSTICS-20261026 | Carry source-worker pytest diagnostics into the durable execution failure record.
+ # Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-REVIEW-317 | Reject mixed factual/literal clauses and include persisted step criteria in publication gating.
+ # Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Fail closed on unsupported acceptance criteria and unverified repository publication requirements.
+@@ -395,7 +396,7 @@
+ class CodexArtifactVerifier:
+     """Independently verify every persisted assignment-defined artifact."""
+ 
+-    REVISION = "1.0.5"
++    REVISION = "1.0.6"
+     MAX_GRACE_REVIEW_BYTES = 12 * 1024
+     _NAME = re.compile(r"^codex-[0-9a-f]{64}(?:-r[0-9a-f]{12})?/[0-9a-f]{12}$")
+ 
+@@ -508,10 +509,38 @@
+             remote_digest == entry.get("sha256") and delivered_digest == entry.get("sha256"))
+ 
+     @staticmethod
+-    def _criterion_has_supported_check(criterion):
++    def _exact_file_clause(criterion):
++        """Parse only the three deterministic persisted file-contract forms."""
++        if not isinstance(criterion, str):
++            return None
++        match = re.fullmatch(r"File exists at (.+)", criterion)
++        if match:
++            path = match.group(1)
++            if path and not any(char.isspace() for char in path):
++                return "exists", path
++            return None
++        if criterion == "File encoding is UTF-8":
++            return "utf8", None
++        prefix = "File contains exactly "
++        suffix = " with no extra content, whitespace, or line breaks"
++        if criterion.startswith(prefix) and criterion.endswith(suffix):
++            literal = criterion[len(prefix):-len(suffix)]
++            if literal and "\n" not in literal and "\r" not in literal:
++                return "exact_bytes", literal
++        return None
++
++    @staticmethod
++    def _criterion_has_supported_check(criterion, artifact_path=None,
++                                       artifact_criteria=()):
+         """Accept only a complete literal-presence clause, never a factual conjunct."""
+         if not isinstance(criterion, str):
+             return False
++        file_clause = CodexArtifactVerifier._exact_file_clause(criterion)
++        if file_clause is not None:
++            kind, value = file_clause
++            if criterion not in artifact_criteria or not isinstance(artifact_path, str):
++                return False
++            return kind != "exists" or artifact_path == value
+         quoted = r"(?:`[^`\n]{1,512}`|'[^'\n]{1,512}'|\"[^\"\n]{1,512}\")"
+         subject = r"(?:the\s+[A-Za-z][A-Za-z0-9_-]*|create\s+`?[A-Za-z0-9_./-]+`?)"
+         marker = r"(?:exact\s+phrase|literal)"
+@@ -521,6 +550,37 @@
+         )
+         return bool(explicit_artifact_literals(criterion)) and any(
+             re.fullmatch(rf"(?is)\s*{form}[.!]?\s*", criterion) for form in forms)
++
++    @staticmethod
++    def _criterion_satisfied_for_artifact(criterion, raw, media_type,
++                                          artifact_path, artifact_criteria):
++        """Check deterministic file clauses on their persisted owner artifact."""
++        file_clause = CodexArtifactVerifier._exact_file_clause(criterion)
++        if file_clause is None:
++            return artifact_literals_satisfied(raw, (criterion,), media_type)
++        kind, value = file_clause
++        if criterion not in artifact_criteria or not isinstance(artifact_path, str):
++            return False
++        if kind == "exists":
++            return artifact_path == value
++        if kind == "exact_bytes":
++            if not isinstance(raw, bytes):
++                return False
++            try:
++                raw.decode("utf-8", errors="strict")
++                expected = value.encode("utf-8", errors="strict")
++            except UnicodeError:
++                return False
++            return raw == expected
++        if kind == "utf8":
++            if not isinstance(raw, bytes):
++                return False
++            try:
++                raw.decode("utf-8", errors="strict")
++            except UnicodeError:
++                return False
++            return True
++        return False
+ 
+     def verify(self, assignment, attempt, result):
+         result = result if isinstance(result, dict) else {}
+@@ -590,28 +650,57 @@
+                     raw = self._open_verified(entry, assignment["id"],
+                         result.get("rework_verification_id"))
+                     verified.append(entry)
+-                    verified_contents.append((raw, entry.get("media_type")))
++                    acceptance = entry.get("acceptance_criteria", ())
++                    verified_contents.append((raw, entry.get("media_type"),
++                                              requirement.get("path"), tuple(acceptance)))
+                     if entry.get("media_type") == "application/json":
+                         criteria["artifact_semantic_outcome_not_negative"] = (
+                             criteria["artifact_semantic_outcome_not_negative"] and
+                             not json_has_authoritative_negative_outcome(json.loads(raw.decode("utf-8"))))
+-                    acceptance = entry.get("acceptance_criteria", ())
+                     supported = bool(acceptance) and all(
+-                        self._criterion_has_supported_check(clause) for clause in acceptance)
+-                    satisfied = supported and artifact_literals_satisfied(
+-                        raw, acceptance, entry.get("media_type"))
++                        self._criterion_has_supported_check(
++                            clause, requirement.get("path"), acceptance)
++                        for clause in acceptance)
++                    satisfied = supported and all(
++                        self._criterion_satisfied_for_artifact(
++                            clause, raw, entry.get("media_type"),
++                            requirement.get("path"), acceptance)
++                        for clause in acceptance)
+                     all_artifact_criteria_supported = (
+                         all_artifact_criteria_supported and supported)
+                     all_artifact_criteria_satisfied = (
+                         all_artifact_criteria_satisfied and satisfied)
+                     evidence += ("workspace://" + entry["storage_name"],
+                                  "sha256:" + entry["sha256"])
++                def step_clause_owners(clause):
++                    file_clause = self._exact_file_clause(clause)
++                    if file_clause is None:
++                        return None
++                    kind, value = file_clause
++                    owners = [item for item in verified_contents
++                              if clause in item[3] and
++                              (kind != "exists" or item[2] == value)]
++                    return owners
++
++                def step_clause_supported(clause):
++                    owners = step_clause_owners(clause)
++                    if owners is None:
++                        return self._criterion_has_supported_check(clause)
++                    return bool(owners) and all(self._criterion_has_supported_check(
++                        clause, item[2], item[3]) for item in owners)
++
++                def step_clause_satisfied(clause):
++                    owners = step_clause_owners(clause)
++                    if owners is None:
++                        return any(artifact_literals_satisfied(item[0], (clause,), item[1])
++                                   for item in verified_contents)
++                    return bool(owners) and all(self._criterion_satisfied_for_artifact(
++                        clause, item[0], item[1], item[2], item[3]) for item in owners)
++
+                 step_supported = (isinstance(step_criteria, (list, tuple)) and bool(step_criteria) and
+-                    all(self._criterion_has_supported_check(clause) for clause in step_criteria))
++                    all(step_clause_supported(clause) for clause in step_criteria))
+                 step_satisfied = step_supported and all(
+-                    any(artifact_literals_satisfied(raw, (clause,), media_type)
+-                        for raw, media_type in verified_contents)
+-                    for clause in step_criteria)
++                    step_clause_satisfied(clause) for clause in step_criteria)
+                 criteria["all_required_step_criteria_supported"] = bool(step_supported)
+                 criteria["all_required_step_criteria_satisfied"] = bool(step_satisfied)
+                 criteria["all_artifact_acceptance_criteria_supported"] = (
+--- a/tests/test_codex_cli_adapter.py
++++ b/tests/test_codex_cli_adapter.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: tests/test_codex_cli_adapter.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.2.17
++# Revision: 1.2.18
++# Changed: 2026-10-29 UTC | RV-GRACE-EXACT-FILE-CONTRACT-20261029 | Verify exact persisted file path, bytes, encoding and artifact ownership fail closed.
+ # Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-REVIEW-317 | Reject mixed factual/literal criteria and detect publication obligations in persisted step criteria.
+ # Changed: 2026-10-25 UTC | RV-ISSUE310-VERIFIER-PUBLICATION-20261025 | Cover fail-closed unsupported criteria and repository publication evidence.
+ # Changed: 2026-10-25 UTC | RV-GRACE-ASSIGNMENT-EVIDENCE-HANDOFF-20261025 | Cover requirement-selected S3/S4/S5 evidence and pre-attempt evidence gating.
+@@ -713,6 +714,101 @@
+         self.assertFalse(unverified.criteria[
+             "required_repository_publication_independently_verified"])
+ 
++    def test_exact_utf8_file_contract_is_bound_to_one_persisted_artifact_path(self):
++        from hashlib import sha256
++
++        objective_id = "objective:exact-file-contract"
++        clauses = [
++            "File exists at reports/grace_delivery_20261029.txt",
++            "File contains exactly GRACE-DELIVERY-20261029 with no extra content, whitespace, or line breaks",
++            "File encoding is UTF-8",
++        ]
++        invocation = 0
++
++        def verify(requirement_specs, bodies, step_criteria):
++            nonlocal invocation
++            invocation += 1
++            assignment_id = f"assignment:exact-file-contract:{invocation}"
++            requirements = [{"name": name, "path": path, "media_type": "text/plain",
++                "acceptance_criteria": list(criteria), "max_bytes": 32768}
++                for name, path, criteria in requirement_specs]
++            class Pipeline:
++                def proposal_step_for_assignment(_self, requested_objective, requested_assignment):
++                    self.assertEqual(requested_objective, objective_id)
++                    self.assertEqual(requested_assignment, assignment_id)
++                    return {"acceptance_criteria": list(step_criteria),
++                            "artifact_requirements": requirements}
++
++            assignment_hash = sha256(assignment_id.encode()).hexdigest()
++            directory = self.artifacts / f"codex-{assignment_hash}"
++            directory.mkdir(mode=0o700)
++            entries = []
++            first_path = None
++            for requirement, raw in zip(requirements, bodies):
++                name_hash = sha256(requirement["name"].encode()).hexdigest()[:12]
++                artifact_path = directory / name_hash
++                artifact_path.write_bytes(raw)
++                artifact_path.chmod(0o600)
++                entries.append({"name": requirement["name"], "path": requirement["path"],
++                    "media_type": requirement["media_type"],
++                    "acceptance_criteria": requirement["acceptance_criteria"],
++                    "storage_name": f"codex-{assignment_hash}/{name_hash}",
++                    "sha256": sha256(raw).hexdigest(), "bytes": len(raw)})
++                if first_path is None:
++                    first_path = artifact_path
++            first = entries[0]
++            result = {"status": "SUCCEEDED", "artifact_schema": "rv.codex-cli.artifacts.v3",
++                "assignment_id": assignment_id, "objective_id": objective_id,
++                "artifact_name": first["storage_name"], "artifact_path": str(first_path),
++                "artifact_sha256": first["sha256"], "artifact_bytes": first["bytes"],
++                "source_artifact_name": first["path"],
++                "changed_files": sorted(item["path"] for item in requirements),
++                "source_revision": "a" * 40, "source_sha256": "b" * 64,
++                "repository_revision": "c" * 40, "artifact_contract": requirements,
++                "artifacts": entries}
++            verifier = CodexArtifactVerifier(self.artifacts, Pipeline())
++            return verifier.verify({"id": assignment_id, "objective_ref": objective_id},
++                {"status": "succeeded", "capability": CAPABILITY,
++                 "attempt_id": f"attempt:{invocation}"}, result)
++
++        target = "reports/grace_delivery_20261029.txt"
++        accepted = verify([("delivery", target, clauses)],
++            [b"GRACE-DELIVERY-20261029"], clauses)
++        self.assertEqual(accepted.status.value, "ACCEPTED", dict(accepted.criteria))
++        self.assertTrue(accepted.criteria["all_required_step_criteria_supported"])
++        self.assertTrue(accepted.criteria["all_required_step_criteria_satisfied"])
++        self.assertTrue(accepted.criteria["all_artifact_acceptance_criteria_supported"])
++        self.assertTrue(accepted.criteria["explicit_artifact_acceptance_clauses_satisfied"])
++        self.assertEqual(CodexArtifactVerifier.REVISION, "1.0.6")
++
++        for body in (b"GRACE-DELIVERY-20261029\n", b" GRACE-DELIVERY-20261029",
++                     b"prefix GRACE-DELIVERY-20261029 suffix", b"\xff"):
++            rejected = verify([("delivery", target, clauses)], [body], clauses)
++            self.assertEqual(rejected.status.value, "REJECTED", body)
++            self.assertFalse(rejected.criteria["explicit_artifact_acceptance_clauses_satisfied"])
++
++        wrong_path_clause = "File exists at reports/not-the-delivery.txt"
++        mismatched_path = verify([("delivery", target,
++            [wrong_path_clause, *clauses[1:]])], [b"GRACE-DELIVERY-20261029"],
++            [wrong_path_clause, *clauses[1:]])
++        self.assertEqual(mismatched_path.status.value, "REJECTED")
++        self.assertFalse(mismatched_path.criteria["all_artifact_acceptance_criteria_supported"])
++        self.assertFalse(mismatched_path.criteria["all_required_step_criteria_supported"])
++
++        unknown = "The artifact is unquestionably excellent and complete."
++        unknown_clause = verify([("delivery", target, [unknown])],
++            [b"GRACE-DELIVERY-20261029"], [unknown])
++        self.assertEqual(unknown_clause.status.value, "REJECTED")
++        self.assertFalse(unknown_clause.criteria["all_acceptance_criteria_supported"])
++
++        unrelated = "The note contains exact phrase 'GRACE-DELIVERY-20261029'."
++        misbound = verify([("delivery", target, clauses),
++                           ("other", "reports/unrelated.txt", [unrelated])],
++            [b"wrong", b"GRACE-DELIVERY-20261029"], clauses)
++        self.assertEqual(misbound.status.value, "REJECTED")
++        self.assertFalse(misbound.criteria["all_required_step_criteria_satisfied"])
++
++
+     def test_recovery_finds_assignment_bound_extensionless_multi_artifact_set(self):
+         assignment_id = "assignment:recovery-dynamic-artifacts"
+         key = __import__("hashlib").sha256(assignment_id.encode()).hexdigest()
+--- a/tests/test_grace_execution.py
++++ b/tests/test_grace_execution.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED TEST
+ # File: tests/test_grace_execution.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.92
++# Revision: 1.0.93
++# Changed: 2026-10-29 UTC | RV-GRACE-EXACT-FILE-CONTRACT-20261029 | Expect independently versioned verifier record 1.0.6 for deterministic UTF-8 artifact contract checks.
+ # Changed: 2026-10-28 UTC | GRACE-SOURCE-SCOPE-ARTIFACT-ONLY-20261028 | Reject artifact publication obligations before lookup while preserving pinned source-change provenance criteria.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Assert interrupted one-shot recovery is terminalized and never replayed.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Prove local recovery cannot spend externally and interrupted one-shot reasoning is never replayed.
+@@ -1804,7 +1805,7 @@
+             self.assertEqual(self.ledger.get(assignment_id)["state"], "completed")
+             rows = self.admin.execute(f'SELECT verifier_revision,decision FROM "{self.schema}".verification_records '
+                 "WHERE attempt_id=%s ORDER BY verifier_revision", (recovered[0]["attempt_id"],)).fetchall()
+-            self.assertEqual(rows, [ ("1.0.0", "REJECTED"), ("1.0.5", "ACCEPTED")])
++            self.assertEqual(rows, [ ("1.0.0", "REJECTED"), ("1.0.6", "ACCEPTED")])
+             self.assertEqual(self.admin.execute(f'SELECT count(*) FROM "{self.schema}".worker_attempts '
+                 "WHERE assignment_id=%s", (assignment_id,)).fetchone()[0], 1)
+         finally:
