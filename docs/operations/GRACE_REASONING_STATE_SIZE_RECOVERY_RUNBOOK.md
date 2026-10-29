@@ -1,4 +1,4 @@
-<!-- Controlled document revision 1.0.2 | 2026-10-29 EDT -->
+<!-- Controlled document revision 1.0.3 | 2026-10-29 EDT -->
 # Grace delivery planning: state sizing and retry correction
 
 ## Observed failure
@@ -40,3 +40,17 @@ The existing release procedure clones publication-fence-r1, overlays only the2fi
 ## Continuation
 Status: INSTALLED; delivery acceptance remains incomplete. Operator apply returned UPDATED/exit0. Subsequent read-only operator SSH confirmed the current pointer and both exact candidate hashes above. Do not rerun the installer. Existing Codex thread01a17fdf-6d58-7050-92cc-1762ac986518.
 After installation, Comms objective and command operations returned BACKEND_UNAVAILABLE/dashboard_operation_http_status while CME status and grant reads worked. PostgreSQL readiness, disk and inode checks were healthy; Dashboard deferred-resume logged OperationalError. Restarting only riverview-status-dashboard.service restored objective reads and independent Camrui command execution (execution4830ff50-dd6b-423d-8755-3ed15d0cfa97; auditf7cb47a8-193e-4501-bee7-f8cbbd09bd6f), without changing grants. This establishes recovery, not the exact original connection fault. The SAME objective remains GROUNDED revision2 with no assignment and repeated reasoning attempts through10:29EDT. The exact retained Codex session is inspecting current owner diagnostics under execution242f6589-ceac-4bb7-abbe-85b80405ba28. Query the SAME delivery objective after identifying that failure. If it advances, require independent artifact acceptance, canonical completion, conversation.result_published and an automatic message visible in the original chat. If it remains blocked, inspect new fixed-field size metrics; no prompt/state bodies are logged. Do not increase limits or evict plans without the actual breakdown and an appropriate reviewed change. Preserve original objective and failure history. Delivery success remains unverified.
+
+## Reviewed successor ready for operator application
+Status: PREPARED AND TESTED, NOT APPLIED. Supersedes the preparation-in-progress note above. Use the already-staged entry in the existing desktop-ja3rpnq\\wille PowerShell session:
+
+~~~powershell
+& "C:\Users\Public\Documents\Riverview\GraceDbStateBoundary\Update-RiverviewGraceDbStateBoundary.ps1"
+~~~
+
+Launcher SHA25658d735c127343159ecd24924ee2c3f6410fdeec2ca89412911a9556a648daabe; native parser0errors; staging executionc3e3984b-5fef-45f8-adb1-11b2020ddf14, audit045b6ebe-5925-4a4a-8620-74ff14dd656f.
+Camrui helper: /home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-db-state-boundary-20261029/owner-release-update-db-state-boundary.sh; SHA25649364dc585ff8baf4af24337f95a68e96b370c26fb7a1ec47658bb6ce6d5af30.
+The entry verifies helper hash, dry-runs and applies only on success using existing Wille SSH/sudo. It clones exact canonical-state-r1 and overlays only reasoning1.0.34 (1e4999abeeca03d4015d3516f41b911107d13ccf7275f0113586e5a55aff359c) and service1.0.65 (dd4091bbe4478d398c6717bf4f4fdd2ad4c1e97bf0cdbf07734f83c1658776c0). Candidate suffix grace-db-state-boundary-20261029-r1. Existing idle/startup/rollback checks retained; --rollback restores canonical-state-r1.
+Classifier requires the exact underlying InvalidParameterValue, SQLSTATE22023, checked-in fixed guard message, and valid remaining input shapes. Other22023 and transient errors remain unavailable. It emits value-free component sizes and returns OFFICE_STATE_SIZE_LIMIT for the separate objective/revision fence. No cap/schema/state/cache change. This makes failure handling correct; it does not solve capacity or complete delivery.
+95distinct relevant-module tests:19passed,76DB-backed skipped,0failed. Focused8passed are a subset, not8additional. Test DSN unavailable; live database function body/version and exact JSONB byte count remain unverified. Current signature mismatch fails closed as unavailable. Patch c66537594cccc6b1898ded1a4865e579d6d22b98d0e1246057e58cc0ef004474, helper syntax and patch dry-run passed. Full transferred gzip/JSON hashes verified after re-fetching corrupted chunk12; root reviewed runtime hunks, tests and helper diff.
+After UPDATED: verify exact pointer/hashes through Comms, inspect SAME objective for revision-bound size failure and no continued attempts, retrieve safe size metrics, then prepare the actual capacity remedy from evidence. Require artifact acceptance and automatic conversation delivery before reporting the mission complete. Preserve all lineage. Source patch/helper/launcher/report/root-review are committed with this PR.
