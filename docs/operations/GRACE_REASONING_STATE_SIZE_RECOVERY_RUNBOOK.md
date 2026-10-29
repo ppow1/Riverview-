@@ -19,10 +19,10 @@ Root retrieved bytes and verified full gzip and raw-export SHA256, then reviewed
 Helper review caught a duplicated staging-path segment; revision1.0.1 corrects it. Camrui verified both actual staged paths/hashes and bash syntax. Read-only dry-run reached the idle/systemd boundary and stopped with systemd_bus_unavailable; no protected write or restart. Original report helper1.0.0 and its hypothetical /home/admin1 entry are historical; use only the exact entry below.
 
 ## One operator command
-In the established desktop-ja3rpnq\\wille PowerShell session:
+In the established desktop-ja3rpnq\wille PowerShell session:
 
 ~~~powershell
-& "C:\\Users\\Public\\Documents\\Riverview\\GraceReasoningState\\Update-RiverviewGraceReasoningState.ps1"
+& "C:\Users\Public\Documents\Riverview\GraceReasoningState\Update-RiverviewGraceReasoningState.ps1"
 ~~~
 
 Already staged; native parser0errors. Launcher SHA2564786636160b05905d2ebcbfe10d5735a1ce372f1b4eb25ce1942c2ec9ca6227a.

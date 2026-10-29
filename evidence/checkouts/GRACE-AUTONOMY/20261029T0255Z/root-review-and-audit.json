@@ -43,36 +43,36 @@
   "launcher_result": {
     "status": "completed",
     "executed": true,
-    "execution_id": "9bd88956-8ec6-4bdb-ab53-74c6eaad6548",
+    "execution_id": "fc6e3b3d-a37c-425b-95b0-034f4e1b9002",
     "operation": "command_task_standard",
     "target_host": "desktop-ja3rpnq",
     "privilege_level": "standard",
-    "stdout": "PARSER_ERRORS=0\r\n\r\n\r\nHash : 291AADF2E48AEF1EE881CF26CA448399C785BCF3ADA132C0A9DFDBD205987C3A\r\nPath : C:\\Users\\Public\\Documents\\Riverview\\GraceReasoningState\\Update-RiverviewGraceReasoningState.ps1\r\n\r\n\r\n\r\n",
+    "stdout": "PARSER_ERRORS=0\r\n\r\n\r\nHash : 4786636160B05905D2EBCBFE10D5735A1CE372F1B4EB25CE1942C2EC9CA6227A\r\nPath : C:\\Users\\Public\\Documents\\Riverview\\GraceReasoningState\\Update-RiverviewGraceReasoningState.ps1\r\n\r\n\r\n\r\n",
     "stderr": "",
     "exit_code": 0,
-    "started_at": "2026-10-29T02:49:42.518604+00:00",
-    "completed_at": "2026-10-29T02:49:43.241511+00:00",
-    "deadline_at": "2026-10-29T03:48:56.114540+00:00",
+    "started_at": "2026-10-29T02:55:15.730906+00:00",
+    "completed_at": "2026-10-29T02:55:16.173441+00:00",
+    "deadline_at": "2026-10-29T03:55:15.709903+00:00",
     "authorization_evidence": {
       "principal_id": "steward:camrui",
       "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
       "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
       "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
       "scope_ref": "host:desktop-ja3rpnq",
-      "reservation_id": "27cebed6-0fc2-47ee-8204-fb71eb1bd144",
+      "reservation_id": "1d435848-64ae-4e17-85ad-987a4cbc3e72",
       "reservation_status": "consumed"
     },
     "audit_evidence": {
-      "execution_id": "9bd88956-8ec6-4bdb-ab53-74c6eaad6548",
-      "audit_event_id": "7dd3d3e6-e130-4a97-a87e-0a84c59a2eb7",
-      "idempotency_key": "cmd-2ead5c4c4c34f1f9d84a4db52d50896b4f5eb62cd20b4c418f620ffbe748de3c"
+      "execution_id": "fc6e3b3d-a37c-425b-95b0-034f4e1b9002",
+      "audit_event_id": "ba2785c5-61b0-47c0-8baa-c64534ed32f8",
+      "idempotency_key": "cmd-8343d660c45505fd6a825ce8bcb3899b5b01e9cf2537bc116629f5de0c856c78"
     },
     "host_id": "desktop-ja3rpnq",
-    "task_id": "9bd88956-8ec6-4bdb-ab53-74c6eaad6548",
-    "command_sha256": "d7bc19bfd3ff656d95e53448ae6b6bf6541eacf76c8d733eb6b1fbc9a20b18e6",
+    "task_id": "fc6e3b3d-a37c-425b-95b0-034f4e1b9002",
+    "command_sha256": "9e71a0e6bf70b9852a52d59cb705454272a9c20ab07b94d8e4eb2627969a1e8c",
     "implementation_status": "IMPLEMENTED"
   },
-  "note": "launcher_result is predecessor staging; final stage executionfc6e3b3d-a37c-425b-95b0-034f4e1b9002 returned parser0errors/hash4786636160b05905d2ebcbfe10d5735a1ce372f1b4eb25ce1942c2ec9ca6227a. No apply performed.",
+  "note": "Final launcher staging receipt verified; no apply performed.",
   "failure_inspection_receipt": {
     "status": "completed",
     "executed": true,
