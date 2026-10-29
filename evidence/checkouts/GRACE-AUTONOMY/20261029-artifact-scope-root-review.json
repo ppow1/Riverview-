@@ -1,0 +1,46 @@
+{
+  "status": "REVIEWED_STAGED_NOT_RUN",
+  "transfer": {
+    "gzip_sha256": "a11cf50f73cba8ed04cb1bdace270d041e70c6afb1772d24219025707e1eab75",
+    "raw_json_sha256": "1d48aa66a9fbbb621d0ff747d12ab57c827685b4e21cf622e4b8a4714b541454"
+  },
+  "files": {
+    ".riverview-write-acceptance/grace-artifact-scope-diagnostic-20261029/diagnose_grace_artifact_scope.py": "ee8625ac13248cbc4a273dc8abdfbc222e6e5b19d8de6ea791668a9d420c8f0c",
+    ".riverview-write-acceptance/grace-artifact-scope-diagnostic-20261029/run_grace_artifact_scope_diagnostic.sh": "b62529f06acf13c245f5eacc3ab0bd6665a3763a268d81987ddc2597dd4b9740"
+  },
+  "review": "Root reviewed exact Python+shell. Hardcoded objective, existing institutional office-read API, read-only pinned DB target, bounded path-only output, sanitized errors, existing identity/credential context in transientoneshot; no persistent unit mutation. Protected-context execution pending operator.",
+  "checks": "Python static parse passed; Windows native parser0errors and launcherhash match; no PG/API runtime tests or diagnostic execution yet.",
+  "staging": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "ca61361e-c17e-4aab-a9ab-79f0a72100db",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "PARSER_ERRORS=0\r\nae18f9e02ae200b3ae71bd39aaceb5bced729892520ade0be50b6fd8d3f512e0\r\nC:\\Users\\Public\\Documents\\Riverview\\GraceArtifactScope\\Get-RiverviewGraceArtifactScope.ps1\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T17:59:32.496247+00:00",
+    "completed_at": "2026-10-29T17:59:34.738233+00:00",
+    "deadline_at": "2026-10-29T18:59:32.423733+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "1cb1b432-36ae-46f9-a8f4-e57865e60296",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "ca61361e-c17e-4aab-a9ab-79f0a72100db",
+      "audit_event_id": "87437962-45f3-4481-8d92-7cfcb3072297",
+      "idempotency_key": "cmd-d61a3f5ce4433ff1571e9b16d1b3c326017a364083cc77f71277010c5d99d843"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "ca61361e-c17e-4aab-a9ab-79f0a72100db",
+    "command_sha256": "9fea8f397a104ea6b3486f51b68ef790c850539c2a8e05b2941f8f70c9cf3e95",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "next": "Operator runs reviewed Wille entry; root analyzes actual path flags before any fix or authorization change."
+}
