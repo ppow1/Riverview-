@@ -1,0 +1,90 @@
+{
+  "status": "REVIEWED_PREPARED_NOT_APPLIED",
+  "patch_series": {
+    "original": "5ddd52e615961afa6d1a076c801c4889298d9852257aad70ada9df19fc34794e",
+    "correction": "076ed37eec747cd25d3f9c7d855fa04ef2f2d66af230c7b99659dda9f036d09a"
+  },
+  "transfer_verified": {
+    "r1gzip": "022d57ff51c5a6abd8a9f4c7dd010acbadfc500e63da5b5933146f49c807cadf",
+    "r1json": "60447145f4ccae546eeec8248692de992d899b5d8b01b18ffdf727cf5f7694b8",
+    "r2gzip": "57af95df3d5f9640ee86428bd6d787eacea51ab52a9eb80f04088b9a8c7bedbd",
+    "r2json": "8b0ae72a2f1e51899ecad003b40716107177f1c1dee28176fede38b62c5e2b7c"
+  },
+  "helper_sha256": "5fb725a600b3966356185f482a92d9901719384527cdd3ebaaf5ae725a715ba7",
+  "provider_sha256": "1811b1fc57c050e12817f703c9393a8b7b2b8484fdef12fa183bd33a52c4b440",
+  "review": "Root reviewed original+correction source/test hunks, matched final helperhash from reviewed predecessor/diffs, bashsyntax passed. Provider only; admission/cache preserved. Recognition limits in runbook: slash/dot and alphanumeric initial components; report overstates quotedbareextensionless support. Raw patchsha historical01, focusedcommand historical3-test subset; final results6focused and55/60withsame5baselinefailures.",
+  "tests": {
+    "focused_pass": 6,
+    "candidate_pass": 55,
+    "candidate_fail": 5,
+    "baseline_pass": 50,
+    "baseline_fail": 5,
+    "new_failures": 0,
+    "live_inference": "NOT_RUN"
+  },
+  "staging": {
+    "status": "running",
+    "executed": true,
+    "execution_id": "225c395a-ac8b-4c46-b640-064c3d273915",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "",
+    "stderr": "",
+    "exit_code": null,
+    "started_at": "2026-10-29T20:05:52.202454+00:00",
+    "completed_at": null,
+    "deadline_at": "2026-10-29T21:05:52.188448+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "a388b5c3-c9b4-4d1f-a003-35aa853991ef",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "225c395a-ac8b-4c46-b640-064c3d273915",
+      "audit_event_id": "92484f69-e60d-4d39-ab0e-bffa7d1762e6",
+      "idempotency_key": "cmd-c91c3a0c89e0f8edd06801fdd6058fc98dfbe3656a465d7fc71a65a18424efb4"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "225c395a-ac8b-4c46-b640-064c3d273915",
+    "command_sha256": "37feeb92c15225e9e627a4bfcfe6868035b4588c49f06f8bd10fa1c46be44884",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "independent_entry_verification": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "3bccad73-57f3-4d3f-9e6b-401dcf783558",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "09b43ad1e43525c5659f43756428a5bc87b67e18f5e285f151af4713536fa059\r\nPARSER_ERRORS=0\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T20:08:53.680762+00:00",
+    "completed_at": "2026-10-29T20:08:55.200635+00:00",
+    "deadline_at": "2026-10-29T21:08:53.660756+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "45cd30cb-f108-4b49-aa9a-4d4d9844a7fc",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "3bccad73-57f3-4d3f-9e6b-401dcf783558",
+      "audit_event_id": "b2cf47d4-968e-4166-854f-3acdf09b5ad7",
+      "idempotency_key": "cmd-29bec9d7c1639624bac2ddb3b75a8b9a1c1d9159eb24e4454034d27b4ebf5cbc"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "3bccad73-57f3-4d3f-9e6b-401dcf783558",
+    "command_sha256": "fc3496a4cce652e09a39070b3d1a3f723fc9eac82d69df09a830a0f99cb6aadc",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "next": "Operator applies staged entry; verify exact runtime; fresh NEW conversation message/workorder acceptance, no fence bypass."
+}
