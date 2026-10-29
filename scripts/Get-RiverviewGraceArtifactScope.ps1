@@ -1,8 +1,8 @@
-# Riverview controlled read-only operator entry; revision 1.0.1; 2026-10-29
+# Riverview controlled read-only operator entry; revision 1.0.2; 2026-10-29
 Clear-Host
 $graceScopeReport = [System.Collections.Generic.List[string]]::new()
 $graceScopeEntry = '/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-artifact-scope-diagnostic-20261029/run_grace_artifact_scope_diagnostic.sh'
-$graceScopeHash = '807683b1ffe1cd698108308cef62eb79ee4fdbcc08296b34157d3deeacee3c4c'
+$graceScopeHash = '95a34a8f82eecc5ce1ec2b2651d178966e81c0dad4445cc3e9e3a4937f4282a3'
 $graceScopeSsh = @('-n','-T','-o','BatchMode=yes','-o','ConnectTimeout=15','camrui')
 try {
     & {
