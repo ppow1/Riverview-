@@ -1,5 +1,5 @@
 # Grace exact file contract verifier
-Revision: 1.0.0. 2026-10-29 EDT. Continuation of PR #369.
+Revision: 1.0.1. 2026-10-29 EDT. Continuation of PR #369.
 
 ## Problem and resulting behavior
 Objective objective:grace-conversation:64e77b71-7ddf-5f12-8029-64464f2c7fc9 formed and dispatched s1 successfully. Its worker produced the exact23-byte GRACE-DELIVERY-20261029 artifact. Verifier1.0.5 rejected its three persisted file-existence, exact-content, and UTF-8 clauses as unsupported. Protected diagnostic completed successfully; do not repeat it.
@@ -7,7 +7,7 @@ Objective objective:grace-conversation:64e77b71-7ddf-5f12-8029-64464f2c7fc9 form
 The correction adds only these deterministic clause forms. Existence requires the persisted artifact path. Exact content requires byte equality to the literal UTF-8 encoding, without trimming or substring matching. UTF-8 requires strict decoding. Step checks bind to artifact requirements declaring the same clause; unknown prose remains unsupported. Existing provenance, integrity, publication and generic literal checks are retained. Verifier revision becomes1.0.6.
 
 ## Deployment state
-PREPARED AND REVIEWED, NOT APPLIED. Current expected owner release is9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-artifact-formation-20261029-r2.
+INSTALLED. Operator dry-run0/apply0 UPDATED; independently verified through Comms5. Predecessor was9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-artifact-formation-20261029-r2.
 Candidate is9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-exact-file-contract-20261029-r1.
 
 Only src/riverview_core/resident_execution/codex_workflow.py is overlaid:
@@ -50,3 +50,10 @@ Success still requires independent canonical ACCEPTED, objective completion, and
 
 ## Source and audit
 Implementation execution197b734d-9841-442b-8183-51657d512250; source review bundle gzipSHAa089d16659f12d7ce7524f74c82e0fa7cbe60d3e136213ef1e0b391222afb07b and rawJSONSHAe5d1e2cb366b819e44f657bdf66d718447e9aa878ba1ef7586cf059f0f63a1e3 independently validated. Exact patch/helper hashes verified by ROOT, helper reconstructed from reviewed formation predecessor. GitHub patch and helper are recovery/review artifacts; this PR remains unmerged and is not evidence of deployment.
+
+## Installation verification and next intake
+Operator reported helperbbf553... dry-run0/apply0 UPDATED. Independent Comms inspection execution5a99eacd-86ba-4813-9f27-b3c6c246c755, exact-session run grace-exact-verifier-installed-inspect-20261029-01, status receipt f64f6956-7e18-448e-9111-a2fb7ccbb4d6 confirmed current resolves to exact-file-contract-20261029-r1, codex_workflow.py SHA6c5c87e5031727de4d72455f9f8ac6d315bf73278510bb029c2429fdfbbb5571 and CodexArtifactVerifier.REVISION1.0.6. Other pinned provider/reasoner/service hashes match. Do not rerun installer.
+
+Canonical existing objective64e77b71... remains WORK_ORDER_CREATED; assignment rework_required, latest verification1.0.5 REJECTED. No new dispatch or completion. Revalidation code service.py requires engineering.rejection_reviewed with OBJECTIVE_SATISFIED matching exact attempt/rejection before it can reverify an artifact; version change alone does not override the review gate. Comms exposes no corresponding rejection-review command, and reasoning exchange list returned no routed requests.
+
+Next fastest acceptance is fresh intake through existing authenticated Grace conversation: NEW user message, Send, then that message's Create Work Order action. Use the same requested report/token. Do not click old message again (idempotent old objective), forge review events, bypass planning with direct Engineering submission, or change grants. Current Comms interface cannot submit conversation messages/work orders, so this intake step uses the user's existing browser. Once submitted, discover objective via recent_steward_submissions and monitor canonical lifecycle autonomously. Completion still unverified.
