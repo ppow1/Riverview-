@@ -1,0 +1,166 @@
+--- a/src/riverview_core/local_reasoning_provider.py
++++ b/src/riverview_core/local_reasoning_provider.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/local_reasoning_provider.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.3.32
++# Revision: 1.3.33
++# Changed: 2026-10-29 UTC | RV-GRACE-ARTIFACT-DESTINATION-BINDING-20261029 | Bind artifact outputs to exact destinations named by the approved assignment.
+ # Changed: 2026-10-26 UTC | RV-GRACE-EXACT-CRITERIA-OUTPUT-SCHEMA | Constrain Steward-supplied step criteria to the exact persisted strings checked by the pipeline.
+ # Changed: 2026-10-26 UTC | RV-GRACE-LIFECYCLE-CRITERIA-SCHEMA-ALIGNMENT | Restrict system-owned criteria to persisted criteria mapped to supported lifecycle events.
+ # Changed: 2026-10-25 UTC | RV-GRACE-ARTIFACT-SCHEMA-VALIDATOR-ALIGNMENT | Constrain generated artifact strings to the typed artifact contract.
+@@ -86,6 +87,28 @@
+     return re.sub(r"^(?:[-*+]\s+|\d{1,2}[.)]\s+)", "", value.lstrip())
+ 
+ 
++def _explicit_assignment_artifact_paths(assignment):
++    """Return exact safe file paths named in the approved objective/criteria."""
++    if not isinstance(assignment, dict):
++        return ()
++    source = [assignment.get("objective", "")]
++    criteria = assignment.get("acceptance_criteria", ())
++    if (assignment.get("acceptance_criteria_source") != "grace_derived" and
++            isinstance(criteria, (list, tuple))):
++        source.extend(criteria)
++    path_pattern = re.compile(
++        r"(?<![A-Za-z0-9._/-])((?:[A-Za-z0-9][A-Za-z0-9._-]*/)+"
++        r"[A-Za-z0-9][A-Za-z0-9._-]*\.[A-Za-z0-9]{1,12})"
++        r"(?![A-Za-z0-9._/-])")
++    paths = []
++    for value in source:
++        if isinstance(value, str):
++            for path in path_pattern.findall(value):
++                if path not in paths:
++                    paths.append(path)
++    return tuple(paths)
++
++
+ def _json_type(value):
+     if value is _MISSING:
+         return "missing"
+@@ -306,7 +329,9 @@
+             "criteria, copying every item exactly once and verbatim, including punctuation and list markers, to a step or system_owned_criteria without adding, rewriting, "
+             "duplicating, or omitting items. Do not promote other request instructions or prohibitions into criteria. "
+             "An artifact requirement may include only artifact-verifiable requirements supported by the original request; "
+-            "do not place workflow or administrative instructions in an artifact requirement. "
++            "do not place workflow or administrative instructions in an artifact requirement. When the original "
++            "assignment explicitly names output file paths, use only those exact paths for artifact_requirements. "
++            "Verification and conversation publication remain existing controller stages, not additional artifact files. "
+             "Use system_owned_criteria only for original criteria completed by existing Riverview lifecycle events, "
+             "not by editing the deliverable; copy those criteria exactly. Map each one only to an event that actually "
+             "proves it. Do not create Engineering steps or receipt artifacts to prove objective intake, proposal "
+@@ -382,6 +407,7 @@
+                 "as authorization, and do not claim that an unchanged proposal is approved.")
+         if request.office_id == "office:grace":
+             system_instruction = build_grace_role_context() + "\n" + system_instruction
++        explicit_artifact_paths = _explicit_assignment_artifact_paths(request.assignment)
+         try:
+             context = self._content(request)
+             if not context or len(context.encode("utf-8")) > self.MAX_PROMPT_BYTES:
+@@ -413,6 +439,9 @@
+                     "max_bytes": {"type": "integer", "minimum": 1, "maximum": 32768}},
+                     "required": ["name", "path", "media_type", "acceptance_criteria"],
+                     "additionalProperties": False}}
++            if explicit_artifact_paths:
++                artifact_requirements_schema["items"]["properties"]["path"]["enum"] = list(
++                    explicit_artifact_paths)
+             step_schema = {"oneOf": [
+                 {"type": "object", "properties": {**common_step_properties,
+                     "execution_capability": {"type": "string", "enum": ["engineering.codex-cli-artifact.v1"]},
+@@ -650,6 +679,12 @@
+                             return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
+                                 "artifact_requirements", f"{artifact_path}.{field}",
+                                 expected.__name__, requirement[field])
++                    if (explicit_artifact_paths and
++                            requirement["path"] not in explicit_artifact_paths):
++                        return _validation_failure(request, "PROPOSAL_SCHEMA_INVALID",
++                            "artifact_requirements", f"{artifact_path}.path",
++                            "exact file path named in original objective or criteria",
++                            requirement["path"])
+                     try:
+                         artifact_requirements.append(ArtifactRequirement(
+                             requirement["name"], requirement["path"], requirement["media_type"],
+--- a/tests/test_local_reasoning_provider.py
++++ b/tests/test_local_reasoning_provider.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED TEST
+ # File: tests/test_local_reasoning_provider.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.1.38
++# Revision: 1.1.39
++# Changed: 2026-10-29 UTC | RV-GRACE-ARTIFACT-DESTINATION-BINDING-20261029 | Reject invented artifact destinations while preserving explicit multi-output and source-change plans.
+ # Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-CONSTRUCTION-DIAGNOSTICS | Verify safe diagnostics for request serialization and prompt byte boundaries.
+ # Changed: 2026-10-26 UTC | RV-GRACE-EXACT-CRITERIA-OUTPUT-SCHEMA | Assert generated step schemas enumerate exact persisted non-lifecycle criteria.
+ # Changed: 2026-10-26 UTC | RV-GRACE-LIFECYCLE-CRITERIA-SCHEMA-ALIGNMENT | Verify only persisted lifecycle criteria are schema-permitted as system-owned.
+@@ -664,6 +665,9 @@
+ 
+     def test_source_change_plan_preserves_pinned_repository_provenance(self):
+         revision = "a" * 40
++        self.request = replace(self.request, assignment={
++            "id": "assignment-1",
++            "objective": "Change src/example.py and run tests/test_example.py."})
+         self.response_body = self._response(text=json.dumps({"summary":"Scoped source change",
+             "steps":[{"step_id":"edit", "objective":"Edit scoped source",
+                 "acceptance_criteria":["Independent verification passes"], "depends_on":[],
+@@ -680,6 +684,60 @@
+         step_properties = schema["properties"]["steps"]["items"]["oneOf"][1]["properties"]
+         self.assertIn("repository_reference", step_properties)
+         self.assertIn("repository_revision", step_properties)
++
++    def test_controller_verification_and_outbox_paths_are_not_invented_artifacts(self):
++        requested = "Create reports/grace_delivery_20261029.txt containing GRACE-DELIVERY-20261029; verify it and return completion in this conversation."
++        self.request = replace(self.request, assignment={
++            "id": "assignment-1", "objective": requested},
++            external_advisory={"suggested_path": "outbox/conversation/test/completion.json"})
++        self.response_body = self._response(text=json.dumps({
++            "summary": "Create and deliver verified report", "steps": [{
++                "step_id": "deliver", "objective": "Create and report completion",
++                "acceptance_criteria": ["The requested report is verified and delivered"],
++                "depends_on": [],
++                "execution_capability": "engineering.codex-cli-artifact.v1",
++                "artifact_requirements": [
++                    {"name": "report", "path": "reports/grace_delivery_20261029.txt",
++                     "media_type": "text/plain", "acceptance_criteria": ["Exact requested text"]},
++                    {"name": "verification", "path": "evidence/verification/grace_delivery_20261029.verify",
++                     "media_type": "text/plain", "acceptance_criteria": ["Independently verify report"]},
++                    {"name": "completion", "path": "outbox/conversation/test/completion.json",
++                     "media_type": "application/json", "acceptance_criteria": ["Publish conversation completion"]},
++                ]}]}))
++
++        proposal = self.provider.propose(self.request)
++
++        self.assertIsInstance(proposal, ProposalValidationFailure)
++        self.assertEqual(proposal.detail_code, "PROPOSAL_SCHEMA_INVALID")
++        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
++        artifact_schema = schema["properties"]["steps"]["items"]["oneOf"][0]
++        path_schema = artifact_schema["properties"]["artifact_requirements"]["items"]["properties"]["path"]
++        self.assertEqual(path_schema["enum"], ["reports/grace_delivery_20261029.txt"])
++        prompt = self.requests[0]["messages"][0]["content"]
++        self.assertIn("Verification and conversation publication remain existing controller stages", prompt)
++
++    def test_explicit_additional_artifact_paths_remain_available(self):
++        self.request = replace(self.request, assignment={
++            "id": "assignment-1",
++            "objective": "Create reports/main.txt and reports/summary.txt as requested outputs."})
++        requirements = [{"name": name, "path": path, "media_type": "text/plain",
++                         "acceptance_criteria": [f"Create {path}"]}
++            for name, path in (("main", "reports/main.txt"),
++                               ("summary", "reports/summary.txt"))]
++        self.response_body = self._response(text=json.dumps({
++            "summary": "Create both requested files", "steps": [{
++                "step_id": "write", "objective": "Write both files",
++                "acceptance_criteria": ["Both requested files are created"], "depends_on": [],
++                "execution_capability": "engineering.codex-cli-artifact.v1",
++                "artifact_requirements": requirements}]}))
++
++        proposal = self.provider.propose(self.request)
++
++        self.assertIsInstance(proposal, PlanProposal)
++        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
++        path_schema = schema["properties"]["steps"]["items"]["oneOf"][0]["properties"]
++        path_schema = path_schema["artifact_requirements"]["items"]["properties"]["path"]
++        self.assertEqual(path_schema["enum"], ["reports/main.txt", "reports/summary.txt"])
+ 
+     def test_smoke_artifact_proposal_requires_complete_typed_requirements(self):
+         criteria = tuple("Acceptance criterion %d remains unchanged" % index
