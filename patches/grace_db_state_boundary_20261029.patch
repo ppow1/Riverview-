@@ -1,0 +1,369 @@
+--- a/src/riverview_core/resident_reasoning.py
++++ b/src/riverview_core/resident_reasoning.py
+@@ -2,8 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_reasoning.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.0.33
+-# Changed: 2026-10-29 UTC | RV-GRACE-OFFICE-STATE-CANONICAL-SIZE-20261029 | Match authority JSON sizing and emit value-free compact/spaced size buckets on failure.
++# Revision: 1.0.34
++# Changed: 2026-10-29 UTC | RV-GRACE-JSONB-STATE-SIZE-CLASSIFICATION-20261029 | Classify only the verified PostgreSQL bounded JSONB size guard and log value-free sizing metadata.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Return the exact immutable reasoning request with a proposed plan for controller validation and recovery diagnostics.
+ # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
+ # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Add a bounded typed ComfyUI workflow request to the existing proposal step contract.
+@@ -489,6 +489,48 @@
+             "outcome_bytes": len(encode(outcomes)),
+         }
+ 
++    @staticmethod
++    def _size_bucket(value):
++        if value < 61440:
++            return "below_61440"
++        if value <= 65536:
++            return "near_limit"
++        return "over_65536"
++
++    @staticmethod
++    def _is_proven_jsonb_size_rejection(exc, *, credential, office_id, state,
++                                        compact_state_bytes):
++        """Match only the checked-in write guard after validating its other inputs."""
++        underlying = exc.__context__
++        diagnostic = getattr(underlying, "diag", None)
++        return (
++            type(exc) is ValueError and
++            type(underlying).__name__ == "InvalidParameterValue" and
++            getattr(underlying, "sqlstate", None) == "22023" and
++            getattr(diagnostic, "message_primary", None) ==
++                "invalid bounded office state request" and
++            isinstance(credential, str) and len(credential) >= 32 and
++            isinstance(office_id, str) and 1 <= len(office_id) <= 256 and
++            isinstance(state, dict) and
++            type(compact_state_bytes) is int and
++            compact_state_bytes <= ResidentReasoner.MAX_STATE_BYTES
++        )
++
++    def _state_size_diagnostic_fields(self, state, compact_state_bytes):
++        compact = len(json.dumps(
++            state, sort_keys=True, separators=(",", ":")).encode("utf-8"))
++        # This is a Python formatting estimate only; PostgreSQL jsonb::text has
++        # distinct key-ordering and scalar-format semantics.
++        spaced_estimate = len(json.dumps(
++            state, sort_keys=True, separators=(", ", ": ")).encode("utf-8"))
++        return {
++            "compact_state_bytes": compact_state_bytes,
++            "compact_state_bucket": self._size_bucket(compact_state_bytes),
++            "python_spaced_json_bytes_estimate": spaced_estimate,
++            "python_spaced_json_bucket": self._size_bucket(spaced_estimate),
++            **self._office_state_size_fields(state),
++        }
++
+     def _persist(self, snapshot, *, assignment_id, observation, proposal=None):
+         started = time.monotonic()
+         request_id = observation.get("request_id")
+@@ -534,7 +576,7 @@
+                 **self._office_state_size_fields(state),
+                 elapsed_ms=round((time.monotonic() - started) * 1000),
+                 level=logging.WARNING)
+-            return None
++            return "OFFICE_STATE_SIZE_LIMIT"
+         try:
+             revision = self.registry.set_office_state(
+                 self._credential, self.office_id, state,
+@@ -557,6 +599,29 @@
+                     (time.monotonic() - started) * 1000), level=logging.WARNING,
+                 **_exception_diagnostic_fields(exc))
+             return "STATE_CONFLICT"
++        except ValueError as exc:
++            if self._is_proven_jsonb_size_rejection(
++                    exc, credential=self._credential, office_id=self.office_id,
++                    state=state, compact_state_bytes=len(serialized_state)):
++                _reasoning_diagnostic(
++                    "office_state_persistence_failed", request_id=request_id,
++                    assignment_id=assignment_id, correlation_id=correlation_id,
++                    operation="set_office_state", persistence_stage=persistence_stage,
++                    failure_code="OFFICE_STATE_JSONB_TEXT_SIZE_LIMIT",
++                    database_jsonb_text_size_bucket="over_65536",
++                    elapsed_ms=round((time.monotonic() - started) * 1000),
++                    level=logging.WARNING,
++                    **self._state_size_diagnostic_fields(state, len(serialized_state)),
++                    **_exception_diagnostic_fields(exc))
++                return "OFFICE_STATE_SIZE_LIMIT"
++            _reasoning_diagnostic(
++                "office_state_persistence_failed", request_id=request_id,
++                assignment_id=assignment_id, correlation_id=correlation_id,
++                operation="set_office_state", persistence_stage=persistence_stage,
++                failure_code="OFFICE_STATE_STORE_UNAVAILABLE",
++                elapsed_ms=round((time.monotonic() - started) * 1000),
++                level=logging.WARNING, **_exception_diagnostic_fields(exc))
++            return "AUTHORITY_UNAVAILABLE"
+         except RegistryUnavailable as exc:
+             _reasoning_diagnostic(
+                 "office_state_persistence_failed", request_id=request_id,
+@@ -593,6 +658,9 @@
+         if revision == "AUTHORITY_UNAVAILABLE":
+             return ReasoningResult(ReasoningStatus.UNAVAILABLE, request_id,
+                                   "OFFICE_STATE_STORE_UNAVAILABLE", provider_id)
++        if revision == "OFFICE_STATE_SIZE_LIMIT":
++            return ReasoningResult(ReasoningStatus.STATE_CONFLICT, request_id,
++                                  "OFFICE_STATE_SIZE_LIMIT", provider_id)
+         return ReasoningResult(ReasoningStatus.STATE_CONFLICT, request_id,
+                               str(revision or "DURABLE_STATE_WRITE_FAILED"), provider_id)
+ 
+--- a/src/riverview_core/resident_execution/service.py
++++ b/src/riverview_core/resident_execution/service.py
+@@ -2,8 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_execution/service.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.64
+-# Changed: 2026-10-29 UTC | RV-GRACE-REASONING-FENCE-KEY-20261029 | Persist terminal revision fences under a separate append-only idempotency key.
++# Revision: 1.0.65
++# Changed: 2026-10-29 UTC | RV-GRACE-JSONB-STATE-SIZE-CLASSIFICATION-20261029 | Fence only the stable office-state size-limit failure at the grounded revision.
+ # Changed: 2026-10-29 UTC | RV-GRACE-REASONING-STATE-SIZE-FENCE-20261029 | Persist a same-revision fence after durable office-state size failure.
+ # Changed: 2026-10-28 UTC | RV-GRACE-PUBLICATION-CAPABILITY-FENCE-20261028 | Persist a bounded terminal fence for unsupported artifact publication requirements.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Fail closed after interrupted one-shot recovery and suppress unauthorized external escalation from that local retry.
+@@ -172,6 +172,7 @@
+         "PROPOSAL_CRITERIA_BINDING_REJECTED",
+         "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+         "DURABLE_STATE_WRITE_FAILED",
++        "OFFICE_STATE_SIZE_LIMIT",
+     })
+     AUTONOMOUS_LOCAL_RECOVERY_CODE = "PROPOSAL_CRITERIA_BINDING_REJECTED"
+ 
+--- a/tests/test_resident_reasoning.py
++++ b/tests/test_resident_reasoning.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: tests/test_resident_reasoning.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.0.27
++# Revision: 1.0.28
++# Changed: 2026-10-29 UTC | RV-GRACE-JSONB-STATE-SIZE-CLASSIFICATION-20261029 | Distinguish the exact DB JSONB text-size guard from unrelated 22023 and transient persistence failures.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify the proposal result retains its originating immutable reasoning request for controller recovery validation.
+ # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Return distinct mock query results and the objective snapshot needed by the successful reasoning path.
+ # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
+@@ -634,8 +635,20 @@
+         class DatabaseFailure(Exception):
+             sqlstate = "08006"
+ 
++        class InvalidParameterValue(Exception):
++            sqlstate = "22023"
++            diag = type("Diagnostic", (), {
++                "message_primary": "invalid bounded office state request"})()
++
+         class DatabaseBoundFailure(Exception):
+             sqlstate = "22023"
++            diag = type("Diagnostic", (), {
++                "message_primary": "state rejected by test registry"})()
++
++        class OtherDatabaseBoundFailure(Exception):
++            sqlstate = "22023"
++            diag = type("Diagnostic", (), {
++                "message_primary": "another bounded argument is invalid"})()
+ 
+         class Registry:
+             def __init__(self, *, fail_read=False, fail_write=False):
+@@ -660,10 +673,17 @@
+                 }
+ 
+             def set_office_state(self, _credential, _office_id, state, *, expected_revision):
++                if self.fail_write == "transient":
++                    try:
++                        raise DatabaseFailure("private database error sentinel")
++                    except DatabaseFailure:
++                        raise RegistryUnavailable("OperationalError") from None
+                 if self.fail_write:
+                     try:
+-                        raise DatabaseBoundFailure("private database error sentinel")
+-                    except DatabaseBoundFailure:
++                        error = (OtherDatabaseBoundFailure if self.fail_write == "other_22023"
++                                 else InvalidParameterValue)
++                        raise error("private database error sentinel")
++                    except (InvalidParameterValue, OtherDatabaseBoundFailure):
+                         raise ValueError("private database error sentinel") from None
+                 serialized = json.dumps(state, sort_keys=True,
+                                         separators=(", ", ": ")).encode("utf-8")
+@@ -710,7 +730,8 @@
+ 
+         def run(registry, provider):
+             reasoner = ResidentReasoner(
+-                registry=registry, office_id="office:test", resident_credential="CREDENTIAL_SENTINEL",
++                registry=registry, office_id="office:test",
++                resident_credential="CREDENTIAL_SENTINEL_0123456789ABCDEF",
+                 assignments=Assignments(), knowledge=Knowledge(), providers={"provider.test": provider},
+                 timeout_seconds=1)
+             with self.assertLogs("riverview_core.resident_reasoning", level="INFO") as captured:
+@@ -752,16 +773,49 @@
+                                                          ("deliverable exists",)),), 17))
+         persist_result, persist_events, persist_output = run(
+             Registry(fail_write=True), response_provider)
+-        self.assertEqual(persist_result.detail_code, "OFFICE_STATE_STORE_UNAVAILABLE")
++        self.assertEqual(persist_result.detail_code, "OFFICE_STATE_SIZE_LIMIT")
+         self.assertTrue(any(event["stage"] == "provider_response_received"
+                             for event in persist_events))
+         self.assertTrue(any(event["stage"] == "office_state_persistence_failed"
+                             and event["persistence_stage"] == "proposal_state_persistence"
+                             and event["exception_type"] == "ValueError"
+-                            and event["underlying_exception_type"] == "DatabaseBoundFailure"
++                            and event["underlying_exception_type"] == "InvalidParameterValue"
+                             and event["sqlstate"] == "22023"
++                            and event["failure_code"] == "OFFICE_STATE_JSONB_TEXT_SIZE_LIMIT"
++                            and event["database_jsonb_text_size_bucket"] == "over_65536"
++                            and event["compact_state_bucket"] == "below_61440"
++                            and type(event["python_spaced_json_bytes_estimate"]) is int
++                            and type(event["plan_cache_count"]) is int
++                            and type(event["outcome_count"]) is int
+                             for event in persist_events))
+-        self.assertNotIn("private model response sentinel", read_output + persist_output)
++
++        unrelated_provider = Provider(response=PlanProposal(
++            "private model response sentinel", (PlanStep("step-1", "create deliverable",
++                                                         ("deliverable exists",)),), 17))
++        unrelated_result, unrelated_events, unrelated_output = run(
++            Registry(fail_write="other_22023"), unrelated_provider)
++        self.assertEqual(unrelated_result.detail_code, "OFFICE_STATE_STORE_UNAVAILABLE")
++        self.assertFalse(any(event.get("failure_code") ==
++                             "OFFICE_STATE_JSONB_TEXT_SIZE_LIMIT"
++                             for event in unrelated_events))
++        self.assertTrue(any(event.get("failure_code") == "OFFICE_STATE_STORE_UNAVAILABLE"
++                            and event.get("sqlstate") == "22023"
++                            for event in unrelated_events))
++
++        transient_provider = Provider(response=PlanProposal(
++            "private model response sentinel", (PlanStep("step-1", "create deliverable",
++                                                         ("deliverable exists",)),), 17))
++        transient_result, transient_events, transient_output = run(
++            Registry(fail_write="transient"), transient_provider)
++        self.assertEqual(transient_result.detail_code, "OFFICE_STATE_STORE_UNAVAILABLE")
++        self.assertFalse(any(event.get("failure_code") ==
++                             "OFFICE_STATE_JSONB_TEXT_SIZE_LIMIT"
++                             for event in transient_events))
++        self.assertTrue(any(event.get("failure_code") == "OFFICE_STATE_STORE_UNAVAILABLE"
++                            and event.get("sqlstate") == "08006"
++                            for event in transient_events))
++        self.assertNotIn("private model response sentinel",
++                         read_output + persist_output + unrelated_output + transient_output)
+         self.assertNotIn("private provider error sentinel", failed_output)
+         self.assertNotIn("private database error sentinel",
+                          read_output + failed_output + persist_output)
+--- a/tests/test_grace_execution.py
++++ b/tests/test_grace_execution.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED TEST
+ # File: tests/test_grace_execution.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.88
++# Revision: 1.0.89
++# Changed: 2026-10-29 UTC | RV-GRACE-JSONB-STATE-SIZE-CLASSIFICATION-20261029 | Verify DB JSONB size failure appends one stable revision fence and suppresses retries.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Assert interrupted one-shot recovery is terminalized and never replayed.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Prove local recovery cannot spend externally and interrupted one-shot reasoning is never replayed.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Verify one exact local criteria-binding recovery supersedes, but preserves, the pending Steward request.
+@@ -457,10 +458,9 @@
+         query = pipeline.ledger.db.value.query
+         self.assertIn("payload->>'objective_revision' IS NULL", query)
+         self.assertIn("event_type='objective.grounded'", query)
+-        self.assertEqual(set(pipeline.ledger.db.value.params[1]), {
+-            "PROPOSAL_CRITERIA_BINDING_REJECTED",
+-            "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+-        })
++        self.assertIn("OFFICE_STATE_SIZE_LIMIT", pipeline.ledger.db.value.params[1])
++        self.assertIn("PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
++                      pipeline.ledger.db.value.params[1])
+         self.assertEqual(pipeline.ledger.db.value.params[2:], ("2", "objective:artifact-path-fence:r2"))
+ 
+     def test_revision_failure_fence_survives_immutable_release_change(self):
+@@ -492,6 +492,94 @@
+                          "objective:test:r2")
+         self.assertIn("PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+                       service.pipeline.ledger.db.cursor_value.params[1])
++
++    def test_jsonb_size_failure_appends_separate_fence_and_suppresses_retry(self):
++        import json
++        from types import SimpleNamespace
++        from riverview_core.resident_execution.service import GraceExecutionService
++
++        objective_id = "objective:db-jsonb-size:r2"
++        request_id = "request:stable-size-failure"
++        legacy_key = f"grace-reasoning-failure:{objective_id}:{request_id}"
++        legacy_payload = {"status": "UNAVAILABLE",
++                          "detail_code": "OFFICE_STATE_STORE_UNAVAILABLE"}
++        events = {legacy_key: legacy_payload.copy()}
++
++        class Cursor:
++            row = None
++            def __enter__(self): return self
++            def __exit__(self, *_): return False
++            def execute(self, query, params):
++                if "INSERT INTO grace_objective_events" in query:
++                    objective, key, raw_payload = params
++                    payload = json.loads(raw_payload)
++                    if key not in events:
++                        events[key] = payload
++                    self.row = None
++                elif "FROM grace_objective_events" in query:
++                    objective, codes, revision, *_ = params
++                    self.row = next(({"blocked": True} for payload in events.values()
++                        if payload.get("detail_code") in codes
++                        and payload.get("status") == "BLOCKED"
++                        and payload.get("objective_revision") == int(revision)), None)
++                elif "count(*) AS failures" in query:
++                    self.row = {"failures": 0}
++                else:
++                    raise AssertionError("unexpected ledger query")
++            def fetchone(self): return self.row
++
++        class Context:
++            def __enter__(self): return self
++            def __exit__(self, *_): return False
++
++        class DB:
++            def __init__(self): self.cursor_value = Cursor()
++            def transaction(self): return Context()
++            def cursor(self): return self.cursor_value
++
++        class Ledger:
++            def __init__(self): self.db = DB()
++            def _set_search_path(self, _cursor): pass
++
++        class Reasoner:
++            providers = {"provider.test": object()}
++            calls = 0
++            def propose(self, *_args, **_kwargs):
++                self.calls += 1
++                raise AssertionError("revision size fence must suppress another attempt")
++
++        pipeline = SimpleNamespace(ledger=Ledger(), grounded_objectives=lambda **_kwargs: [{
++            "objective_id": objective_id, "revision": 2,
++        }])
++        service = object.__new__(GraceExecutionService)
++        service.pipeline = pipeline
++        service.resident_reasoner = Reasoner()
++        service._loaded_runtime_revision = "a" * 40
++        service.authority_ref = "work-order:test"
++        service.external_reasoning_exchange = None
++        service._claim_autonomous_local_recovery = lambda *_args: None
++        service._claim_approved_recovery = lambda *_args: None
++        service._claim_experiment_recovery = lambda *_args: None
++        failure_count_calls = []
++        service._reasoning_failure_count = lambda *_args: failure_count_calls.append(True) or 0
++
++        failure = SimpleNamespace(
++            status=SimpleNamespace(value="STATE_CONFLICT"),
++            request_id=request_id, detail_code="OFFICE_STATE_SIZE_LIMIT")
++        service._record_reasoning_failure(objective_id, result=failure, blocked_revision=2)
++        fence_key = (f"grace-reasoning-failure-fence:{objective_id}:r2:"
++                     "OFFICE_STATE_SIZE_LIMIT")
++        self.assertEqual(events[legacy_key], legacy_payload)
++        self.assertEqual(events[fence_key]["status"], "BLOCKED")
++        self.assertEqual(events[fence_key]["objective_revision"], 2)
++        service._record_reasoning_failure(objective_id, result=failure, blocked_revision=2)
++        self.assertEqual(len(events), 2, "same fence replay must be idempotent")
++        self.assertEqual(len(failure_count_calls), 2)
++
++        self.assertFalse(service.reason_one_grounded_objective(objective_id))
++        self.assertEqual(service.resident_reasoner.calls, 0)
++        self.assertEqual(len(failure_count_calls), 2,
++                         "persisted terminal fence must precede retry counters")
+ 
+     def test_recorded_objective_criteria_have_one_lifecycle_binding_in_offline_fixture(self):
+         from riverview_core.resident_execution.service import GraceExecutionService
