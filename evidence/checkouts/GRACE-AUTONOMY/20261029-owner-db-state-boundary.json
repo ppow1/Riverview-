@@ -1,0 +1,24 @@
+{
+  "source": "Retained Camrui Codex read-only inspection through Comms5",
+  "inspection_execution_id": "242f6589-ceac-4bb7-abbe-85b80405ba28",
+  "result_execution_id": "b73c5d7a-cd28-4e6a-b834-a84a4dda0f2f",
+  "result_audit_event_id": "2879bfed-38cd-45ce-92e0-23f392d17a26",
+  "latest_failure_at": "2026-10-29T10:29:41.959-04:00",
+  "failure": {
+    "stage": "proposal_state_persistence",
+    "code": "OFFICE_STATE_STORE_UNAVAILABLE",
+    "exception_type": "ValueError",
+    "underlying_exception_type": "InvalidParameterValue",
+    "sqlstate": "22023",
+    "request_id": "853940ca-854f-5b4b-9d37-f3b06667e8d0"
+  },
+  "finding": "Database guard measures octet_length(p_state::text) for JSONB against65536; compact Python JSON is not equivalent. Registry maps SQLSTATE22023 to ValueError; generic reasoner exception path reports store unavailable. That detail code is absent from terminal fence set, so retries continue.",
+  "limits": "Current failure does not emit bucket byte metrics. Earlier66922bytes is not a measured current-release JSONB byte count. Need inspect exact fixed DB error before classifying22023, which is not universally a size error.",
+  "preparation": {
+    "run_id": "grace-db-state-boundary-fix-20261029-01",
+    "execution_id": "cc98c712-fadf-4ed9-ba10-9e4980230872",
+    "command_sha256": "8a40980e40dd235993b5335d331d6fffe2c7b3145f2df5ffa7e95e4eb36d823d",
+    "scope": "prepare successor and tests only; no deployment/schema/cap/cache eviction"
+  },
+  "delivery": "NOT_COMPLETE"
+}
