@@ -1,0 +1,19 @@
+{
+  "status": "OPERATOR_REPORTED_UPDATED",
+  "operator_identity": "desktop-ja3rpnq\\wille",
+  "helper_sha256": "636ba2453061c8522f5caededac9935ccf870b1896cea67a827c4719ecc246bf",
+  "dry_run_exit_code": 0,
+  "apply_exit_code": 0,
+  "unit": "riverview-grace-execution-owner-session.service",
+  "predecessor": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-publication-fence-20261028-r1",
+  "candidate": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-canonical-state-20261029-r1",
+  "objective_id": "objective:grace-conversation:db6e6c9a-5902-5084-af92-5876c2d04993",
+  "independent_verification": "BLOCKED",
+  "connector_results": {
+    "objective_status": "BACKEND_UNAVAILABLE / dashboard_operation_http_status",
+    "command_task_submit": "BACKEND_UNAVAILABLE / dashboard_operation_http_status",
+    "executed": false
+  },
+  "delivery_completion": "NOT_VERIFIED",
+  "next_action": "Restore connector visibility; independently verify current pointer and candidate hashes, then inspect the same objective and conversation.result_published. Do not resubmit or rerun the installer solely because connector reads fail."
+}
