@@ -1,4 +1,4 @@
-<!-- Controlled document revision 1.0.2 | 2026-10-28 -->
+<!-- Controlled document revision 1.0.3 | 2026-10-28 -->
 # Grace owner-session source overlay review
 
 This code-only preparation uses the existing owner-session release pointer procedure in `docs/components/GRACE_EXECUTION_COOKBOOK.md`. It clones the exact `/opt/riverview-grace-execution/current` predecessor, overlays only `pipeline.py` and `service.py`, then switches that one `current` symlink. The candidate test, history, and review records stay in Engineering staging. No database migration, complete published Git release, grant, worker-policy, service-unit, drop-in, Comms5, Dashboard, or objective change is involved. This prepared work stays within the already authorized development scope; no live action was performed.
@@ -52,3 +52,7 @@ The helper's successful apply includes its owner startup health checks. Independ
 The exact next draft proposal:a72e49fe-4c04-4178-973f-f50250a2d4f3 revision2 was explicitly approved by Pat and promoted with key grace-exact-source-binding-promote-20261028-01. Its objective objective:proposal:ce65c8fc-fa3e-580c-a6fa-2df4d08f57c5:r2 is COMPLETED revision9. Grace generated the plan, dispatched3 dependent source-change steps once each, and all3 reached verified. Three external performance evaluations and feedback consumptions are in canonical lineage. Do not promote again or repeat the acceptance run.
 
 Latest milestone and continuation: docs/development/GRACE_GENERATED_SOURCE_ACCEPTANCE_20261028.md. This new exact-target patch is NOT deployed. The earlier publication guard remains installed. Preserve the raw cumulative patch and reconcile controlled revision headers with the current deployed source before any later integration. Completion publication to a Grace conversation was not exercised by this Comms5-origin objective.
+
+## Conversation-delivery next step
+
+Current prepared live procedure: docs/operations/GRACE_CONVERSATION_COMPLETION_ACCEPTANCE_RUNBOOK.md. Exact current handlers/UI and auth boundary were inspected. Comms5 has no conversation operations; cloud-browser fallback was blocked by certificate-name mismatch and browser URL policy. No conversation test was executed and no permissions changed. Use the existing authenticated Talk with Grace UI for the one isolated bounded request, then return its objective ID for canonical monitoring. Do not repeat source acceptance or deploy the exact-target patch as part of this delivery test.
