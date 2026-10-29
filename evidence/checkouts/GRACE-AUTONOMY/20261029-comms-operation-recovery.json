@@ -1,0 +1,29 @@
+{
+  "observed_at": "2026-10-29T10:27:40-04:00",
+  "recovery": "Operator restarted only riverview-status-dashboard.service; service active",
+  "prior_evidence": {
+    "postgresql": "accepting connections",
+    "disk_available": "50G",
+    "disk_use_percent": 78,
+    "inode_use_percent": 35,
+    "grant": "active/unlimited",
+    "deferred_resume_error": "OperationalError"
+  },
+  "post_recovery": {
+    "objective_query": "available",
+    "objective_state": "GROUNDED",
+    "revision": 2,
+    "assignment": null,
+    "camrui_identity": {
+      "status": "completed",
+      "exit_code": 0,
+      "user": "admin1",
+      "sandbox": "workspace-write",
+      "execution_id": "4830ff50-dd6b-423d-8755-3ed15d0cfa97",
+      "audit_event_id": "f7cb47a8-193e-4501-bee7-f8cbbd09bd6f"
+    }
+  },
+  "root_cause": "Dashboard restart restored shared application operations. Exact cause of original OperationalError is not established; stale connection remains a hypothesis.",
+  "next": "Existing exact Codex thread inspecting current owner failure metadata. Do not duplicate objective.",
+  "diagnostic_execution_id": "242f6589-ceac-4bb7-abbe-85b80405ba28"
+}
