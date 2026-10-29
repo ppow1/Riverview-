@@ -1,0 +1,125 @@
+{
+  "artifacts": {
+    "candidate_tree": "candidate/ (release mirror with two runtime and two test files changed)",
+    "predecessors": "predecessor/ (four exact pre-edit files)",
+    "report": "report.json"
+  },
+  "base": {
+    "current_symlink": "/opt/riverview-grace-execution/current",
+    "reasoning_sha256": "866d6c9a222bad3bb0a320145c526690b934bc6bc58afb6638c510d474bd43c4",
+    "release_id": "9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-canonical-state-20261029-r1",
+    "resolved_release": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-canonical-state-20261029-r1",
+    "service_sha256": "f5d9cc2543622147d0771935480b7b849038f7c2da570f299f87516b3b36f5c4",
+    "source_commit": "9f56cb72f3bd2961babf2527a26bd843526e18ce"
+  },
+  "candidate_behavior": [
+    "Exact InvalidParameterValue/sqlstate 22023/diag.message_primary signature maps to stable OFFICE_STATE_SIZE_LIMIT; other 22023 and transient failures remain OFFICE_STATE_STORE_UNAVAILABLE.",
+    "Value-free diagnostic includes exact compact bytes/bucket, Python spaced estimate/bucket, component counts/bytes, and DB-proven over-65536 bucket; no state values or exception messages.",
+    "Service adds OFFICE_STATE_SIZE_LIMIT to existing same-revision persisted block set. The separate append-only fence key preserves any older unblocked failure and replay is idempotent.",
+    "No plan/history/cache eviction, cap increase, authority/grant change, DB migration/schema change, routing or retry-budget change."
+  ],
+  "candidate_patch": {
+    "bytes": 21369,
+    "dry_run_apply": "patch --dry-run -p1 against exact predecessor files: PASS, exit 0",
+    "path": ".riverview-write-acceptance/grace-db-state-boundary-20261029/candidate.patch",
+    "paths": [
+      "src/riverview_core/resident_reasoning.py",
+      "src/riverview_core/resident_execution/service.py",
+      "tests/test_resident_reasoning.py",
+      "tests/test_grace_execution.py"
+    ],
+    "sha256": "c66537594cccc6b1898ded1a4865e579d6d22b98d0e1246057e58cc0ef004474"
+  },
+  "candidate_sha256": {
+    "src/riverview_core/resident_execution/service.py": "dd4091bbe4478d398c6717bf4f4fdd2ad4c1e97bf0cdbf07734f83c1658776c0",
+    "src/riverview_core/resident_reasoning.py": "1e4999abeeca03d4015d3516f41b911107d13ccf7275f0113586e5a55aff359c",
+    "tests/test_grace_execution.py": "9b4c996af8fd2b1cbc7004030c3062c700533a5e639a85dd1d5d12e9e12ff732",
+    "tests/test_resident_reasoning.py": "da9d3f2c8c90056ef3253140d51637c1516eaabbab1556ccf6529368ffcd9c1b"
+  },
+  "confirmed_source_chain": [
+    {
+      "evidence": "write function raises SQLSTATE 22023 when octet_length(p_state::text)>65536, with primary message invalid bounded office state request",
+      "lines": "110-111",
+      "path": "src/riverview_core/institutional_authority/migrations/0003_resident_office_state_api.sql"
+    },
+    {
+      "evidence": "Python compact JSON precheck then SQL function call; all SQLSTATE 22023 values are wrapped as generic ValueError",
+      "lines": "694-719",
+      "path": "src/riverview_core/institutional_authority/registry.py"
+    },
+    {
+      "evidence": "generic exception path reports OFFICE_STATE_STORE_UNAVAILABLE; result maps AUTHORITY_UNAVAILABLE to same detail code",
+      "lines": "569-577 (base)",
+      "path": "src/riverview_core/resident_reasoning.py"
+    },
+    {
+      "evidence": "block-code list lacks OFFICE_STATE_STORE_UNAVAILABLE, so blocked_revision remains unset; _record_reasoning_failure then uses legacy objective/request key rather than revision-fence key and ON CONFLICT DO NOTHING cannot amend the prior row",
+      "lines": "170-175,519-525 (base)",
+      "path": "src/riverview_core/resident_execution/service.py"
+    }
+  ],
+  "controlled_revisions": {
+    "src/riverview_core/resident_execution/service.py": {
+      "new": "1.0.65",
+      "old": "1.0.64"
+    },
+    "src/riverview_core/resident_reasoning.py": {
+      "new": "1.0.34",
+      "old": "1.0.33"
+    },
+    "tests/test_grace_execution.py": {
+      "new": "1.0.89",
+      "old": "1.0.88"
+    },
+    "tests/test_resident_reasoning.py": {
+      "new": "1.0.28",
+      "old": "1.0.27"
+    }
+  },
+  "observed_failure": {
+    "current_compact_or_postgres_bytes": "NOT_LOGGED",
+    "exception_type": "ValueError",
+    "failure_code": "OFFICE_STATE_STORE_UNAVAILABLE",
+    "latest_timestamp_edt": "2026-10-29T10:29:41.959-04:00",
+    "objective_id": "objective:grace-conversation:db6e6c9a-5902-5084-af92-5876c2d04993",
+    "prior_66922_bytes": "earlier spaced-JSON diagnostic; not a measurement of the canonical-state release",
+    "request_id": "853940ca-854f-5b4b-9d37-f3b06667e8d0",
+    "sqlstate": "22023",
+    "stage": "proposal_state_persistence",
+    "underlying_exception_type": "InvalidParameterValue"
+  },
+  "predecessor_sha256": {
+    "src/riverview_core/resident_execution/service.py": "f5d9cc2543622147d0771935480b7b849038f7c2da570f299f87516b3b36f5c4",
+    "src/riverview_core/resident_reasoning.py": "866d6c9a222bad3bb0a320145c526690b934bc6bc58afb6638c510d474bd43c4",
+    "tests/test_grace_execution.py": "8eb2b8f39d0e04794ad9df5848dda0d27182c331e4162f6bcea372058e974e23",
+    "tests/test_resident_reasoning.py": "cd34420e82af24dbc82124f09cac6b1ec3f9f7c1c400a840a56886760758b782"
+  },
+  "serialization_semantics": "Python sort_keys compact JSON is not PostgreSQL jsonb::text. PostgreSQL has different object-key ordering and scalar formatting. The staged spaced-JSON figure is explicitly an estimate, never treated as exact PG size. Only exact checked-in guard signature plus locally validated credential shape, office id, JSON object and compact-size bound classify as DB JSONB size rejection.",
+  "status": "PREPARED_NOT_DEPLOYED",
+  "tests": {
+    "combined": "95 run; 19 passed; 76 skipped; 0 failures; all command exit codes 0",
+    "focused_command": "PYTHONPATH=\"$PWD/src\" python3 -m unittest tests.test_resident_reasoning.ResidentReasoningDiagnosticsTests.test_diagnostics_distinguish_state_read_provider_response_and_persistence tests.test_grace_execution.GraceReasoningFailureDiagnosticTests -v",
+    "focused_result": "8 passed, 0 skipped, exit 0",
+    "grace_command": "PYTHONPATH=\"$PWD/src\" python3 -m unittest tests.test_grace_execution -q",
+    "grace_result": "74 run, 58 skipped (RIVERVIEW_TEST_PG_DSN not configured), 16 passed, exit 0",
+    "resident_command": "PYTHONPATH=\"$PWD/src\" python3 -m unittest tests.test_resident_reasoning -q",
+    "resident_result": "21 run, 18 skipped (RIVERVIEW_TEST_PG_DSN not configured), 3 passed, exit 0"
+  },
+  "title": "Grace office-state PostgreSQL JSONB size-boundary diagnosis and staged successor",
+  "unverified_limits": [
+    "No database/schema inspection was performed; deployed function body/version is not independently confirmed. Candidate matches the exact checked-in migration guard signature and fails closed for other signatures.",
+    "Current live PG JSONB text byte count was not logged/read; actual exact size remains unknown."
+  ],
+  "update_helper": {
+    "base_release": "9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-canonical-state-20261029-r1",
+    "bash_n": "PASS, exit 0",
+    "candidate_release": "9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-db-state-boundary-20261029-r1",
+    "overlay_paths": [
+      "src/riverview_core/resident_reasoning.py",
+      "src/riverview_core/resident_execution/service.py"
+    ],
+    "path": ".riverview-write-acceptance/grace-db-state-boundary-20261029/owner-release-update-db-state-boundary.sh",
+    "procedure": "Reuses owner-release-update helper clone/hash/idle/health/atomic-pointer/restart/rollback guards. Not run; no protected writes or service actions.",
+    "sha256": "49364dc585ff8baf4af24337f95a68e96b370c26fb7a1ec47658bb6ce6d5af30"
+  }
+}
