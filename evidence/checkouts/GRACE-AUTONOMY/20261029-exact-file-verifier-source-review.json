@@ -1,0 +1,105 @@
+{
+  "base_release": {
+    "codex_workflow_sha256": "62aa0b6316d6f5d97d749d5bacedf2ec28f2793efa70f62a93b42ed5fd377d09",
+    "current_pointer": "/opt/riverview-grace-execution/current",
+    "resolved": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-artifact-formation-20261029-r2",
+    "source_commit": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+    "verifier_py_sha256": "35860d0c7e1e007a5bb0b0b9f46aa23df58aeb3ad9a01e1a0c6a9d02a8f68f63"
+  },
+  "candidate_copy_root": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/candidate",
+  "deployment": {
+    "candidate_pointer": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-exact-file-contract-20261029-r1",
+    "commands": [
+      "owner-release-update-exact-file-contract.sh --dry-run",
+      "owner-release-update-exact-file-contract.sh --apply",
+      "owner-release-update-exact-file-contract.sh --rollback"
+    ],
+    "helper": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/owner-release-update-exact-file-contract.sh",
+    "helper_sha256": "bbf55301ecee441ba192315cf98f827e14adf0cf5e49e1ef117ce0f9f4d8b8fd",
+    "pins": "Exact predecessor, unit/drop-ins, idle guard, source updater and non-target provider/verifier/reasoner/service hashes; overlays codex_workflow.py only.",
+    "predecessor_pointer": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-artifact-formation-20261029-r2",
+    "prepared_not_run": true,
+    "protected_write_or_restart_performed": false
+  },
+  "implementation": {
+    "files": {
+      "src/riverview_core/resident_execution/codex_workflow.py": {
+        "candidate": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/candidate/src/riverview_core/resident_execution/codex_workflow.py",
+        "candidate_revision": "1.2.26",
+        "candidate_sha256": "6c5c87e5031727de4d72455f9f8ac6d315bf73278510bb029c2429fdfbbb5571",
+        "predecessor": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/predecessor/src/riverview_core/resident_execution/codex_workflow.py",
+        "predecessor_revision": "1.2.25",
+        "predecessor_sha256": "62aa0b6316d6f5d97d749d5bacedf2ec28f2793efa70f62a93b42ed5fd377d09"
+      },
+      "src/riverview_core/resident_execution/verifier.py": {
+        "candidate_change": "unchanged; exact predecessor copy retained",
+        "predecessor": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/predecessor/src/riverview_core/resident_execution/verifier.py",
+        "predecessor_sha256": "35860d0c7e1e007a5bb0b0b9f46aa23df58aeb3ad9a01e1a0c6a9d02a8f68f63"
+      },
+      "tests/test_codex_cli_adapter.py": {
+        "candidate": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/candidate/tests/test_codex_cli_adapter.py",
+        "candidate_revision": "1.2.18",
+        "candidate_sha256": "cca2556943c6b5f9bcd93b749dbf7419bf6873ac0427ad203fc3fad5f1304a77",
+        "predecessor": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/predecessor/tests/test_codex_cli_adapter.py",
+        "predecessor_revision": "1.2.17",
+        "predecessor_sha256": "8bd6e99dc473f81c742ab40150b2c1ba923030e18505b84229a3eacebc833b1b"
+      },
+      "tests/test_grace_execution.py": {
+        "candidate": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/candidate/tests/test_grace_execution.py",
+        "candidate_revision": "1.0.93",
+        "candidate_sha256": "f735fc66e2a608e4e7bf71e0fc0f12c9c179a46a264ac13010cd639b39b49c4f",
+        "predecessor": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/predecessor/tests/test_grace_execution.py",
+        "predecessor_revision": "1.0.92",
+        "predecessor_sha256": "b4cd9118fd6fb0509cd4dc9f627a4072c0118da603b99c4ff481ffb70a94609a"
+      }
+    },
+    "runtime_overlay_only": [
+      "src/riverview_core/resident_execution/codex_workflow.py"
+    ],
+    "summary": "Recognize only the three exact persisted file clauses. Existence is bound to identical contract path and artifact owner; exact content compares strict UTF-8-decoded bytes to literal UTF-8 bytes with no trimming; encoding requires strict UTF-8 decode. Step-level clauses bind only to artifact requirements carrying that exact clause. Existing literal checks and fail-closed unknown clauses remain unchanged.",
+    "unmodified_runtime_hashes": {
+      "src/riverview_core/local_reasoning_provider.py": "1811b1fc57c050e12817f703c9393a8b7b2b8484fdef12fa183bd33a52c4b440",
+      "src/riverview_core/resident_execution/service.py": "73b5085d53645b1e9be20a12590e02071c0cc3fe75c51cbdf00dcf18045ad2be",
+      "src/riverview_core/resident_execution/verifier.py": "35860d0c7e1e007a5bb0b0b9f46aa23df58aeb3ad9a01e1a0c6a9d02a8f68f63",
+      "src/riverview_core/resident_reasoning.py": "aa8fbd39c18d413ff814d89cb63cbdcbe8680b92bdc42d637f166e1f025cd56c"
+    }
+  },
+  "predecessor_copy_root": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/predecessor",
+  "review_patch": ".riverview-write-acceptance/grace-artifact-exact-verifier-20261029/candidate.patch",
+  "review_patch_sha256": "42bb36e229955ad97865370fb45796cd04aabae40bd63cb8e1f51b418dbeee49",
+  "schema": "rv.grace.exact-file-verifier-review.v1",
+  "tests": {
+    "added_case": "test_exact_utf8_file_contract_is_bound_to_one_persisted_artifact_path; exercises exact observed three clauses and rejects extra newline/space, substring, non-UTF8, mismatched path, unknown prose, and unrelated-artifact misbinding.",
+    "baseline": {
+      "command": "PYTHONPATH=src:tests /opt/riverview-core/.venv/bin/python -m unittest -v test_codex_cli_adapter.CodexCLIAdapterTests",
+      "exit_code": 0,
+      "failed": 0,
+      "passed": 34
+    },
+    "candidate": {
+      "command": "PYTHONPATH=src:tests /opt/riverview-core/.venv/bin/python -m unittest -v test_codex_cli_adapter.CodexCLIAdapterTests",
+      "exit_code": 0,
+      "failed": 0,
+      "passed": 35
+    },
+    "revision_check": {
+      "command": "PYTHONPATH=src:tests /opt/riverview-core/.venv/bin/python -m unittest -v test_grace_execution.GraceExecutionTests.test_late_codex_artifact_is_preserved_for_independent_verification",
+      "result": "1 skipped: RIVERVIEW_TEST_PG_DSN not configured"
+    },
+    "static": "git diff --check passed; bash -n helper passed; Python AST parse passed.",
+    "supplemental_source_change_suite": {
+      "baseline_status": "Not run before candidate; these 3 failures and 1 error are not baseline-proven. Suite source was unchanged.",
+      "command": "PYTHONPATH=src:tests /opt/riverview-core/.venv/bin/python -m unittest -v test_codex_source_change",
+      "failure_scope": "Observed runner/sandbox failures only; not evidence of a verifier regression.",
+      "result": "12 tests: 8 passed, 3 failed, 1 errored; this unchanged source-change suite hit runner/sandbox failures (_run_tests unavailable, pinned patch replay UNAVAILABLE); no source-change code was modified."
+    }
+  },
+  "root_review": {
+    "code_review": "Accepted deterministic forms with persisted artifact ownership; strict byte equality and UTF8; unknown forms fail closed; generic literal path unchanged.",
+    "transfer_full_sha256_verified": true,
+    "patch_sha256_verified": true,
+    "helper_reconstructed_sha256_verified": true,
+    "supplemental_baseline_comparison": "pending; not yet cleared for deployment",
+    "deployment_performed": false
+  }
+}
