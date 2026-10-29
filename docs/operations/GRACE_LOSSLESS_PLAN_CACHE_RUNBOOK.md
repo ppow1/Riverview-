@@ -1,7 +1,7 @@
-<!-- Controlled document revision 1.0.0 | 2026-10-29 EDT -->
+<!-- Controlled document revision 1.0.1 | 2026-10-29 EDT -->
 # Grace lossless plan-cache capacity correction
 
-Status: REVIEWED AND TESTED, NOT APPLIED. This is the next action after the installed and verified db-state-boundary-r1 correction. Do not repeat the earlier installers.
+Status: INSTALLED; current pointer and both exact runtime hashes independently verified through Comms/Camrui at approximately12:17EDT2026-10-29. Fresh-request capacity/delivery acceptance remains pending. This is the next action after the installed and verified db-state-boundary-r1 correction. Do not repeat the earlier installers.
 
 ## Why this change
 The attempted proposal state contained 25 plan entries occupying 62,844 compact bytes; total compact state 64,450, Python spaced estimate 66,922, and PostgreSQL JSONB text exceeded 65,536. These describe the attempted write, including its new plan, not a separate persisted-state read. The installed size classifier now records the deterministic failure and suppresses same-revision retries. The original delivery objective remains GROUNDED rev2/no assignment; last attempt10:50:41EDT, last failure10:51:04EDT, no subsequent attempts observed through later Comms checks.
@@ -10,7 +10,7 @@ The sole office-state plan reader is ResidentReasoner.propose(), which passes pr
 
 Physical office-state limit remains65,536bytes. Encoded archive limit65,536characters; complete decoded plan map limit262,144bytes. Invalid streams, digest mismatch, nesting errors and over-bound maps return a fixed archive-invalid result without invoking the provider or writing state, and use the existing revision fence. Encoding checks the same merged bound as decoding before any write. There is no unbounded decompression flush.
 
-## Exact operator command
+## Historical operator command (already installed; do not rerun)
 Run in the existing desktop-ja3rpnq\wille PowerShell session:
 ~~~powershell
 & "C:\Users\Public\Documents\Riverview\GracePlanCache\Update-RiverviewGracePlanCache.ps1"
@@ -39,3 +39,6 @@ Independently verify current pointer and two runtime hashes through Comms1.1. Pr
 After installation verification, prefer a fresh bounded work-order request from the authenticated original Grace conversation's existing message menu. The old exact recovery route exists at POST /api/v1/grace-recovery/{request_uuid}/decision with Steward session/CSRF, but only an eligible pending one-shot request can be approved; none was approved here.
 Fresh acceptance: create reports/grace_delivery_20261029.txt with exactly GRACE-DELIVERY-20261029, independently verify it, and automatically report completion in the same conversation. Require real plan persistence, worker dispatch, verifier ACCEPTED, canonical COMPLETED, conversation.result_published and visible assistant completion. Discover the new objective through recent_steward_submissions rather than asking Pat to locate IDs.
 No live acceptance or full autonomy completion has been claimed. If live persistence remains too large, use safe metrics and actual failure codes; do not discard history or invent completion.
+
+## Installed verification
+A repeated invocation returned dry-run2/current_pointer_mismatch. Independent inspection executionc6852b84-4b6a-462b-b69d-4e711de2786e and result executionec094cb5-b9d4-4401-ba99-e8cf0058bdfb (audita0915424-94cc-4fa4-a743-61559ad9f0bd) found current already resolves to the reviewed lossless-plan-cache-r2 release; reasoningaa8fbd39...5cd56c/service73b5085d...5ad2be match. The dry-run expects db-state-boundary-r1, so the repeated block is explained by already-current candidate, not unknown drift. Nothing was changed by that repeated invocation. Prior successful apply receipt/time was not supplied. Do not reinstall or loosen predecessor checks. Proceed to the fresh conversation acceptance above; no new objective was visible in recent submissions at inspection time.
