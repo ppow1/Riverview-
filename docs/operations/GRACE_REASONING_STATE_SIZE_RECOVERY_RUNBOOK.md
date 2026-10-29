@@ -1,4 +1,4 @@
-<!-- Controlled document revision 1.0.4 | 2026-10-29 EDT -->
+<!-- Controlled document revision 1.0.5 | 2026-10-29 EDT -->
 # Grace delivery planning: state sizing and retry correction
 
 ## Observed failure
@@ -59,3 +59,6 @@ After UPDATED: verify exact pointer/hashes through Comms, inspect SAME objective
 2026-10-29: operator applied helper49364dc5...d5af30 with dry-run0/apply0/UPDATED. Independent Comms/Camrui inspection confirms exact db-state-boundary-r1 pointer and both reviewed hashes1e4999ab...aff359c/dd4091bb...58776c0. No new reasoning attempts returned after10:50:41EDT; the new size failure was recorded10:51:04EDT, with subsequent objective read around11:05EDT. Retry suppression is observed; delivery remains GROUNDEDrev2/noassignment, not complete.
 Latest diagnostic OFFICE_STATE_JSONB_TEXT_SIZE_LIMIT at10:51:04.109383EDT: compact64450bytes, Python spaced estimate66922bytes, DB text bucket over65536 (exact DB size unavailable); plans25/62844bytes, outcomes1/1558bytes, other office2bytes, reasoning runtime64424bytes. All are value-free counts/bytes. The 25-plan cache is the dominant capacity bottleneck.
 Do not rerun either installer. Next preparation run grace-lossless-plan-cache-20261029-01 (executioncb45d710-2c36-4840-9843-f043ac6ccb3b) evaluates reuse of canonical plan storage or a bounded lossless archive with legacy replay/rollback compatibility. No state eviction, physical cap increase, schema/grant change or silent revision-fence bypass. Inspect actual institutional recovery route before resuming this objective; a fresh governed objective may be preferable if existing recovery is unsuitable. Candidate is not yet reviewed or deployed. Require independent artifact acceptance and automatic conversation delivery for final success.
+
+## Current continuation pointer
+The lossless capacity candidate has now been reviewed, corrected and tested (22focusedpassed/0skipped/0failed), and its Windows launcher is staged and parser/hash verified. It is NOT APPLIED. Continue from [GRACE_LOSSLESS_PLAN_CACHE_RUNBOOK.md](GRACE_LOSSLESS_PLAN_CACHE_RUNBOOK.md), which supersedes the earlier preparation-in-progress notes. Exact command in Wille PowerShell: `& "C:\Users\Public\Documents\Riverview\GracePlanCache\Update-RiverviewGracePlanCache.ps1"`. After independent installation verification, use a fresh bounded conversation workorder; preserve the old objective/fence. No capacity acceptance or automatic delivery success yet.
