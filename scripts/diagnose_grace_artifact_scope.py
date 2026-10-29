@@ -15,8 +15,10 @@ EXPECTED_PATH = "reports/grace_delivery_20261029.txt"
 UNIT = "riverview-grace-execution-owner-session.service"
 OFFICE_ID_ENV = "RIVERVIEW_RESIDENT_OFFICE_ID"
 BASE_DSN = ("host=127.0.0.1 port=5432 dbname=riverview user=riverview_core "
-            "application_name=riverview-grace-artifact-scope-diagnostic "
-            "options='-c default_transaction_read_only=on'")
+            "application_name=riverview-grace-artifact-scope-diagnostic")
+ERROR_STAGES = frozenset({"imports", "credential_validation", "registry_connect",
+                          "authorized_office_snapshot", "cache_decode", "ledger_connect",
+                          "objective_read"})
 
 
 def _pgpass_password(raw: bytes) -> str:
@@ -48,9 +50,54 @@ def _pgpass_password(raw: bytes) -> str:
     return parts[4]
 
 
-def _readonly_dsn(raw_pgpass: bytes) -> str:
+def _connection_dsns(raw_pgpass: bytes) -> tuple[str, str]:
+    """Build normal authority and read-only ledger conninfo from the same secret."""
     from psycopg.conninfo import make_conninfo
-    return make_conninfo(BASE_DSN, password=_pgpass_password(raw_pgpass))
+    password = _pgpass_password(raw_pgpass)
+    authority = make_conninfo(BASE_DSN, password=password)
+    ledger = make_conninfo(BASE_DSN, password=password,
+                           options="-c default_transaction_read_only=on")
+    return authority, ledger
+
+
+def _safe_type_name(value) -> str:
+    name = type(value).__name__ if not isinstance(value, str) else value
+    return name if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", name) else "Other"
+
+
+def _error_payload(exc, stage: str) -> dict:
+    """Return only fixed stage/code and bounded exception metadata."""
+    if type(exc).__name__ == "PlanArchiveInvalid":
+        reason = "cached_plan_archive_invalid"
+    elif type(exc) is RuntimeError and str(exc) in {
+            "runtime_identity_mismatch", "ambient_database_override", "resident_office_unavailable",
+            "credential_directory_mismatch", "existing_runtime_credential_unavailable",
+            "resident_credential_invalid", "database_credential_format_invalid",
+            "database_credential_target_mismatch", "authorized_office_state_unavailable",
+            "objective_not_found", "objective_scope_unavailable", "cached_plan_shape_invalid",
+            "cached_artifact_requirements_invalid", "cached_artifact_path_invalid"}:
+        reason = str(exc)
+    else:
+        reason = "diagnostic_unavailable"
+    payload = {"objective_id": OBJECTIVE_ID, "status": "BLOCKED",
+               "stage": stage if stage in ERROR_STAGES else "diagnostic", "reason_code": reason}
+    if reason == "diagnostic_unavailable":
+        payload["exception_type"] = _safe_type_name(exc)
+        seen = set()
+        current = exc
+        for _ in range(4):
+            if current is None or id(current) in seen:
+                break
+            seen.add(id(current))
+            state = getattr(current, "sqlstate", None)
+            if isinstance(state, str) and re.fullmatch(r"[0-9A-Z]{5}", state):
+                payload["sqlstate"] = state
+                break
+            current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
+        context = getattr(exc, "__context__", None)
+        if context is not None:
+            payload["context_type"] = _safe_type_name(context)
+    return payload
 
 
 def path_named(path: str, text: str) -> bool:
@@ -59,6 +106,7 @@ def path_named(path: str, text: str) -> bool:
 
 
 def main() -> int:
+    stage = "imports"
     try:
         from riverview_core.assignment_intake import AuthorizedAssignmentIntake
         from riverview_core.institutional_authority import AuthorityRegistry, ExactGrantAuthorizer
@@ -66,6 +114,7 @@ def main() -> int:
         from riverview_core.resident_execution.pipeline import GraceExecutionPipeline
         from riverview_core.resident_reasoning import PlanArchiveInvalid, ResidentReasoner
 
+        stage = "credential_validation"
         expected_uid = pwd.getpwnam("admin1").pw_uid
         if os.geteuid() != expected_uid:
             raise RuntimeError("runtime_identity_mismatch")
@@ -105,21 +154,30 @@ def main() -> int:
             raise RuntimeError("resident_credential_invalid")
         # Parse the existing systemd-mounted pgpass in memory and pass its password
         # through libpq conninfo; never point libpq at the root-owned 0440 file.
-        dsn = _readonly_dsn(pgpass.read_bytes())
+        authority_dsn, ledger_dsn = _connection_dsns(pgpass.read_bytes())
         schema = "riverview_dev"
         authority_schema = "riverview_authority"
-        registry = AuthorityRegistry(dsn, schema=authority_schema, runtime_safe=True)
+        stage = "registry_connect"
+        registry = AuthorityRegistry(authority_dsn, schema=authority_schema, runtime_safe=True)
+        stage = "authorized_office_snapshot"
         snapshot = registry.authorize_office_state(resident_credential, office_id)
+        # The canonical API takes FOR SHARE locks for normal authorization; commit
+        # this read transaction normally to release them, with no forced rollback.
+        registry.db.commit()
+        registry.close()
+        stage = "cache_decode"
         state = snapshot.get("state")
         if not isinstance(state, dict):
             raise RuntimeError("authorized_office_state_unavailable")
         runtime = state.get(ResidentReasoner.STATE_KEY)
         plans = ResidentReasoner._decode_plan_cache(runtime)
 
-        ledger = PostgresLedger(dsn, schema=schema)
+        stage = "ledger_connect"
+        ledger = PostgresLedger(ledger_dsn, schema=schema)
         authorizer = ExactGrantAuthorizer(authority_schema)
         pipeline = GraceExecutionPipeline(
             ledger, authorizer, AuthorizedAssignmentIntake(ledger, authorizer), None)
+        stage = "objective_read"
         objective = pipeline.get_objective(OBJECTIVE_ID)
         if not isinstance(objective, dict):
             raise RuntimeError("objective_not_found")
@@ -173,21 +231,7 @@ def main() -> int:
             close()
         return 0
     except Exception as exc:
-        exception_type = type(exc).__name__
-        reason = "cached_plan_archive_invalid" if exception_type == "PlanArchiveInvalid" else (
-            str(exc) if type(exc) is RuntimeError and str(exc) in {
-            "runtime_identity_mismatch", "ambient_database_override", "database_dsn_invalid",
-            "resident_office_unavailable", "credential_directory_mismatch",
-            "existing_runtime_credential_unavailable", "resident_credential_invalid",
-            "database_credential_format_invalid", "database_credential_target_mismatch",
-            "authorized_office_state_unavailable",
-            "objective_not_found", "objective_scope_unavailable", "cached_plan_shape_invalid",
-            "cached_artifact_requirements_invalid", "cached_artifact_path_invalid"} else "diagnostic_unavailable")
-    diagnostic = {"objective_id": OBJECTIVE_ID, "status": "BLOCKED", "reason_code": reason}
-    if reason == "diagnostic_unavailable":
-        diagnostic["exception_type"] = (exception_type if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", exception_type)
-                                         else "Other")
-    print(json.dumps(diagnostic, sort_keys=True, separators=(",", ":")))
+        print(json.dumps(_error_payload(exc, stage), sort_keys=True, separators=(",", ":")))
     return 2
 
 
