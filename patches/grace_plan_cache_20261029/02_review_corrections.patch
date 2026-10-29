@@ -1,0 +1,126 @@
+diff --git a/src/riverview_core/resident_reasoning.py b/src/riverview_core/resident_reasoning.py
+--- a/src/riverview_core/resident_reasoning.py
++++ b/src/riverview_core/resident_reasoning.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_reasoning.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.0.35
++# Revision: 1.0.36
++# Changed: 2026-10-29 UTC | RV-GRACE-LOSSLESS-PLAN-CACHE-CORRECTIONS-20261029 | Let legacy plans win on overlap and enforce merged-plan decode bounds before archive encoding.
+ # Changed: 2026-10-29 UTC | RV-GRACE-LOSSLESS-PLAN-CACHE-20261029 | Preserve complete office plan history in a bounded deterministic compressed archive while retaining the current plan in the legacy map.
+ # Changed: 2026-10-29 UTC | RV-GRACE-JSONB-STATE-SIZE-CLASSIFICATION-20261029 | Classify only the verified PostgreSQL bounded JSONB size guard and log value-free sizing metadata.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Return the exact immutable reasoning request with a proposed plan for controller validation and recovery diagnostics.
+@@ -494,7 +495,6 @@
+                 raw = inflater.decompress(compressed, cls.MAX_PLAN_ARCHIVE_RAW_BYTES + 1)
+                 if len(raw) > cls.MAX_PLAN_ARCHIVE_RAW_BYTES or inflater.unconsumed_tail:
+                     raise PlanArchiveInvalid("plan archive decompressed size exceeds bound")
+-                raw += inflater.flush()
+                 if (len(raw) > cls.MAX_PLAN_ARCHIVE_RAW_BYTES or not inflater.eof or
+                         inflater.unused_data or inflater.unconsumed_tail):
+                     raise PlanArchiveInvalid("plan archive stream invalid")
+@@ -503,19 +503,18 @@
+                                        separators=(",", ":"), allow_nan=False).encode("utf-8")
+             except PlanArchiveInvalid:
+                 raise
+-            except (ValueError, TypeError, UnicodeError, zlib.error) as exc:
++            except (ValueError, TypeError, UnicodeError, zlib.error,
++                    RecursionError) as exc:
+                 raise PlanArchiveInvalid("plan archive decoding failed") from exc
+             if (not isinstance(archived, dict) or
+                     any(not isinstance(key, str) for key in archived) or
+                     canonical != raw or hashlib.sha256(raw).hexdigest() != archive["sha256"]):
+                 raise PlanArchiveInvalid("plan archive integrity check failed")
+-            if set(archived) & set(legacy):
+-                raise PlanArchiveInvalid("plan archive overlaps legacy map")
+             merged = {**archived, **legacy}
+         try:
+             raw_merged = json.dumps(merged, ensure_ascii=False, sort_keys=True,
+                                     separators=(",", ":"), allow_nan=False).encode("utf-8")
+-        except (TypeError, ValueError) as exc:
++        except (TypeError, ValueError, RecursionError) as exc:
+             raise PlanArchiveInvalid("merged plan map is not canonical JSON") from exc
+         if len(raw_merged) > cls.MAX_PLAN_ARCHIVE_RAW_BYTES:
+             raise PlanArchiveInvalid("merged plan map exceeds safe bound")
+@@ -526,6 +525,13 @@
+         """Keep one current entry in the legacy map; archive every other entry."""
+         if not isinstance(plans, dict) or any(not isinstance(key, str) for key in plans):
+             raise PlanArchiveInvalid("plan map shape invalid")
++        try:
++            raw_merged = json.dumps(plans, ensure_ascii=False, sort_keys=True,
++                                    separators=(",", ":"), allow_nan=False).encode("utf-8")
++        except (TypeError, ValueError, RecursionError) as exc:
++            raise PlanArchiveInvalid("merged plan map is not canonical JSON") from exc
++        if len(raw_merged) > cls.MAX_PLAN_ARCHIVE_RAW_BYTES:
++            raise PlanArchiveInvalid("merged plan map exceeds safe bound")
+         current = ({current_assignment_id: plans[current_assignment_id]}
+                    if current_assignment_id in plans else {})
+         archived = {key: value for key, value in plans.items()
+diff --git a/tests/test_resident_plan_archive.py b/tests/test_resident_plan_archive.py
+--- a/tests/test_resident_plan_archive.py
++++ b/tests/test_resident_plan_archive.py
+@@ -2,7 +2,7 @@
+ # RIVERVIEW~ CONTROLLED TEST
+ # File: tests/test_resident_plan_archive.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.0.0
++# Revision: 1.0.1
+ # Purpose: Verify lossless bounded office plan archival and rollback compatibility.
+ # Authority: Offline only; fake registry and no PostgreSQL or provider calls.
+ # =============================================================================
+@@ -130,6 +130,55 @@
+                         stored[ResidentReasoner.PLAN_ARCHIVE_FIELD]}
+         self.assertFalse(set(stored["plans"]) &
+                          set(ResidentReasoner._decode_plan_cache(archive_only)))
++
++    def test_legacy_update_wins_overlap_with_archived_assignment(self):
++        original = {"assignment:a": {"summary": "a"},
++                    "assignment:b": {"summary": "old b"},
++                    "assignment:c": {"summary": "c"}}
++        old_runtime = ResidentReasoner._encode_plan_cache(original, "assignment:a")
++        # A rollback runtime only knows `plans`; it can update an assignment
++        # that the newer runtime had placed in the opaque archive.
++        old_runtime["plans"]["assignment:b"] = {"summary": "updated by old runtime"}
++        restored = ResidentReasoner._decode_plan_cache(old_runtime)
++        self.assertEqual(restored["assignment:b"],
++                         {"summary": "updated by old runtime"})
++        self.assertEqual(set(restored), set(original))
++        reencoded = ResidentReasoner._encode_plan_cache(restored, "assignment:b")
++        self.assertEqual(ResidentReasoner._decode_plan_cache(reencoded), restored)
++
++    def test_merged_decode_bound_is_checked_before_registry_write(self):
++        registry = _Registry()
++        reasoner = object.__new__(ResidentReasoner)
++        reasoner.registry = registry
++        reasoner._credential = "test-credential"
++        reasoner.office_id = "office:test"
++        plans = {"assignment:archived": {"summary": "x" * 250_000}}
++        self.assertLess(len(compact(plans)), ResidentReasoner.MAX_PLAN_ARCHIVE_RAW_BYTES)
++        current = {**plans, "assignment:new": {"summary": "y" * 20_000}}
++        self.assertGreater(len(compact(current)), ResidentReasoner.MAX_PLAN_ARCHIVE_RAW_BYTES)
++        large_proposal = PlanProposal("candidate", tuple(PlanStep(
++            f"step-{i}", "y" * 1000, ("criterion" * 50,)) for i in range(20)), 1)
++        result = reasoner._persist(
++            {"state_revision": 3, "state": {ResidentReasoner.STATE_KEY:
++                {"plans": plans}}}, assignment_id="assignment:new",
++            observation={"request_id": "new", "status": "PROPOSED"},
++            proposal=large_proposal)
++        self.assertEqual(result, "OFFICE_STATE_PLAN_ARCHIVE_INVALID")
++        self.assertEqual(registry.writes, 0)
++
++    def test_recursion_error_while_decoding_fails_closed(self):
++        import base64, hashlib, zlib
++        from unittest.mock import patch
++        raw = b'{"assignment:deep":{"summary":"deep"}}'
++        archive = {"version": ResidentReasoner.PLAN_ARCHIVE_VERSION,
++                   "encoding": "zlib+base64-json-v1",
++                   "sha256": hashlib.sha256(raw).hexdigest(),
++                   "data": base64.b64encode(zlib.compress(raw)).decode("ascii")}
++        with patch("riverview_core.resident_reasoning.json.loads",
++                   side_effect=RecursionError("nesting limit")):
++            with self.assertRaises(PlanArchiveInvalid):
++                ResidentReasoner._decode_plan_cache({"plans": {},
++                    ResidentReasoner.PLAN_ARCHIVE_FIELD: archive})
+ 
+     def test_25_plan_observed_size_fixture_compresses_without_eviction(self):
+         plans = sized_plans(62844)
