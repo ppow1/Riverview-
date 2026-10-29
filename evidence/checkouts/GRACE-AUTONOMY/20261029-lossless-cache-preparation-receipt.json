@@ -1,0 +1,39 @@
+{
+  "status": "PREPARED_NOT_REVIEWED_NOT_DEPLOYED",
+  "run_id": "grace-lossless-plan-cache-20261029-01",
+  "execution_id": "cb45d710-2c36-4840-9843-f043ac6ccb3b",
+  "result": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "4b0fcc13-1fb8-4289-9911-9f26daa5ba63",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-lossless-plan-cache-20261029-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-lossless-plan-cache-20261029-01/events.jsonl\", \"pid\": 2782136, \"exit_code\": 0, \"messages\": [\"I\\u2019ll trace every plan-cache read/write path and the existing durable plan/recovery interfaces first. I\\u2019ll prepare an isolated, bounded candidate only if that design preserves the old runtime\\u2019s rollback behavior.\", \"The live cache has one reader: `ResidentReasoner.propose()` supplies an assignment\\u2019s prior plan to the provider. Objective proposals are recorded separately by the execution pipeline, so substituting those records would not preserve this replay context. I\\u2019m testing a deterministic, bounded archive that keeps the current entry in the legacy map.\", \"The candidate keeps the existing outcome retention behavior and compresses only the plan map; plans are never dropped. Corrupt archives return a fixed conflict before provider invocation or office-state write, and that code is included in the existing revision fence. The offline suite now passes 10 tests.\", \"The 25-entry cache has one office-state reader: `ResidentReasoner.propose()` feeds `prior_plan`; the provider and escalation layer only forward it. Durable objective proposals are stored later, after reasoning, so they cannot replace replay context. The candidate archives older plans losslessly and keeps the current plan in legacy `plans`. A repetitive 25-plan fixture shrank 62,844 plan bytes to a 4,278-byte state; this does not establish compression of the live values or PostgreSQL JSONB size.\", \"Review files: [report.json](/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-lossless-plan-cache-20261029/report.json), `candidate.patch` SHA256 `b387316e\\u2026de08cdc`, helper `owner-release-update-lossless-plan-cache.sh` SHA256 `cbd8be29\\u202621edee`. Runtime revisions: reasoner 1.0.34\\u21921.0.35; service 1.0.65\\u21921.0.66. Focused offline tests: 20 passed, 0 failed; patch dry-run, `bash -n`, and in-memory source compile passed. No PostgreSQL integration, deployment, or live state write.\", \"The existing recovery route is `POST /api/v1/grace-recovery/{uuid}/decision`, requiring a Steward session and CSRF. Approval is bound to a pending one-shot retry for the exact blocked revision; it does not itself clear the fence or dispatch. I made no approval or request lookup. After review and operator installation/acceptance, the preferred path is a fresh bounded request through the authenticated Grace conversation\\u2019s existing work-order action.\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T15:21:07.564856+00:00",
+    "completed_at": "2026-10-29T15:21:08.397502+00:00",
+    "deadline_at": "2026-10-29T16:21:07.548338+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "f638d612-964a-4e49-b08a-341c9b294e87",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "4b0fcc13-1fb8-4289-9911-9f26daa5ba63",
+      "audit_event_id": "e06dd181-85e2-4f40-b2ca-a7dc6b983ce1",
+      "idempotency_key": "cmd-54e2f3a4edf4fa3aaf056ca4e83bdec5372adc038aeb9da9fefb1f23870490ca"
+    },
+    "host_id": "camrui",
+    "task_id": "4b0fcc13-1fb8-4289-9911-9f26daa5ba63",
+    "command_sha256": "dea361bd76613fb2e464cb669014bd7bc6b65871f29a886c04ee970636133c66",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "summary": "20focused offline tests passed; no PGintegration/live statewrite. Olderplans archivedlosslessly/currentplan legacy. Synthetic repetitive25planfixture resultingstate4278bytes is not livecompressionmeasurement.",
+  "next": "Retrieve/review exactpatch+helperdiff; stageoperatorentry onlyafterreview. Then fresh bounded conversation workorder preferred over recoveryrabbit-hole; originalobjective/history preserved."
+}
