@@ -1,0 +1,115 @@
+{
+  "change": {
+    "candidate_patch_sha256": "5390089e56ea062d64939d2786f28d93ed3a974055d24449bb4794bb185d14a0",
+    "candidate_reasoning_revision": "1.0.33",
+    "candidate_reasoning_sha256": "866d6c9a222bad3bb0a320145c526690b934bc6bc58afb6638c510d474bd43c4",
+    "candidate_service_revision": "1.0.64",
+    "candidate_service_sha256": "f5d9cc2543622147d0771935480b7b849038f7c2da570f299f87516b3b36f5c4",
+    "diagnostics": "size failures emit compact and prior-spaced byte counts plus value-free office/resident/plan/outcome bucket counts and byte sizes",
+    "fence_idempotency_key_template": "grace-reasoning-failure-fence:{objective_id}:r{revision}:{fixed_detail_code}",
+    "legacy_failure_history": "Existing request-key event remains unchanged; terminal BLOCKED row is appended under distinct stable key and is replay-idempotent.",
+    "patch_application": "git apply --check and apply succeeded in isolated tree; both runtime candidate files matched staged bytes exactly",
+    "predecessor_reasoning_revision": "1.0.32",
+    "predecessor_reasoning_sha256": "8d822cd9ebd98f62e476296414c9d83a802aa130a87c1fb1c383cf718a05f1fb",
+    "predecessor_release": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-publication-fence-20261028-r1",
+    "predecessor_service_revision": "1.0.62",
+    "predecessor_service_sha256": "ec382d9775dc5f116f684db22ca06fa260bdcff405c640948d8f24c3bdb4d772",
+    "preserved_publication_guard": {
+      "active_sha256": "dfab86a2b7dd91f9b16d444bea6b79210e3d0e3318f9f3496075617b5b27ff64",
+      "overlaid": false,
+      "path": "src/riverview_core/resident_execution/pipeline.py"
+    },
+    "runtime_overlay_only": [
+      "src/riverview_core/resident_reasoning.py",
+      "src/riverview_core/resident_execution/service.py"
+    ],
+    "service_contract": "retains PERSISTED_PROPOSAL_BLOCK_CODES name; adds DURABLE_STATE_WRITE_FAILED to same-revision terminal fence",
+    "state_retention": "all prior plan cache keys remain untouched; existing outcome cap and overflow removal order unchanged; canonical objective/proposal history untouched"
+  },
+  "classification": "isolated candidate only; not deployed or applied",
+  "confirmed_diagnostic": {
+    "failure_code": "OFFICE_STATE_SIZE_LIMIT",
+    "limit_bytes": 65536,
+    "live_canonical_size_and_bucket_breakdown": "not observed; do not claim the canonical precheck alone resolves 66922 bytes",
+    "logged_serialized_bytes": 66922,
+    "objective_id": "objective:grace-conversation:db6e6c9a-5902-5084-af92-5876c2d04993",
+    "observed_encoding": "old reasoner precheck used sort_keys=True and separators with spaces; AuthorityRegistry.set_office_state uses sorted compact JSON with default ensure_ascii=True",
+    "same_request_id_repeated": true,
+    "value_free_evidence_path": ".riverview-write-acceptance/grace-delivery-planning-failure-20261028/sanitizedfailureevidence.json"
+  },
+  "date": "2026-10-29",
+  "limits": [
+    "No database or live office-state read; no credentials or prompts read.",
+    "No service restart, deployment, pointer change, objective retry, grant change or history eviction.",
+    "Canonical encoding could eliminate an accounting-only oversize if the spaced/compact delta crosses the limit, but this has not been observed for the live state."
+  ],
+  "operator_helper": {
+    "commands": [
+      "sudo -n bash /home/admin1/update_grace_reasoning_state_20261029.sh --dry-run",
+      "sudo -n bash /home/admin1/update_grace_reasoning_state_20261029.sh --apply",
+      "sudo -n bash /home/admin1/update_grace_reasoning_state_20261029.sh --rollback"
+    ],
+    "expected_source_worker_dropin_sha256": "832d11c8c9ac7c759e8a4c0ed603a36988ee500a24fff82857650065db347749",
+    "guards": "exact current symlink, unit/drop-in hashes, predecessor source hashes, helper hashes, staged/candidate hashes, tracked release tree equivalence, compile, stable sole-MainPID cgroup idleness before clone and again before switch/restart; rollback does not require candidate health and verifies idle state",
+    "idle_guard_sha256": "d6f14337de0c5adee8e093a32075f07717b7f12b092b39b120744a8d3d0a68f1",
+    "path": ".riverview-write-acceptance/grace-delivery-planning-failure-20261028/owner-release-update-reasoning-state.sh",
+    "protected_operation": "not performed",
+    "revision": "1.0.0",
+    "sha256": "8e88c3f3ef825e7571c44ab9633c33e655f38953af14c7e0442b45740bbbadaa",
+    "source_worker_updater_sha256": "dfd631baa181b57aeca91bc157d633f3a1a72fe73bae18453656713bafabecc7",
+    "transport_plan": "Use the existing Wille Windows PowerShell launcher at C:\\Users\\Public\\Documents\\Riverview\\GraceSourceWorker\\Update-RiverviewGraceSourceWorker.ps1 with its established ssh.exe -n -T camrui and sudo -n path; root must stage this exact helper at the Camrui path above. The Windows launcher argument interface was not readable here and must be matched by the operator before use.",
+    "unit": "riverview-grace-execution-owner-session.service"
+  },
+  "revision": "1.2.0",
+  "schema": "rv.grace_office_state_canonical_size_remediation.v1",
+  "tests": {
+    "existing_grace_diagnostic_class": {
+      "command": "python3 -m unittest tests.test_grace_execution.GraceReasoningFailureDiagnosticTests -v",
+      "exit_code": 0,
+      "failed": 0,
+      "passed": 8,
+      "ran": 8,
+      "skipped": 0,
+      "test_file": {
+        "candidate_revision": "1.0.92",
+        "candidate_sha256": "b4cd9118fd6fb0509cd4dc9f627a4072c0118da603b99c4ff481ffb70a94609a",
+        "path": "tests/test_grace_execution.py",
+        "pre_task_sha256": "98b1a16ffd60dc77c204957242423e185d07b8b2de973a67dc514518a22a67c1"
+      }
+    },
+    "existing_resident_suite": {
+      "command": "python3 -m unittest tests.test_resident_reasoning -v",
+      "exit_code": 0,
+      "failed": 0,
+      "passed": 3,
+      "ran": 21,
+      "skip_reason": "RIVERVIEW_TEST_PG_DSN not configured",
+      "skipped": 18
+    },
+    "fence_test": {
+      "exit_code": 0,
+      "failed": 0,
+      "passed": 1,
+      "path": ".riverview-write-acceptance/grace-delivery-planning-failure-20261028/tests/test_grace_reasoning_persistence_fence.py",
+      "revision": "1.0.1",
+      "sha256": "e4ca8b6f24300cc7b1dfba3bdffc85d7b0929796671d813bad84ecab45a2c852"
+    },
+    "helper_syntax": "bash -n passed; helper was not run in dry-run/apply/rollback mode",
+    "new_offline_tests": {
+      "exit_code": 0,
+      "failed": 0,
+      "passed": 3,
+      "path": ".riverview-write-acceptance/grace-delivery-planning-failure-20261028/tests/test_resident_reasoning_office_state_compaction.py",
+      "predecessor": "none; new isolated regression file",
+      "revision": "1.1.0",
+      "sha256": "22859d08e3b73b3440542fa5dc9587129cd301eda53769f86b452e761c6bcff1"
+    },
+    "total": {
+      "exit_code": 0,
+      "failed": 0,
+      "passed": 15,
+      "ran": 33,
+      "skipped": 18
+    }
+  }
+}

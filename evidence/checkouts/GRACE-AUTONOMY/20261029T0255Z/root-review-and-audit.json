@@ -1,0 +1,351 @@
+{
+  "helper_revision": "1.0.1",
+  "helper_sha256": "636ba2453061c8522f5caededac9935ccf870b1896cea67a827c4719ecc246bf",
+  "windows_launcher_sha256": "4786636160b05905d2ebcbfe10d5735a1ce372f1b4eb25ce1942c2ec9ca6227a",
+  "helper_check": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "71df717b-9a37-4091-9ef7-8e4eaf0fb1ef",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-state-helper-path-fix-20261028-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-state-helper-path-fix-20261028-01/events.jsonl\", \"pid\": 2574414, \"exit_code\": 0, \"messages\": [\"Script SHA256: `636ba2453061c8522f5caededac9935ccf870b1896cea67a827c4719ecc246bf`. Both staged paths and pinned hashes verified; `bash -n` passed. Dry-run exited 2: `systemd_bus_unavailable` (`owner_session_idle_guard_failed`). Predecessor archived under `history/owner-release-update-reasoning-state-1.0.0.sh`.\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T02:55:00.757432+00:00",
+    "completed_at": "2026-10-29T02:55:01.784737+00:00",
+    "deadline_at": "2026-10-29T03:54:35.181031+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "e3e94b39-d331-49e5-86c1-9ac69fbb90e4",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "71df717b-9a37-4091-9ef7-8e4eaf0fb1ef",
+      "audit_event_id": "88c592ef-bc1a-46fd-968d-f91f8be87dbb",
+      "idempotency_key": "cmd-e26938b8e88e75750ce871859a7a78d43e38a19fb9985aad45f8dd94347b4a8a"
+    },
+    "host_id": "camrui",
+    "task_id": "71df717b-9a37-4091-9ef7-8e4eaf0fb1ef",
+    "command_sha256": "8451d6737be12da525d0e03d1afddb81a5d1211ee185b482e0f6f0991deebf96",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "launcher": {
+    "host_id": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "idempotency_key": "grace-reasoning-state-launcher-stage-20261028-02",
+    "command_sha256": "9e71a0e6bf70b9852a52d59cb705454272a9c20ab07b94d8e4eb2627969a1e8c"
+  },
+  "launcher_result": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "9bd88956-8ec6-4bdb-ab53-74c6eaad6548",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "PARSER_ERRORS=0\r\n\r\n\r\nHash : 291AADF2E48AEF1EE881CF26CA448399C785BCF3ADA132C0A9DFDBD205987C3A\r\nPath : C:\\Users\\Public\\Documents\\Riverview\\GraceReasoningState\\Update-RiverviewGraceReasoningState.ps1\r\n\r\n\r\n\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T02:49:42.518604+00:00",
+    "completed_at": "2026-10-29T02:49:43.241511+00:00",
+    "deadline_at": "2026-10-29T03:48:56.114540+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "27cebed6-0fc2-47ee-8204-fb71eb1bd144",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "9bd88956-8ec6-4bdb-ab53-74c6eaad6548",
+      "audit_event_id": "7dd3d3e6-e130-4a97-a87e-0a84c59a2eb7",
+      "idempotency_key": "cmd-2ead5c4c4c34f1f9d84a4db52d50896b4f5eb62cd20b4c418f620ffbe748de3c"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "9bd88956-8ec6-4bdb-ab53-74c6eaad6548",
+    "command_sha256": "d7bc19bfd3ff656d95e53448ae6b6bf6541eacf76c8d733eb6b1fbc9a20b18e6",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "note": "launcher_result is predecessor staging; final stage executionfc6e3b3d-a37c-425b-95b0-034f4e1b9002 returned parser0errors/hash4786636160b05905d2ebcbfe10d5735a1ce372f1b4eb25ce1942c2ec9ca6227a. No apply performed.",
+  "failure_inspection_receipt": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "ab57387b-ca51-43b8-8327-6496f04c95db",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-delivery-planning-failure-20261028-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-delivery-planning-failure-20261028-01/events.jsonl\", \"pid\": 2558115, \"exit_code\": 0, \"messages\": [\"I\\u2019ll check repository guidance, the permitted Comms5 read-only status/diagnostic operations, and the exact active owner source paths. I\\u2019ll restrict evidence to metadata for this objective and avoid database access, service-bus workarounds, and conversation bodies.\", \"The permitted objective projection confirms the request is still `GROUNDED`, with no assignment, and intentionally hides failure detail. The owner-session journal is readable through the ordinary journal interface: it records repeated `OFFICE_STATE_SIZE_LIMIT` proposal-state persistence failures at 66,922 bytes against the 65,536-byte limit. I\\u2019m checking the retry fence against those events and preparing only a staged, testable fail-closed candidate.\", \"For `objective:grace-conversation:db6e6c9a-5902-5084-af92-5876c2d04993`, sanitized owner-session logs show 34 `PlanProposal` results followed by `OFFICE_STATE_SIZE_LIMIT`: 66,922 bytes against a 65,536-byte limit. The objective projection still shows `GROUNDED`, no assignment, and one persisted failure. The result path omits the revision fence; retries reused the same request ID, so failure events deduplicated. Chat proposal claims were not used as evidence.\\n\\nStaged fail-closed candidate and offline regression: [candidate.patch](/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-delivery-planning-failure-20261028/candidate.patch), [test](/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-delivery-planning-failure-20261028/tests/test_grace_reasoning_persistence_fence.py). Result: **1 passed**. The candidate fences this revision after durable state-write failure; it does not reduce the oversized state.\\n\\nEvi\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T02:25:06.293201+00:00",
+    "completed_at": "2026-10-29T02:25:07.639112+00:00",
+    "deadline_at": "2026-10-29T03:19:08.789499+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "365b7bd0-9612-4afe-918b-1415ec0fa062",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "ab57387b-ca51-43b8-8327-6496f04c95db",
+      "audit_event_id": "8112025e-cf63-4f73-b00d-8a940d460257",
+      "idempotency_key": "cmd-8636c46b97b7a2109253dee639a5a1599f9ea5b1f5b6311a63d63159ac9bcd05"
+    },
+    "host_id": "camrui",
+    "task_id": "ab57387b-ca51-43b8-8327-6496f04c95db",
+    "command_sha256": "15160998197dd10686f5b3edda5089436268e8f8ede97d788a8207467920a101",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "objective_status": {
+    "status": "available",
+    "executed": true,
+    "objective": {
+      "objective_id": "objective:grace-conversation:db6e6c9a-5902-5084-af92-5876c2d04993",
+      "state": "GROUNDED",
+      "scope_ref": "work-order:engineering",
+      "submitter_id": "steward:camrui",
+      "revision": 2,
+      "assignment_id": null,
+      "source_revision": "26c71277f45338239a707f09e118eb70bcd449c4",
+      "source_sha256": "16dbfe553988bdfb2678024a274fbf480ce31544a10c83c619e520605a6b8321",
+      "created_at": "2026-10-28T22:06:27.603975-04:00",
+      "updated_at": "2026-10-28T22:06:27.805470-04:00",
+      "evidence": {
+        "status": "VERIFIED",
+        "source_reference_count": 7,
+        "source_revision": "26c71277f45338239a707f09e118eb70bcd449c4",
+        "source_sha256": "16dbfe553988bdfb2678024a274fbf480ce31544a10c83c619e520605a6b8321",
+        "retrieval_complete": true,
+        "error_code": null
+      }
+    },
+    "submission_authority": {
+      "status": "currently_authorized",
+      "principal_id": "steward:camrui",
+      "action": "objective.submit",
+      "scope_ref": "work-order:engineering",
+      "grant_id": "grace-demo:steward-objective-submit"
+    },
+    "assignment": null,
+    "steps": [],
+    "verification": null,
+    "execution_intents": [],
+    "event_lineage": [
+      {
+        "event_type": "objective.received",
+        "actor_id": "steward:camrui",
+        "occurred_at": "2026-10-28T22:06:27.608281-04:00"
+      },
+      {
+        "event_type": "objective.grounded",
+        "actor_id": "grace:knowledge-provider",
+        "occurred_at": "2026-10-28T22:06:27.811008-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:06:29.888277-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_failed",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:07:10.027933-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:07:12.068540-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:07:37.018819-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:08:01.842210-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:08:26.736593-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:08:51.644491-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:09:16.485766-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:09:41.284947-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:10:06.083734-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:10:30.878308-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:10:55.729346-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:11:20.580150-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:11:45.414044-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:12:10.246735-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:12:35.200288-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:12:59.989637-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:13:24.810117-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:13:49.672789-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:14:14.504697-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:14:39.350781-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:15:04.205768-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:15:29.088753-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:15:53.909594-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:16:18.735100-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:16:43.582490-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:17:08.493205-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:17:33.341054-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:17:58.199445-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:18:23.195855-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:18:47.946459-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:19:12.785074-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:19:37.612118-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:20:02.762860-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:20:28.075192-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:20:53.405747-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:21:18.749618-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:21:43.921719-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-28T22:22:09.306764-04:00"
+      }
+    ],
+    "implementation_status": "IMPLEMENTED"
+  }
+}
