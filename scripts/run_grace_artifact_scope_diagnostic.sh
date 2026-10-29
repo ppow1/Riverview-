@@ -5,7 +5,7 @@ umask 077
 
 [[ "$(id -un)" == "admin1" ]] || { printf '%s\n' 'BLOCKED: run as admin1.' >&2; exit 2; }
 script=/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-artifact-scope-diagnostic-20261029/diagnose_grace_artifact_scope.py
-expected_sha=be368eebce6c94cb463354d533776ae7f4b83376a36a6a9e15e28165d70e064f
+expected_sha=8fa0d36302841373298f64c7fb774b8cc406080ba0940bc64f22b8314ee3e27a
 actual_sha=$(sha256sum "$script" | cut -d ' ' -f1)
 [[ "$actual_sha" == "$expected_sha" ]] || { printf '%s\n' 'BLOCKED: diagnostic script hash mismatch.' >&2; exit 2; }
 
