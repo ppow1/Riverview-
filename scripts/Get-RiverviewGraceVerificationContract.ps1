@@ -4,7 +4,7 @@ $graceReport = & {
   "OPERATOR_IDENTITY=$graceIdentity"
   if ($graceIdentity -ine 'desktop-ja3rpnq\wille') { 'BLOCKED: Run this in your existing Wille PowerShell session.'; return }
   $graceEntry = '/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-verification-contract-diagnostic-20261029/run_grace_verification_contract_diagnostic.sh'
-  $graceExpected = '0aad41762098a01d1ebdfbed7f427bf12a55fa4864879bf7952e3ba57305a426'
+  $graceExpected = '57e93f82f4148c766e63540c1fdb4c9510737a2097b58422fd5c5a96810d4859'
   $graceHashOutput = @(& ssh.exe -n -T -o BatchMode=yes camrui "sha256sum '$graceEntry'" 2>&1)
   $graceHashExit = $LASTEXITCODE
   "SCRIPT_HASH_SSH_EXIT_CODE=$graceHashExit"
