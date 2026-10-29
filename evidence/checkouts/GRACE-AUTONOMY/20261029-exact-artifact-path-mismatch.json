@@ -1,0 +1,29 @@
+{
+  "source": "Steward operator authorized diagnostic report",
+  "objective_id": "objective:grace-conversation:be52c097-4609-53a1-b62c-d03db7f4b5b9",
+  "invocation_id": "b70626b2192744f38638db7b7528165f",
+  "launcher_sha256": "95a34a8f82eecc5ce1ec2b2651d178966e81c0dad4445cc3e9e3a4937f4282a3",
+  "diagnostic_exit_code": 0,
+  "plan_found": true,
+  "expected_path": "reports/grace_delivery_20261029.txt",
+  "expected_path_in_request": true,
+  "expected_path_in_acceptance_criteria": false,
+  "artifacts": [
+    {
+      "path": "reports/grace_delivery_20261029.txt",
+      "authorized_named_match": true
+    },
+    {
+      "path": "evidence/verification/grace_delivery_20261029.verify",
+      "authorized_named_match": false
+    },
+    {
+      "path": "outbox/conversation/be52c097-4609-53a1-b62c-d03db7f4b5b9/completion.json",
+      "authorized_named_match": false
+    }
+  ],
+  "finding": "Approved reportpath was preserved. Planner invented extra filesystem outputs for institutional verification and automatic conversation publication, so existing exact path guard correctly rejected the proposal.",
+  "next": "Correct planformation constraints usingapprovedscope and existinglifecyclehandlers; keepadmissionguard, no permission widening or silentpathrewrite. Preparetests/helper only.",
+  "preparation_execution_id": "d36c660c-2f71-44cd-92b4-4cbdd8adb844",
+  "runtime_or_objective_change": false
+}
