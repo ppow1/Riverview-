@@ -1,4 +1,4 @@
-# Riverview infrastructure acquisitions — 2026-10-29
+# Riverview infrastructure acquisitions — 2026-10-29 (SAS controller, four 4 TB disks, and breakout cable)
 
 Status: PURCHASED / AWAITING DELIVERY
 Source: purchaser-supplied eBay order-confirmation screenshots and pasted order details, 2026-10-29.
@@ -45,11 +45,32 @@ All purchase times below are as displayed by eBay; timezone not verified.
 - Required commissioning: inspect each drive and convert 520-byte sectors to 512-byte sectors as appropriate; destructive formatting only after identity verification
 - Source: purchaser-supplied order details
 
+## Acquisition 3 — Internal SAS breakout cable
+- Item: Mini SAS SFF-8087 to 4 × SFF-8482 breakout cable, 1 meter, with SATA power connectors for SAS drives
+- Quantity: 1
+- eBay item number: 137535422343
+- Order number: 10-15360-62837
+- Order placed: October 29, 2026, 11:29 AM (displayed time; timezone unverified)
+- Seller account: ssus-tstore
+- Condition: new
+- Merchandise subtotal: USD 13.94
+- Shipping: free
+- Sales tax: USD 1.05
+- Total charged: USD 14.99
+- Payment method: Discover credit card ending 0283 (only last four recorded)
+- Carrier: USPS
+- Shipping service: USPS First Class
+- Expected arrival: October 31 – November 3, 2026
+- Tracking: not yet available at confirmation
+- Intended role: internal SFF-8087 port on HP LSI 9217-4i4e to four 3.5-inch SAS SFF-8482 drive connectors; drive power source/capacity to be confirmed before installation
+- Source: purchaser-supplied eBay order confirmation and order-detail screenshots, October 29, 2026
+
 ## Acquisition totals
 - Controller: USD 21.50
 - Drives: USD 84.53
-- Total confirmed purchases: **USD 106.03**
-- SAS breakout cable and power splitters discussed but **not confirmed purchased** in supplied evidence; exclude from acquisition total.
+- Internal SAS breakout cable: USD 14.99
+- Total confirmed purchases: **USD 121.02**
+- Additional power adapters/splitters discussed but **not confirmed purchased** in supplied evidence; exclude from acquisition total.
 
 ## Purchasing account attribution
 - Platform: eBay
@@ -65,5 +86,5 @@ All purchase times below are as displayed by eBay; timezone not verified.
 - Update installation host and deployed inventory location.
 
 ## Relationship to earlier hardware acquisitions
-- This entry covers only the two purchases documented above.
+- This entry covers only the three purchases documented above.
 - Prior Tesla P100 acquisition records should be cross-linked once their existing canonical GitHub location is verified; no prior purchase record was changed or duplicated here.
