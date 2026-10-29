@@ -1,0 +1,40 @@
+{
+  "status": "PREPARED_NOT_REVIEWED_NOT_RUN",
+  "objective_id": "objective:grace-conversation:be52c097-4609-53a1-b62c-d03db7f4b5b9",
+  "result": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "e7087981-6c8e-4cfa-83cd-21d6740b226d",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-artifact-scope-inspect-20261029-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-artifact-scope-inspect-20261029-01/events.jsonl\", \"pid\": 2905357, \"exit_code\": 0, \"messages\": [\"I\\u2019ll look for an existing authorized projection or operator diagnostic that exposes only candidate artifact paths and approved-scope matches. I\\u2019ll keep payloads and state bodies out of output and won\\u2019t widen access.\", \"The authorized Comms5 objective projection is available, but it returned no proposal steps, candidate paths, request/criteria fields, or cache detail. The existing registry\\u2019s `authorize_office_state` is the narrowest source for the cached plan; I\\u2019m preparing a read-only operator script that calls it and `GraceExecutionPipeline.get_objective`, emitting only path values and match flags.\", \"Confirmed: Comms5 `objective_status` returned no candidate paths, proposal steps, request, or criteria, so the exact rejected path remains unobserved. Active `pipeline.py:653\\u2013672` authorizes artifact paths only when named in the objective request/criteria (with a narrow diagnostics exception); `service.py:571\\u2013574` maps the rejection to `PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED`. Whether the proposal path differed from the requested path or the persisted scope omitted it is still unknown.\", \"Prepared, not run: [.riverview-write-acceptance/grace-artifact-scope-diagnostic-20261029/diagnose_grace_artifact_scope.py](/home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-artifact-scope-diagnostic-20261029/diagnose_grace_artifact_scope.py), SHA-256 `d8947890c317f1d23612db99fa75814f170345745fa2a6b9e1b7f2cf3142d7c1`. It uses the existing authorized office-state and objective APIs and emits candidate paths plus request/criteria match flags only. The sandbox cannot read `/etc/riverview/grace-execution.env` (permission denied); I did not bypass that boundary. Next step: operator runs it within the existing `admin1` owner-session environment and credential mount. No runtime or objective changes made.\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T17:53:45.535729+00:00",
+    "completed_at": "2026-10-29T17:53:46.435412+00:00",
+    "deadline_at": "2026-10-29T18:53:45.511851+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "d8bfb1b1-13f8-4fad-8c5c-95dcbe6686f7",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "e7087981-6c8e-4cfa-83cd-21d6740b226d",
+      "audit_event_id": "d0c0953a-d0ad-4d6e-a447-f04974013676",
+      "idempotency_key": "cmd-40f6cd426e444cf8510cbfcc1ee18604ca5c82fa1e509de881622d93cecf6584"
+    },
+    "host_id": "camrui",
+    "task_id": "e7087981-6c8e-4cfa-83cd-21d6740b226d",
+    "command_sha256": "376fbae0ab84571bf9dae12b0efa599cc1b983963c8267c1d99f80b9f22b76df",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "scope": "Read only exact objective and its cached plan through existing authorized office-state/objective APIs. Emit candidatepaths and request/criteria matchflags; no statebody/credential output, no writes/grants.",
+  "reason_operator_context": "Codexsandbox cannotread protectedexistingownerEnvironmentFile; authorizedownercontext needed. Exactlauncher underreview, notinvented.",
+  "next_run": "grace-scope-diagnostic-review-20261029-01",
+  "command_sha256": "d2e433cb1330ac9c257bdac3e0eb1d29b03395a4f0b04267e2332ad0be2ed858"
+}
