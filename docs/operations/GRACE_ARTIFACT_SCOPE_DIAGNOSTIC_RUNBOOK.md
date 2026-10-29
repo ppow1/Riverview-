@@ -1,13 +1,13 @@
-<!-- Controlled document revision 1.0.2 | 2026-10-29 EDT -->
+<!-- Controlled document revision 1.0.3 | 2026-10-29 EDT -->
 # Grace exact artifact-scope diagnostic
 
-Status: REVIEWED AND STAGED, NOT RUN. No runtime/source deployment or objective mutation is performed by this diagnostic.
+Status: DIAGNOSTIC COMPLETED SUCCESSFULLY (operator exit0). Exact mismatch identified; no path-policy/runtime/objective change. No runtime/source deployment or objective mutation is performed by this diagnostic.
 
 ## Verified state and unresolved question
 Fresh conversation objective objective:grace-conversation:be52c097-4609-53a1-b62c-d03db7f4b5b9 was received13:45:17EDT, groundedrev2, and attempted reasoning13:45:19. Provider response arrived13:45:59.402103; actual office-state proposal persistence succeeded13:45:59.485725. The lossless-cache correction passed this live persistence boundary. Pipeline proposal admission then failed13:45:59.503366 with ObjectiveStateError/PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED. No assignment or dispatch; the revision fence prevents repeated attempts.
 The exact rejected path is not exposed by normal Comms objective_status. Additional invented output versus target mismatch or ingestion omission remain hypotheses. Do not widen permissions or resubmit this objective to hide the error.
 
-## One operator step
+## Historical operator step (completed; do not repeat)
 Use the established desktop-ja3rpnq\wille PowerShell session:
 ~~~powershell
 & "C:\Users\Public\Documents\Riverview\GraceArtifactScope\Get-RiverviewGraceArtifactScope.ps1"
@@ -36,3 +36,7 @@ Four focused offline tests passed: escaped password parsing/read-only conninfo, 
 ## Canonical read API transaction-mode correction
 The second operator invocation6d601fad86184ad6b356225aeb305b0e returned RegistryUnavailable with no passfile warning, before obtaining path data. Its underlying exception was not exposed. Source inspection found a definite diagnostic incompatibility: read_authorized_office_state and authorize_exact_grant take FOR SHARE locks, which SQL read-only mode prohibits. These checked-in function bodies perform authorization/snapshot SELECTs and no mutation/audit insert. The corrected diagnostic uses the existing API with normal authority conninfo, commits/closes normally to release locks, and keeps the separate ledger/objective connection SQL read-only. No forced rollback or bypass of canonical accounting; no DB function/role/grant change or office/objective mutation.
 Every failure now includes a fixed stage (imports,credential_validation,registry_connect,authorized_office_snapshot,cache_decode,ledger_connect,objective_read), sanitized exception/context type and validated SQLSTATE when available. No exception text or secret-bearing conninfo is emitted. Fivefocused offline tests passed0skipped0failed; constructor/mode wiring, password parsing and sanitized stage/cause are covered. Actual protected run remains pending; the wrapped error from the previous run is still unobserved. Root reviewed exact patch, reconstructed files and verified fullcandidatehashes/transferdigests. Windows staging execution5a8288cf-dcdd-413c-bf83-db4d032d75ea/auditc50f8613-621f-460e-8aaa-898b5561ed00 verified parser0errors and updated launcher4d812415...67643. Use the same operator command above; new remote launcher hash begins95a34a8f. Do not resubmit the objective or change permissions.
+
+## Successful exact result and next implementation
+Operator invocationb70626b2192744f38638db7b7528165f exited0 in1.442seconds. plan_found=true. The expected reports/grace_delivery_20261029.txt is present in the approved request (not criteria), and the candidate preserves it with a true named-scope match. Two additional candidate outputs fail the exact approved-scope predicate: evidence/verification/grace_delivery_20261029.verify and outbox/conversation/be52c097-4609-53a1-b62c-d03db7f4b5b9/completion.json. This establishes planner-invented verification/publication artifacts, not loss of the user's requested reportpath. The existing pipeline path guard correctly rejected admission. No new permission is needed for the requested report.
+Preparation run grace-artifact-formation-fix-20261029-01, executiond36c660c-2f71-44cd-92b4-4cbdd8adb844, is preparing a minimal formation constraint using only approved objective request/criteria and existing lifecycle handlers. Keep the path guard; do not silently rewrite unauthorized outputs, widen authority, or clear the old fence. Candidate/test/helper review and operator application are still pending. Prefer a fresh bounded conversation acceptance after reviewed installation over recovery of the old request. No completed Engineering artifact or automatic completion delivery has yet been verified.
