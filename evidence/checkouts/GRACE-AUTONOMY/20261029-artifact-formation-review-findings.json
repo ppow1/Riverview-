@@ -1,0 +1,21 @@
+{
+  "status": "R1_NOT_ACCEPTED_ALONE_FOR_DEPLOYMENT",
+  "patch_sha256": "5ddd52e615961afa6d1a076c801c4889298d9852257aad70ada9df19fc34794e",
+  "helper_sha256": "3f6fb817881cc9936c5650ded868d865d1af364f65f6261f45bef2d30b34a83b",
+  "root_verified_transfer": {
+    "gzip": "022d57ff51c5a6abd8a9f4c7dd010acbadfc500e63da5b5933146f49c807cadf",
+    "json": "60447145f4ccae546eeec8248692de992d899b5d8b01b18ffdf727cf5f7694b8"
+  },
+  "finding": "R1 extractor requires slash and rejects any trailing dot, so mixed authorized root files or terminal-period paths can be excluded from generatedenum. Correctbeforedeploy; preserve existingadmissionpredicate semantics.",
+  "requested_regressions": [
+    "mixedroot+nestedfile",
+    "terminalpunctuation",
+    "exactprefix/extensionboundaries",
+    "nestedextensionlesspaths",
+    "sourcechange/multipleoutputs and untrustedsourceexclusion"
+  ],
+  "baseline_tests": "Predecessor55tests50pass5existingdiagnosticassertionfailures; candidate57tests52passsame5failures. Focused3subsetpassed. No new failures, but do not claimfullsuitegreen.",
+  "correction_run": "grace-formation-path-review-fix-20261029-01",
+  "command_sha256": "547805ef001572261a4d6d57576f415cf0bbcc48a606f234f85c0753a8155626",
+  "runtime_or_objective_change": false
+}
