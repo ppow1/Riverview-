@@ -1,0 +1,34 @@
+{
+  "observed_date": "2026-10-29",
+  "source": "Steward operator bounded protected diagnostic",
+  "diagnostic_exit_code": 0,
+  "diagnostic_shell_sha256": "57e93f82f4148c766e63540c1fdb4c9510737a2097b58422fd5c5a96810d4859",
+  "objective_id": "objective:grace-conversation:64e77b71-7ddf-5f12-8029-64464f2c7fc9",
+  "assignment_id": "assignment:grace:874de2567c6c9feca729a437a51b004f872e6e65",
+  "attempt_id": "11ef60cc-92b0-495d-a5ba-2aade127b422",
+  "verification_id": "ecc2e96c-0e8b-493b-a32b-da3491f3f3e4",
+  "verifier_revision": "1.0.5",
+  "verification_decision": "REJECTED",
+  "recorded_at": "2026-10-29 16:22:18.949485-04",
+  "artifact": {
+    "name": "delivery_report",
+    "path": "reports/grace_delivery_20261029.txt",
+    "media_type": "text/plain",
+    "verified_bytes": 23,
+    "sha256": "8e0ce183ab4e981461a6be8b4cd60877b836c53cfce4e0e64e1bfe6d58545ca9"
+  },
+  "step_and_artifact_clauses": [
+    "File exists at reports/grace_delivery_20261029.txt",
+    "File contains exactly GRACE-DELIVERY-20261029 with no extra content, whitespace, or line breaks",
+    "File encoding is UTF-8"
+  ],
+  "classification": "all three unsupported_step_check_form",
+  "important_limit": "Diagnostic literal_check_satisfied=true can be vacuous for these unrecognized unquoted clauses; it is not proof that exact bytes/encoding checks were independently applied.",
+  "implementation": {
+    "execution_id": "197b734d-9841-442b-8183-51657d512250",
+    "run_id": "grace-file-contract-verifier-fix-20261029-01",
+    "status": "in_progress_no_deployment"
+  },
+  "next": "Implement explicit path-bound existence, exact-byte and strict-UTF8 checks; preserve unknown-clause fail-closed and provenance; negative regressions then review deployment.",
+  "completion_verified": false
+}
