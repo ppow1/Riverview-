@@ -1,0 +1,167 @@
+--- a/src/riverview_core/local_reasoning_provider.py
++++ b/src/riverview_core/local_reasoning_provider.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/local_reasoning_provider.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.3.33
++# Revision: 1.3.34
++# Changed: 2026-10-29 UTC | RV-GRACE-ARTIFACT-DESTINATION-BOUNDARIES-20261029 | Match approved path extraction boundaries to the execution pipeline.
+ # Changed: 2026-10-29 UTC | RV-GRACE-ARTIFACT-DESTINATION-BINDING-20261029 | Bind artifact outputs to exact destinations named by the approved assignment.
+ # Changed: 2026-10-26 UTC | RV-GRACE-EXACT-CRITERIA-OUTPUT-SCHEMA | Constrain Steward-supplied step criteria to the exact persisted strings checked by the pipeline.
+ # Changed: 2026-10-26 UTC | RV-GRACE-LIFECYCLE-CRITERIA-SCHEMA-ALIGNMENT | Restrict system-owned criteria to persisted criteria mapped to supported lifecycle events.
+@@ -88,7 +89,7 @@
+ 
+ 
+ def _explicit_assignment_artifact_paths(assignment):
+-    """Return exact safe file paths named in the approved objective/criteria."""
++    """Enumerate visibly path-shaped literals from the approved assignment."""
+     if not isinstance(assignment, dict):
+         return ()
+     source = [assignment.get("objective", "")]
+@@ -96,16 +97,39 @@
+     if (assignment.get("acceptance_criteria_source") != "grace_derived" and
+             isinstance(criteria, (list, tuple))):
+         source.extend(criteria)
+-    path_pattern = re.compile(
+-        r"(?<![A-Za-z0-9._/-])((?:[A-Za-z0-9][A-Za-z0-9._-]*/)+"
+-        r"[A-Za-z0-9][A-Za-z0-9._-]*\.[A-Za-z0-9]{1,12})"
+-        r"(?![A-Za-z0-9._/-])")
++    safe_path = re.compile(
++        r"[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*")
++    token_pattern = re.compile(r"(?<![A-Za-z0-9._/-])[A-Za-z0-9][A-Za-z0-9._/-]*")
++    quoted_pattern = re.compile(r"[`\"']([A-Za-z0-9][A-Za-z0-9._/-]{0,239})[`\"']")
++
++    def is_named(path, text):
++        # Keep the exact boundary used by GraceExecutionPipeline's
++        # artifact_path_is_named predicate; do not normalize proposal paths.
++        return bool(re.search(
++            r"(?<![A-Za-z0-9._/-])" + re.escape(path) +
++            r"(?![A-Za-z0-9_/-]|\.(?=[A-Za-z0-9._/-]))", text))
++
+     paths = []
+-    for value in source:
+-        if isinstance(value, str):
+-            for path in path_pattern.findall(value):
+-                if path not in paths:
+-                    paths.append(path)
++    for text in source:
++        if not isinstance(text, str):
++            continue
++        candidates = []
++        candidates.extend(quoted_pattern.findall(text))
++        for match in token_pattern.finditer(text):
++            token = match.group(0)
++            trimmed = token.rstrip(".")
++            variants = [trimmed] if trimmed != token else [token]
++            for path in variants:
++                # Slash paths and dotted filenames are mechanically
++                # enumerable. Bare unquoted extensionless words are ambiguous.
++                if "/" not in path and "." not in path:
++                    continue
++                candidates.append(path)
++        for path in candidates:
++            if (len(path) <= 240 and safe_path.fullmatch(path) and
++                    ("/" in path or "." in path) and is_named(path, text) and
++                    path not in paths):
++                paths.append(path)
+     return tuple(paths)
+ 
+ 
+--- a/tests/test_local_reasoning_provider.py
++++ b/tests/test_local_reasoning_provider.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED TEST
+ # File: tests/test_local_reasoning_provider.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.1.39
++# Revision: 1.1.40
++# Changed: 2026-10-29 UTC | RV-GRACE-ARTIFACT-DESTINATION-BOUNDARIES-20261029 | Cover root, nested extensionless, punctuation, and path-prefix boundaries.
+ # Changed: 2026-10-29 UTC | RV-GRACE-ARTIFACT-DESTINATION-BINDING-20261029 | Reject invented artifact destinations while preserving explicit multi-output and source-change plans.
+ # Changed: 2026-10-28 UTC | RV-GRACE-REQUEST-CONSTRUCTION-DIAGNOSTICS | Verify safe diagnostics for request serialization and prompt byte boundaries.
+ # Changed: 2026-10-26 UTC | RV-GRACE-EXACT-CRITERIA-OUTPUT-SCHEMA | Assert generated step schemas enumerate exact persisted non-lifecycle criteria.
+@@ -73,7 +74,8 @@
+ from riverview_core.resident_reasoning import (ExternalEscalationIntent,
+     PlanProposal, ProposalValidationFailure, ReasoningRequest)
+ from riverview_core.local_reasoning_provider import (
+-    LocalReasoningProvider, LocalReasoningUnavailable)
++    LocalReasoningProvider, LocalReasoningUnavailable,
++    _explicit_assignment_artifact_paths)
+ 
+ 
+ MODEL_SHA = "a" * 64
+@@ -685,10 +687,74 @@
+         self.assertIn("repository_reference", step_properties)
+         self.assertIn("repository_revision", step_properties)
+ 
++    def test_artifact_path_enumeration_matches_pipeline_boundaries(self):
++        assignment = {"objective": (
++            "Create deliverable.md and reports/summary.txt. Also include "
++            "reports/NOTICE and reports/main.txt.backup.")}
++        self.assertEqual(_explicit_assignment_artifact_paths(assignment), (
++            "deliverable.md", "reports/summary.txt", "reports/NOTICE",
++            "reports/main.txt.backup"))
++        self.assertNotIn("reports/main.txt", _explicit_assignment_artifact_paths(assignment))
++
++        self.request = replace(self.request, assignment=assignment)
++        requirements = [{"name": name, "path": path, "media_type": "text/plain",
++                         "acceptance_criteria": [f"Produce {path}"]}
++            for name, path in (("root", "deliverable.md"),
++                               ("nested", "reports/summary.txt"),
++                               ("notice", "reports/NOTICE"))]
++        self.response_body = self._response(text=json.dumps({
++            "summary": "Create the three requested files", "steps": [{
++                "step_id": "write", "objective": "Write the requested files",
++                "acceptance_criteria": ["Create the requested files"], "depends_on": [],
++                "execution_capability": "engineering.codex-cli-artifact.v1",
++                "artifact_requirements": requirements}]}))
++        proposal = self.provider.propose(self.request)
++        self.assertIsInstance(proposal, PlanProposal)
++        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
++        path_schema = schema["properties"]["steps"]["items"]["oneOf"][0]["properties"]
++        path_schema = path_schema["artifact_requirements"]["items"]["properties"]["path"]
++        self.assertEqual(path_schema["enum"], [
++            "deliverable.md", "reports/summary.txt", "reports/NOTICE",
++            "reports/main.txt.backup"])
++
++    def test_artifact_path_extension_prefix_is_not_authorized(self):
++        self.request = replace(self.request, assignment={
++            "id": "assignment-1", "objective": "Create reports/main.txt.backup."})
++        def response(path):
++            return self._response(text=json.dumps({"summary": "Create requested file", "steps": [{
++                "step_id": "write", "objective": "Write file",
++                "acceptance_criteria": ["Create requested file"], "depends_on": [],
++                "execution_capability": "engineering.codex-cli-artifact.v1",
++                "artifact_requirements": [{"name": "result", "path": path,
++                    "media_type": "text/plain", "acceptance_criteria": ["Create requested file"]}]}]}))
++        self.response_body = response("reports/main.txt")
++        rejected = self.provider.propose(self.request)
++        self.assertIsInstance(rejected, ProposalValidationFailure)
++        self.assertEqual(rejected.detail_code, "PROPOSAL_SCHEMA_INVALID")
++        self.response_body = response("reports/main.txt.backup")
++        accepted = self.provider.propose(self.request)
++        self.assertIsInstance(accepted, PlanProposal)
++
++    def test_untrusted_paths_and_grace_derived_criteria_do_not_seed_artifact_enum(self):
++        self.request = replace(self.request, assignment={
++            "id": "assignment-1", "objective": "Create the requested result",
++            "acceptance_criteria_source": "grace_derived",
++            "acceptance_criteria": ["Also create reports/model-derived.txt"]},
++            verified_knowledge=({"status": "VERIFIED", "value": "reports/knowledge.json"},),
++            external_advisory={"suggested_path": "reports/advisory.json"})
++        self.response_body = self._response()
++        self.assertIsInstance(self.provider.propose(self.request), PlanProposal)
++        schema = self.requests[0]["response_format"]["json_schema"]["schema"]
++        path_schema = schema["properties"]["steps"]["items"]["oneOf"][0]["properties"]
++        path_schema = path_schema["artifact_requirements"]["items"]["properties"]["path"]
++        self.assertNotIn("enum", path_schema)
++        self.assertEqual(_explicit_assignment_artifact_paths(self.request.assignment), ())
++
+     def test_controller_verification_and_outbox_paths_are_not_invented_artifacts(self):
+         requested = "Create reports/grace_delivery_20261029.txt containing GRACE-DELIVERY-20261029; verify it and return completion in this conversation."
+         self.request = replace(self.request, assignment={
+             "id": "assignment-1", "objective": requested},
++            verified_knowledge=({"status": "VERIFIED", "value": "evidence/knowledge/verified.json"},),
+             external_advisory={"suggested_path": "outbox/conversation/test/completion.json"})
+         self.response_body = self._response(text=json.dumps({
+             "summary": "Create and deliver verified report", "steps": [{
