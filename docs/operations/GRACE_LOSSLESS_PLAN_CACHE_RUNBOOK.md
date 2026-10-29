@@ -1,4 +1,4 @@
-<!-- Controlled document revision 1.0.1 | 2026-10-29 EDT -->
+<!-- Controlled document revision 1.0.2 | 2026-10-29 EDT -->
 # Grace lossless plan-cache capacity correction
 
 Status: INSTALLED; current pointer and both exact runtime hashes independently verified through Comms/Camrui at approximately12:17EDT2026-10-29. Fresh-request capacity/delivery acceptance remains pending. This is the next action after the installed and verified db-state-boundary-r1 correction. Do not repeat the earlier installers.
@@ -42,3 +42,6 @@ No live acceptance or full autonomy completion has been claimed. If live persist
 
 ## Installed verification
 A repeated invocation returned dry-run2/current_pointer_mismatch. Independent inspection executionc6852b84-4b6a-462b-b69d-4e711de2786e and result executionec094cb5-b9d4-4401-ba99-e8cf0058bdfb (audita0915424-94cc-4fa4-a743-61559ad9f0bd) found current already resolves to the reviewed lossless-plan-cache-r2 release; reasoningaa8fbd39...5cd56c/service73b5085d...5ad2be match. The dry-run expects db-state-boundary-r1, so the repeated block is explained by already-current candidate, not unknown drift. Nothing was changed by that repeated invocation. Prior successful apply receipt/time was not supplied. Do not reinstall or loosen predecessor checks. Proceed to the fresh conversation acceptance above; no new objective was visible in recent submissions at inspection time.
+
+## Live persistence acceptance and next blocker
+Fresh objective objective:grace-conversation:be52c097-4609-53a1-b62c-d03db7f4b5b9 successfully persisted actual PlanProposal office state13:45:59.485725EDT2026-10-29. Cache persistence is therefore verified on the new live request. Pipeline admission then rejected a path with PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED; no assignment was created. The exact mismatch is not yet observed and permissions are unchanged. Continue from [GRACE_ARTIFACT_SCOPE_DIAGNOSTIC_RUNBOOK.md](GRACE_ARTIFACT_SCOPE_DIAGNOSTIC_RUNBOOK.md), whose reviewed read-only operator entry is staged. Do not reinstall the cache or create another request. Full delivery acceptance remains incomplete.
