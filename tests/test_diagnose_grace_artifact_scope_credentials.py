@@ -51,27 +51,52 @@ class _Connection:
 class PgpassInMemoryConnectionTests(unittest.TestCase):
     def test_systemd_0440_entry_becomes_readonly_conninfo_without_passfile(self):
         before = os.environ.get("PGPASSFILE")
-        dsn = module._readonly_dsn(b"127.0.0.1:5432:riverview:riverview_core:sample\\:secret\\\\value\n")
-        parsed = conninfo_to_dict(dsn)
-        self.assertEqual(parsed["password"], "sample:secret\\value")
-        self.assertEqual(parsed["host"], "127.0.0.1")
-        self.assertEqual(parsed["dbname"], "riverview")
-        self.assertEqual(parsed["user"], "riverview_core")
-        self.assertIn("default_transaction_read_only=on", parsed["options"])
-        self.assertNotIn("passfile", parsed)
+        authority_dsn, ledger_dsn = module._connection_dsns(
+            b"127.0.0.1:5432:riverview:riverview_core:sample\\:secret\\\\value\n")
+        authority = conninfo_to_dict(authority_dsn)
+        ledger = conninfo_to_dict(ledger_dsn)
+        self.assertEqual(authority["password"], "sample:secret\\value")
+        self.assertEqual(authority["host"], "127.0.0.1")
+        self.assertEqual(authority["dbname"], "riverview")
+        self.assertEqual(authority["user"], "riverview_core")
+        self.assertNotIn("default_transaction_read_only=on", authority.get("options", ""))
+        self.assertIn("default_transaction_read_only=on", ledger["options"])
+        self.assertNotIn("passfile", authority)
+        self.assertNotIn("passfile", ledger)
         self.assertEqual(os.environ.get("PGPASSFILE"), before)
 
     def test_existing_read_apis_receive_password_conninfo_not_passfile(self):
-        dsn = module._readonly_dsn(b"127.0.0.1:5432:riverview:riverview_core:synthetic\n")
+        authority_dsn, ledger_dsn = module._connection_dsns(
+            b"127.0.0.1:5432:riverview:riverview_core:synthetic\n")
         with mock.patch.object(psycopg, "connect", side_effect=[_Connection(), _Connection()]) as connect:
-            AuthorityRegistry(dsn, schema="riverview_authority", runtime_safe=True)
-            PostgresLedger(dsn, schema="riverview_dev")
+            AuthorityRegistry(authority_dsn, schema="riverview_authority", runtime_safe=True)
+            PostgresLedger(ledger_dsn, schema="riverview_dev")
         self.assertEqual(connect.call_count, 2)
-        for call in connect.call_args_list:
-            parsed = conninfo_to_dict(call.args[0])
-            self.assertEqual(parsed["password"], "synthetic")
-            self.assertNotIn("passfile", parsed)
-            self.assertIn("default_transaction_read_only=on", parsed["options"])
+        authority = conninfo_to_dict(connect.call_args_list[0].args[0])
+        ledger = conninfo_to_dict(connect.call_args_list[1].args[0])
+        self.assertEqual(authority["password"], "synthetic")
+        self.assertEqual(ledger["password"], "synthetic")
+        self.assertNotIn("passfile", authority)
+        self.assertNotIn("passfile", ledger)
+        self.assertNotIn("default_transaction_read_only=on", authority.get("options", ""))
+        self.assertIn("default_transaction_read_only=on", ledger["options"])
+
+    def test_failure_payload_has_fixed_stage_and_sanitized_context_metadata(self):
+        class DriverFailure(Exception):
+            sqlstate = "42501"
+
+        cause = DriverFailure("private database detail and credential=NEVER_PRINT")
+        outer = RuntimeError("wrapped private message MUST_NOT_ESCAPE")
+        outer.__context__ = cause
+        payload = module._error_payload(outer, "authorized_office_snapshot")
+        encoded = str(payload)
+        self.assertEqual(payload["stage"], "authorized_office_snapshot")
+        self.assertEqual(payload["reason_code"], "diagnostic_unavailable")
+        self.assertEqual(payload["exception_type"], "RuntimeError")
+        self.assertEqual(payload["context_type"], "DriverFailure")
+        self.assertEqual(payload["sqlstate"], "42501")
+        self.assertNotIn("private", encoded)
+        self.assertNotIn("NEVER_PRINT", encoded)
 
     def test_pgpass_target_mismatch_fails_closed(self):
         with self.assertRaisesRegex(RuntimeError, "database_credential_target_mismatch"):
