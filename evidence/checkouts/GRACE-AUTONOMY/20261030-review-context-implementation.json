@@ -1,0 +1,36 @@
+{
+  "schema": "rv.grace-autonomy.repair-checkpoint.v1",
+  "file_revision": "1.0.0",
+  "status": "SOURCE_IMPLEMENTED_REPORTED_TESTS_NOT_DEPLOYED_NOT_LIVE_QUALIFIED",
+  "thread_id": "01a17fdf-6d58-7050-92cc-1762ac986518",
+  "stage": ".riverview-write-acceptance/grace-general-autonomy-repair-20261030",
+  "review_context_run": {
+    "run_id": "grace-review-context-implement-20261030-01",
+    "execution_id": "ea2bbdb7-a0c0-4172-b8d4-869f7377a598",
+    "command_sha256": "e33c5ddbf159c97aab10ffe48ae8f6e0701edb558d95d445cafa1aa53a8f2a1e",
+    "audit_event_id": "c2a3c7cc-8b41-4892-b649-63ddde35471c",
+    "reported_results": {
+      "tests_passed": 38,
+      "environment": "in-memory; database-backed tests not invoked",
+      "graph_count": 24,
+      "node_count": 675,
+      "baseline": "Review context rejected with ValueError before model call; 11588-byte operational snapshot lost health/work summaries at 8192-byte guard",
+      "repairs": "Validated review bookkeeping, transient same-release review retry, allowlisted Unicode-byte-bounded operational snapshot with omissions",
+      "limitation": "Root has not yet retrieved full diff/manifest. Branch-based service revision1.0.65 is older than deployed1.0.66; exact runtime port required before deployment."
+    }
+  },
+  "acceptance_run": {
+    "run_id": "grace-acceptance-judgment-implement-20261030-01",
+    "execution_id": "a19ff49b-fee5-48a3-9907-ca26d0581321",
+    "command_sha256": "275a1ae7232609656b28bcc4a97d2141fec235ac2db75b17286769d913b92a72",
+    "audit_event_id": "bb7669e0-137f-4417-9d4e-7f8e675a93fb"
+  },
+  "integration_run": {
+    "run_id": "grace-autonomy-integrate-review-20261030-01",
+    "execution_id": "6caf498b-bb68-45a0-9fec-fea22287cf8b",
+    "command_sha256": "b7cb51351f0a1e34e50b8a52f60eec0aabcdb5dd92bff645b3c5960c175afefa",
+    "audit_event_id": "ebd90d6d-4363-47af-94e6-4d9611adeef3",
+    "instruction": "Port only task changes to exact deployed predecessors; preserve recent cache/state/publication fixes; exclude literal-only planner draft and unrelated dirty files; stage review bundle without deployment."
+  },
+  "next_action": "Retrieve integration review bundle, verify hashes/diff/tests, complete permitted commissioning and actual resident qualification; no success claim from fixture model responses."
+}
