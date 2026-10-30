@@ -1,8 +1,7 @@
 {
   "schema": "rv.grace-autonomy.recovery-baseline.v1",
-  "file_revision": "1.0.0",
+  "file_revision": "1.0.1",
   "task": "Grace Autonomy Recovery and Qualification",
-  "observed_at": "2026-10-30T15:35:00Z",
   "authorization": "Steward instruction in current conversation: repair existing acceptance, resident judgment/recovery, operational context and observability; qualify ongoing general-purpose operation; no new organizing work order or artificial operating limits.",
   "status": "REPAIR_IN_PROGRESS_NOT_DEPLOYED_OR_QUALIFIED",
   "baseline_objective": {
@@ -167,5 +166,11 @@
     "No demonstrated model rejection-review invocation or recovery for the baseline objective.",
     "Earlier staged literal-only alignment candidate is not approved for deployment under clarified general-purpose architecture.",
     "Qualification-specific restrictions are prohibited; existing legitimate authority/resource controls remain."
-  ]
+  ],
+  "retrieval_context": "Read during the current October 30 recovery session; the objective projection does not return a retrieval timestamp. Embedded event timestamps are backend supplied.",
+  "predecessor": {
+    "commit": "d3264ec8959c49f68d67dea5e1cbd2a1d1e82e0c",
+    "blob": "698408935a46349ae2c91c98571bee81d9fb283c",
+    "change": "Remove an approximate observation timestamp rather than imply exact retrieval timing."
+  }
 }
