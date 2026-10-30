@@ -1,0 +1,21 @@
+{
+  "observed_at": "2026-10-29T22:12:48-04:00",
+  "gateway": {
+    "recovered": true,
+    "proof_execution_id": "a799dd01-a76a-4091-b805-348b9e4475dd",
+    "proof_audit_id": "69bfec45-7055-4000-b692-00e8515c034b",
+    "previous_inspection_status": "not_found; did not start while command route unavailable",
+    "exit21_root_cause": "not established; no infrastructure reconfiguration"
+  },
+  "objective_id": "objective:grace-conversation:05a69441-a9aa-5ead-8321-aa21ecfb4f86",
+  "current_state": "rework_required/verifier1.0.6 unsupported criteria; no completion",
+  "confirmed_gap": "Planner artifact criterion schema accepts free-form strings, verifier only accepts supported whole clauses. Three-string verifier patch alone did not constrain planner formation.",
+  "next_implementation": {
+    "run_id": "grace-planner-verifier-alignment-implement-20261029-01",
+    "execution_id": "f4dcf541-0064-47bd-9b70-9e217f98fb5f",
+    "thread_id": "01a17fdf-6d58-7050-92cc-1762ac986518",
+    "scope": "Existing string acceptance contract; shared supported grammar/schema/local predispatch validation; original obligations unchanged, exact-byte semantics required for exact-content task, source/lifecycle regression preserved.",
+    "status": "in_progress_no_deployment",
+    "avoid": "No fresh work orders or synonym diagnostics while structural gap is corrected. No schema migration, services, grants or credential changes."
+  }
+}
