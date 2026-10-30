@@ -1,6 +1,6 @@
 {
   "schema": "rv.grace-autonomy.repair-checkpoint.v1",
-  "file_revision": "1.0.0",
+  "file_revision": "1.0.1",
   "status": "SOURCE_IMPLEMENTED_REPORTED_TESTS_NOT_DEPLOYED_NOT_LIVE_QUALIFIED",
   "thread_id": "01a17fdf-6d58-7050-92cc-1762ac986518",
   "stage": ".riverview-write-acceptance/grace-general-autonomy-repair-20261030",
@@ -32,5 +32,28 @@
     "audit_event_id": "ebd90d6d-4363-47af-94e6-4d9611adeef3",
     "instruction": "Port only task changes to exact deployed predecessors; preserve recent cache/state/publication fixes; exclude literal-only planner draft and unrelated dirty files; stage review bundle without deployment."
   },
-  "next_action": "Retrieve integration review bundle, verify hashes/diff/tests, complete permitted commissioning and actual resident qualification; no success claim from fixture model responses."
+  "next_action": "Retrieve integration review bundle, verify hashes/diff/tests, complete permitted commissioning and actual resident qualification; no success claim from fixture model responses.",
+  "status_reads": {
+    "review_context": {
+      "idempotency_key": "grace-review-context-implement-status-20261030-01",
+      "command_sha256": "281ebd5382cdad920c599760ca397bc6a8fd97b63ec090917d5554d164e6d4f3",
+      "execution_id": "540e903a-386b-446a-b89c-2eb62d7ff1c2",
+      "state": "completed"
+    },
+    "acceptance": {
+      "idempotency_key": "grace-acceptance-judgment-implement-status-20261030-01",
+      "command_sha256": "99d9154368df46ef33a4410bbb70c182596812f6561074d9dc448109951e6fa5",
+      "execution_id": "18931bbb-d84f-448a-9c3a-769e8055f728"
+    },
+    "integration": {
+      "idempotency_key": "grace-autonomy-integrate-review-status-20261030-01",
+      "command_sha256": "246bc7efac28718de3bc277783c49cac0e07114f0d83d1ee9807548bfd05cf98",
+      "execution_id": "fac3ba76-5d38-4508-9475-eabd1481a224"
+    }
+  },
+  "queue_note": "Gateway serializes tasks. Integration was queued before the acceptance status-read command; both status reads may wait until integration completes. Poll original acceptance/integration task status for running/completed state; status-read task output contains actual assistant messages. Avoid duplicate implementations.",
+  "predecessor": {
+    "commit": "28e5ddc6910028988d61f8300d4d15b7ff92b8ef",
+    "blob": "404b76f20a8bd90c4cae442652aab483ef3072fd"
+  }
 }
