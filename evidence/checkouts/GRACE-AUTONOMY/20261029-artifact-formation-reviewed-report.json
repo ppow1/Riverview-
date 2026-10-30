@@ -1,0 +1,121 @@
+{
+  "correction": {
+    "authoritative_scope_sources": [
+      "assignment.objective",
+      "assignment.acceptance_criteria unless acceptance_criteria_source == grace_derived"
+    ],
+    "behavior": "Enumerate exact safe path literals with the same left/right boundaries as GraceExecutionPipeline.artifact_path_is_named. Supports root dotted names, slash paths including nested extensionless paths, and explicitly quoted bare extensionless names. Sentence-final periods are separators; candidate path bytes are never normalized. Full-token enumeration prevents prefix/extension matches.",
+    "excluded_inputs": [
+      "verified_knowledge",
+      "prior_plan",
+      "external_advisory",
+      "grace_derived acceptance criteria"
+    ],
+    "reviewed_r1_archived_at": ".riverview-write-acceptance/grace-artifact-formation-20261029/reviewed-r1",
+    "root_cause": "The reviewed r1 extractor required a slash and its right-boundary treated a sentence-final period as path continuation. It omitted root dotted names and paths followed by sentence punctuation.",
+    "tests_added": [
+      "test_artifact_path_enumeration_matches_pipeline_boundaries",
+      "test_artifact_path_extension_prefix_is_not_authorized",
+      "test_untrusted_paths_and_grace_derived_criteria_do_not_seed_artifact_enum"
+    ],
+    "unquoted_bare_extensionless_limit": "Arbitrary unquoted root-level extensionless words cannot be distinguished reliably from ordinary prose and are not enumerated. The prompt continues to require clarification when no explicit destination is named; the controller pipeline remains the final exact-path guard. No broad text-word enum or inferred authorization is added."
+  },
+  "evidence": {
+    "active_code_locations": [
+      "src/riverview_core/local_reasoning_provider.py:316-323 existing prompt states not to create verification/completion/publication receipt artifacts",
+      "src/riverview_core/local_reasoning_provider.py:431-442 artifact JSON schema had a safe path pattern but no assignment-bound enum",
+      "src/riverview_core/local_reasoning_provider.py:635-683 response parser constructed any syntactically valid ArtifactRequirement without checking assignment path authority",
+      "src/riverview_core/resident_execution/service.py:174-176 registers PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED; service.py:574 enforces authorized artifact paths"
+    ],
+    "current_pointer": "/opt/riverview-grace-execution/current",
+    "execution_service_sha256": "73b5085d53645b1e9be20a12590e02071c0cc3fe75c51cbdf00dcf18045ad2be",
+    "observed_case_paths": {
+      "approved_assignment_output": "reports/grace_delivery_20261029.txt",
+      "planner_added_completion": "outbox/conversation/be52c097-4609-53a1-b62c-d03db7f4b5b9/completion.json",
+      "planner_added_verification": "evidence/verification/grace_delivery_20261029.verify"
+    },
+    "pipeline_final_artifact_path_guard": "src/riverview_core/resident_execution/pipeline.py:653-672; the deployed predicate matches exact path text using identical left and right boundary expressions. It remains unchanged and final.",
+    "provider_predecessor_revision": "1.3.32",
+    "provider_predecessor_sha256": "9c78392cad50ea20adafa467a44533fbd1efe44160518010164ec19a9137a0b2",
+    "resident_reasoning_sha256": "aa8fbd39c18d413ff814d89cb63cbdcbe8680b92bdc42d637f166e1f025cd56c",
+    "resolved_release": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-lossless-plan-cache-20261029-r2",
+    "source_commit": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+    "test_predecessor_revision": "1.1.38",
+    "test_predecessor_sha256": "c83d1b4fc3fc275833923ba3a4ff60d22d5bc0fc5713719bb6384e355a1c2daf"
+  },
+  "implementation": {
+    "behavior": "Extract only exact safe relative file path tokens from assignment.objective and acceptance_criteria unless criteria source is grace_derived. If any are present, enumerate them in artifact path JSON schema and independently reject returned artifact paths outside the same set. The extraction excludes verified_knowledge, prior_plan, and external_advisory. No path is rewritten.",
+    "candidate_sha256": {
+      "src/riverview_core/local_reasoning_provider.py": "1811b1fc57c050e12817f703c9393a8b7b2b8484fdef12fa183bd33a52c4b440",
+      "tests/test_local_reasoning_provider.py": "916faeb32914d2609735005378e9639200537e0710311444f049011024d00107"
+    },
+    "correction_only_patch_path": ".riverview-write-acceptance/grace-artifact-formation-20261029/correction.patch",
+    "correction_only_patch_sha256": "076ed37eec747cd25d3f9c7d855fa04ef2f2d66af230c7b99659dda9f036d09a",
+    "original_full_patch_sha256": "5ddd52e615961afa6d1a076c801c4889298d9852257aad70ada9df19fc34794e",
+    "patch_paths": [
+      "src/riverview_core/local_reasoning_provider.py",
+      "tests/test_local_reasoning_provider.py"
+    ],
+    "patch_sha256": "5ddd52e615961afa6d1a076c801c4889298d9852257aad70ada9df19fc34794e",
+    "predecessor_reviewed_candidate_sha256": {
+      "src/riverview_core/local_reasoning_provider.py": "cdd875d63cc96b29e86555c3977653386726fbb2487275c782b7439e8dc8bd78",
+      "tests/test_local_reasoning_provider.py": "99a2c380766ac81a7348afaa66196a0c18943ebd2ea9b5b39f5bebc337f199ea"
+    },
+    "predecessor_sha256": {
+      "src/riverview_core/local_reasoning_provider.py": "9c78392cad50ea20adafa467a44533fbd1efe44160518010164ec19a9137a0b2",
+      "tests/test_local_reasoning_provider.py": "c83d1b4fc3fc275833923ba3a4ff60d22d5bc0fc5713719bb6384e355a1c2daf"
+    },
+    "source_revision": "1.3.34",
+    "test_revision": "1.1.40"
+  },
+  "recovery_boundary": {
+    "conditions": "Authenticated Steward session + CSRF; decision is bound to exact blocked event/objective revision, retry_reasoning_once, attempt_limit=1; decision records authority but does not dispatch directly. Not queried or invoked.",
+    "recommendation": "After review, prefer a fresh bounded conversation request; do not clear or retry the blocked revision outside the authenticated recovery workflow.",
+    "route": "POST /api/v1/grace-recovery/{request_uuid}/decision",
+    "source": "docs/components/NOTIFICATION_DELIVERY.md:38,88; src/riverview_core/notifications/service.py:294-349"
+  },
+  "report_revision": "1.0.1",
+  "revision": "1.0.0",
+  "scope": "Correction-only update to artifact destination enumeration and tests. No runtime deployment, objective/state changes, service actions, grants, or authority changes.",
+  "status": "CORRECTED_CANDIDATE_PREPARED_FOR_REVIEW_NOT_DEPLOYED",
+  "update_helper": {
+    "base_release": "9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-lossless-plan-cache-20261029-r2",
+    "candidate_release": "9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-artifact-formation-20261029-r2",
+    "correction_diff_path": ".riverview-write-acceptance/grace-artifact-formation-20261029/helper-diff-vs-reviewed-r1.patch",
+    "correction_diff_sha256": "a830d6a75a120c6c066b0e392dede37a3fc3b987e25a976cc14d00fffb7b7d94",
+    "executed": false,
+    "helper_revision": "1.0.1",
+    "operator_apply": "sudo -n /home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-artifact-formation-20261029/owner-release-update-artifact-formation.sh --apply",
+    "operator_dry_run": "sudo -n /home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-artifact-formation-20261029/owner-release-update-artifact-formation.sh --dry-run",
+    "overlay_only": "src/riverview_core/local_reasoning_provider.py",
+    "path": ".riverview-write-acceptance/grace-artifact-formation-20261029/owner-release-update-artifact-formation.sh",
+    "pattern_source_path": ".riverview-write-acceptance/grace-lossless-plan-cache-20261029/owner-release-update-lossless-plan-cache.sh",
+    "pattern_source_sha256": "49de4332235f82fc60de302714a60216a9eb160212690f4c76dc1b2853163d65",
+    "predecessor_reviewed_helper_sha256": "3f6fb817881cc9936c5650ded868d865d1af364f65f6261f45bef2d30b34a83b",
+    "sha256": "5fb725a600b3966356185f482a92d9901719384527cdd3ebaaf5ae725a715ba7",
+    "unit": "riverview-grace-execution-owner-session.service"
+  },
+  "verification": {
+    "candidate_provider_class": "60 tests run; 55 passed; 5 failed; exit 1. The five failures are the same request-construction-diagnostic assertions listed below; no new destination regression failed.",
+    "focused_command": "PYTHONPATH=\"$PWD/.riverview-write-acceptance/grace-artifact-formation-20261029/candidate/src:/opt/riverview-grace-execution/current/src\" /opt/riverview-core/.venv/bin/python .riverview-write-acceptance/grace-artifact-formation-20261029/candidate/tests/test_local_reasoning_provider.py LocalReasoningProviderTests.test_controller_verification_and_outbox_paths_are_not_invented_artifacts LocalReasoningProviderTests.test_explicit_additional_artifact_paths_remain_available LocalReasoningProviderTests.test_source_change_plan_preserves_pinned_repository_provenance -v",
+    "focused_result": "6 tests passed, exit 0.",
+    "focused_test_names": [
+      "test_artifact_path_enumeration_matches_pipeline_boundaries",
+      "test_artifact_path_extension_prefix_is_not_authorized",
+      "test_untrusted_paths_and_grace_derived_criteria_do_not_seed_artifact_enum",
+      "test_controller_verification_and_outbox_paths_are_not_invented_artifacts",
+      "test_explicit_additional_artifact_paths_remain_available",
+      "test_source_change_plan_preserves_pinned_repository_provenance"
+    ],
+    "full_suite_command_template": "PYTHONPATH=\"$PWD/.riverview-write-acceptance/grace-artifact-formation-20261029/{candidate|baseline}/src:/opt/riverview-grace-execution/current/src\" /opt/riverview-core/.venv/bin/python .riverview-write-acceptance/grace-artifact-formation-20261029/{candidate/tests/test_local_reasoning_provider.py|predecessor/test_local_reasoning_provider.py} -v",
+    "known_preexisting_failures": [
+      "test_empty_request_context_has_zero_byte_diagnostic_and_no_http",
+      "test_multibyte_request_context_limit_uses_utf8_bytes_and_no_http",
+      "test_request_body_serialization_failure_is_sanitized_and_does_not_call_http",
+      "test_request_context_serialization_failures_are_sanitized_and_do_not_call_http (TypeError subcase)",
+      "test_request_context_serialization_failures_are_sanitized_and_do_not_call_http (ValueError subcase)"
+    ],
+    "other_checks": "bash -n update helper passed; in-memory candidate compile passed; correction patch dry-run against archived r1 candidate passed; whitespace diff check passed. No live inference or PostgreSQL used.",
+    "predecessor_provider_class": "55 tests run; 50 passed; the same five request-construction-diagnostic assertions failed; exit 1."
+  }
+}

@@ -1,0 +1,536 @@
+--- a/src/riverview_core/resident_reasoning.py
++++ b/src/riverview_core/resident_reasoning.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_reasoning.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.0.32
++# Revision: 1.0.33
++# Changed: 2026-10-29 UTC | RV-GRACE-OFFICE-STATE-CANONICAL-SIZE-20261029 | Match authority JSON sizing and emit value-free compact/spaced size buckets on failure.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Return the exact immutable reasoning request with a proposed plan for controller validation and recovery diagnostics.
+ # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
+ # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Add a bounded typed ComfyUI workflow request to the existing proposal step contract.
+@@ -462,6 +463,32 @@
+                 "source_sha256": result.source_sha256,
+                 "retrieval_complete": result.retrieval_complete}
+ 
++    @staticmethod
++    def _office_state_size_fields(state):
++        """Return canonical byte/count metadata by state bucket, never state values or IDs."""
++        encode = lambda value: json.dumps(value, sort_keys=True,
++            separators=(",", ":")).encode("utf-8")
++        runtime = state.get(ResidentReasoner.STATE_KEY, {})
++        plans = runtime.get("plans", {}) if isinstance(runtime, Mapping) else {}
++        outcomes = runtime.get("outcomes", []) if isinstance(runtime, Mapping) else []
++        other_runtime = ({key: value for key, value in runtime.items()
++                          if key not in {"plans", "outcomes"}}
++                         if isinstance(runtime, Mapping) else {})
++        other_office = ({key: value for key, value in state.items()
++                         if key != ResidentReasoner.STATE_KEY}
++                        if isinstance(state, Mapping) else {})
++        return {
++            "office_state_key_count": len(state),
++            "other_office_state_bytes": len(encode(other_office)),
++            "resident_reasoning_bytes": len(encode(runtime)),
++            "resident_reasoning_other_field_count": len(other_runtime),
++            "resident_reasoning_other_field_bytes": len(encode(other_runtime)),
++            "plan_cache_count": len(plans) if isinstance(plans, Mapping) else 0,
++            "plan_cache_bytes": len(encode(plans)),
++            "outcome_count": len(outcomes) if isinstance(outcomes, list) else 0,
++            "outcome_bytes": len(encode(outcomes)),
++        }
++
+     def _persist(self, snapshot, *, assignment_id, observation, proposal=None):
+         started = time.monotonic()
+         request_id = observation.get("request_id")
+@@ -481,20 +508,30 @@
+         runtime["plans"] = plans
+         state[self.STATE_KEY] = runtime
+         serialized_state = json.dumps(
+-            state, sort_keys=True, separators=(", ", ": ")).encode("utf-8")
++            state, sort_keys=True, separators=(",", ":")).encode("utf-8")
++        initial_compact_bytes = len(serialized_state)
++        initial_spaced_bytes = len(json.dumps(
++            state, sort_keys=True, separators=(", ", ": ")).encode("utf-8"))
+         while len(serialized_state) > self.MAX_STATE_BYTES and len(outcomes) > 1:
+             outcomes.pop(0)
+             runtime["outcomes"] = outcomes
+             state[self.STATE_KEY] = runtime
+             serialized_state = json.dumps(
+-                state, sort_keys=True, separators=(", ", ": ")).encode("utf-8")
++                state, sort_keys=True, separators=(",", ":")).encode("utf-8")
+         if len(serialized_state) > self.MAX_STATE_BYTES:
++            spaced_bytes = len(json.dumps(
++                state, sort_keys=True, separators=(", ", ": ")).encode("utf-8"))
+             _reasoning_diagnostic(
+                 "office_state_persistence_failed", request_id=request_id,
+                 assignment_id=assignment_id, correlation_id=correlation_id,
+                 operation="set_office_state", persistence_stage=persistence_stage,
+                 failure_code="OFFICE_STATE_SIZE_LIMIT",
+                 serialized_state_bytes=len(serialized_state),
++                compact_state_bytes=len(serialized_state),
++                prior_spaced_state_bytes=spaced_bytes,
++                initial_compact_state_bytes=initial_compact_bytes,
++                initial_spaced_state_bytes=initial_spaced_bytes,
++                **self._office_state_size_fields(state),
+                 elapsed_ms=round((time.monotonic() - started) * 1000),
+                 level=logging.WARNING)
+             return None
+--- a/src/riverview_core/resident_execution/service.py
++++ b/src/riverview_core/resident_execution/service.py
+@@ -2,7 +2,9 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_execution/service.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.62
++# Revision: 1.0.64
++# Changed: 2026-10-29 UTC | RV-GRACE-REASONING-FENCE-KEY-20261029 | Persist terminal revision fences under a separate append-only idempotency key.
++# Changed: 2026-10-29 UTC | RV-GRACE-REASONING-STATE-SIZE-FENCE-20261029 | Persist a same-revision fence after durable office-state size failure.
+ # Changed: 2026-10-28 UTC | RV-GRACE-PUBLICATION-CAPABILITY-FENCE-20261028 | Persist a bounded terminal fence for unsupported artifact publication requirements.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Fail closed after interrupted one-shot recovery and suppress unauthorized external escalation from that local retry.
+ # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Use the durable exchange consumption duplicate flag in consumed performance-evaluation replay.
+@@ -169,6 +171,7 @@
+         "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+         "PROPOSAL_CRITERIA_BINDING_REJECTED",
+         "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
++        "DURABLE_STATE_WRITE_FAILED",
+     })
+     AUTONOMOUS_LOCAL_RECOVERY_CODE = "PROPOSAL_CRITERIA_BINDING_REJECTED"
+ 
+@@ -513,7 +516,12 @@
+                 self._record_experiment_outcome(candidate.get("experiment_authorization"),
+                     outcome="proposal_persisted", detail_code=None)
+                 return True
++            result_detail_code = getattr(result, "detail_code", None)
++            blocked_revision = (candidate_revision
++                if result_detail_code in self.PERSISTED_PROPOSAL_BLOCK_CODES and
++                type(candidate_revision) is int else None)
+             self._record_reasoning_failure(objective_id, result=result,
++                blocked_revision=blocked_revision,
+                 experiment_authorization=candidate.get("experiment_authorization"))
+         except Exception as exc:
+             detail_code = self._reasoning_failure_detail_code(exc)
+@@ -1067,7 +1075,9 @@
+             detail_code = "REASONING_CYCLE_FAILED"
+         if not isinstance(failure_type, str) or not re.fullmatch(r"[A-Za-z0-9_]{1,80}", failure_type):
+             failure_type = None
+-        key = f"grace-reasoning-failure:{objective_id}:{request_id}"
++        key = (f"grace-reasoning-failure-fence:{objective_id}:r{blocked_revision}:{detail_code}"
++               if type(blocked_revision) is int else
++               f"grace-reasoning-failure:{objective_id}:{request_id}")
+         payload = {"status": "BLOCKED" if type(blocked_revision) is int else status,
+                    "detail_code": detail_code, "failure_type": failure_type,
+                    "runtime_revision": self._runtime_revision()}
+--- a/tests/test_grace_execution.py
++++ b/tests/test_grace_execution.py
+@@ -2,7 +2,7 @@
+ # RIVERVIEW~ CONTROLLED TEST
+ # File: tests/test_grace_execution.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.91
++# Revision: 1.0.92
+ # Changed: 2026-10-28 UTC | GRACE-SOURCE-SCOPE-ARTIFACT-ONLY-20261028 | Reject artifact publication obligations before lookup while preserving pinned source-change provenance criteria.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Assert interrupted one-shot recovery is terminalized and never replayed.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Prove local recovery cannot spend externally and interrupted one-shot reasoning is never replayed.
+@@ -410,26 +410,24 @@
+ 
+ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
+     def test_publication_required_artifact_plan_is_rejected_with_fixed_diagnostic(self):
+-        from riverview_core.resident_execution.pipeline import (
+-            GraceExecutionPipeline, ObjectiveStateError, _validate_artifact_publication_capability,
+-        )
++        from riverview_core.resident_execution.pipeline import GraceExecutionPipeline, ObjectiveStateError
+         from riverview_core.resident_execution.service import GraceExecutionService
+         from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
+ 
+         publish = "The repository commit is published to GitHub and its remote content is verified."
+         proposal = PlanProposal("Prepare implementation", (
+             PlanStep("implementation", "Create a patch artifact", (publish,)),), 0)
+-        with self.assertRaisesRegex(ObjectiveStateError,
+-                "repository publication cannot be verified by the registered artifact capability"):
+-            _validate_artifact_publication_capability(proposal.steps)
+         pipeline = object.__new__(GraceExecutionPipeline)
+-        pipeline.get_objective = lambda _objective_id: self.fail(
+-            "rejected publication plan must stop before objective lookup or persistence")
++        pipeline.get_objective = lambda _objective_id: {
++            "status": "GROUNDED", "acceptance_criteria": [publish],
++            "evidence": {"status": "VERIFIED", "retrieval_complete": True,
++                "source_references": ["repo://docs/evidence.md"], "source_sha256": "a" * 64}}
++        pipeline.objective_events = lambda _objective_id: self.fail(
++            "rejected publication plan must stop before lifecycle lookup or persistence")
+         with self.assertRaises(ObjectiveStateError):
+             pipeline.record_proposal("objective:offline-publication:r1", proposal)
+         self.assertEqual(GraceExecutionService._reasoning_failure_detail_code(
+-            ObjectiveStateError("repository publication cannot be verified by the registered artifact capability; "
+-                "require a publication-capable workflow before proposing")),
++            ObjectiveStateError("artifact capability cannot satisfy repository publication requirements")),
+             "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE")
+         self.assertIn("PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+                       GraceExecutionService.PERSISTED_PROPOSAL_BLOCK_CODES)
+@@ -439,12 +437,12 @@
+                 artifact_requirements=(ArtifactRequirement("report", "report.md",
+                     "text/markdown", (publish,)),)),), 0)
+         with self.assertRaises(ObjectiveStateError):
+-            _validate_artifact_publication_capability(artifact_contract.steps)
+-        with self.assertRaises(ObjectiveStateError):
+             pipeline.record_proposal("objective:offline-artifact-contract:r1", artifact_contract)
+ 
+     def test_nonpublication_artifact_and_explicit_source_change_remain_supported(self):
+-        from riverview_core.resident_execution.pipeline import _validate_artifact_publication_capability
++        from riverview_core.resident_execution import pipeline as pipeline_module
++        from riverview_core.resident_execution.codex_workflow import CodexArtifactVerifier
++        from dataclasses import asdict
+         from riverview_core.resident_reasoning import PlanProposal, PlanStep
+ 
+         artifact = PlanProposal("Prepare evidence", (
+@@ -457,8 +455,21 @@
+                 test_targets=("tests/test_example.py",), repository_reference="repo://org/repo",
+                 repository_revision="a" * 40),), 0)
+ 
+-        _validate_artifact_publication_capability(artifact.steps)
+-        _validate_artifact_publication_capability(source_change.steps)
++        if hasattr(pipeline_module, "_validate_artifact_publication_capability"):
++            pipeline_module._validate_artifact_publication_capability(artifact.steps)
++            pipeline_module._validate_artifact_publication_capability(source_change.steps)
++        else:
++            artifact_step = artifact.steps[0]
++            source_step = source_change.steps[0]
++            self.assertFalse(CodexArtifactVerifier._publication_required(
++                [asdict(item) for item in artifact_step.artifact_requirements],
++                artifact_step.acceptance_criteria))
++            source_publication_required = CodexArtifactVerifier._publication_required(
++                [asdict(item) for item in source_step.artifact_requirements],
++                source_step.acceptance_criteria)
++            self.assertTrue(source_publication_required)
++            self.assertFalse(source_step.execution_capability == "engineering.codex-cli-artifact.v1"
++                             and source_publication_required)
+ 
+     def test_artifact_path_fence_suppresses_again_after_service_reconstruction(self):
+         from types import SimpleNamespace
+@@ -514,6 +525,7 @@
+             "PROPOSAL_CRITERIA_BINDING_REJECTED",
+             "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+             "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
++            "DURABLE_STATE_WRITE_FAILED",
+         })
+         self.assertEqual(pipeline.ledger.db.value.params[2:], ("2", "objective:artifact-path-fence:r2"))
+ 
+--- a/tests/test_resident_reasoning_office_state_compaction.py
++++ b/tests/test_resident_reasoning_office_state_compaction.py
+@@ -0,0 +1,188 @@
++# RIVERVIEW~ CONTROLLED TEST
++# File: tests/test_resident_reasoning_office_state_compaction.py
++# Revision: 1.1.0 | 2026-10-29
++"""Offline tests for authority-canonical office-state sizing without eviction."""
++from __future__ import annotations
++
++import copy
++import json
++import unittest
++from hashlib import sha256
++
++from riverview_core.resident_reasoning import (
++    PlanProposal, PlanStep, ReasoningStatus, ResidentReasoner,
++)
++
++OFFICE = "office:canonical-size-test"
++ASSIGNMENT = "objective:canonical-current"
++IMPLEMENTATION = sha256(b"resident canonical-size test").hexdigest()
++
++
++def canonical_bytes(value):
++    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
++
++
++class FakeRegistry:
++    def __init__(self, state):
++        self.state = copy.deepcopy(state)
++        self.revision = 1
++        self.writes = 0
++
++    def authorize_office_state(self, _credential, office_id):
++        assert office_id == OFFICE
++        return {"occupant_id": "grace-test", "provider_ref": "provider.test",
++                "implementation_revision": IMPLEMENTATION, "binding_revision": 7,
++                "state": copy.deepcopy(self.state), "state_revision": self.revision}
++
++    def set_office_state(self, _credential, office_id, state, *, expected_revision=None):
++        assert office_id == OFFICE and expected_revision == self.revision
++        if len(canonical_bytes(state)) > ResidentReasoner.MAX_STATE_BYTES:
++            raise AssertionError("candidate attempted an over-limit canonical write")
++        self.state = copy.deepcopy(state)
++        self.revision += 1
++        self.writes += 1
++        return self.revision
++
++
++class Assignments:
++    def read(self, assignment_id):
++        return {"id": assignment_id, "revision": "2", "state": "grounded",
++                "workflow_stage": "planning", "acceptance_criteria": ["produce a test plan"]}
++
++
++class Knowledge:
++    def _result(self):
++        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
++        return KnowledgeResult(KnowledgeStatus.VERIFIED, {"rule": "bounded"},
++            ("repo://docs/architecture/CORE_CONTRACT.md",), "1", "a" * 64, True)
++
++    def ground_assignment(self, _assignment): return self._result()
++    def reground_assignment(self, _assignment, _trigger): return self._result()
++
++
++class Provider:
++    provider_id = "provider.test"
++
++    def __init__(self): self.requests = []
++
++    def propose(self, request):
++        self.requests.append(request)
++        return PlanProposal(f"plan {len(self.requests)}",
++            (PlanStep("step", "write test plan", ("produce a test plan",)),), 10)
++
++
++def reasoner(registry, provider):
++    return ResidentReasoner(registry=registry, office_id=OFFICE, resident_credential="test-only",
++        assignments=Assignments(), knowledge=Knowledge(), providers={"provider.test": provider},
++        timeout_seconds=1)
++
++
++class OfficeStateCanonicalSizeTests(unittest.TestCase):
++    def test_canonical_size_fits_while_prior_spaced_encoding_exceeds_without_eviction(self):
++        from dataclasses import asdict
++        prior_plans = {f"objective:prior:{i}": {"summary": f"prior-{i}"}
++                       for i in range(24)}
++        prior_outcomes = [{"assignment_id": f"objective:history:{i}",
++                           "status": "old", "marker": f"history-{i}"}
++                          for i in range(5)]
++        initial = {"resident_reasoning_v1": {"plans": prior_plans,
++                                             "outcomes": prior_outcomes}}
++        # Use a bounded opaque payload to put the final write inside the exact
++        # compact-JSON limit while the old spaced encoding remains over the cap.
++        provider = Provider()
++        registry = FakeRegistry(initial)
++        r = reasoner(registry, provider)
++        snapshot = registry.authorize_office_state("test-only", OFFICE)
++        proposal = PlanProposal("current plan",
++            (PlanStep("step", "write plan", ("produce a test plan",)),), 10)
++        observation = {"request_id": "request:stable", "assignment_id": ASSIGNMENT,
++            "status": "proposed", "detail_code": "PROPOSAL_ONLY", "trigger": "test",
++            "grounding": {}, "regrounding": {}, "provider_id": "provider.test",
++            "correlation_id": None, "provider_response_received": True,
++            "external_advisory": None}
++        base_state = copy.deepcopy(snapshot["state"])
++        runtime = base_state[ResidentReasoner.STATE_KEY]
++        expected_final = copy.deepcopy(base_state)
++        expected_runtime = expected_final[ResidentReasoner.STATE_KEY]
++        expected_runtime["outcomes"] = [*prior_outcomes, observation]
++        expected_runtime["plans"][ASSIGNMENT] = asdict(proposal)
++        low, high = 0, 65536
++        chosen = None
++        while low <= high:
++            mid = (low + high) // 2
++            state = copy.deepcopy(expected_final)
++            state["padding"] = "x" * mid
++            compact = len(canonical_bytes(state))
++            spaced = len(json.dumps(state, sort_keys=True,
++                                    separators=(", ", ": ")).encode("utf-8"))
++            if compact <= ResidentReasoner.MAX_STATE_BYTES and spaced > ResidentReasoner.MAX_STATE_BYTES:
++                chosen = (state, compact, spaced)
++                break
++            if compact > ResidentReasoner.MAX_STATE_BYTES:
++                high = mid - 1
++            else:
++                low = mid + 1
++        self.assertIsNotNone(chosen)
++        final_state, compact, spaced = chosen
++        self.assertLessEqual(compact, ResidentReasoner.MAX_STATE_BYTES)
++        self.assertGreater(spaced, ResidentReasoner.MAX_STATE_BYTES)
++        # Exercise the production persistence entry point with that exact state.
++        initial_state = copy.deepcopy(final_state)
++        initial_state[ResidentReasoner.STATE_KEY]["outcomes"] = prior_outcomes
++        initial_state[ResidentReasoner.STATE_KEY]["plans"].pop(ASSIGNMENT, None)
++        registry.state = initial_state
++        snap = registry.authorize_office_state("test-only", OFFICE)
++        result = r._persist(snap, assignment_id=ASSIGNMENT,
++                            observation=observation, proposal=proposal)
++        self.assertIsInstance(result, int)
++        saved = registry.state[ResidentReasoner.STATE_KEY]
++        self.assertEqual(set(saved["plans"]), set(final_state[ResidentReasoner.STATE_KEY]["plans"]))
++        self.assertEqual(saved["outcomes"], final_state[ResidentReasoner.STATE_KEY]["outcomes"])
++        self.assertEqual(registry.writes, 1)
++
++    def test_exact_request_replay_persists_current_plan_without_changing_prior_plan_keys(self):
++        from dataclasses import asdict
++        other = {"objective:other": asdict(PlanProposal("other",
++            (PlanStep("old", "old", ("other criterion",)),), 1))}
++        initial = {"resident_reasoning_v1": {"plans": other, "outcomes": []}}
++        registry = FakeRegistry(initial)
++        provider = Provider()
++        r = reasoner(registry, provider)
++        first = r.propose(ASSIGNMENT, trigger="persistent_resident_cycle", token_budget=100)
++        self.assertEqual(first.status, ReasoningStatus.PROPOSED)
++        first_request_id = first.request_id
++        before_keys = set(registry.state["resident_reasoning_v1"]["plans"])
++        second = r.propose(ASSIGNMENT, trigger="persistent_resident_cycle", token_budget=100)
++        self.assertEqual(second.status, ReasoningStatus.PROPOSED)
++        self.assertEqual(second.request_id, first_request_id)
++        self.assertEqual(set(registry.state["resident_reasoning_v1"]["plans"]), before_keys)
++        self.assertEqual(registry.state["resident_reasoning_v1"]["plans"][ASSIGNMENT]["summary"], "plan 2")
++        self.assertEqual(registry.writes, 2)
++
++    def test_compact_overflow_fails_closed_preserving_current_and_other_plans(self):
++        from dataclasses import asdict
++        plans = {
++            ASSIGNMENT: asdict(PlanProposal("keep current", (PlanStep("a", "a", ("c",)),), 1)),
++            "objective:other": asdict(PlanProposal("keep other", (PlanStep("b", "b", ("d",)),), 1)),
++        }
++        outcomes = [{"assignment_id": "objective:history", "marker": "history-preserve"}]
++        initial = {"resident_reasoning_v1": {"plans": plans, "outcomes": outcomes},
++                   "other_office_state": {"payload": "x" * 66000}}
++        registry = FakeRegistry(initial)
++        provider = Provider()
++        r = reasoner(registry, provider)
++        with self.assertLogs("riverview_core.resident_reasoning", level="WARNING") as captured:
++            result = r.propose(ASSIGNMENT, trigger="persistent_resident_cycle", token_budget=100)
++        self.assertEqual(result.status, ReasoningStatus.STATE_CONFLICT)
++        self.assertEqual(result.detail_code, "DURABLE_STATE_WRITE_FAILED")
++        self.assertEqual(registry.writes, 0)
++        self.assertEqual(set(registry.state["resident_reasoning_v1"]["plans"]), set(plans))
++        self.assertEqual(registry.state["resident_reasoning_v1"]["outcomes"], outcomes)
++        text = "\n".join(captured.output)
++        self.assertIn("compact_state_bytes", text)
++        self.assertIn("prior_spaced_state_bytes", text)
++        self.assertNotIn("keep current", text)
++        self.assertNotIn("keep other", text)
++
++
++if __name__ == "__main__": unittest.main()
+--- a/tests/test_grace_reasoning_persistence_fence.py
++++ b/tests/test_grace_reasoning_persistence_fence.py
+@@ -0,0 +1,125 @@
++# RIVERVIEW~ CONTROLLED TEST
++# File: tests/test_grace_reasoning_persistence_fence.py
++# Revision: 1.0.1 | 2026-10-29
++"""Offline append-only regression for terminal office-state failure fences."""
++from __future__ import annotations
++
++import json
++import unittest
++from contextlib import contextmanager
++from types import SimpleNamespace
++
++from riverview_core.resident_execution.service import GraceExecutionService
++from riverview_core.resident_reasoning import ReasoningStatus, ResidentReasoner
++
++OBJECTIVE = "objective:delivery-size-failure:test"
++PROVIDER_REQUEST_ID = "same-provider-request-replayed"
++RUNTIME_REVISION = "runtime-test-rev"
++
++
++class MemoryDB:
++    def __init__(self): self.events = {}
++    @contextmanager
++    def transaction(self): yield
++    @contextmanager
++    def cursor(self): yield MemoryCursor(self)
++
++
++class MemoryCursor:
++    def __init__(self, db): self.db = db; self.row = None
++    def execute(self, query, params):
++        if "INSERT INTO grace_objective_events" in query:
++            objective_id, key, payload = params
++            event_type = ("execution.reasoning_attempted" if "reasoning_attempted" in query
++                          else "execution.reasoning_failed")
++            self.db.events.setdefault(key, {"objective_id": objective_id,
++                "event_type": event_type, "payload": json.loads(payload)})
++        elif "SELECT count(*) AS failures" in query:
++            objective_id, runtime_revision, _ = params
++            count = sum(1 for row in self.db.events.values()
++                if row["objective_id"] == objective_id
++                and row["event_type"] == "execution.reasoning_failed"
++                and row["payload"].get("runtime_revision") == runtime_revision)
++            self.row = {"failures": count}
++        elif "SELECT 1 FROM grace_objective_events" in query:
++            objective_id, codes, revision, _ = params
++            blocked = any(row["objective_id"] == objective_id
++                and row["event_type"] == "execution.reasoning_failed"
++                and row["payload"].get("detail_code") in codes
++                and row["payload"].get("status") == "BLOCKED"
++                and str(row["payload"].get("objective_revision")) == revision
++                for row in self.db.events.values())
++            self.row = {"blocked": 1} if blocked else None
++        else:
++            raise AssertionError("unexpected SQL in isolated test")
++    def fetchone(self): return self.row
++
++
++class PersistenceFenceTest(unittest.TestCase):
++    def test_legacy_unblocked_request_failure_does_not_block_append_only_terminal_fence(self):
++        db = MemoryDB()
++        legacy_key = f"grace-reasoning-failure:{OBJECTIVE}:{PROVIDER_REQUEST_ID}"
++        legacy_payload = {"status": "STATE_CONFLICT", "detail_code": "DURABLE_STATE_WRITE_FAILED",
++                          "runtime_revision": RUNTIME_REVISION}
++        db.events[legacy_key] = {"objective_id": OBJECTIVE,
++            "event_type": "execution.reasoning_failed", "payload": dict(legacy_payload)}
++
++        class Pipeline:
++            ledger = SimpleNamespace(db=db, _set_search_path=lambda _cur: None)
++            def grounded_objectives(self, **_kwargs):
++                return [{"objective_id": OBJECTIVE, "revision": 2}]
++
++        class Reasoner:
++            office_id = "office:grace-test"
++            providers = {"provider.test": object()}
++            def __init__(self): self.calls = 0
++            def propose(self, *_args, **_kwargs):
++                self.calls += 1
++                return ResidentReasoner._result_after_record(None, ReasoningStatus.PROPOSED,
++                    PROVIDER_REQUEST_ID, "PROPOSAL_ONLY", "provider.test")
++
++        def service_with(reasoner):
++            service = object.__new__(GraceExecutionService)
++            service.pipeline = Pipeline(); service.resident_reasoner = reasoner
++            service.authority_ref = "work-order:engineering"; service.resident_token_budget = 128
++            service.external_reasoning_exchange = None
++            service._runtime_revision = lambda: RUNTIME_REVISION
++            service._record_experiment_outcome = lambda *_a, **_k: None
++            service._claim_autonomous_local_recovery = lambda *_a: None
++            service._claim_approved_recovery = lambda *_a: None
++            service._claim_experiment_recovery = lambda *_a: None
++            return service
++
++        failure = ResidentReasoner._result_after_record(None, ReasoningStatus.PROPOSED,
++            PROVIDER_REQUEST_ID, "PROPOSAL_ONLY", "provider.test")
++        self.assertEqual(failure.detail_code, "DURABLE_STATE_WRITE_FAILED")
++        first_reasoner = Reasoner(); first = service_with(first_reasoner)
++        self.assertFalse(first.reason_one_grounded_objective())
++
++        failed = [row for row in db.events.values()
++            if row["event_type"] == "execution.reasoning_failed"]
++        attempts = [row for row in db.events.values()
++            if row["event_type"] == "execution.reasoning_attempted"]
++        self.assertEqual(len(failed), 2)
++        self.assertEqual(db.events[legacy_key]["payload"], legacy_payload)
++        fence_key = f"grace-reasoning-failure-fence:{OBJECTIVE}:r2:DURABLE_STATE_WRITE_FAILED"
++        self.assertIn(fence_key, db.events)
++        self.assertNotEqual(fence_key, legacy_key)
++        self.assertEqual(db.events[fence_key]["payload"]["status"], "BLOCKED")
++        self.assertEqual(db.events[fence_key]["payload"]["objective_revision"], 2)
++        self.assertEqual(len(attempts), 1)
++
++        # Replaying fence persistence is append-only/idempotent under its separate key.
++        first._record_reasoning_failure(OBJECTIVE, result=failure, blocked_revision=2)
++        self.assertEqual(len([row for row in db.events.values()
++            if row["event_type"] == "execution.reasoning_failed"]), 2)
++
++        # A reconstructed service observes the durable BLOCKED row and does not call reasoning.
++        restarted_reasoner = Reasoner(); restarted = service_with(restarted_reasoner)
++        self.assertFalse(restarted.reason_one_grounded_objective())
++        self.assertEqual(restarted_reasoner.calls, 0)
++        self.assertEqual(len([row for row in db.events.values()
++            if row["event_type"] == "execution.reasoning_attempted"]), 1)
++
++
++if __name__ == "__main__": unittest.main()

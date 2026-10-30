@@ -1,0 +1,18 @@
+{
+  "status": "R1_NOT_ACCEPTED_FOR_DEPLOYMENT",
+  "r1_patch_sha256": "b387316e81ccabc815664fda5912b09874181c4842dfadcfdda06ef54de08cdc",
+  "transfer_verified": {
+    "gzip_sha256": "a2807576bcbd3e0fe0278b6ca09e9dbf38c665fb7773d38a1a9f9436314e43cf",
+    "json_sha256": "a0c78fa193abe190bc196ebafcac9461bcca81f55ef879a3cf5719578bc0039c",
+    "note": "Whitespace normalized; one base64 character recovered against per-chunk digest, then both full hashes verified."
+  },
+  "findings": [
+    "Archived/legacy overlap must permit old-runtime updates to an archived assignment; legacy/newest entry wins, other entries preserved.",
+    "Encoder must enforce same combined raw map bound as decoder before any office-state write.",
+    "Deeply nested corrupt JSON should return fixed archive-invalid; require complete bounded zlib stream without unbounded flush."
+  ],
+  "correction_run": "grace-cache-review-corrections-20261029-01",
+  "correction_command_sha256": "7309d415a449a6674866ddb06415c57b67e1fcbf077d01e202f71c949601e522",
+  "installed_runtime": "db-state-boundary-r1 remains unchanged; retry fence remains active",
+  "next": "Review incremental corrections and targeted regressions, then stage exactoperatorentry."
+}

@@ -1,0 +1,531 @@
+--- a/src/riverview_core/resident_reasoning.py
++++ b/src/riverview_core/resident_reasoning.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_reasoning.py
+ # Component: RESIDENT-REASONING
+-# Revision: 1.0.34
++# Revision: 1.0.35
++# Changed: 2026-10-29 UTC | RV-GRACE-LOSSLESS-PLAN-CACHE-20261029 | Preserve complete office plan history in a bounded deterministic compressed archive while retaining the current plan in the legacy map.
+ # Changed: 2026-10-29 UTC | RV-GRACE-JSONB-STATE-SIZE-CLASSIFICATION-20261029 | Classify only the verified PostgreSQL bounded JSONB size guard and log value-free sizing metadata.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Return the exact immutable reasoning request with a proposed plan for controller validation and recovery diagnostics.
+ # Changed: 2026-10-23 UTC | RV-GRACE-APPROVED-PROMOTION-LIFECYCLE-BINDING-20261023 | Bind the exact approved promotion criterion only to matching durable proposal and objective evidence.
+@@ -56,12 +57,14 @@
+ 
+ from dataclasses import asdict, dataclass
+ from enum import Enum
++import base64
+ import hashlib
+ import json
+ import logging
+ import re
+ import threading
+ import time
++import zlib
+ from typing import Any, Mapping, Protocol
+ from uuid import NAMESPACE_URL, uuid4, uuid5
+ 
+@@ -104,6 +107,10 @@
+     STALE_CONTEXT = "STALE_CONTEXT"
+     STATE_CONFLICT = "STATE_CONFLICT"
+     INVALID_PROPOSAL = "INVALID_PROPOSAL"
++
++
++class PlanArchiveInvalid(ValueError):
++    """The versioned office plan archive is malformed or exceeds safe bounds."""
+ 
+ 
+ @dataclass(frozen=True)
+@@ -420,6 +427,10 @@
+ 
+     STATE_KEY = "resident_reasoning_v1"
+     MAX_STATE_BYTES = 64 * 1024
++    PLAN_ARCHIVE_FIELD = "plans_archive_v1"
++    PLAN_ARCHIVE_VERSION = 1
++    MAX_PLAN_ARCHIVE_ENCODED_BYTES = 64 * 1024
++    MAX_PLAN_ARCHIVE_RAW_BYTES = 256 * 1024
+     MAX_CONTEXT_BYTES = 32 * 1024
+     _SENSITIVE_KEY_PARTS = ("token", "credential", "password", "secret", "dsn", "api_key", "private_key")
+ 
+@@ -455,6 +466,87 @@
+         self._slots = _PROVIDER_SLOTS
+         self._timed_call = _TimedCall(self._slots)
+ 
++    @classmethod
++    def _decode_plan_cache(cls, runtime):
++        """Merge legacy plans with a bounded, digest-checked lossless archive."""
++        if not isinstance(runtime, Mapping):
++            raise PlanArchiveInvalid("plan archive runtime shape invalid")
++        legacy = runtime.get("plans", {})
++        if not isinstance(legacy, dict) or any(not isinstance(key, str) for key in legacy):
++            raise PlanArchiveInvalid("legacy plan map shape invalid")
++        archive = runtime.get(cls.PLAN_ARCHIVE_FIELD)
++        if cls.PLAN_ARCHIVE_FIELD not in runtime:
++            merged = dict(legacy)
++        else:
++            if (not isinstance(archive, dict) or
++                    set(archive) != {"version", "encoding", "sha256", "data"} or
++                    type(archive.get("version")) is not int or
++                    archive["version"] != cls.PLAN_ARCHIVE_VERSION or
++                    archive.get("encoding") != "zlib+base64-json-v1" or
++                    not isinstance(archive.get("sha256"), str) or
++                    not re.fullmatch(r"[0-9a-f]{64}", archive["sha256"]) or
++                    not isinstance(archive.get("data"), str) or
++                    len(archive["data"]) > cls.MAX_PLAN_ARCHIVE_ENCODED_BYTES):
++                raise PlanArchiveInvalid("plan archive metadata invalid")
++            try:
++                compressed = base64.b64decode(archive["data"], validate=True)
++                inflater = zlib.decompressobj()
++                raw = inflater.decompress(compressed, cls.MAX_PLAN_ARCHIVE_RAW_BYTES + 1)
++                if len(raw) > cls.MAX_PLAN_ARCHIVE_RAW_BYTES or inflater.unconsumed_tail:
++                    raise PlanArchiveInvalid("plan archive decompressed size exceeds bound")
++                raw += inflater.flush()
++                if (len(raw) > cls.MAX_PLAN_ARCHIVE_RAW_BYTES or not inflater.eof or
++                        inflater.unused_data or inflater.unconsumed_tail):
++                    raise PlanArchiveInvalid("plan archive stream invalid")
++                archived = json.loads(raw.decode("utf-8"))
++                canonical = json.dumps(archived, ensure_ascii=False, sort_keys=True,
++                                       separators=(",", ":"), allow_nan=False).encode("utf-8")
++            except PlanArchiveInvalid:
++                raise
++            except (ValueError, TypeError, UnicodeError, zlib.error) as exc:
++                raise PlanArchiveInvalid("plan archive decoding failed") from exc
++            if (not isinstance(archived, dict) or
++                    any(not isinstance(key, str) for key in archived) or
++                    canonical != raw or hashlib.sha256(raw).hexdigest() != archive["sha256"]):
++                raise PlanArchiveInvalid("plan archive integrity check failed")
++            if set(archived) & set(legacy):
++                raise PlanArchiveInvalid("plan archive overlaps legacy map")
++            merged = {**archived, **legacy}
++        try:
++            raw_merged = json.dumps(merged, ensure_ascii=False, sort_keys=True,
++                                    separators=(",", ":"), allow_nan=False).encode("utf-8")
++        except (TypeError, ValueError) as exc:
++            raise PlanArchiveInvalid("merged plan map is not canonical JSON") from exc
++        if len(raw_merged) > cls.MAX_PLAN_ARCHIVE_RAW_BYTES:
++            raise PlanArchiveInvalid("merged plan map exceeds safe bound")
++        return merged
++
++    @classmethod
++    def _encode_plan_cache(cls, plans, current_assignment_id):
++        """Keep one current entry in the legacy map; archive every other entry."""
++        if not isinstance(plans, dict) or any(not isinstance(key, str) for key in plans):
++            raise PlanArchiveInvalid("plan map shape invalid")
++        current = ({current_assignment_id: plans[current_assignment_id]}
++                   if current_assignment_id in plans else {})
++        archived = {key: value for key, value in plans.items()
++                    if key != current_assignment_id}
++        runtime_fields = {"plans": current}
++        if archived:
++            raw = json.dumps(archived, ensure_ascii=False, sort_keys=True,
++                             separators=(",", ":"), allow_nan=False).encode("utf-8")
++            if len(raw) > cls.MAX_PLAN_ARCHIVE_RAW_BYTES:
++                raise PlanArchiveInvalid("plan archive exceeds safe bound")
++            encoded = base64.b64encode(zlib.compress(raw, level=9)).decode("ascii")
++            if len(encoded) > cls.MAX_PLAN_ARCHIVE_ENCODED_BYTES:
++                raise PlanArchiveInvalid("compressed plan archive exceeds safe bound")
++            runtime_fields[cls.PLAN_ARCHIVE_FIELD] = {
++                "version": cls.PLAN_ARCHIVE_VERSION,
++                "encoding": "zlib+base64-json-v1",
++                "sha256": hashlib.sha256(raw).hexdigest(),
++                "data": encoded,
++            }
++        return runtime_fields
++
+     @staticmethod
+     def _knowledge_record(result: KnowledgeResult):
+         return {"status": result.status.value,
+@@ -469,10 +561,12 @@
+         encode = lambda value: json.dumps(value, sort_keys=True,
+             separators=(",", ":")).encode("utf-8")
+         runtime = state.get(ResidentReasoner.STATE_KEY, {})
+-        plans = runtime.get("plans", {}) if isinstance(runtime, Mapping) else {}
++        plans = ResidentReasoner._decode_plan_cache(runtime) if isinstance(runtime, Mapping) else {}
++        archive = runtime.get(ResidentReasoner.PLAN_ARCHIVE_FIELD) if isinstance(runtime, Mapping) else None
+         outcomes = runtime.get("outcomes", []) if isinstance(runtime, Mapping) else []
+         other_runtime = ({key: value for key, value in runtime.items()
+-                          if key not in {"plans", "outcomes"}}
++                          if key not in {"plans", "outcomes",
++                                         ResidentReasoner.PLAN_ARCHIVE_FIELD}}
+                          if isinstance(runtime, Mapping) else {})
+         other_office = ({key: value for key, value in state.items()
+                          if key != ResidentReasoner.STATE_KEY}
+@@ -485,6 +579,8 @@
+             "resident_reasoning_other_field_bytes": len(encode(other_runtime)),
+             "plan_cache_count": len(plans) if isinstance(plans, Mapping) else 0,
+             "plan_cache_bytes": len(encode(plans)),
++            "plan_archive_encoded_bytes": (len(archive.get("data", ""))
++                if isinstance(archive, Mapping) and isinstance(archive.get("data"), str) else 0),
+             "outcome_count": len(outcomes) if isinstance(outcomes, list) else 0,
+             "outcome_bytes": len(encode(outcomes)),
+         }
+@@ -542,12 +638,33 @@
+         outcomes = list(runtime.get("outcomes", []))
+         outcomes.append(observation)
+         runtime["outcomes"] = outcomes[-32:]
+-        plans = dict(runtime.get("plans", {}))
++        try:
++            plans = self._decode_plan_cache(runtime)
++        except PlanArchiveInvalid:
++            _reasoning_diagnostic(
++                "office_state_plan_archive_rejected", request_id=request_id,
++                assignment_id=assignment_id, correlation_id=correlation_id,
++                operation="decode_plan_archive", persistence_stage=persistence_stage,
++                failure_code="OFFICE_STATE_PLAN_ARCHIVE_INVALID",
++                level=logging.WARNING)
++            return "OFFICE_STATE_PLAN_ARCHIVE_INVALID"
+         # An escalated candidate is not an institutional proposal until Grace
+         # evaluates the provider's advice against the exact durable subject.
+         if proposal is not None and proposal.external_escalation is None:
+             plans[assignment_id] = asdict(proposal)
+-        runtime["plans"] = plans
++            try:
++                runtime.pop(self.PLAN_ARCHIVE_FIELD, None)
++                runtime.update(self._encode_plan_cache(plans, assignment_id))
++            except PlanArchiveInvalid:
++                _reasoning_diagnostic(
++                    "office_state_plan_archive_rejected", request_id=request_id,
++                    assignment_id=assignment_id, correlation_id=correlation_id,
++                    operation="encode_plan_archive", persistence_stage=persistence_stage,
++                    failure_code="OFFICE_STATE_PLAN_ARCHIVE_INVALID",
++                    level=logging.WARNING)
++                return "OFFICE_STATE_PLAN_ARCHIVE_INVALID"
++        else:
++            runtime["plans"] = dict(runtime.get("plans", {}))
+         state[self.STATE_KEY] = runtime
+         serialized_state = json.dumps(
+             state, sort_keys=True, separators=(",", ":")).encode("utf-8")
+@@ -661,6 +778,9 @@
+         if revision == "OFFICE_STATE_SIZE_LIMIT":
+             return ReasoningResult(ReasoningStatus.STATE_CONFLICT, request_id,
+                                   "OFFICE_STATE_SIZE_LIMIT", provider_id)
++        if revision == "OFFICE_STATE_PLAN_ARCHIVE_INVALID":
++            return ReasoningResult(ReasoningStatus.STATE_CONFLICT, request_id,
++                                  revision, provider_id)
+         return ReasoningResult(ReasoningStatus.STATE_CONFLICT, request_id,
+                               str(revision or "DURABLE_STATE_WRITE_FAILED"), provider_id)
+ 
+@@ -812,6 +932,18 @@
+             assignment_id=assignment_id, correlation_id=correlation_id,
+             operation="authorize_office_state", phase="pre_provider",
+             elapsed_ms=round((time.monotonic() - state_read_started) * 1000))
++        try:
++            prior_runtime = snapshot["state"].get(self.STATE_KEY, {})
++            prior_plans = self._decode_plan_cache(prior_runtime)
++        except (KeyError, TypeError, PlanArchiveInvalid):
++            _reasoning_diagnostic(
++                "office_state_plan_archive_rejected", request_id=request_id,
++                assignment_id=assignment_id, correlation_id=correlation_id,
++                operation="decode_plan_archive", phase="pre_provider",
++                failure_code="OFFICE_STATE_PLAN_ARCHIVE_INVALID",
++                level=logging.WARNING)
++            return ReasoningResult(ReasoningStatus.STATE_CONFLICT, request_id,
++                                   "OFFICE_STATE_PLAN_ARCHIVE_INVALID")
+         if not snapshot.get("occupant_id") or not snapshot.get("provider_ref"):
+             empty = KnowledgeResult(KnowledgeStatus.UNVERIFIED)
+             revision = self._record(snapshot, assignment_id, request_id,
+@@ -893,8 +1025,7 @@
+         request_id = str(uuid5(NAMESPACE_URL, "rv-resident-reasoning:" + ":".join((
+             self.office_id, assignment_id, str(assignment["revision"]),
+             str(snapshot["binding_revision"]), str(implementation_revision), trigger))))
+-        prior_runtime = snapshot["state"].get(self.STATE_KEY, {})
+-        prior_plan = prior_runtime.get("plans", {}).get(assignment_id)
++        prior_plan = prior_plans.get(assignment_id)
+         per_attempt_budget = token_budget // len(route)
+         request = ReasoningRequest(
+             request_id=request_id, office_id=self.office_id, assignment_id=assignment_id,
+--- a/src/riverview_core/resident_execution/service.py
++++ b/src/riverview_core/resident_execution/service.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED SOURCE
+ # File: src/riverview_core/resident_execution/service.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.65
++# Revision: 1.0.66
++# Changed: 2026-10-29 UTC | RV-GRACE-LOSSLESS-PLAN-CACHE-20261029 | Fence deterministic invalid bounded plan archives for the current objective revision.
+ # Changed: 2026-10-29 UTC | RV-GRACE-JSONB-STATE-SIZE-CLASSIFICATION-20261029 | Fence only the stable office-state size-limit failure at the grounded revision.
+ # Changed: 2026-10-29 UTC | RV-GRACE-REASONING-STATE-SIZE-FENCE-20261029 | Persist a same-revision fence after durable office-state size failure.
+ # Changed: 2026-10-28 UTC | RV-GRACE-PUBLICATION-CAPABILITY-FENCE-20261028 | Persist a bounded terminal fence for unsupported artifact publication requirements.
+@@ -173,6 +174,7 @@
+         "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+         "DURABLE_STATE_WRITE_FAILED",
+         "OFFICE_STATE_SIZE_LIMIT",
++        "OFFICE_STATE_PLAN_ARCHIVE_INVALID",
+     })
+     AUTONOMOUS_LOCAL_RECOVERY_CODE = "PROPOSAL_CRITERIA_BINDING_REJECTED"
+ 
+--- a/tests/test_grace_execution.py
++++ b/tests/test_grace_execution.py
+@@ -2,7 +2,8 @@
+ # RIVERVIEW~ CONTROLLED TEST
+ # File: tests/test_grace_execution.py
+ # Component: RESIDENT-ORCHESTRATION
+-# Revision: 1.0.92
++# Revision: 1.0.93
++# Changed: 2026-10-29 UTC | RV-GRACE-LOSSLESS-PLAN-CACHE-20261029 | Expect corrupt lossless plan archives to use the existing immutable-revision failure fence.
+ # Changed: 2026-10-28 UTC | GRACE-SOURCE-SCOPE-ARTIFACT-ONLY-20261028 | Reject artifact publication obligations before lookup while preserving pinned source-change provenance criteria.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Assert interrupted one-shot recovery is terminalized and never replayed.
+ # Changed: 2026-10-25 UTC | RV-AGREED-AUTONOMY-POLICY-20261025 | Prove local recovery cannot spend externally and interrupted one-shot reasoning is never replayed.
+@@ -526,6 +527,8 @@
+             "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+             "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+             "DURABLE_STATE_WRITE_FAILED",
++            "OFFICE_STATE_SIZE_LIMIT",
++            "OFFICE_STATE_PLAN_ARCHIVE_INVALID",
+         })
+         self.assertEqual(pipeline.ledger.db.value.params[2:], ("2", "objective:artifact-path-fence:r2"))
+ 
+--- /dev/null
++++ b/tests/test_resident_plan_archive.py
+@@ -0,0 +1,251 @@
++# =============================================================================
++# RIVERVIEW~ CONTROLLED TEST
++# File: tests/test_resident_plan_archive.py
++# Component: RESIDENT-REASONING
++# Revision: 1.0.0
++# Purpose: Verify lossless bounded office plan archival and rollback compatibility.
++# Authority: Offline only; fake registry and no PostgreSQL or provider calls.
++# =============================================================================
++import json
++import unittest
++
++from riverview_core.resident_reasoning import (
++    PlanArchiveInvalid, PlanProposal, PlanStep, ResidentReasoner,
++)
++
++
++def compact(value):
++    return json.dumps(value, ensure_ascii=False, sort_keys=True,
++                      separators=(",", ":"), allow_nan=False).encode("utf-8")
++
++
++def proposal(summary):
++    return PlanProposal(summary, (PlanStep(
++        "step", "retain a bounded plan", ("plan is replayable",)),), 1)
++
++
++def sized_plans(target_bytes):
++    plans = {f"assignment:{i:02d}": __import__("dataclasses").asdict(
++        proposal("p" * 2000)) for i in range(24)}
++    key = "assignment:24"
++    low, high = 1, 4000
++    while low <= high:
++        mid = (low + high) // 2
++        plans[key] = __import__("dataclasses").asdict(proposal("p" * mid))
++        size = len(compact(plans))
++        if size == target_bytes:
++            return plans
++        if size < target_bytes:
++            low = mid + 1
++        else:
++            high = mid - 1
++    raise AssertionError("could not construct exact synthetic plan-cache size")
++
++
++class _Registry:
++    def __init__(self):
++        self.state = None
++        self.writes = 0
++
++    def set_office_state(self, _credential, _office, state, *, expected_revision):
++        self.state = json.loads(json.dumps(state, ensure_ascii=False))
++        self.writes += 1
++        return expected_revision + 1
++
++
++class ResidentPlanArchiveTests(unittest.TestCase):
++    def test_reconstructed_reasoner_replays_archived_prior_plan_to_provider(self):
++        from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
++
++        previous = {"assignment:target": {"summary": "prior-plan",
++                                           "steps": [{"id": "prior-step"}]},
++                    "assignment:other": {"summary": "other-plan"}}
++        runtime = ResidentReasoner._encode_plan_cache(previous, "assignment:other")
++        durable_state = {ResidentReasoner.STATE_KEY:
++                         json.loads(json.dumps(runtime, ensure_ascii=False))}
++
++        class Registry(_Registry):
++            revision = 3
++            def authorize_office_state(self, _credential, _office):
++                return {"state_revision": self.revision, "state": self.state,
++                        "occupant_id": "occupant:test", "provider_ref": "provider:test",
++                        "binding_revision": 1, "implementation_revision": "impl:test"}
++
++        class Assignments:
++            def read(self, assignment_id):
++                return {"id": assignment_id, "revision": "7",
++                        "acceptance_criteria": ["retain the prior plan"]}
++
++        class Knowledge:
++            @staticmethod
++            def verified():
++                return KnowledgeResult(KnowledgeStatus.VERIFIED, {"evidence": "verified"},
++                    ("repo://docs/evidence.md",), "revision:test", "a" * 64, True)
++            def ground_assignment(self, _assignment): return self.verified()
++            def reground_assignment(self, _assignment, _trigger): return self.verified()
++
++        class Provider:
++            provider_id = "provider:test"
++            def __init__(self): self.request = None
++            def propose(self, request):
++                self.request = request
++                return proposal("replacement")
++
++        registry = Registry()
++        registry.state = durable_state
++        provider = Provider()
++        reasoner = ResidentReasoner(registry=registry, office_id="office:test",
++            resident_credential="test-credential", assignments=Assignments(),
++            knowledge=Knowledge(), providers={"provider:test": provider}, timeout_seconds=1)
++        result = reasoner.propose("assignment:target", trigger="replay", token_budget=12)
++        self.assertEqual(result.status.value, "PROPOSED")
++        self.assertEqual(provider.request.prior_plan, previous["assignment:target"])
++
++    def test_legacy_raw_cache_read_compatibility(self):
++        old = {"assignment:1": {"summary": "old"}}
++        self.assertEqual(ResidentReasoner._decode_plan_cache({"plans": old}), old)
++        self.assertEqual(ResidentReasoner._decode_plan_cache({}), {})
++
++    def test_deterministic_exact_roundtrip_replay(self):
++        plans = {"assignment:a": {"summary": "alpha"},
++                 "assignment:b": {"summary": "beta"}}
++        encoded1 = ResidentReasoner._encode_plan_cache(plans, "assignment:b")
++        encoded2 = ResidentReasoner._encode_plan_cache(plans, "assignment:b")
++        self.assertEqual(encoded1, encoded2)
++        self.assertEqual(encoded1["plans"], {"assignment:b": plans["assignment:b"]})
++        self.assertEqual(ResidentReasoner._decode_plan_cache(encoded1), plans)
++        self.assertEqual(ResidentReasoner._decode_plan_cache(encoded1)["assignment:a"],
++                         plans["assignment:a"])
++
++    def test_append_and_update_preserve_all_assignment_keys(self):
++        original = {"assignment:a": {"summary": "a"},
++                    "assignment:b": {"summary": "old b"}}
++        updated = ResidentReasoner._decode_plan_cache(
++            ResidentReasoner._encode_plan_cache(original, "assignment:b"))
++        updated["assignment:b"] = {"summary": "new b"}
++        updated["assignment:c"] = {"summary": "c"}
++        stored = ResidentReasoner._encode_plan_cache(updated, "assignment:c")
++        self.assertEqual(ResidentReasoner._decode_plan_cache(stored), updated)
++        archive_only = {ResidentReasoner.PLAN_ARCHIVE_FIELD:
++                        stored[ResidentReasoner.PLAN_ARCHIVE_FIELD]}
++        self.assertFalse(set(stored["plans"]) &
++                         set(ResidentReasoner._decode_plan_cache(archive_only)))
++
++    def test_25_plan_observed_size_fixture_compresses_without_eviction(self):
++        plans = sized_plans(62844)
++        self.assertEqual(len(compact(plans)), 62844)
++        self.assertEqual(len(plans), 25)
++        outcomes = [{"detail_code": "prior", "history": "o" * 1480}]
++        self.assertGreater(len(compact(outcomes)), 1500)
++        encoded = ResidentReasoner._encode_plan_cache(plans, "assignment:24")
++        state = {ResidentReasoner.STATE_KEY: {
++            **encoded, "outcomes": outcomes}}
++        self.assertLess(len(compact(state)), ResidentReasoner.MAX_STATE_BYTES)
++        self.assertLess(len(json.dumps(state, sort_keys=True,
++                         separators=(", ", ": ")).encode()), ResidentReasoner.MAX_STATE_BYTES)
++        expected = json.loads(json.dumps(plans, ensure_ascii=False))
++        encoded_as_jsonb = json.loads(json.dumps(encoded, ensure_ascii=False))
++        self.assertEqual(ResidentReasoner._decode_plan_cache(encoded_as_jsonb), expected)
++        self.assertEqual(state[ResidentReasoner.STATE_KEY]["outcomes"], outcomes)
++        self.assertEqual(len(encoded["plans"]), 1)
++        self.assertEqual(len(ResidentReasoner._decode_plan_cache(encoded)), 25)
++
++    def test_persist_archive_append_keeps_plans_and_existing_outcomes(self):
++        registry = _Registry()
++        reasoner = object.__new__(ResidentReasoner)
++        reasoner.registry = registry
++        reasoner._credential = "test-credential"
++        reasoner.office_id = "office:test"
++        plans = sized_plans(62844)
++        outcomes = [{"detail_code": "prior", "history": "o" * 1480}]
++        snapshot = {"state_revision": 7, "state": {ResidentReasoner.STATE_KEY: {
++            "plans": plans, "outcomes": outcomes}}}
++        result = reasoner._persist(snapshot, assignment_id="assignment:24",
++            observation={"request_id": "new", "status": "PROPOSED"},
++            proposal=proposal("p" * len(plans["assignment:24"]["summary"])))
++        self.assertEqual(result, 8)
++        self.assertEqual(registry.writes, 1)
++        runtime = registry.state[ResidentReasoner.STATE_KEY]
++        restored = ResidentReasoner._decode_plan_cache(runtime)
++        self.assertEqual(set(restored), set(plans))
++        self.assertEqual(restored["assignment:24"]["summary"],
++                         "p" * len(plans["assignment:24"]["summary"]))
++        self.assertEqual([item.get("detail_code") for item in runtime["outcomes"]],
++                         ["prior", None])
++        self.assertLess(len(compact(registry.state)), ResidentReasoner.MAX_STATE_BYTES)
++
++    def test_old_runtime_write_roundtrip_preserves_archive_bytes(self):
++        plans = {"assignment:old": {"summary": "older"},
++                 "assignment:current": {"summary": "current"}}
++        encoded = ResidentReasoner._encode_plan_cache(plans, "assignment:current")
++        archive_bytes = encoded[ResidentReasoner.PLAN_ARCHIVE_FIELD].copy()
++        # Old implementation copies the runtime map and appends an outcome; it
++        # does not understand or rewrite the unknown archive field.
++        old_runtime = dict(encoded)
++        old_runtime["outcomes"] = [{"status": "recorded"}]
++        self.assertEqual(old_runtime[ResidentReasoner.PLAN_ARCHIVE_FIELD], archive_bytes)
++        self.assertEqual(ResidentReasoner._decode_plan_cache(old_runtime), plans)
++
++    def test_corrupt_digest_and_decompression_bomb_fail_closed(self):
++        encoded = ResidentReasoner._encode_plan_cache(
++            {"assignment:a": {"summary": "a"},
++             "assignment:b": {"summary": "b"}}, "assignment:b")
++        bad_digest = {**encoded, ResidentReasoner.PLAN_ARCHIVE_FIELD: {
++            **encoded[ResidentReasoner.PLAN_ARCHIVE_FIELD], "sha256": "0" * 64}}
++        for invalid in (bad_digest, {**encoded, ResidentReasoner.PLAN_ARCHIVE_FIELD: {
++                **encoded[ResidentReasoner.PLAN_ARCHIVE_FIELD], "data": "!!!"}},
++                {"plans": {}, ResidentReasoner.PLAN_ARCHIVE_FIELD: None}):
++            with self.subTest(invalid=type(invalid[ResidentReasoner.PLAN_ARCHIVE_FIELD]).__name__):
++                with self.assertRaises(PlanArchiveInvalid):
++                    ResidentReasoner._decode_plan_cache(invalid)
++        import base64, hashlib, zlib
++        raw = b"x" * (ResidentReasoner.MAX_PLAN_ARCHIVE_RAW_BYTES + 4096)
++        bomb = {"version": 1, "encoding": "zlib+base64-json-v1",
++                "sha256": hashlib.sha256(raw).hexdigest(),
++                "data": base64.b64encode(zlib.compress(raw)).decode("ascii")}
++        with self.assertRaises(PlanArchiveInvalid):
++            ResidentReasoner._decode_plan_cache({
++                "plans": {}, ResidentReasoner.PLAN_ARCHIVE_FIELD: bomb})
++
++    def test_invalid_archive_fails_before_office_state_write(self):
++        registry = _Registry()
++        reasoner = object.__new__(ResidentReasoner)
++        reasoner.registry = registry
++        reasoner._credential = "test-credential"
++        reasoner.office_id = "office:test"
++        result = reasoner._persist({"state_revision": 1, "state": {
++            ResidentReasoner.STATE_KEY: {"plans": {},
++                ResidentReasoner.PLAN_ARCHIVE_FIELD: {"version": 9}}}},
++            assignment_id="assignment:a", observation={"request_id": "r"},
++            proposal=proposal("candidate"))
++        self.assertEqual(result, "OFFICE_STATE_PLAN_ARCHIVE_INVALID")
++        self.assertEqual(registry.writes, 0)
++
++
++    def test_invalid_archive_code_is_persisted_revision_block(self):
++        from riverview_core.resident_execution.service import GraceExecutionService
++        self.assertIn("OFFICE_STATE_PLAN_ARCHIVE_INVALID",
++                      GraceExecutionService.PERSISTED_PROPOSAL_BLOCK_CODES)
++
++
++    def test_corrupt_archive_stops_proposal_before_provider_or_state_write(self):
++        class _ReadRegistry(_Registry):
++            def authorize_office_state(self, _credential, _office):
++                return {"state_revision": 4, "state": {
++                    ResidentReasoner.STATE_KEY: {"plans": {},
++                        ResidentReasoner.PLAN_ARCHIVE_FIELD: {"version": 9}}},
++                    "occupant_id": "occupant:test", "provider_ref": "provider:test",
++                    "binding_revision": 1, "implementation_revision": "impl:test"}
++
++        registry = _ReadRegistry()
++        reasoner = object.__new__(ResidentReasoner)
++        reasoner.registry = registry
++        reasoner._credential = "test-credential"
++        reasoner.office_id = "office:test"
++        result = reasoner.propose("assignment:test", trigger="test", token_budget=10)
++        self.assertEqual(result.detail_code, "OFFICE_STATE_PLAN_ARCHIVE_INVALID")
++        self.assertEqual(registry.writes, 0)
++
++
++if __name__ == "__main__":
++    unittest.main()

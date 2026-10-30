@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-29",
+  "source": "Steward-pasted read-only Wille SSH diagnostic",
+  "owner_release": "9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-canonical-state-20261029-r1",
+  "services": {
+    "comms5": "active",
+    "dashboard": "active",
+    "owner": "active"
+  },
+  "installed_sha256": {
+    "resident_reasoning.py": "866d6c9a222bad3bb0a320145c526690b934bc6bc58afb6638c510d474bd43c4",
+    "resident_execution/service.py": "f5d9cc2543622147d0771935480b7b849038f7c2da570f299f87516b3b36f5c4"
+  },
+  "hashes_match_reviewed_candidates": true,
+  "independent_remote_execution": false,
+  "observed_log": {
+    "event": "grace_deferred_resume_cycle_failed",
+    "error_type": "OperationalError",
+    "occurrences_in_bounded_report": 40
+  },
+  "root_cause": "Not established. Database connectivity, storage and connection lifecycle require discrimination.",
+  "objective_status": "Comms5 still returns BACKEND_UNAVAILABLE/dashboard_operation_http_status; completion not verified.",
+  "next_action": "Read-only PostgreSQL readiness, disk and service-error checks; no grant change, duplicate objective, or installer rerun."
+}

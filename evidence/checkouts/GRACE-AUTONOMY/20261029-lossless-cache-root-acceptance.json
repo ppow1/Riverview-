@@ -1,0 +1,48 @@
+{
+  "status": "REVIEWED_PREPARED_NOT_APPLIED",
+  "patch_series": {
+    "base": "b387316e81ccabc815664fda5912b09874181c4842dfadcfdda06ef54de08cdc",
+    "correction": "ff41208cb3a0a19689121f4a898d62480aaf1a25f5661a88af37112c3bed92de"
+  },
+  "transfer_verified": {
+    "original_gzip": "a2807576bcbd3e0fe0278b6ca09e9dbf38c665fb7773d38a1a9f9436314e43cf",
+    "original_json": "a0c78fa193abe190bc196ebafcac9461bcca81f55ef879a3cf5719578bc0039c",
+    "correction_gzip": "cc51cf3fdb5149d4ca283fa5f526b4a18a37d85301a76593d6ac9000b949a9bd",
+    "correction_json": "d8dcdb1203982a6d7a875ac0218c1cdf51b59e6f97225edd2b35bc936424f20e"
+  },
+  "review": "Original codec and incremental corrections reviewed. Legacy-wins overlap, combined raw bound before encoding, recursion rejection, complete bounded stream without flush. Exact helper reconstructed and hash verified; bash syntax passed.",
+  "tests": "22focusedpassed0skipped0failed; noPG/liveacceptance",
+  "launcher": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "7b5ca667-88f8-4541-833b-0257a539b87b",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "PARSER_ERRORS=0\r\n67b6c9866f842457f9b3d98c8ab3008d2724a54a8fc86d81a1e80750a4e4133c\r\nC:\\Users\\Public\\Documents\\Riverview\\GracePlanCache\\Update-RiverviewGracePlanCache.ps1\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T15:35:03.087601+00:00",
+    "completed_at": "2026-10-29T15:35:27.395912+00:00",
+    "deadline_at": "2026-10-29T16:35:03.078089+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "c3cff163-c5d8-4662-8656-23a2836e97e7",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "7b5ca667-88f8-4541-833b-0257a539b87b",
+      "audit_event_id": "24b1cf18-79bc-4e05-a953-92a6f03ae611",
+      "idempotency_key": "cmd-f3839c330ee2d28742736bc6de0640f097bace0e09437206ff6b036e2c06c1dc"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "7b5ca667-88f8-4541-833b-0257a539b87b",
+    "command_sha256": "dc064ec82965c468a175c20c2c77451cbca9c4e1399a7e59370fe5e2b4fc47b8",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "next": "Operator applies staged launcher; verify independent runtime hashes, then fresh conversation workorder acceptance. Do not clear old fence or claim completion."
+}

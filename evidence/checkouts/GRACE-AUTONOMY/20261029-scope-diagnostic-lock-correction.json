@@ -1,0 +1,46 @@
+{
+  "status": "REVIEWED_STAGED_PROTECTED_RUN_PENDING",
+  "transfer": {
+    "gzip": "2a696fa02dbb41f9199fcf8a2d95b0363dd86ee0e50ddb1772be82d7c65cb0a3",
+    "json": "70c6bb4a7d5778bc98f6287988c8e68b771b9e1c3048d75844057ea5f7f85cb8",
+    "patch": "f90a715b5b01958d8236f47cffffbdff829e2b55fb02922955dcc877aef51ed4"
+  },
+  "script_sha256": "8fa0d36302841373298f64c7fb774b8cc406080ba0940bc64f22b8314ee3e27a",
+  "shell_sha256": "95a34a8f82eecc5ce1ec2b2651d178966e81c0dad4445cc3e9e3a4937f4282a3",
+  "windows_sha256": "4d812415cc4ab332450d5ae789ca4584ef35e8135a0c476768b1d00c1ec67643",
+  "review": "Separate normal canonical snapshot transaction supports FOR SHARE; ledger readonly. Function source inspected, no mutation calls; no forcedrollback, DBfunction/role/grants changes. Added fixedstage/type/context/sqlstate only. Candidate files reconstructed and fullhash verified.",
+  "tests": "5focusedofflinepassed0skipped0failed; committedtest scriptlookup ported torepository scripts layout, path-onlyport notseparatetestrun",
+  "staging": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "5a8288cf-dcdd-413c-bf83-db4d032d75ea",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "PARSER_ERRORS=0\r\n4d812415cc4ab332450d5ae789ca4584ef35e8135a0c476768b1d00c1ec67643\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T19:38:25.562895+00:00",
+    "completed_at": "2026-10-29T19:38:28.456272+00:00",
+    "deadline_at": "2026-10-29T20:38:25.546865+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "59063c51-1329-427a-956c-11ee68764df9",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "5a8288cf-dcdd-413c-bf83-db4d032d75ea",
+      "audit_event_id": "c50f8613-621f-460e-8aaa-898b5561ed00",
+      "idempotency_key": "cmd-78b919dbc5fc4e0fab3d682b4923e42de7d74c4da2f73a6ae6361e8ae7753624"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "5a8288cf-dcdd-413c-bf83-db4d032d75ea",
+    "command_sha256": "7194002d467d7b5ad179b6a099476dcb52b7ca07657920b21ab9e970d46af6b5",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "next": "Same Wille operator command, inspect actual pathflags or specificstage/cause. No objective resubmission."
+}

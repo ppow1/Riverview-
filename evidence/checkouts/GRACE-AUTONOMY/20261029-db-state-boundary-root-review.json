@@ -1,0 +1,41 @@
+{
+  "status": "PREPARED_NOT_APPLIED",
+  "review": "Exact patch/helper retrieved; full gzip and raw JSON hashes verified after re-fetching erroneous chunk12. Runtime classifier, result mapping, fence and helper diff reviewed. Helper differs from prior reviewed procedure only in identifiers, paths and pinned runtime hashes; bash syntax passed. Tests reported19passed76skipped0failed; no configured PG DSN. Live acceptance not yet performed.",
+  "transfer": {
+    "gzip_sha256": "aa65656ae8a23cc927ae306fcd61d99eabeda1fcccdbbb01828f8bee05bf0bc8",
+    "raw_json_sha256": "9d63349d9a15ab48977bf1545406a95a2ee51c831fd137dfe6c66be4f66ecf74"
+  },
+  "launcher_stage": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "c3e3984b-5fef-45f8-adb1-11b2020ddf14",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "PARSER_ERRORS=0\r\n58d735c127343159ecd24924ee2c3f6410fdeec2ca89412911a9556a648daabe\r\nC:\\Users\\Public\\Documents\\Riverview\\GraceDbStateBoundary\\Update-RiverviewGraceDbStateBoundary.ps1\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T14:47:41.171394+00:00",
+    "completed_at": "2026-10-29T14:47:41.707813+00:00",
+    "deadline_at": "2026-10-29T15:47:41.160368+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "9f0dbd80-1d7c-4b12-a5c8-1cd96c8ea21a",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "c3e3984b-5fef-45f8-adb1-11b2020ddf14",
+      "audit_event_id": "045b6ebe-5925-4a4a-8620-74ff14dd656f",
+      "idempotency_key": "cmd-2e7d733d63131bd04605d5afca948e2c2b46e0a980d15094d4ff524d4e5114f4"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "c3e3984b-5fef-45f8-adb1-11b2020ddf14",
+    "command_sha256": "5a4f4c73bc6367d9cdb0b21c51d04502c3e4b704fca60b959adb382445914dd2",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "next": "Run staged launcher under existing Wille SSH authority; independently inspect owner fence and value-free size metrics. No resubmission, grant change or state eviction."
+}

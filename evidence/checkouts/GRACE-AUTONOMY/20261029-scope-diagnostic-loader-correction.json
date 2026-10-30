@@ -1,0 +1,46 @@
+{
+  "status": "REVIEWED_STAGED_PROTECTED_RUN_PENDING",
+  "transfer": {
+    "gzip": "3267affe7eb5ab47237f9e58d1f0f821a5deb5cca18b8dad6be9afccd14fb630",
+    "json": "0bec4977d2bfcba10bf6a9d000be54427238d8684c8aa056ee01f7aa524a2b29",
+    "patch": "2193003a6b50f8199f8463ee4eeacf0712f76b17dbe5ef169be6cbccd6d19590"
+  },
+  "script_sha256": "be368eebce6c94cb463354d533776ae7f4b83376a36a6a9e15e28165d70e064f",
+  "shell_sha256": "807683b1ffe1cd698108308cef62eb79ee4fdbcc08296b34157d3deeacee3c4c",
+  "windows_sha256": "93a2e2a7792f052a2ca61448246864d4a3a3df41b7bce9a2a70fa6cf0b153342",
+  "tests": "4focusedofflinepassed; committed test path-only lookup port not rerun",
+  "review": "In-memory exacttarget passwordparser and make_conninfo preserve readonly. No permissions/grant/credential/runtime changes; no secret output/env/argv/temp. Safe exceptiontype only. Root reconstructed exactnewfiles andverifiedallhashes.",
+  "staging": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "fc295e19-e4d8-4fca-b792-74aae49f030c",
+    "operation": "command_task_standard",
+    "target_host": "desktop-ja3rpnq",
+    "privilege_level": "standard",
+    "stdout": "PARSER_ERRORS=0\r\n93a2e2a7792f052a2ca61448246864d4a3a3df41b7bce9a2a70fa6cf0b153342\r\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T19:11:38.269202+00:00",
+    "completed_at": "2026-10-29T19:11:40.680403+00:00",
+    "deadline_at": "2026-10-29T20:11:38.254201+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:bc790c0beb1746b295aade230d4a56cf",
+      "execution_grant_id": "grant:2c4cd34bcc484a61814f6f489f25c8f1",
+      "action": "comms5.command.execute.task.desktop-ja3rpnq.standard",
+      "scope_ref": "host:desktop-ja3rpnq",
+      "reservation_id": "b617ccdc-aef5-4ed6-ba17-40bb63153af3",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "fc295e19-e4d8-4fca-b792-74aae49f030c",
+      "audit_event_id": "e822e967-6374-4c0f-aaf6-2d577b1f5074",
+      "idempotency_key": "cmd-667e6c60c1d4ed3ba9954a899272abe04dcebadcf7f556646f406b8f1ef91238"
+    },
+    "host_id": "desktop-ja3rpnq",
+    "task_id": "fc295e19-e4d8-4fca-b792-74aae49f030c",
+    "command_sha256": "8275b38160bf9c0f5f69dec9fd176ae98d03121d8df1138942980749acf989bc",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "next": "Run SAME Wille diagnosticentry, inspect path-match output. Originalobjective remains unchanged."
+}

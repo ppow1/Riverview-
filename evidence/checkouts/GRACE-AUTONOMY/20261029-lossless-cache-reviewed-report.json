@@ -1,0 +1,155 @@
+{
+  "candidate": {
+    "candidate_patch_paths": [
+      "src/riverview_core/resident_reasoning.py",
+      "src/riverview_core/resident_execution/service.py",
+      "tests/test_grace_execution.py",
+      "tests/test_resident_plan_archive.py"
+    ],
+    "candidate_patch_sha256": "d18c8f3fb5d376ace3ab285a157d4c74cbcb1ed3871462d8156287247418ca56",
+    "correction_patch_sha256": "ff41208cb3a0a19689121f4a898d62480aaf1a25f5661a88af37112c3bed92de",
+    "correction_summary": [
+      "Archive and legacy plan-map overlap is accepted; legacy/current values win. Re-encoding merges once and archives all non-current entries.",
+      "Encoder checks the canonical complete merged plan-map byte limit before splitting or compression; overflow raises fixed OFFICE_STATE_PLAN_ARCHIVE_INVALID before registry writes.",
+      "Decoder catches RecursionError as PlanArchiveInvalid; bounded zlib decode requires eof with no tails/unused data and never flushes."
+    ],
+    "deployment_or_runtime_changes": false,
+    "helper_executed": false,
+    "helper_path": ".riverview-write-acceptance/grace-lossless-plan-cache-20261029/owner-release-update-lossless-plan-cache.sh",
+    "helper_revision": "1.0.1",
+    "helper_scope": "Clone exact db-state-boundary-r1 predecessor, overlay only the two hashed runtime files, preserve ownership/mode and source-worker drop-in; reuse pinned owner unit/drop-ins, idle guard, readiness checks, atomic pointer and rollback.",
+    "helper_sha256": "49de4332235f82fc60de302714a60216a9eb160212690f4c76dc1b2853163d65",
+    "operator_dry_run_command": "sudo -n /home/admin1/.local/share/riverview/engineering/Riverview/.riverview-write-acceptance/grace-lossless-plan-cache-20261029/owner-release-update-lossless-plan-cache.sh --dry-run",
+    "pre_correction_candidate_sha256": {
+      "src/riverview_core/resident_reasoning.py": "0c4d880693615122f291873b45f5492770b790d3778007b448f086858324ce28",
+      "tests/test_resident_plan_archive.py": "10a34e6348b432c281a4dd0d47574fca6ddef86147eb1da320f0653639620e2f"
+    },
+    "release_id": "9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-lossless-plan-cache-20261029-r2",
+    "release_id_note": "r2 is a corrected staging candidate; no deployment performed.",
+    "runtime_candidate_sha256": {
+      "src/riverview_core/resident_execution/service.py": "73b5085d53645b1e9be20a12590e02071c0cc3fe75c51cbdf00dcf18045ad2be",
+      "src/riverview_core/resident_reasoning.py": "aa8fbd39c18d413ff814d89cb63cbdcbe8680b92bdc42d637f166e1f025cd56c"
+    },
+    "source_revisions": {
+      "src/riverview_core/resident_execution/service.py": {
+        "candidate": "1.0.66",
+        "candidate_sha256": "73b5085d53645b1e9be20a12590e02071c0cc3fe75c51cbdf00dcf18045ad2be",
+        "predecessor": "1.0.65",
+        "predecessor_sha256": "dd4091bbe4478d398c6717bf4f4fdd2ad4c1e97bf0cdbf07734f83c1658776c0"
+      },
+      "src/riverview_core/resident_reasoning.py": {
+        "candidate": "1.0.36",
+        "candidate_sha256": "aa8fbd39c18d413ff814d89cb63cbdcbe8680b92bdc42d637f166e1f025cd56c",
+        "predecessor": "1.0.34",
+        "predecessor_sha256": "1e4999abeeca03d4015d3516f41b911107d13ccf7275f0113586e5a55aff359c"
+      }
+    },
+    "test_candidate_sha256": {
+      "tests/test_grace_execution.py": "5851057077f11e702a52ebcd711307ee0a138dd9c71832d56d2ed1ff46c58fb1",
+      "tests/test_resident_plan_archive.py": "fadd641cd9196f53d0ddc6b7c00e955a699b84f78da58c83b94faeb31853069c"
+    },
+    "tests": {
+      "tests/test_grace_execution.py": {
+        "candidate_revision": "1.0.93",
+        "candidate_sha256": "5851057077f11e702a52ebcd711307ee0a138dd9c71832d56d2ed1ff46c58fb1",
+        "predecessor_revision": "1.0.92",
+        "predecessor_sha256": "b4cd9118fd6fb0509cd4dc9f627a4072c0118da603b99c4ff481ffb70a94609a"
+      },
+      "tests/test_resident_plan_archive.py": {
+        "candidate_revision": "1.0.1",
+        "candidate_sha256": "fadd641cd9196f53d0ddc6b7c00e955a699b84f78da58c83b94faeb31853069c"
+      }
+    }
+  },
+  "capacity_evidence": {
+    "reported_live_diagnostic": {
+      "compact_state_bytes": 64450,
+      "outcome_bytes": 1558,
+      "outcome_count": 1,
+      "plan_compact_bytes": 62844,
+      "plan_count": 25,
+      "postgres_jsonb_text_bucket": "over_65536",
+      "python_spaced_estimate_bytes": 66922,
+      "timestamp": "2026-10-29T10:51:04.109383-04:00"
+    },
+    "synthetic_test": {
+      "archive_base64_characters": 796,
+      "archived_entries": 24,
+      "candidate_compact_state_bytes": 4278,
+      "candidate_python_spaced_estimate_bytes": 4335,
+      "note": "Synthetic plan summaries are deliberately repetitive. Python spacing is not PostgreSQL jsonb::text semantics; this does not prove live-state candidate size or solve poorly compressible/unbounded future state.",
+      "plan_compact_bytes": 62844,
+      "plan_count": 25
+    }
+  },
+  "live_predecessor": {
+    "current_pointer": "/opt/riverview-grace-execution/current",
+    "execution_service_revision": "1.0.65",
+    "execution_service_sha256": "dd4091bbe4478d398c6717bf4f4fdd2ad4c1e97bf0cdbf07734f83c1658776c0",
+    "resident_reasoning_revision": "1.0.34",
+    "resident_reasoning_sha256": "1e4999abeeca03d4015d3516f41b911107d13ccf7275f0113586e5a55aff359c",
+    "resolved_release": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-db-state-boundary-20261029-r1",
+    "source_commit": "9f56cb72f3bd2961babf2527a26bd843526e18ce",
+    "source_worker_dropin_sha256": "832d11c8c9ac7c759e8a4c0ed603a36988ee500a24fff82857650065db347749"
+  },
+  "plan_cache_findings": {
+    "all_office_state_cache_readers": [
+      "src/riverview_core/resident_reasoning.py:897 reads runtime.plans[assignment_id] as ReasoningRequest.prior_plan.",
+      "src/riverview_core/local_reasoning_provider.py:288,347-349 forwards the prior plan to provider request/prompt.",
+      "src/riverview_core/reasoning_escalation.py:145 copies prior_plan; it does not independently read office state."
+    ],
+    "archive_bounds": {
+      "maximum_base64_characters": 65536,
+      "maximum_decoded_archive_json_bytes": 262144,
+      "merged_plan_map_canonical_json_maximum_bytes": 262144,
+      "on_invalid_or_over_bound": "Fixed OFFICE_STATE_PLAN_ARCHIVE_INVALID; read corruption/recursion and merged-map overflow fail before provider use or registry write; service persists the deterministic revision fence.",
+      "physical_office_state_limit_bytes": 65536
+    },
+    "canonical_proposal_storage": "GraceExecutionService calls pipeline.record_proposal at resident_execution/service.py:454 after reasoner returns; pipeline.py:547 persists the accepted typed proposal. That later objective proposal is not a substitute for the prior-plan context read before provider invocation.",
+    "design": "Keep the current assignment plan in legacy plans; archive every other plan entry in deterministic zlib level-9/base64 canonical JSON with version 1 and SHA256. Merge archived then legacy, with legacy/current values winning overlaps caused by old-runtime rollback updates. Next encode archives the merged map once; no plan keys or values are dropped.",
+    "other_plan_state_readers_found": false,
+    "outcome_policy": "No capacity-driven plan eviction or ordering change. Existing bounded outcome retention (last 32, with its existing size fallback) remains unchanged. The observed current single outcome is preserved in the tested fixture.",
+    "rollback": "An older runtime ignores plans_archive_v1 but preserves it as an unknown runtime field while writing. The current assignment remains visible in legacy plans. Older archived plans remain byte-preserved and are merged when the new runtime returns; the old runtime cannot use those archived entries as prior-plan prompt context during rollback."
+  },
+  "recovery_boundary": {
+    "existing_exact_route": "POST /api/v1/grace-recovery/{request_uuid}/decision with decision, reason, idempotency_key; Steward session + CSRF. status_dashboard/server.py:102,1980; notifications/service.py:261-349; docs/components/NOTIFICATION_DELIVERY.md:88-95.",
+    "preferred_next_action": "After independent review and operator installation/acceptance, use the authenticated Grace conversation and its existing Create Engineering work order action for a fresh bounded request. Do not mutate or bypass the old revision fence.",
+    "semantics": "Only a pending request bound to the exact blocked objective revision/event and retry_reasoning_once attempt_limit=1 can be approved; service claim is single-use (resident_execution/service.py:1012-1057). Approval records the decision and does not directly dispatch or clear the fence. No approval or request lookup was performed."
+  },
+  "report_revision": "1.0.0",
+  "scope": [
+    "Losslessly compress resident plan-cache entries for bounded office-state persistence.",
+    "Add a fail-closed archive diagnostic and same-revision fence for invalid/oversized archives.",
+    "Preserve the 65536-byte office-state cap, all plan keys/values, authority checks, schema, grants, and current outcome-retention behavior."
+  ],
+  "staging_path": ".riverview-write-acceptance/grace-lossless-plan-cache-20261029",
+  "status": "PREPARED_FOR_REVIEW_NOT_DEPLOYED",
+  "verification": {
+    "correction_notes": "Final requested test runs pass. An initial correction iteration exposed two test-fixture issues (summary exceeded PlanProposal bound; Python JSON encoder accepted the constructed nesting); fixtures were corrected before the final runs. No candidate runtime test failed in the final runs.",
+    "other_checks": [
+      "patch --dry-run -p1 against preserved exact predecessor copies: passed",
+      "bash -n update helper: passed",
+      "compile candidate Python source in memory: passed"
+    ],
+    "postgresql_integration": "Not run; no PostgreSQL test DSN was used. No live jsonb::text size or persisted state was inspected.",
+    "tests": [
+      {
+        "command": "PYTHONPATH=\"$PWD/.riverview-write-acceptance/grace-lossless-plan-cache-20261029/candidate/src:$PWD/src\" python3 .riverview-write-acceptance/grace-lossless-plan-cache-20261029/tests/test_resident_plan_archive.py -v",
+        "exit_code": 0,
+        "failed": 0,
+        "passed": 14
+      },
+      {
+        "command": "PYTHONPATH=\"$PWD/.riverview-write-acceptance/grace-lossless-plan-cache-20261029/candidate/src:$PWD/src\" python3 .riverview-write-acceptance/grace-lossless-plan-cache-20261029/tests/test_grace_execution.py GraceReasoningFailureDiagnosticTests -v",
+        "exit_code": 0,
+        "failed": 0,
+        "passed": 8
+      }
+    ],
+    "total": {
+      "failed": 0,
+      "passed": 22,
+      "skipped": 0
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "objective_id": "objective:grace-conversation:be52c097-4609-53a1-b62c-d03db7f4b5b9",
+  "created_at": "2026-10-29T13:45:17.671316-04:00",
+  "state": "GROUNDED",
+  "revision": 2,
+  "assignment": null,
+  "submission_authority": "currently_authorized / grace-demo:steward-objective-submit",
+  "diagnostic": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "8e298d1f-c705-4638-98f4-b990966be46f",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-fresh-delivery-diagnostic-20261029-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-fresh-delivery-diagnostic-20261029-01/events.jsonl\", \"pid\": 2903587, \"exit_code\": 0, \"messages\": [\"I\\u2019ll query only the owner unit\\u2019s journal entries since the supplied time and emit an allowlist of diagnostic fields for this objective/request; then I\\u2019ll check the corresponding source branch if the record identifies one.\", \"Journal evidence for `objective:grace-conversation:be52c097-4609-53a1-b62c-d03db7f4b5b9`: request `4467d3c0-7f41-5dd4-81e1-3bb8558f7ab3` received a provider response at 13:45:59.402103 EDT. Office-state proposal persistence succeeded at 13:45:59.485725 EDT. Then `pipeline.record_proposal` failed at 13:45:59.503366 EDT with `ObjectiveStateError` / `PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED` (17 ms). No size-limit failure or cache metrics were recorded.\", \"The failure is a proposal-validation rejection, not an office-state persistence failure. Active source checks artifact paths against Steward-approved objective scope in [pipeline.py:653](/opt/riverview-grace-execution/current/src/riverview_core/resident_execution/pipeline.py:653)\\u2013[672](/opt/riverview-grace-execution/current/src/riverview_core/resident_execution/pipeline.py:672); [service.py:571](/opt/riverview-grace-execution/current/src/riverview_core/resident_execution/service.py:571)\\u2013[574](/opt/riverview-grace-execution/current/src/riverview_core/resident_execution/service.py:574) maps the fixed exception text to that code, logged at [service.py:502](/opt/riverview-grace-execution/current/src/riverview_core/resident_execution/service.py:502)\\u2013[510](/opt/riverview-grace-execution/current/src/riverview_core/resident_execution/service.py:510). Evidence confirms the proposed artifact path failed authorization; without proposal-body access, I can\\u2019t distinguish whether the path was absent \"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T17:47:20.880983+00:00",
+    "completed_at": "2026-10-29T17:47:21.927414+00:00",
+    "deadline_at": "2026-10-29T18:47:20.869983+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "63adfd5f-382d-4b0a-8499-d6b6f7e724a0",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "8e298d1f-c705-4638-98f4-b990966be46f",
+      "audit_event_id": "ca3789c0-5bb1-4d97-b644-4c0faeb7a203",
+      "idempotency_key": "cmd-02b6d07e80a227a8ae250a870a3113345cb446b0e1263cca818959708ffd8cb6"
+    },
+    "host_id": "camrui",
+    "task_id": "8e298d1f-c705-4638-98f4-b990966be46f",
+    "command_sha256": "8b5e9c8d5fcffafd932e4e30b727263b16e26702bd8e9279e89ef0c14666d742",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "observed": {
+    "request_id": "4467d3c0-7f41-5dd4-81e1-3bb8558f7ab3",
+    "provider_response_at": "2026-10-29T13:45:59.402103-04:00",
+    "proposal_office_state_persisted_at": "2026-10-29T13:45:59.485725-04:00",
+    "pipeline_rejection_at": "2026-10-29T13:45:59.503366-04:00",
+    "code": "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+    "exception_type": "ObjectiveStateError",
+    "elapsed_ms": 17
+  },
+  "verified_progress": "Lossless-cache runtime successfully persisted actual new PlanProposal office state; no size-limit failure recorded. This is not completion of delivery.",
+  "unresolved": "Actualcandidate artifactpaths versus approvedscope; fixed pathguard mustremain. Additional outputor pathmismatch onlyhypotheses.",
+  "next": {
+    "run_id": "grace-artifact-scope-inspect-20261029-01",
+    "execution_id": "f1d5e8fc-b0f5-4929-a874-15786516a26f",
+    "scope": "Read-only exactscope diagnostic viaexisting authorized path; no credentialcopy/directDBdump/grantchange/runtimechange or duplicateobjective."
+  }
+}

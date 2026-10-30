@@ -1,0 +1,176 @@
+{
+  "schema": "rv.grace-autonomy.recovery-baseline.v1",
+  "file_revision": "1.0.1",
+  "task": "Grace Autonomy Recovery and Qualification",
+  "authorization": "Steward instruction in current conversation: repair existing acceptance, resident judgment/recovery, operational context and observability; qualify ongoing general-purpose operation; no new organizing work order or artificial operating limits.",
+  "status": "REPAIR_IN_PROGRESS_NOT_DEPLOYED_OR_QUALIFIED",
+  "baseline_objective": {
+    "status": "available",
+    "executed": true,
+    "objective": {
+      "objective_id": "objective:grace-conversation:05a69441-a9aa-5ead-8321-aa21ecfb4f86",
+      "state": "WORK_ORDER_CREATED",
+      "scope_ref": "work-order:engineering",
+      "submitter_id": "steward:camrui",
+      "revision": 4,
+      "assignment_id": "assignment:grace:78b7594fbbdaba81552d9a2e049fe607fab46d79",
+      "source_revision": "26c71277f45338239a707f09e118eb70bcd449c4",
+      "source_sha256": "16dbfe553988bdfb2678024a274fbf480ce31544a10c83c619e520605a6b8321",
+      "created_at": "2026-10-29T20:42:40.956432-04:00",
+      "updated_at": "2026-10-29T20:43:18.012278-04:00",
+      "evidence": {
+        "status": "VERIFIED",
+        "source_reference_count": 7,
+        "source_revision": "26c71277f45338239a707f09e118eb70bcd449c4",
+        "source_sha256": "16dbfe553988bdfb2678024a274fbf480ce31544a10c83c619e520605a6b8321",
+        "retrieval_complete": true,
+        "error_code": null
+      }
+    },
+    "submission_authority": {
+      "status": "currently_authorized",
+      "principal_id": "steward:camrui",
+      "action": "objective.submit",
+      "scope_ref": "work-order:engineering",
+      "grant_id": "grace-demo:steward-objective-submit"
+    },
+    "assignment": {
+      "id": "assignment:grace:78b7594fbbdaba81552d9a2e049fe607fab46d79",
+      "state": "rework_required",
+      "owner": "engineering",
+      "workflow_id": "grace.objective-work-order.v1",
+      "workflow_step": "verification_rejected",
+      "correlation_id": "objective:grace-conversation:05a69441-a9aa-5ead-8321-aa21ecfb4f86"
+    },
+    "steps": [
+      {
+        "step_id": "create-file",
+        "order": 1,
+        "depends_on": [],
+        "state": "assigned",
+        "assignment_id": "assignment:grace:78b7594fbbdaba81552d9a2e049fe607fab46d79",
+        "dispatch_count": 1,
+        "updated_at": "2026-10-29T20:43:18.007587-04:00"
+      },
+      {
+        "step_id": "verify-file",
+        "order": 2,
+        "depends_on": [
+          "create-file"
+        ],
+        "state": "pending",
+        "assignment_id": null,
+        "dispatch_count": 0,
+        "updated_at": "2026-10-29T20:43:17.884918-04:00"
+      }
+    ],
+    "verification": {
+      "decision": "REJECTED",
+      "verifier_revision": "1.0.6",
+      "created_at": "2026-10-29T20:43:37.815224-04:00",
+      "summary": "Assignment artifact set failed independent contract, integrity, type or provenance verification",
+      "criteria_status": {
+        "all_acceptance_criteria_supported": false,
+        "all_artifact_acceptance_criteria_supported": false,
+        "all_required_artifacts_integrity_and_type_verified": true,
+        "all_required_step_criteria_satisfied": false,
+        "all_required_step_criteria_supported": false,
+        "artifact_contract_matches_persisted_assignment": true,
+        "artifact_path_projection_matches_contract": true,
+        "artifact_semantic_outcome_not_negative": true,
+        "assignment_and_objective_match": true,
+        "attempt_succeeded": true,
+        "authorized_acceptance_criteria_bound": true,
+        "executor_capability_matches": true,
+        "explicit_artifact_acceptance_clauses_satisfied": false,
+        "repository_provenance_is_pinned": true,
+        "repository_publication_receipt_consistent": true,
+        "required_repository_publication_independently_verified": true,
+        "result_schema_matches": true,
+        "source_provenance_is_pinned": true,
+        "worker_report_succeeded": true
+      },
+      "artifact_references": [
+        "workspace://codex-e7a9e2c69dea392f348c363c7eca079766bfad483fdef67fa86bd8e5b61ac15a/96953669738a",
+        "sha256:8e0ce183ab4e981461a6be8b4cd60877b836c53cfce4e0e64e1bfe6d58545ca9"
+      ]
+    },
+    "execution_intents": [
+      {
+        "assignment_id": "assignment:grace:78b7594fbbdaba81552d9a2e049fe607fab46d79",
+        "worker_id": "worker:grace-engineering",
+        "lease_generation": 1,
+        "capability": "engineering.codex-cli-artifact.v1",
+        "effect_class": "external_uncertain",
+        "status": "succeeded",
+        "attempt_id": "7d170a0d-abb1-4d3e-9ad3-e61707b71d29",
+        "started_at": "2026-10-29T20:43:18.542420-04:00",
+        "finished_at": "2026-10-29T20:43:37.744518-04:00",
+        "failure_class": null
+      }
+    ],
+    "event_lineage": [
+      {
+        "event_type": "objective.received",
+        "actor_id": "steward:camrui",
+        "occurred_at": "2026-10-29T20:42:40.959629-04:00"
+      },
+      {
+        "event_type": "objective.grounded",
+        "actor_id": "grace:knowledge-provider",
+        "occurred_at": "2026-10-29T20:42:41.135988-04:00"
+      },
+      {
+        "event_type": "execution.reasoning_attempted",
+        "actor_id": "service:grace-execution",
+        "occurred_at": "2026-10-29T20:42:42.167688-04:00"
+      },
+      {
+        "event_type": "work_order.proposed",
+        "actor_id": "office:office:grace",
+        "occurred_at": "2026-10-29T20:43:17.887704-04:00"
+      },
+      {
+        "event_type": "work_order.dispatched",
+        "actor_id": "service:grace-engineering-dispatch",
+        "occurred_at": "2026-10-29T20:43:18.015076-04:00"
+      },
+      {
+        "event_type": "engineering.rework_escalation_pending",
+        "actor_id": "office:grace",
+        "occurred_at": "2026-10-29T20:43:38.947141-04:00"
+      }
+    ],
+    "implementation_status": "IMPLEMENTED"
+  },
+  "source_contract_reproduction": {
+    "source_ref": "3a7f48a4034679ba7874ed4c729ab1b4d55e10ed",
+    "producer": "src/riverview_core/resident_execution/pipeline.py:pending_rejected_work_order_reviews",
+    "consumer": "src/riverview_core/resident_execution/conversation.py:review_rejected_work_order",
+    "unexpected_fields": [
+      "objective_assignment_id",
+      "objective_revision"
+    ],
+    "missing_required_fields": [],
+    "method": "AST comparison of producer item keys with consumer required/optional sets; source-level reproduction, not proof of exact live exception"
+  },
+  "execution": {
+    "host": "camrui",
+    "run_id": "grace-general-autonomy-repair-20261030-01",
+    "thread_id": "01a17fdf-6d58-7050-92cc-1762ac986518",
+    "execution_id": "7256332f-9c04-4de5-bd63-99872898df60",
+    "command_sha256": "012312ee07d106b3339ec213013c219b3c7c9d610b4ef6a3a08b78424f303412",
+    "audit_event_id": "8340782e-072f-4e10-8cd8-86dabd783c9e"
+  },
+  "limitations": [
+    "No demonstrated model rejection-review invocation or recovery for the baseline objective.",
+    "Earlier staged literal-only alignment candidate is not approved for deployment under clarified general-purpose architecture.",
+    "Qualification-specific restrictions are prohibited; existing legitimate authority/resource controls remain."
+  ],
+  "retrieval_context": "Read during the current October 30 recovery session; the objective projection does not return a retrieval timestamp. Embedded event timestamps are backend supplied.",
+  "predecessor": {
+    "commit": "d3264ec8959c49f68d67dea5e1cbd2a1d1e82e0c",
+    "blob": "698408935a46349ae2c91c98571bee81d9fb283c",
+    "change": "Remove an approximate observation timestamp rather than imply exact retrieval timing."
+  }
+}

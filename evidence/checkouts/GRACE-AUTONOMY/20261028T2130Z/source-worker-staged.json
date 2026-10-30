@@ -1,0 +1,30 @@
+{
+  "revision": "1.0.0",
+  "approval": "Steward explicit Approved; exact policy retained in GRACE_SOURCE_WORKER_CHANGE_PLAN_20261028.json",
+  "status": "staged_not_applied",
+  "camrui_script_sha256": "dfd631baa181b57aeca91bc157d633f3a1a72fe73bae18453656713bafabecc7",
+  "windows_wrapper_sha256": "9f480f3c14163b90401833f728a7078f06302ca00444fffcf01822519d9de92a",
+  "windows_path": "C:\\Users\\Public\\Documents\\Riverview\\GraceSourceWorker\\Update-RiverviewGraceSourceWorker.ps1",
+  "unit": "riverview-grace-execution-owner-session.service",
+  "configuration_predecessor_sha256": "f72a87d7f559372f6d8332a1fc3be4c1eb6e0fda8c6b6f3a16a0d48e798080d6",
+  "camrui_review_execution": "b8c42efe-9b92-43ee-a3e7-259d6ab0c849",
+  "camrui_review_audit": "8d59c523-69ba-424b-8785-d0a841b1d728",
+  "windows_final_hash_execution": "10fe24eb-5c0d-4fbd-97ec-51165333a92a",
+  "windows_final_hash_audit": "d55a80aa-f435-41f3-8d18-cb53538ad76c",
+  "test_cases": 12,
+  "camrui_tests": {
+    "passed": 12,
+    "skipped": 0,
+    "exit": 0
+  },
+  "portable_fixture_tests": {
+    "passed": 12,
+    "skipped": 0,
+    "exit": 0
+  },
+  "distinct_test_cases": 12,
+  "powershell_parse_errors": 0,
+  "loaded_worker_state": "unconfirmed; sandbox systemd bus unavailable",
+  "next_action": "Operator runs prepared wrapper through existing Wille SSH alias; then ChatGPT independently verifies fresh source-change execution",
+  "exact_codex_thread": "01a17fdf-6d58-7050-92cc-1762ac986518"
+}

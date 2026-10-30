@@ -1,0 +1,19 @@
+{
+  "source": "Steward operator report and independent Comms objective query",
+  "operator_identity": "desktop-ja3rpnq\\wille",
+  "helper_sha256": "49364dc585ff8baf4af24337f95a68e96b370c26fb7a1ec47658bb6ce6d5af30",
+  "dry_run_exit_code": 0,
+  "apply_exit_code": 0,
+  "status": "UPDATED",
+  "candidate": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-db-state-boundary-20261029-r1",
+  "objective_id": "objective:grace-conversation:db6e6c9a-5902-5084-af92-5876c2d04993",
+  "objective_state": "GROUNDED",
+  "revision": 2,
+  "assignment": null,
+  "last_attempt_at": "2026-10-29T10:50:41.218124-04:00",
+  "last_failure_at": "2026-10-29T10:51:04.114071-04:00",
+  "query_approx_at": "2026-10-29T11:05:15-04:00",
+  "observation": "No further reasoning attempt events returned after last failure; detailed fence payload and size metrics awaiting read-only inspection.",
+  "verification_execution_id": "877df149-638d-427f-bd6b-ff17a17662f3",
+  "delivery": "NOT_COMPLETE"
+}

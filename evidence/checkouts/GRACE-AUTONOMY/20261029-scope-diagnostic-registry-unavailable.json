@@ -1,0 +1,17 @@
+{
+  "source": "Steward operator report plus source inspection",
+  "objective_id": "objective:grace-conversation:be52c097-4609-53a1-b62c-d03db7f4b5b9",
+  "launcher_sha256": "807683b1ffe1cd698108308cef62eb79ee4fdbcc08296b34157d3deeacee3c4c",
+  "invocation_id": "6d601fad86184ad6b356225aeb305b0e",
+  "diagnostic_exit_code": 2,
+  "result": {
+    "status": "BLOCKED",
+    "reason_code": "diagnostic_unavailable",
+    "exception_type": "RegistryUnavailable"
+  },
+  "observation": "No libpq password-file warning in corrected run. No candidate path data obtained. Underlying exception/stage not yet emitted.",
+  "source_finding": "read_authorized_office_state in0003_resident_office_state_api.sql uses SELECT FOR SHARE OF binding, incompatible with diagnostic's SQL read-only default. This is a concrete diagnostic incompatibility; actual wrapped exception remains unobserved.",
+  "next": "Use normal existing authorized snapshot API transaction mode and read-only objective reader connection; do not alter function/grants/role or force rollback canonical accounting. Add sanitized stage/context-type/SQLSTATE diagnostics.",
+  "preparation_execution_id": "b0a5714c-f0fe-4451-a67f-01b235d58f4d",
+  "runtime_or_objective_change": false
+}

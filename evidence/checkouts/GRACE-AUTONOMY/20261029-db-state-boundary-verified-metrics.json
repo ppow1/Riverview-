@@ -1,0 +1,33 @@
+{
+  "source": "Independent retained Camrui Codex read-only inspection via Comms5",
+  "inspection_execution_id": "877df149-638d-427f-bd6b-ff17a17662f3",
+  "retrieval_execution_id": "b5705c0e-4b6f-47ad-b655-a86f5ffd3c40",
+  "retrieval_audit_id": "12c3d59c-039d-4802-b756-9a695b32b6f5",
+  "release": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-db-state-boundary-20261029-r1",
+  "hashes_match": true,
+  "sha256": {
+    "reasoner": "1e4999abeeca03d4015d3516f41b911107d13ccf7275f0113586e5a55aff359c",
+    "service": "dd4091bbe4478d398c6717bf4f4fdd2ad4c1e97bf0cdbf07734f83c1658776c0"
+  },
+  "failure_at": "2026-10-29T10:51:04.109383-04:00",
+  "failure_code": "OFFICE_STATE_JSONB_TEXT_SIZE_LIMIT",
+  "metrics": {
+    "compact_bytes": 64450,
+    "python_spaced_estimate": 66922,
+    "database_jsonb_text_size_bucket": "over_65536",
+    "database_exact_bytes": null,
+    "plan_count": 25,
+    "plan_compact_bytes": 62844,
+    "outcome_count": 1,
+    "outcome_compact_bytes": 1558,
+    "other_office_bytes": 2,
+    "reasoning_runtime_compact_bytes": 64424,
+    "office_keys": 1
+  },
+  "retry_observation": "Objective lineage returned no attempts after10:50:41; final failure10:51:04; queried around11:05EDT. Objective remains GROUNDEDrev2/noassignment, delivery incomplete.",
+  "next": {
+    "run_id": "grace-lossless-plan-cache-20261029-01",
+    "execution_id": "cb45d710-2c36-4840-9843-f043ac6ccb3b",
+    "scope": "Prepare lossless capacity remedy and tests only; inspect existing exact recovery route without silently bypassing revision fence. No deployment, schema/cap/grant change or cache eviction."
+  }
+}

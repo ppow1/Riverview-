@@ -1,0 +1,113 @@
+diff --git a/src/riverview_core/resident_execution/pipeline.py b/src/riverview_core/resident_execution/pipeline.py
+index 0cb42bc2..9de7cd0b 100644
+--- a/src/riverview_core/resident_execution/pipeline.py
++++ b/src/riverview_core/resident_execution/pipeline.py
+@@ -556,6 +556,14 @@ class GraceExecutionPipeline:
+                 not evidence.get("source_references") or not evidence.get("source_sha256")):
+             raise ObjectiveStateError("proposal cannot use missing or incomplete evidence")
+         requested_list = list(objective["acceptance_criteria"])
++        from .codex_workflow import CodexArtifactVerifier
++        for step in proposal.steps:
++            if (step.execution_capability == "engineering.codex-cli-artifact.v1" and
++                    CodexArtifactVerifier._publication_required(
++                        [asdict(item) for item in step.artifact_requirements],
++                        step.acceptance_criteria)):
++                raise ObjectiveStateError(
++                    "artifact capability cannot satisfy repository publication requirements")
+         step_criteria = [criterion for step in proposal.steps
+                          for criterion in step.acceptance_criteria]
+         proposed = set(step_criteria)
+diff --git a/src/riverview_core/resident_execution/service.py b/src/riverview_core/resident_execution/service.py
+index 740efa11..bfd2608e 100644
+--- a/src/riverview_core/resident_execution/service.py
++++ b/src/riverview_core/resident_execution/service.py
+@@ -165,6 +165,7 @@ class GraceExecutionService:
+     # A retry cannot change the approved scope or artifact paths, and counting only
+     # failures from the current immutable runtime would reopen the loop on deploy.
+     PERSISTED_PROPOSAL_BLOCK_CODES = frozenset({
++        "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+         "PROPOSAL_CRITERIA_BINDING_REJECTED",
+         "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+     })
+@@ -559,6 +560,8 @@ class GraceExecutionService:
+                     "PROPOSAL_SOURCE_PATH_UNAUTHORIZED",
+                 "artifact path is absent from the Steward-approved objective scope":
+                     "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
++                "artifact capability cannot satisfy repository publication requirements":
++                    "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+                 "external advisory provenance is invalid":
+                     "PROPOSAL_EXTERNAL_ADVISORY_INVALID",
+                 "external advisory correlation is invalid":
+diff --git a/tests/test_grace_execution.py b/tests/test_grace_execution.py
+index f915b6f7..1a853b18 100644
+--- a/tests/test_grace_execution.py
++++ b/tests/test_grace_execution.py
+@@ -407,6 +407,60 @@ class CodingWorkOrderContractTests(unittest.TestCase):
+ 
+ 
+ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
++    def test_artifact_publication_admission_precedes_persistence(self):
++        from types import SimpleNamespace
++        from unittest.mock import Mock
++        from riverview_core.resident_execution.service import GraceExecutionService
++
++        ordinary = "The report contains the exact text: verified."
++        publication = "The report is published in the GitHub repository with a commit SHA."
++        provenance = "The source change uses the pinned repository commit " + "a" * 40
++        cases = (
++            ("step-publication", publication, ordinary, False, True),
++            ("requirement-publication", ordinary, publication, False, True),
++            ("ordinary-artifact", ordinary, ordinary, False, False),
++            ("source-provenance", provenance, ordinary, True, False),
++        )
++
++        class PersistenceReached(Exception):
++            pass
++
++        for name, criterion, artifact_criterion, source, rejected in cases:
++            with self.subTest(name=name):
++                db = Mock()
++                db.transaction.side_effect = PersistenceReached
++                pipeline = object.__new__(GraceExecutionPipeline)
++                pipeline.ledger = SimpleNamespace(db=db)
++                objective = {
++                    "status": "GROUNDED", "revision": 2,
++                    "request": "Create reports/result.txt; update src/example.py and tests/test_example.py in repo://test/repo at " + "a" * 40,
++                    "acceptance_criteria": [criterion],
++                    "evidence": {"status": "VERIFIED", "retrieval_complete": True,
++                        "source_references": ["repo://test/repo"], "source_sha256": "b" * 64},
++                }
++                pipeline.get_objective = lambda _id: objective
++                pipeline.objective_events = lambda _id: []
++                kwargs = ({"execution_capability": "engineering.codex-cli-source-change.v1",
++                    "repository_reference": "repo://test/repo", "repository_revision": "a" * 40,
++                    "authorized_paths": ("src/example.py", "tests/test_example.py"),
++                    "test_targets": ("tests/test_example.py",)} if source else {})
++                proposal = PlanProposal("Create the report", (PlanStep(
++                    "report", "Create the report", (criterion,),
++                    artifact_requirements=(() if source else (ArtifactRequirement(
++                        "report", "reports/result.txt", "text/plain", (artifact_criterion,)),)),
++                    **kwargs),), 0)
++                if rejected:
++                    with self.assertRaises(ObjectiveStateError) as caught:
++                        pipeline.record_proposal("objective:test", proposal)
++                    code = GraceExecutionService._reasoning_failure_detail_code(caught.exception)
++                    self.assertEqual(code, "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE")
++                    self.assertIn(code, GraceExecutionService.PERSISTED_PROPOSAL_BLOCK_CODES)
++                    db.transaction.assert_not_called()
++                else:
++                    with self.assertRaises(PersistenceReached):
++                        pipeline.record_proposal("objective:test", proposal)
++                    db.transaction.assert_called_once_with()
++
+     def test_artifact_path_fence_suppresses_again_after_service_reconstruction(self):
+         from types import SimpleNamespace
+         from riverview_core.resident_execution.service import GraceExecutionService
+@@ -458,6 +512,7 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
+         self.assertIn("payload->>'objective_revision' IS NULL", query)
+         self.assertIn("event_type='objective.grounded'", query)
+         self.assertEqual(set(pipeline.ledger.db.value.params[1]), {
++            "PROPOSAL_PUBLICATION_CAPABILITY_UNAVAILABLE",
+             "PROPOSAL_CRITERIA_BINDING_REJECTED",
+             "PROPOSAL_ARTIFACT_PATH_UNAUTHORIZED",
+         })

@@ -1,0 +1,91 @@
+diff --git a/src/riverview_core/resident_execution/pipeline.py b/src/riverview_core/resident_execution/pipeline.py
+index 0cb42bc2..94f15197 100644
+--- a/src/riverview_core/resident_execution/pipeline.py
++++ b/src/riverview_core/resident_execution/pipeline.py
+@@ -630,7 +630,15 @@ class GraceExecutionPipeline:
+         for step in proposal.steps:
+             if step.execution_capability == "engineering.codex-cli-source-change.v1":
+                 target_values = (step.repository_reference, step.repository_revision)
+-                if any(not any(value in text for text in approved_source_scope)
++                # Match complete target tokens: a repository prefix ending at
++                # a separator is still not the repository the Steward named.
++                # A final prose period is allowed only if it does not lead
++                # into another target-token character.
++                target_token_start = r"(?<![\w./:@%+~?#=&!-])"
++                target_token_end = r"(?![\w/:@%+~?#=&!-]|\.(?=[\w./:@%+~?#=&!-]))"
++                if any(not any(re.search(
++                        target_token_start + re.escape(value) + target_token_end, text)
++                        for text in approved_source_scope)
+                        for value in target_values):
+                     raise ObjectiveStateError(
+                         "source-change target identity and commit must be Steward-authorized")
+diff --git a/tests/test_grace_execution.py b/tests/test_grace_execution.py
+index f915b6f7..3cfc6648 100644
+--- a/tests/test_grace_execution.py
++++ b/tests/test_grace_execution.py
+@@ -585,6 +585,65 @@ class GraceReasoningFailureDiagnosticTests(unittest.TestCase):
+         self.assertNotIn("First approved check.", str(diagnostic))
+         self.assertNotIn("Invented extra requirement", str(diagnostic))
+ 
++class SourceScopeTargetTests(unittest.TestCase):
++    def test_source_scope_requires_exact_target_before_proposal_persistence(self):
++        from unittest.mock import Mock
++        from riverview_core.resident_reasoning import PlanProposal, PlanStep
++
++        repository = "repo://test/approved-repository.git"
++        revision = "a" * 40 + "b" * 24
++        pipeline = object.__new__(GraceExecutionPipeline)
++        pipeline.ledger = Mock()
++        pipeline.get_objective = Mock(return_value={
++            "status": "GROUNDED", "revision": 2,
++            "request": (f"Edit `{repository}` at ({revision}). "
++                        "Authorized files: src/app.py and tests/test_app.py."),
++            "acceptance_criteria": ["Verify the scoped fix"],
++            "evidence": {"status": "VERIFIED", "retrieval_complete": True,
++                         "source_references": [repository], "source_sha256": "c" * 64},
++        })
++        pipeline.objective_events = Mock(return_value=[])
++
++        def proposal(ref, pin):
++            return PlanProposal("Scoped fix", (PlanStep(
++                "fix", "Edit the approved files", ("Verify the scoped fix",),
++                execution_capability="engineering.codex-cli-source-change.v1",
++                repository_reference=ref, repository_revision=pin,
++                authorized_paths=("src/app.py", "tests/test_app.py"),
++                test_targets=("tests/test_app.py",)),), 0)
++
++        for ref, pin in ((repository, revision[:40]),
++                         ("repo://test/approved", revision),
++                         ("repo://test/approved-", revision),
++                         ("repo://test/approved-repository", revision),
++                         ("repo://test/approved-repository.", revision)):
++            with self.subTest(ref=ref, pin=pin):
++                with self.assertRaisesRegex(ObjectiveStateError, "Steward-authorized"):
++                    pipeline.record_proposal("objective:source-scope", proposal(ref, pin))
++                pipeline.ledger.db.transaction.assert_not_called()
++                pipeline.ledger.db.cursor.assert_not_called()
++
++        # Stop at the persistence boundary: exact tokens must reach it.
++        class PersistenceReached(Exception):
++            pass
++
++        pipeline.ledger.db.transaction.side_effect = PersistenceReached
++        for exact_repository in (repository, "repo://ppow1/Riverview-"):
++            for wrapped_ref, wrapped_pin in (
++                    (f"`{exact_repository}`", f"({revision})."),
++                    (f"{exact_repository},", f"{revision}."),
++                    (f'"{exact_repository}"', f"[{revision}]")):
++                with self.subTest(ref=wrapped_ref, pin=wrapped_pin):
++                    pipeline.get_objective.return_value["request"] = (
++                        f"Edit {wrapped_ref} at {wrapped_pin} "
++                        "Authorized files: src/app.py and tests/test_app.py.")
++                    pipeline.ledger.db.transaction.reset_mock()
++                    with self.assertRaises(PersistenceReached):
++                        pipeline.record_proposal("objective:source-scope",
++                                                 proposal(exact_repository, revision))
++                    pipeline.ledger.db.transaction.assert_called_once_with()
++
++
+ class ProposalPromotionEvidenceBindingTests(unittest.TestCase):
+     def test_promotion_binding_requires_exact_approved_revision_and_objective_link(self):
+         import hashlib

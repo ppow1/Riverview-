@@ -1,0 +1,94 @@
+{
+  "schema": "rv.grace-autonomy.repair-checkpoint.v1",
+  "file_revision": "1.0.2",
+  "status": "RUNTIME_CANDIDATE_REPORTED_94_PASS_58_DB_SKIPPED_NOT_DEPLOYED_NOT_LIVE_QUALIFIED",
+  "thread_id": "01a17fdf-6d58-7050-92cc-1762ac986518",
+  "stage": ".riverview-write-acceptance/grace-general-autonomy-repair-20261030",
+  "review_context_run": {
+    "run_id": "grace-review-context-implement-20261030-01",
+    "execution_id": "ea2bbdb7-a0c0-4172-b8d4-869f7377a598",
+    "command_sha256": "e33c5ddbf159c97aab10ffe48ae8f6e0701edb558d95d445cafa1aa53a8f2a1e",
+    "audit_event_id": "c2a3c7cc-8b41-4892-b649-63ddde35471c",
+    "reported_results": {
+      "tests_passed": 38,
+      "environment": "in-memory; database-backed tests not invoked",
+      "graph_count": 24,
+      "node_count": 675,
+      "baseline": "Review context rejected with ValueError before model call; 11588-byte operational snapshot lost health/work summaries at 8192-byte guard",
+      "repairs": "Validated review bookkeeping, transient same-release review retry, allowlisted Unicode-byte-bounded operational snapshot with omissions",
+      "limitation": "Root has not yet retrieved full diff/manifest. Branch-based service revision1.0.65 is older than deployed1.0.66; exact runtime port required before deployment."
+    }
+  },
+  "acceptance_run": {
+    "run_id": "grace-acceptance-judgment-implement-20261030-01",
+    "execution_id": "a19ff49b-fee5-48a3-9907-ca26d0581321",
+    "command_sha256": "275a1ae7232609656b28bcc4a97d2141fec235ac2db75b17286769d913b92a72",
+    "audit_event_id": "bb7669e0-137f-4417-9d4e-7f8e675a93fb"
+  },
+  "integration_run": {
+    "run_id": "grace-autonomy-integrate-review-20261030-01",
+    "execution_id": "6caf498b-bb68-45a0-9fec-fea22287cf8b",
+    "command_sha256": "b7cb51351f0a1e34e50b8a52f60eec0aabcdb5dd92bff645b3c5960c175afefa",
+    "audit_event_id": "ebd90d6d-4363-47af-94e6-4d9611adeef3",
+    "instruction": "Port only task changes to exact deployed predecessors; preserve recent cache/state/publication fixes; exclude literal-only planner draft and unrelated dirty files; stage review bundle without deployment."
+  },
+  "next_action": "Retrieve compact review/DB-check output, reconstruct and verify complete runtime diff/helper hashes, review code and database evidence. Correct any missing Dashboard target before applying. Protected helper dry run reported systemd_bus_unavailable from Codex; documented operator sudo path may be required. Live qualification remains pending.",
+  "status_reads": {
+    "review_context": {
+      "idempotency_key": "grace-review-context-implement-status-20261030-01",
+      "command_sha256": "281ebd5382cdad920c599760ca397bc6a8fd97b63ec090917d5554d164e6d4f3",
+      "execution_id": "540e903a-386b-446a-b89c-2eb62d7ff1c2",
+      "state": "completed"
+    },
+    "acceptance": {
+      "idempotency_key": "grace-acceptance-judgment-implement-status-20261030-01",
+      "command_sha256": "99d9154368df46ef33a4410bbb70c182596812f6561074d9dc448109951e6fa5",
+      "execution_id": "18931bbb-d84f-448a-9c3a-769e8055f728"
+    },
+    "integration": {
+      "idempotency_key": "grace-autonomy-integrate-review-status-20261030-01",
+      "command_sha256": "246bc7efac28718de3bc277783c49cac0e07114f0d83d1ee9807548bfd05cf98",
+      "execution_id": "fac3ba76-5d38-4508-9475-eabd1481a224"
+    }
+  },
+  "queue_note": "Gateway serializes tasks. Integration was queued before the acceptance status-read command; both status reads may wait until integration completes. Poll original acceptance/integration task status for running/completed state; status-read task output contains actual assistant messages. Avoid duplicate implementations.",
+  "predecessor": {
+    "commit": "265f4882b3bdd0844b15729cbdd2d9c6c8e07ac9",
+    "blob": "d19ace804d5f945441bb61ffa672c40ec5300338"
+  },
+  "integration_report": {
+    "stage": ".riverview-write-acceptance/grace-general-autonomy-repair-20261030/live-integration",
+    "export": "transfer.json",
+    "chunks": 146,
+    "next_chunk": 8,
+    "raw_json_sha256": "93cee3facb147cb7b8d5097a6c2ea910334b5fe9cd713cd0d22379db996bad02",
+    "gzip_sha256": "dcd287afb73f66acae0d150893b8596b7804088603b5e434c93f411ee00437b6",
+    "branch_patch_sha256": "c8e4894dd0878d9e1d01b511b04f3ddae64e01627735262ecffa26635cfbdaa5",
+    "runtime_overlay_patch_sha256": "e4a78af9dbf4f5d7301560fff5c1fa42d6418914fbba80dc37f8f0ee39036f34",
+    "helper_sha256": "36c547bc88766cfafd62186dc1781a0cbf59d609fd43e3d0957dc9de9ff426f7",
+    "tests": "94 passed; 58 skipped (PostgreSQL DSN unavailable); exact predecessor 10 errors/4 failures",
+    "dry_run": "admin1 blocked: systemd_bus_unavailable; documented operator command uses sudo -n",
+    "deployed": false
+  },
+  "acceptance_report": {
+    "substantive_requirements": "Reported INCONCLUSIVE until actual bound Grace satisfaction decision; original criteria unchanged; independent/deterministic failures non-overridable.",
+    "test_counts": {
+      "total": 152,
+      "passed": 94,
+      "skipped_postgresql": 58,
+      "exit_code": 0
+    },
+    "provenance": "Reported by existing Camrui Codex thread; ROOT full diff review still pending.",
+    "retained_existing_controls": "Three-correction and six-review-generation controls retained with history cited as pre-existing bounded rework/resource controls; detailed provenance still to review."
+  },
+  "compact_review_and_db_check": {
+    "run_id": "grace-autonomy-compact-review-db-20261030-01",
+    "execution_id": "40b3c56e-a1b1-4800-bf52-a443e2ad6b2f",
+    "command_sha256": "2c5eaf9799fb7c05fbb840af461cef6d60c5d00fb071b5143fa398f7dc269aec",
+    "audit_event_id": "da739fcc-5c96-4a21-9de2-3038688c3a8a",
+    "status_key": "grace-autonomy-compact-review-db-status-20261030-01",
+    "status_command_sha256": "06916b177b7cdfa291ec7693387cda4686d2d761b7004cef8ee10e7f66367684",
+    "status_execution_id": "f2910b5d-6b9b-4e8d-9b5f-7b374886b550",
+    "purpose": "Export compact runtime patch/helper/manifest (full initial bundle 146 chunks); inspect Dashboard deployment gap; attempt affected DB tests with disposable private PostgreSQL cluster, no production DB/grant changes."
+  }
+}

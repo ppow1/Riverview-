@@ -1,0 +1,31 @@
+{
+  "captured_fields_only": [
+    "event/stage",
+    "provider_id",
+    "result_type",
+    "failure_code",
+    "persistence_stage",
+    "serialized_state_bytes",
+    "request_id",
+    "timestamps"
+  ],
+  "configured_max_state_bytes": 65536,
+  "failure_code": "OFFICE_STATE_SIZE_LIMIT",
+  "objective_id": "objective:grace-conversation:db6e6c9a-5902-5084-af92-5876c2d04993",
+  "objective_projection": {
+    "assignment_id": null,
+    "execution.reasoning_failed_events": 1,
+    "reasoning_attempted_through": "2026-10-28T22:20:02.762860-04:00",
+    "state": "GROUNDED"
+  },
+  "observed_failure_logs": 34,
+  "per_key_breakdown_available_in_existing_logs": false,
+  "persistence_stage": "proposal_state_persistence",
+  "provider_id": "grace.readiness_router.v1",
+  "result_type": "PlanProposal",
+  "same_deterministic_request_id": "853940ca-854f-5b4b-9d37-f3b06667e8d0",
+  "schema": "rv.grace.office_state_size_failure.safe_evidence.v1",
+  "serialized_state_bytes": 66922,
+  "state_values_or_prompt_read": false,
+  "window_local": "2026-10-28 22:06\u201322:21 EDT"
+}

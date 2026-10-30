@@ -1,0 +1,51 @@
+{
+  "status": "INSTALLED_POINTER_AND_RUNTIME_HASHES_VERIFIED",
+  "source": "Independent Camrui read-only inspection through Comms1.1",
+  "observed_at_approx": "2026-10-29T12:17:28-04:00",
+  "inspection_execution_id": "c6852b84-4b6a-462b-b69d-4e711de2786e",
+  "retrieval": {
+    "status": "completed",
+    "executed": true,
+    "execution_id": "ec094cb5-b9d4-4401-ba99-e8cf0058bdfb",
+    "operation": "command_task_standard",
+    "target_host": "camrui",
+    "privilege_level": "standard",
+    "stdout": "{\"status\": \"completed\", \"host_label\": \"camrui\", \"cwd\": \"/home/admin1/.local/share/riverview/engineering/Riverview\", \"run_id\": \"grace-cache-pointer-inspect-20261029-01\", \"thread_id\": \"01a17fdf-6d58-7050-92cc-1762ac986518\", \"events\": \"/home/admin1/.local/state/riverview/gateway-codex/grace-cache-pointer-inspect-20261029-01/events.jsonl\", \"pid\": 2837093, \"exit_code\": 0, \"messages\": [\"I\\u2019ll read the current release symlink, hash only the two named runtime files, and compare those observations with the helper\\u2019s pinned base/candidate and pointer checks.\", \"`current` resolves to `/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-lossless-plan-cache-20261029-r2`. Its reasoning SHA is `aa8fbd39c18d413ff814d89cb63cbdcbe8680b92bdc42d637f166e1f025cd56c` (rev 1.0.36); service SHA is `73b5085d53645b1e9be20a12590e02071c0cc3fe75c51cbdf00dcf18045ad2be` (rev 1.0.66). Both match the helper\\u2019s candidate pins. Dry-run expects the db-state-boundary-r1 base pointer, so it reports `current_pointer_mismatch` because the candidate is already active. No rerun or changes made.\"]}\n",
+    "stderr": "",
+    "exit_code": 0,
+    "started_at": "2026-10-29T16:17:27.656229+00:00",
+    "completed_at": "2026-10-29T16:17:28.265892+00:00",
+    "deadline_at": "2026-10-29T17:17:27.587223+00:00",
+    "authorization_evidence": {
+      "principal_id": "steward:camrui",
+      "caller_grant_id": "grant:6422d222eca74cb3b328bf3a80384a59",
+      "execution_grant_id": "grant:8327c8d7a74b4bf78e5529e53057fe69",
+      "action": "comms5.command.execute.task.camrui.standard",
+      "scope_ref": "host:camrui",
+      "reservation_id": "16bfe482-10a4-4b08-a735-d944ca891862",
+      "reservation_status": "consumed"
+    },
+    "audit_evidence": {
+      "execution_id": "ec094cb5-b9d4-4401-ba99-e8cf0058bdfb",
+      "audit_event_id": "a0915424-94cc-4fa4-a743-61559ad9f0bd",
+      "idempotency_key": "cmd-f7eae74a8f0aefd8ae6f1514d11b38ad094a0700158f589e430063d334d6034e"
+    },
+    "host_id": "camrui",
+    "task_id": "ec094cb5-b9d4-4401-ba99-e8cf0058bdfb",
+    "command_sha256": "4cc9638b7f9b638dbe5df9c1d881708d258d75f9e4c38c99667d667e078bf0f3",
+    "implementation_status": "IMPLEMENTED"
+  },
+  "release": "/opt/riverview-grace-execution/releases/9f56cb72f3bd2961babf2527a26bd843526e18ce-grace-lossless-plan-cache-20261029-r2",
+  "hashes": {
+    "reasoning": "aa8fbd39c18d413ff814d89cb63cbdcbe8680b92bdc42d637f166e1f025cd56c",
+    "service": "73b5085d53645b1e9be20a12590e02071c0cc3fe75c51cbdf00dcf18045ad2be"
+  },
+  "operator_report": {
+    "helper_sha256": "49de4332235f82fc60de302714a60216a9eb160212690f4c76dc1b2853163d65",
+    "dry_run_exit_code": 2,
+    "reason": "current_pointer_mismatch",
+    "explained": "Candidate already current; repeated dry-run expects predecessor. This repeated invocation applied nothing."
+  },
+  "limits": "Exact prior successful apply timestamp/receipt was not supplied. Current files/pointer verified; live new-request capacity acceptance still pending.",
+  "next": "Do not reinstall. Fresh bounded conversation workorder via existing authenticated message action; discover new objective through Comms. Require independent verification and automatic completion publication."
+}
