@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "revision": "1.0.0",
+  "host": "desktop-ja3rpnq",
+  "install_directory": "A:\\AI\\Scripts\\Riverview",
+  "launcher": "Run.bat",
+  "entries": [
+    {
+      "id": "Deploy-R3",
+      "filename": "Deploy-R3.ps1",
+      "version": "1.0.3",
+      "status": "pending-install",
+      "description": "Deploy R3 website to Camrui; changes running service",
+      "syntax": "Run.bat Deploy-R3 <commit-sha>",
+      "example": "Run.bat Deploy-R3 c8420b88803cd5b725d4dba5d633352690c5d5ec",
+      "parameters": [
+        {
+          "name": "commit-sha",
+          "required": true,
+          "format": "7-40 hex characters",
+          "maps_to": "-Commit"
+        }
+      ],
+      "help": "help/Deploy-R3.md",
+      "source": "A:\\AI\\Temp\\tmp\\Deploy-R3.ps1",
+      "side_effects": "Deployment and remote service restart"
+    }
+  ]
+}
