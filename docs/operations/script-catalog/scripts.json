@@ -9,7 +9,7 @@
       "id": "Deploy-R3",
       "filename": "Deploy-R3.ps1",
       "version": "1.0.3",
-      "status": "pending-install",
+      "status": "installed",
       "description": "Deploy R3 website to Camrui; changes running service",
       "syntax": "Run.bat Deploy-R3 <commit-sha>",
       "example": "Run.bat Deploy-R3 c8420b88803cd5b725d4dba5d633352690c5d5ec",
