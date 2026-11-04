@@ -195,6 +195,18 @@
       "path": "docs/components/CHATGPT_DOORBELL_STATUS.schema.json",
       "sha256": "17f1d1db5fec74663cb89c425c37781a3fce23bb7751db8cb4683742976a427e",
       "size_bytes": 6987
+    },
+    "docs/operations/command-access/README.md": {
+      "path": "docs/operations/command-access/README.md",
+      "revision": "1.0.0",
+      "sha256": "28fc47868bd4c037f1267ac143fc6cbcb715aea3082e9050ee2c1989be1dc5cc",
+      "size_bytes": 11104
+    },
+    "docs/operations/command-access/PUNCH_LIST.md": {
+      "path": "docs/operations/command-access/PUNCH_LIST.md",
+      "revision": "1.0.0",
+      "sha256": "2259d8cc0948fe0877302ad03cbcdb0fb688b53fcc2059fda6f8a794a3ca9e73",
+      "size_bytes": 3806
     }
   }
 }
