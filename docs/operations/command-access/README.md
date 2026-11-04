@@ -37,6 +37,129 @@ Authenticated OAuth steward is mapped by Dashboard to `steward:camrui` for comma
 
 Both requests approved 2026-10-26 ~19:55 EDT and confirmed through `comms5_get_delegation_grant_status` as `approved`, `IMPLEMENTED`. These are historical identifiers, **not reusable installation defaults**. Use authenticated Steward website with CSRF and exact request digest for approval: POST `/api/v1/steward/delegation-grant-requests/{literal-request-id}/decision`; body `decision:approve`, `expected_request_sha256`, `idempotency_key`, `approval_ref`. Do not percent-encode the colon in `delegation-request:` for this route (encoded colon produced 405). Grant renewal, extension, revocation and different durations must be independently verified in the canonical registry.
 
+
+## Steward browser-console grant approvals — verified November 2026
+
+Both scripts below use the R2 authenticated Steward session, cookie `rv_account_csrf`, header `X-Riverview-CSRF`, exact digest and literal unencoded `delegation-request:` path. They are historical, single-use request approval records, **not** reusable grant-creation or renewal scripts. The permanent website UI for dynamic renewals remains outstanding. Do not store session cookie values in Git.
+
+### Windows / desktop-ja3rpnq — 2026-11-03 approved request replay (historical)
+
+The following is the **exact-request approval procedure**, not a weekly renewal generator. These request IDs and SHA-256 values were used for the November 2026 renewal; the registry reports the approvals as implemented. Re-running cannot create new seven-day renewals. Use only against the matching pending requests, on the authenticated R2 Steward Dashboard; do not use for future renewal requests without replacing IDs/digests from live registry.
+
+```javascript
+(async () => {
+  const csrf = document.cookie.split("; ")
+    .find((part) => part.startsWith("rv_account_csrf="))
+    ?.split("=").slice(1).join("=");
+
+  if (!csrf) {
+    console.error("rv_account_csrf not found; no requests sent.");
+    return;
+  }
+
+  const requests = [
+    {
+        "id": "delegation-request:7bda65d27b5040ad85a5931e3cfa64f8",
+        "digest": "55c167051c9627b2be8f62a19522c0eadccc8f2ebed20dce035aaa132de77483",
+        "key": "steward-console-windows-submit-renewal-20261103",
+        "approval": "steward-console:windows-submit-renewal-2026-11-03"
+    },
+    {
+        "id": "delegation-request:dc8e90694d3c4cacba9860373648a9b5",
+        "digest": "8f78d8335ae961140c9875f7f00a81760f500ea98b7bfd54d7987bb6cd2e4d2d",
+        "key": "steward-console-windows-execute-renewal-20261103",
+        "approval": "steward-console:windows-execute-renewal-2026-11-03"
+    }
+];
+
+  for (const item of requests) {
+    // Preserve the literal colon in delegation-request:; encoding it produced HTTP 405.
+    const response = await fetch(
+      `/api/v1/steward/delegation-grant-requests/${item.id}/decision`,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Riverview-CSRF": csrf
+        },
+        body: JSON.stringify({
+          decision: "approve",
+          expected_request_sha256: item.digest,
+          idempotency_key: item.key,
+          approval_ref: item.approval
+        })
+      }
+    );
+    console.log(item.id, response.status, await response.text());
+    if (!response.ok) {
+      console.error("Approval failed; stopping.");
+      break;
+    }
+  }
+})();
+```
+
+### Camrui — 2026-11-03 approved request replay (historical)
+
+The following is the **exact-request approval procedure**, not a weekly renewal generator. These request IDs and SHA-256 values were used for the November 2026 renewal; the registry reports the approvals as implemented. Re-running cannot create new seven-day renewals. Use only against the matching pending requests, on the authenticated R2 Steward Dashboard; do not use for future renewal requests without replacing IDs/digests from live registry.
+
+```javascript
+(async () => {
+  const csrf = document.cookie.split("; ")
+    .find((part) => part.startsWith("rv_account_csrf="))
+    ?.split("=").slice(1).join("=");
+
+  if (!csrf) {
+    console.error("rv_account_csrf not found; no requests sent.");
+    return;
+  }
+
+  const requests = [
+    {
+        "id": "delegation-request:272a96432f9e4fb3bf10f31016b7fe0b",
+        "digest": "bdee58be69ccb71b63afc6fd569df93934514af852bce0c12c63a2f9becfd035",
+        "key": "steward-console-camrui-submit-renewal-20261103",
+        "approval": "steward-console:camrui-submit-renewal-2026-11-03"
+    },
+    {
+        "id": "delegation-request:e2abebe354da4329b4e57e2771a2f9a2",
+        "digest": "89e2c8f315031d41bb8e360a64cc5d0ba8bf7262b85d5744eae3378d9e225d8d",
+        "key": "steward-console-camrui-execute-renewal-20261103",
+        "approval": "steward-console:camrui-execute-renewal-2026-11-03"
+    }
+];
+
+  for (const item of requests) {
+    // Preserve the literal colon in delegation-request:; encoding it produced HTTP 405.
+    const response = await fetch(
+      `/api/v1/steward/delegation-grant-requests/${item.id}/decision`,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Riverview-CSRF": csrf
+        },
+        body: JSON.stringify({
+          decision: "approve",
+          expected_request_sha256: item.digest,
+          idempotency_key: item.key,
+          approval_ref: item.approval
+        })
+      }
+    );
+    console.log(item.id, response.status, await response.text());
+    if (!response.ok) {
+      console.error("Approval failed; stopping.");
+      break;
+    }
+  }
+})();
+```
+
+Registry verification on 2026-11-03: Windows submitter `grant:821fffd983ad4dbcaf57d084aab3cf0a` and executor `grant:9a4e87ce7bd84bd196e941a0d8a315bd` active through 2026-11-09 ~20:12 EST; Camrui submitter `grant:dd4ded3b165f4435b29fe78d184132ed` and executor `grant:be2d2a60f99048ad9237a28fe938d080` active through 2026-11-10 ~19:11 EST. All four have `max_uses: null`, `status: active`, `implementation_status: IMPLEMENTED` at verification time.
+
 ## Chronology: failure → correction
 
 1. Fixed command probes were mistaken for general execution. Added task-specific submit/status tools, deployed Comms5 41-tool catalog; initial combined deployment reported `9698cf5fbf1e24c4021ae2f9d4f2c53c936f43a8`.
