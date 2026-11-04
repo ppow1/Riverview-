@@ -160,6 +160,28 @@ The following is the **exact-request approval procedure**, not a weekly renewal 
 
 Registry verification on 2026-11-03: Windows submitter `grant:821fffd983ad4dbcaf57d084aab3cf0a` and executor `grant:9a4e87ce7bd84bd196e941a0d8a315bd` active through 2026-11-09 ~20:12 EST; Camrui submitter `grant:dd4ded3b165f4435b29fe78d184132ed` and executor `grant:be2d2a60f99048ad9237a28fe938d080` active through 2026-11-10 ~19:11 EST. All four have `max_uses: null`, `status: active`, `implementation_status: IMPLEMENTED` at verification time.
 
+
+## R2 grant-management audit and permanent four-grant renewal acceptance
+
+**Steward requirement, 2026-11-03:** One authenticated R2/R3 website action must renew all four *current* standard command grants (Windows submitter/executor and Camrui submitter/executor) for **seven days from approval**, with **unlimited successful executions**. This is a live grant-management workflow, not replay of the four historical November 2026 approval requests above. The historical F12 scripts are preserved solely as recovery evidence; do not describe them as a reusable renewal command.
+
+**Verified backend contracts:** Comms5 `comms5_get_delegation_grant_status` reads an exact grant or request; `comms5_request_delegation_grant_change` supports `change_kind: extend`, `duration_spec: {unit: "days", value: 7}`, `max_uses: null`, exact action/scope/policy and creates a **pending successor**, not approval. Authenticated R2 Steward approval uses `POST /api/v1/steward/delegation-grant-requests/{literal-request-id}/decision` with `decision: approve`, `expected_request_sha256`, `idempotency_key`, `approval_ref`, `rv_account_csrf` cookie and `X-Riverview-CSRF` header. **Never percent-encode the colon** in `delegation-request:` (observed HTTP 405). The browser-accessible endpoint to create extension requests and enumerate the four current grants **has not been verified**; do not invent it.
+
+| Host | Grant role | Principal | Action | Scope |
+| --- | --- | --- | --- | --- |
+| Windows | Submitter | `steward:camrui` | `comms5.command.submit.task.desktop-ja3rpnq.standard` | `host:desktop-ja3rpnq` |
+| Windows | Executor | `service:command-gateway` | `comms5.command.execute.task.desktop-ja3rpnq.standard` | `host:desktop-ja3rpnq` |
+| Camrui | Submitter | `steward:camrui` | `comms5.command.submit.task.camrui.standard` | `host:camrui` |
+| Camrui | Executor | `service:command-gateway` | `comms5.command.execute.task.camrui.standard` | `host:camrui` |
+
+**Required behavior:** Discover current active grant IDs and expiry; identify any pending successor and reconcile without duplicates; create missing extension requests with fresh idempotency keys; display all four exact request IDs and digests for the Steward's authenticated approval; approve each through existing AuthorityRegistry; read back the resulting four successor grants and show actual expiry, unlimited use, principal, action, scope, and audit trail. Fail closed and visibly report partial approvals or unavailable services. Do not bypass Steward approval, change principal identity, widen scope, or silently mark incomplete renewal as successful. Preserve revocation, duration selection, use-limit selection, grant history, and audit controls from R2.
+
+**R2 inspection status:** The existing dashboard and documented grant-approval route demonstrate partial management functionality. Full deployed UI/source inspection is **not verified**. Two read-only Camrui command submissions on 2026-11-03 were authorized by both new grants but the host gateway returned `bounded_request_or_state_invalid` with exit code 2; no website source was retrieved. Determine whether this is a command transport/policy issue before assuming missing R2 features.
+
+**Website UX direction:** Use R2 as a functional inventory, **not** a visual clone. Provide a clean Steward-only Grant Management page with four grouped grant rows (Windows/Camrui × submitter/executor), concise expiry/status indicators, a prominent **Renew all four — 7 days / unlimited** confirmation action, and expandable details for individual extension, revoke, usage, request/approval history and errors. Avoid raw debug tables and console-first operation. Provide authenticated API hooks for Grace and Steward, with the same authority enforcement. The one-paste F12 command remains a documented emergency fallback, not the normal UX.
+
+**Acceptance gate:** Verify live website request creation, approval, four active successors, exact seven-day expiration, unlimited use, successful Windows and Camrui task execution, rejection/partial-failure handling, permanent regression tests, and post-deployment read-back. Do not claim completion based solely on historical approvals or UI screenshots.
+
 ## Chronology: failure → correction
 
 1. Fixed command probes were mistaken for general execution. Added task-specific submit/status tools, deployed Comms5 41-tool catalog; initial combined deployment reported `9698cf5fbf1e24c4021ae2f9d4f2c53c936f43a8`.
