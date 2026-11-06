@@ -35,6 +35,15 @@ DSN = os.environ.get("RIVERVIEW_TEST_PG_DSN")
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _can_bind(probe, port):
+    try:
+        probe.bind(("127.0.0.1", port))
+        probe.close()
+        return True
+    except OSError:
+        return False
+
+
 class ProposalCommandTests(unittest.TestCase):
     def test_only_explicit_revision_bound_commands_are_actions(self):
         from riverview_core.resident_execution.proposal_lifecycle import parse_steward_command
@@ -107,6 +116,21 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                     VALUES (%s,%s,%s,%s,%s,'rv.policy:proposal-lifecycle-test.v1')""").format(
                         sql.Identifier(self.schema)),
                     (f"{principal}-{action}", principal, action, self.scope, principal))
+        resident = "resident:grace"
+        self.tokens[resident] = "test-" + uuid4().hex + uuid4().hex
+        self.admin.execute(sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES (%s,'resident')""").format(sql.Identifier(self.schema)),
+            (resident,))
+        self.admin.execute(sql.SQL("""INSERT INTO {}.principal_credentials
+            (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""").format(
+                sql.Identifier(self.schema)), (uuid4(), resident,
+                hashlib.sha256(self.tokens[resident].encode()).digest()))
+        for action in ("proposal.draft.submit", "proposal.status.read"):
+            self.admin.execute(sql.SQL("""INSERT INTO {}.authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,%s,%s,'institution:proposal-drafts','steward:authorized',
+                    'rv.policy:proposal-lifecycle-test.v1')""").format(sql.Identifier(self.schema)),
+                (f"{resident}-{action}", resident, action))
         self.ledger = PostgresLedger(DSN, schema=self.schema)
         self.authorizer = ExactGrantAuthorizer(self.schema)
         self.knowledge = VerifiedKnowledge()
@@ -145,6 +169,109 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
             "constraints": ["No production changes."],
             "acceptance_criteria": ["The existing objective pipeline receives this approved revision."],
             "tags": ["engineering"]}
+
+    def test_resident_draft_capability_persists_idempotently_with_exact_grants(self):
+        from riverview_core.resident_execution.proposals import ResidentProposalDraftService
+        from riverview_core.resident_execution.capability_registry import GraceCapabilityRegistry
+        service = ResidentProposalDraftService(self.registry, self.authorizer,
+            lambda: self.psycopg.connect(DSN))
+        receipt = service.create(self.content, credential=self.tokens["resident:grace"],
+            expected_principal="resident:grace", correlation_id="clock-acceptance-1",
+            idempotency_key="clock-acceptance-draft-1")
+        retry = service.create(self.content, credential=self.tokens["resident:grace"],
+            expected_principal="resident:grace", correlation_id="clock-acceptance-1",
+            idempotency_key="clock-acceptance-draft-1")
+        self.assertEqual(receipt["proposal_id"], retry["proposal_id"])
+        self.assertEqual(receipt["content_sha256"], retry["content_sha256"])
+        self.assertEqual(receipt["author_principal_id"], "resident:grace")
+        self.assertTrue(receipt["readback_verified"])
+        self.assertEqual(receipt["lifecycle_status"], "DRAFT")
+        self.assertEqual(service.read(receipt["proposal_id"],
+            credential=self.tokens["resident:grace"])["proposal"]["created_by"], "resident:grace")
+        with self.assertRaises(PermissionError):
+            service.create(self.content, credential=self.tokens["resident:grace"],
+                expected_principal="resident:other", correlation_id="clock-acceptance-1",
+                idempotency_key="clock-acceptance-draft-1")
+        class Authority:
+            @staticmethod
+            def set_office_state(*_args, **_kwargs):
+                raise AssertionError("proposal operation must not change office authority")
+        tools = GraceCapabilityRegistry(dsn=DSN,
+            resident_credential=self.tokens["resident:grace"], authorizer=self.authorizer,
+            authority_registry=Authority(), proposal_registry=self.registry,
+            authority_schema=self.schema, runtime_schema=self.schema,
+            connect=lambda: self.psycopg.connect(DSN))
+        specs = tools.tool_specs()
+        spec = next(item for item in specs if item["name"] == "proposal.draft.submit")
+        self.assertEqual(spec["inputSchema"]["properties"]["scope_ref"]["enum"],
+            ["institution:proposal-drafts"])
+        with self.psycopg.connect(DSN) as debug_connection, debug_connection.cursor() as debug_cursor:
+            write_grant = self.authorizer.require(debug_cursor, self.tokens["resident:grace"],
+                "proposal.draft.submit", "institution:proposal-drafts")
+            read_grant = self.authorizer.require(debug_cursor, self.tokens["resident:grace"],
+                "proposal.status.read", "institution:proposal-drafts")
+        self.assertEqual(write_grant["principal_id"], read_grant["principal_id"])
+        tool_result = tools.invoke("proposal.draft.submit", {"scope_ref": "institution:proposal-drafts",
+            "input": {"content": self.content, "correlation_id": "capability-path-e2e",
+                "idempotency_key": "capability-path-idempotency"}})
+        self.assertEqual(tool_result["status"], "ok", {"tool": tool_result,
+            "snapshot": tools.snapshot(capability_id="proposal.draft.submit",
+                scope_ref="institution:proposal-drafts")})
+        self.assertEqual(tool_result["result"]["author_principal_id"], "resident:grace")
+        self.assertTrue(tool_result["result"]["readback_verified"])
+
+    def test_authenticated_resident_http_proposal_api_uses_the_internal_registry(self):
+        from riverview_core.resident_execution.proposals import ResidentProposalDraftService
+        from riverview_core.status_dashboard.server import DashboardHTTPServer
+        class Projection:
+            pass
+        service = ResidentProposalDraftService(self.registry, self.authorizer,
+            lambda: self.psycopg.connect(DSN))
+        token_path = Path(self.temp.name) / "dashboard-token"
+        token_path.write_text("D" * 43, encoding="ascii")
+        token_path.chmod(0o600)
+        with socket.socket() as probe:
+            for port in range(8799, 8699, -1):
+                try:
+                    probe.bind(("127.0.0.1", port))
+                    break
+                except OSError:
+                    continue
+            else:
+                self.fail("no loopback dashboard test port available")
+        server = DashboardHTTPServer("127.0.0.1", port, token_path, Projection(),
+            ROOT / "src/riverview_core/status_dashboard/static", proposal_registry=self.registry,
+            resident_proposal_service=service)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            body = json.dumps({"content": self.content,
+                "correlation_id": "native-clock-http-e2e",
+                "expected_principal": "resident:grace",
+                "idempotency_key": "native-clock-http-e2e"})
+            connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+            connection.request("POST", "/api/v1/internal/resident-proposals", body,
+                headers={"Authorization": "Bearer " + self.tokens["resident:grace"],
+                         "Content-Type": "application/json"})
+            created = connection.getresponse()
+            receipt = json.loads(created.read())
+            self.assertEqual(created.status, 201)
+            connection.close()
+            self.assertTrue(receipt["readback_verified"])
+            self.assertEqual(receipt["lifecycle_status"], "DRAFT")
+            self.assertEqual(receipt["author_principal_id"], "resident:grace")
+            connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+            connection.request("GET", "/api/v1/internal/resident-proposals/" + receipt["proposal_id"],
+                headers={"Authorization": "Bearer " + self.tokens["resident:grace"]})
+            response = connection.getresponse()
+            record = json.loads(response.read())
+            self.assertEqual(response.status, 200)
+            self.assertEqual(record["revision"]["content_sha256"], receipt["content_sha256"])
+            connection.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=3)
 
     def ready_proposal(self, *, actor="steward:authorized", key="proposal:test"):
         record = self.registry.create_draft(self.content, created_by=actor,
@@ -196,8 +323,21 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
         from riverview_core.resident_execution.verifier import BoundedArtifactVerifier
         from riverview_core.worker_adapter import ContinuousWorker
-        record = self.ready_proposal()
-        proposal_id = record["proposal"]["proposal_id"]
+        from riverview_core.resident_execution.proposals import ResidentProposalDraftService
+        drafts = ResidentProposalDraftService(self.registry, self.authorizer,
+            lambda: self.psycopg.connect(DSN))
+        receipt = drafts.create(self.content, credential=self.tokens["resident:grace"],
+            expected_principal="resident:grace", correlation_id="clock-e2e-correlation",
+            idempotency_key="clock-e2e-proposal-draft")
+        proposal_id = receipt["proposal_id"]
+        self.registry.transition(proposal_id, 1, "READY_FOR_REVIEW", actor_id="service:review-queue",
+            reason="Formal proposal entered independent review")
+        self.registry.transition(proposal_id, 1, "READY_FOR_STEWARD_DECISION",
+            actor_id="service:review-queue", reason="Independent review disposition recorded")
+        record = self.registry.get(proposal_id)
+        self.assertEqual(record["proposal"]["created_by"], "resident:grace")
+        self.assertEqual(record["revision"]["source_references"], [
+            {"kind": "resident_correlation", "id": "clock-e2e-correlation"}])
         approved = self.approve(record)
         retried = self.approve(record)
         self.assertEqual(approved["proposal"]["lifecycle_status"], "APPROVED")
@@ -254,6 +394,181 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 WHERE proposal_id=%s AND revision=1 AND event_type='proposal.work_order_requested'""",
                 (proposal_id,))
             self.assertEqual(cur.fetchone()["count"], 1)
+
+    @unittest.skipUnless(os.environ.get("R3_SOURCE_ROOT"),
+        "R3_SOURCE_ROOT is required for the cross-repository native-tool acceptance test")
+    def test_r3_native_tool_internal_registry_to_verified_engineering_completion(self):
+        import importlib
+        import sqlite3
+        import sys
+        import time
+        from http.server import ThreadingHTTPServer
+        r3_root = Path(os.environ["R3_SOURCE_ROOT"]).resolve()
+        sys.path.insert(0, str(r3_root))
+        self.addCleanup(lambda: sys.path.remove(str(r3_root)) if str(r3_root) in sys.path else None)
+        authority_module = importlib.import_module("runtime.capability_authority")
+        identity_module = importlib.import_module("runtime.resident_identity")
+        native_module = importlib.import_module("runtime.native_tools")
+        proposal_module = importlib.import_module("runtime.institutional_proposals")
+        tool_server_module = importlib.import_module("runtime.tool_server")
+
+        from riverview_core.resident_execution.proposals import ResidentProposalDraftService
+        from riverview_core.status_dashboard.server import DashboardHTTPServer
+        resident_service = ResidentProposalDraftService(self.registry, self.authorizer,
+            lambda: self.psycopg.connect(DSN))
+        token_path = Path(self.temp.name) / "dashboard-token"
+        token_path.write_text("D" * 43, encoding="ascii")
+        token_path.chmod(0o600)
+        with socket.socket() as probe:
+            dashboard_port = next((port for port in range(8799, 8699, -1)
+                if _can_bind(probe, port)), None)
+        self.assertIsNotNone(dashboard_port)
+        class Projection:
+            pass
+        dashboard = DashboardHTTPServer("127.0.0.1", dashboard_port, token_path,
+            Projection(), ROOT / "src/riverview_core/status_dashboard/static",
+            proposal_registry=self.registry, resident_proposal_service=resident_service)
+        dashboard_thread = threading.Thread(target=dashboard.serve_forever, daemon=True)
+        dashboard_thread.start()
+        self.addCleanup(dashboard.server_close)
+        self.addCleanup(dashboard_thread.join, 3)
+        self.addCleanup(dashboard.shutdown)
+
+        r3_db = Path(self.temp.name) / "r3-authority.db"
+        tool_db = Path(self.temp.name) / "r3-tool-audit.db"
+        authority_module.initialize_empty_schema(r3_db)
+        resident_id = uuid4().hex
+        r3_credential = identity_module.PREFIX + "." + resident_id + "." + "A" * 43
+        now = time.time()
+        with sqlite3.connect(r3_db) as db:
+            db.execute("""INSERT INTO resident_credentials
+                (credential_id,principal,secret_hash,created_at,expires_at,revoked_at,
+                 issued_by,idempotency_key) VALUES (?,?,?,?,?,?,?,?)""",
+                (resident_id, "resident:grace",
+                 identity_module.digest_secret(resident_id, r3_credential), now,
+                 now + 3600, None, "human:steward:test", "cross-system-clock-test"))
+            db.executemany("""INSERT INTO capability_grants
+                (grant_id,principal,resource_ref,action,operation,scope_ref,active,approved_by)
+                VALUES (?,?,?,?,?,?,1,?)""", [
+                ("grant:cross-proposal-write", "resident:grace",
+                 "riverview:institutional-proposals", "proposal.draft.submit", "write",
+                 "institution:proposal-drafts", "human:steward:test"),
+                ("grant:cross-proposal-read", "resident:grace",
+                 "riverview:institutional-proposals", "proposal.status.read", "read",
+                 "institution:proposal-drafts", "human:steward:test")])
+        institutional_credential = Path(self.temp.name) / "resident-credential"
+        institutional_credential.write_text(self.tokens["resident:grace"], encoding="ascii")
+        institutional_credential.chmod(0o600)
+        router = tool_server_module.build_router(audit_db=tool_db, authority_db=r3_db,
+            institutional_proposal_url=(f"http://127.0.0.1:{dashboard.server_port}"
+                "/api/v1/internal/resident-proposals"),
+            institutional_proposal_credential_file=institutional_credential)
+        native_server = ThreadingHTTPServer(("127.0.0.1", 0),
+            tool_server_module.handler_for(router))
+        native_thread = threading.Thread(target=native_server.serve_forever, daemon=True)
+        native_thread.start()
+        self.addCleanup(native_server.server_close)
+        self.addCleanup(native_thread.join, 3)
+        self.addCleanup(native_server.shutdown)
+        native = native_module.NativeTools(f"http://127.0.0.1:{native_server.server_port}",
+            timeout=5, allowed_tools=("r3.proposal.submit", "r3.proposal.status"),
+            credential=r3_credential)
+        submit_tool = next(item for item in native.discover()
+            if item["tool"] == "r3.proposal.submit")
+        submitted = json.loads(native.invoke(submit_tool, {"content": self.content},
+            correlation_id="website-clock-cross-repository-e2e"))["result"]
+        proposal_id = submitted["proposal_id"]
+        retried = json.loads(native.invoke(submit_tool, {"content": self.content},
+            correlation_id="website-clock-cross-repository-e2e"))["result"]
+        self.assertEqual(retried["proposal_id"], proposal_id)
+        status_tool = next(item for item in native.discover()
+            if item["tool"] == "r3.proposal.status")
+        status = json.loads(native.invoke(status_tool, {"proposal_id": proposal_id},
+            correlation_id="website-clock-cross-repository-status"))["result"]
+        self.assertEqual(status["lifecycle_status"], "DRAFT")
+        self.assertEqual(status["content_sha256"], submitted["content_sha256"])
+        persisted = self.registry.get(proposal_id)
+        self.assertEqual(persisted["proposal"]["created_by"], "resident:grace")
+        self.assertEqual(persisted["revision"]["content_sha256"], submitted["content_sha256"])
+        self.registry.transition(proposal_id, 1, "READY_FOR_REVIEW",
+            actor_id="service:review-queue", reason="Independent review queued")
+        self.registry.transition(proposal_id, 1, "READY_FOR_STEWARD_DECISION",
+            actor_id="service:review-queue", reason="Review disposition recorded")
+        approved = self.approve(persisted, key="website-clock-cross-repo-approval")
+        self.assertEqual(approved["proposal"]["lifecycle_status"], "APPROVED")
+        promoted = self.lifecycle.promote(proposal_id, 1, actor_id="steward:authorized")
+        objective = self.pipeline.get_objective(promoted["objective_id"])
+        from riverview_core.resident_reasoning import ArtifactRequirement, PlanProposal, PlanStep
+        from riverview_core.resident_execution.worker import BoundedLocalCodingWorker
+        from riverview_core.resident_execution.verifier import BoundedArtifactVerifier
+        from riverview_core.worker_adapter import ContinuousWorker
+        plan = PlanProposal("Website clock proposal delivery", (PlanStep("clock-proposal",
+            "Create a disposable acceptance artifact representing the approved clock proposal",
+            tuple(objective["acceptance_criteria"]), artifact_requirements=(
+                ArtifactRequirement("clock-acceptance", "reports/http-result.json",
+                    "application/json", tuple(objective["acceptance_criteria"])),)),), 0)
+        self.pipeline.record_proposal(promoted["objective_id"], plan)
+        assignment_id = "assignment:" + uuid4().hex
+        self.pipeline.authorize_and_dispatch(promoted["objective_id"], assignment_id,
+            credential=self.tokens["steward:authorized"], authority_ref=self.scope,
+            idempotency_key="website-clock-cross-repo-dispatch", step_id="clock-proposal")
+        self.ledger.transition(assignment_id, "ready", "event_processor_ready",
+            "website-clock-cross-repo-ready", actor_id="event-processor")
+        worker = ContinuousWorker(self.adapter, self.worker_id,
+            self.tokens["worker:lifecycle-test"], knowledge=self.knowledge,
+            action=BoundedLocalCodingWorker(self.pipeline, self.artifact_root),
+            action_effect_class="retry_safe", action_capability="engineering.bounded-artifact.v1")
+        execution = worker.run_once(assignment_id=assignment_id)
+        self.assertEqual(execution["status"], "AWAITING_VERIFICATION")
+        decision = self.adapter.verify_attempt(assignment_id, execution["attempt_id"],
+            self.verifier_id, self.tokens["verifier:lifecycle-test"],
+            BoundedArtifactVerifier(self.artifact_root, self.pipeline),
+            idempotency_key="website-clock-cross-repo-review")
+        self.assertEqual(decision.status.value, "ACCEPTED")
+        self.pipeline.record_verified_completion(promoted["objective_id"], assignment_id)
+        self.lifecycle.reconcile_links()
+        final = self.registry.get(proposal_id)
+        self.assertEqual(self.pipeline.get_objective(promoted["objective_id"])["status"], "COMPLETED")
+        self.assertEqual(final["work_order_links"][0]["assignment_id"], assignment_id)
+        self.assertEqual(final["events"][-1]["payload"]["status"], "completed")
+        evidence = {"schema_version": "riverview.grace.internal-autonomy-e2e.v1",
+            "recorded_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "r3_principal": "resident:grace",
+            "r3_write_grant_id": "grant:cross-proposal-write",
+            "r3_read_grant_id": "grant:cross-proposal-read",
+            "institutional_write_grant_id": "resident:grace-proposal.draft.submit",
+            "institutional_read_grant_id": "resident:grace-proposal.status.read",
+            "proposal_id": proposal_id, "proposal_revision": 1,
+            "proposal_sha256": submitted["content_sha256"],
+            "proposal_author": "resident:grace", "proposal_state": "APPROVED",
+            "steward_decision_event_key": "website-clock-cross-repo-approval",
+            "objective_id": promoted["objective_id"], "assignment_id": assignment_id,
+            "execution_attempt_id": execution["attempt_id"],
+            "worker_id": self.worker_id, "verifier_id": self.verifier_id,
+            "review_decision": decision.status.value,
+            "objective_state": "COMPLETED", "proposal_execution_state": "completed",
+            "dispatch_count": 1, "internal_api": "/api/v1/internal/resident-proposals",
+            "comms5_used": False, "website_changed": False,
+            "transition_evidence": [
+                {"transition": "proposal.draft.persisted", "proposal_id": proposal_id,
+                 "revision": 1, "content_sha256": submitted["content_sha256"],
+                 "status": "DRAFT", "readback_verified": True},
+                {"transition": "proposal.steward_approved", "proposal_id": proposal_id,
+                 "event_key": "website-clock-cross-repo-approval", "status": "APPROVED"},
+                {"transition": "objective.promoted", "objective_id": promoted["objective_id"],
+                 "status": objective["status"]},
+                {"transition": "assignment.dispatched", "assignment_id": assignment_id,
+                 "dispatch_count": 1},
+                {"transition": "engineering.executed", "assignment_id": assignment_id,
+                 "attempt_id": execution["attempt_id"], "status": execution["status"]},
+                {"transition": "independent_review.recorded", "assignment_id": assignment_id,
+                 "attempt_id": execution["attempt_id"], "decision": decision.status.value},
+                {"transition": "objective.accepted_completion", "objective_id": promoted["objective_id"],
+                 "assignment_id": assignment_id, "status": "COMPLETED"}]}
+        evidence_path = os.environ.get("RIVERVIEW_E2E_EVIDENCE_FILE")
+        if evidence_path:
+            Path(evidence_path).write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+        print("INTERNAL_AUTONOMY_E2E=" + json.dumps(evidence, sort_keys=True))
 
     def test_authenticated_http_decision_and_promotion_use_the_same_lifecycle(self):
         from riverview_core.status_dashboard.server import DashboardHTTPServer

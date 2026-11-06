@@ -88,7 +88,7 @@ class GraceCapabilityRegistry:
 
     def __init__(self, *, dsn, resident_credential, authorizer,
                  authority_registry, pipeline=None, dashboard_projection=None,
-                 executors=None, authority_schema="riverview_authority",
+                 proposal_registry=None, executors=None, authority_schema="riverview_authority",
                  runtime_schema="riverview_dev", connect=None, clock=None):
         if not isinstance(dsn, str) or not dsn:
             raise ValueError("capability registry database connection is required")
@@ -108,6 +108,7 @@ class GraceCapabilityRegistry:
         self.authority_registry = authority_registry
         self.pipeline = pipeline
         self.dashboard_projection = dashboard_projection
+        self.proposal_registry = proposal_registry
         self.authority_schema = authority_schema
         self.runtime_schema = runtime_schema
         self.connect = connect or (lambda: psycopg.connect(self.dsn, connect_timeout=2))
@@ -123,6 +124,8 @@ class GraceCapabilityRegistry:
                 self._read_dashboard_projection)
         if pipeline is not None and callable(getattr(pipeline, "submit_objective", None)):
             self.executors.setdefault("grace.execution-pipeline.v1", self._submit_work_order)
+        if proposal_registry is not None and callable(getattr(proposal_registry, "create_draft", None)):
+            self.executors.setdefault("institutional.proposal-registry.v1", self._create_proposal_draft)
 
     def _catalog(self):
         try:
@@ -402,6 +405,50 @@ class GraceCapabilityRegistry:
         return {"objective": objective,
                 "verification": {"status": "pending",
                     "source": "existing_assignment_controller_and_independent_verifier"}}
+
+    def _create_proposal_draft(self, *, scope_ref, inputs, credential, grant):
+        """Persist a Grace draft in the authoritative registry; never approve or promote."""
+        if scope_ref != "institution:proposal-drafts":
+            raise PermissionError("proposal_draft_scope_required")
+        correlation_id = inputs["correlation_id"]
+        idempotency_key = inputs["idempotency_key"]
+        content = inputs["content"]
+        author = grant.get("principal_id")
+        if not isinstance(author, str) or not author:
+            raise PermissionError("authenticated_resident_identity_required")
+        # A draft writer must also be permitted to retrieve the authoritative receipt.
+        with self.connect() as connection, connection.cursor() as cur:
+            read_grant = self.authorizer.require(cur, credential,
+                "proposal.status.read", "institution:proposal-drafts")
+        if read_grant.get("principal_id") != author:
+            raise PermissionError("proposal_read_identity_mismatch")
+        record = self.proposal_registry.create_draft(content, created_by=author,
+            origin_kind="grace_conversation",
+            source_references=[{"kind": "resident_correlation", "id": correlation_id}],
+            provenance={"actor_principal_id": author,
+                "draft_grant_id": grant.get("grant_id"),
+                "read_grant_id": read_grant.get("grant_id"),
+                "correlation_id": correlation_id,
+                "submission_path": "resident_capability_registry"},
+            idempotency_key=idempotency_key)
+        proposal = record["proposal"]
+        revision = record["revision"]
+        if proposal.get("created_by") != author or revision.get("content_sha256") is None:
+            raise RuntimeError("proposal_persistence_receipt_invalid")
+        readback = self.proposal_registry.get(proposal["proposal_id"])
+        if (readback["proposal"]["created_by"] != author or
+                readback["revision"]["revision"] != revision["revision"] or
+                readback["revision"]["content_sha256"] != revision["content_sha256"]):
+            raise RuntimeError("proposal_persistence_readback_mismatch")
+        return {"proposal_id": proposal["proposal_id"],
+            "revision": revision["revision"],
+            "content_sha256": revision["content_sha256"],
+            "author_principal_id": author,
+            "correlation_id": correlation_id,
+            "lifecycle_status": proposal["lifecycle_status"],
+            "persistence": "durably_persisted",
+            "approval": "awaiting_steward_decision",
+            "readback_verified": True}
 
     @staticmethod
     def _error(capability_id, code, *, call=None):

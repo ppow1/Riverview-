@@ -163,6 +163,7 @@ class ProposalRegistry:
     def close(self):
         self.db.close()
 
+
     def _path(self, cur):
         cur.execute("SELECT set_config('search_path', %s, false)", (self.schema,))
 
@@ -800,3 +801,61 @@ class ProposalRegistry:
             return self.get(proposal_id, revision=revision)
         except psycopg.Error as exc:
             raise ProposalError(type(exc).__name__) from None
+
+
+class ResidentProposalDraftService:
+    """Authenticated resident access to draft persistence and readback only."""
+
+    SCOPE = "institution:proposal-drafts"
+
+    def __init__(self, registry, authorizer, connect):
+        if not callable(getattr(registry, "create_draft", None)) or not callable(
+                getattr(registry, "get", None)):
+            raise TypeError("the institutional proposal registry is required")
+        if not callable(getattr(authorizer, "require", None)) or not callable(connect):
+            raise TypeError("institutional exact-grant authorization is required")
+        self.registry, self.authorizer, self.connect = registry, authorizer, connect
+
+    def _grant(self, credential, action):
+        with self.connect() as connection, connection.cursor() as cur:
+            return self.authorizer.require(cur, credential, action, self.SCOPE)
+
+    def create(self, content, *, credential, expected_principal, correlation_id, idempotency_key):
+        actor = self._grant(credential, "proposal.draft.submit")
+        if actor.get("principal_id") != expected_principal:
+            raise PermissionError("resident_identity_mismatch")
+        reader = self._grant(credential, "proposal.status.read")
+        if reader.get("principal_id") != actor.get("principal_id"):
+            raise PermissionError("proposal_read_identity_mismatch")
+        record = self.registry.create_draft(content, created_by=actor["principal_id"],
+            origin_kind="grace_conversation",
+            source_references=[{"kind": "resident_correlation", "id": correlation_id}],
+            provenance={"actor_principal_id": actor["principal_id"],
+                "draft_grant_id": actor.get("grant_id"),
+                "read_grant_id": reader.get("grant_id"),
+                "correlation_id": correlation_id,
+                "submission_path": "authenticated_resident_api"},
+            idempotency_key=idempotency_key)
+        proposal, revision = record["proposal"], record["revision"]
+        if proposal.get("created_by") != actor["principal_id"]:
+            raise RuntimeError("proposal_author_persistence_mismatch")
+        readback = self.read(proposal["proposal_id"], credential=credential)
+        if (readback["revision"]["revision"] != revision["revision"] or
+                readback["revision"]["content_sha256"] != revision["content_sha256"]):
+            raise RuntimeError("proposal_persistence_readback_mismatch")
+        return {"proposal_id": proposal["proposal_id"],
+            "revision": revision["revision"],
+            "content_sha256": revision["content_sha256"],
+            "author_principal_id": actor["principal_id"],
+            "correlation_id": correlation_id,
+            "lifecycle_status": proposal["lifecycle_status"],
+            "persistence": "durably_persisted",
+            "approval": "awaiting_steward_decision",
+            "readback_verified": True}
+
+    def read(self, proposal_id, *, credential):
+        actor = self._grant(credential, "proposal.status.read")
+        record = self.registry.get(proposal_id)
+        if record["proposal"].get("created_by") != actor["principal_id"]:
+            raise PermissionError("proposal_read_not_authorized")
+        return record

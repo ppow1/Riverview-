@@ -122,6 +122,9 @@ _PROPOSAL_ITEM = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f
 _PROPOSAL_DECISION = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})/decision$")
 _PROPOSAL_WORK_ORDERS = re.compile(r"^/api/v1/institutional-proposals/(proposal:[0-9a-f-]{36})/work-orders$")
 _PROPOSAL_COMMAND = "/api/v1/institutional-proposals/conversational-command"
+_RESIDENT_PROPOSAL_DRAFTS = "/api/v1/internal/resident-proposals"
+_RESIDENT_PROPOSAL_ITEM = re.compile(
+    r"^/api/v1/internal/resident-proposals/(proposal:[0-9a-f-]{36})$")
 _COMMS5_OPERATION = "/api/v1/internal/comms5/operation"
 _SNAPSHOT_ARCHIVE = "/api/v1/snapshot/archive"
 
@@ -264,7 +267,8 @@ class _BoundedHTTPServer(HTTPServer):
                  objective_pipeline, conversation_service, account_auth_service,
                  permission_store, static_dir, proposal_registry,
                  steward_review_exchange=None, resource_telemetry=None,
-                 snapshot_archive=None, authority_registry=None):
+                 snapshot_archive=None, authority_registry=None,
+                 resident_proposal_service=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -273,6 +277,7 @@ class _BoundedHTTPServer(HTTPServer):
         self._account_auth_service = account_auth_service
         self._permission_store = permission_store
         self._proposal_registry = proposal_registry
+        self._resident_proposal_service = resident_proposal_service
         self._authority_registry = authority_registry
         self._snapshot_archive = snapshot_archive
         self._snapshot_archive_slots = threading.BoundedSemaphore(1)
@@ -651,6 +656,10 @@ def make_handler():
             proposal_work_orders = (_PROPOSAL_WORK_ORDERS.fullmatch(parsed.path)
                                     if self.command == "POST" else None)
             proposal_command = (parsed.path == _PROPOSAL_COMMAND and self.command == "POST")
+            resident_proposal_create = (parsed.path == _RESIDENT_PROPOSAL_DRAFTS
+                                        and self.command == "POST")
+            resident_proposal_read = (_RESIDENT_PROPOSAL_ITEM.fullmatch(parsed.path)
+                                      if self.command in {"GET", "HEAD"} else None)
             comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
             snapshot_archive = parsed.path == _SNAPSHOT_ARCHIVE and self.command == "POST"
             conversation_session = (parsed.path == _CONVERSATION_SESSION
@@ -668,6 +677,7 @@ def make_handler():
                     and not proposal_revision and not proposal_decision
                     and not proposal_work_orders and not proposal_command
                     and not comms5_operation
+                    and not resident_proposal_create
                     and not snapshot_archive
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
@@ -799,6 +809,49 @@ def make_handler():
                     self._error(400, "invalid_account_request", request_id)
                 except Exception as exc:
                     self._account_error(exc, request_id)
+                return
+            if resident_proposal_create or resident_proposal_read:
+                service = self.server._resident_proposal_service
+                if service is None:
+                    self._error(503, "resident_proposal_service_unavailable", request_id)
+                    return
+                authorization = self.headers.get("Authorization", "")
+                credential = authorization[7:] if authorization.startswith("Bearer ") else ""
+                if len(credential) < 32:
+                    self._error(401, "resident_credential_required", request_id)
+                    return
+                try:
+                    if resident_proposal_create:
+                        data = self._json_body(_MAX_CHAT_BODY)
+                        if set(data) != {"content", "correlation_id", "expected_principal",
+                                         "idempotency_key"}:
+                            raise ValueError("invalid_resident_proposal_request")
+                        result = service.create(data["content"], credential=credential,
+                            expected_principal=data["expected_principal"],
+                            correlation_id=data["correlation_id"],
+                            idempotency_key=data["idempotency_key"])
+                        self._json(201, result, request_id)
+                    else:
+                        if urlsplit(self.path).query:
+                            raise ValueError("invalid_resident_proposal_query")
+                        result = service.read(unquote(resident_proposal_read.group(1)),
+                                              credential=credential)
+                        self._json(200, result, request_id)
+                except PermissionError:
+                    self._error(403, "resident_proposal_not_authorized", request_id)
+                except OverflowError:
+                    self._error(413, "request_too_large", request_id)
+                except (ValueError, TypeError):
+                    self._error(400, "invalid_resident_proposal_request", request_id)
+                except Exception as exc:
+                    from riverview_core.resident_execution.proposals import (
+                        ProposalConflict, ProposalNotFound)
+                    if isinstance(exc, ProposalConflict):
+                        self._error(409, "resident_proposal_idempotency_conflict", request_id)
+                    elif isinstance(exc, ProposalNotFound):
+                        self._error(404, "resident_proposal_not_found", request_id)
+                    else:
+                        self._error(503, "resident_proposal_service_unavailable", request_id)
                 return
             if not self._authorized():
                 if snapshot_archive:
@@ -2312,7 +2365,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  conversation_service=None, account_auth_service=None,
                  permission_store=None, proposal_registry=None,
                  steward_review_exchange=None, resource_telemetry=None,
-                 snapshot_archive=None, authority_registry=None):
+                 snapshot_archive=None, authority_registry=None,
+                 resident_proposal_service=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -2330,7 +2384,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          steward_review_exchange=steward_review_exchange,
                          resource_telemetry=resource_telemetry,
                          snapshot_archive=snapshot_archive,
-                         authority_registry=authority_registry)
+                         authority_registry=authority_registry,
+                         resident_proposal_service=resident_proposal_service)
 
 
 def _release_commit() -> str:
@@ -2578,7 +2633,7 @@ def main():
                     dsn=dsn, resident_credential=resident_token,
                     authorizer=ExactGrantAuthorizer(authority_schema),
                     authority_registry=authority_registry, pipeline=objective_pipeline,
-                    dashboard_projection=projection,
+                    proposal_registry=proposal_registry, dashboard_projection=projection,
                     authority_schema=authority_schema, runtime_schema=schema)
                 internal_tools = GraceInternalTools(capability_registry=capability_registry)
                 router = _build_grace_model_router(autonomic=provider, vision=vision,
@@ -2636,6 +2691,13 @@ def main():
         except Exception as exc:
             print(json.dumps({"event": "comms5_experiment_authority_unavailable",
                               "error_type": type(exc).__name__}), flush=True)
+    resident_proposal_service = None
+    if proposal_registry is not None:
+        from riverview_core.resident_execution.proposals import ResidentProposalDraftService
+        from riverview_core.institutional_authority import ExactGrantAuthorizer
+        resident_proposal_service = ResidentProposalDraftService(proposal_registry,
+            ExactGrantAuthorizer(os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")),
+            lambda: psycopg.connect(dsn, connect_timeout=2))
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
@@ -2646,7 +2708,8 @@ def main():
                                  steward_review_exchange=steward_review_exchange,
                                  resource_telemetry=resource_telemetry,
                                  snapshot_archive=snapshot_archive,
-                                 authority_registry=comms5_authority_registry)
+                                 authority_registry=comms5_authority_registry,
+                                 resident_proposal_service=resident_proposal_service)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)

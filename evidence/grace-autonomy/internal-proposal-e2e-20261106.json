@@ -1,0 +1,71 @@
+{
+  "schema_version": "riverview.grace.internal-autonomy-e2e.v1",
+  "recorded_at_utc": "2026-11-06T15:33:08Z",
+  "r3_principal": "resident:grace",
+  "r3_write_grant_id": "grant:cross-proposal-write",
+  "r3_read_grant_id": "grant:cross-proposal-read",
+  "institutional_write_grant_id": "resident:grace-proposal.draft.submit",
+  "institutional_read_grant_id": "resident:grace-proposal.status.read",
+  "proposal_id": "proposal:e6915438-b554-4f38-965d-342285d18aed",
+  "proposal_revision": 1,
+  "proposal_sha256": "1d108dc0dc918d567b68b9ae215226cfc0eb101ba48ce7085f9cc05371ae42c7",
+  "proposal_author": "resident:grace",
+  "proposal_state": "APPROVED",
+  "steward_decision_event_key": "website-clock-cross-repo-approval",
+  "objective_id": "objective:proposal:abdaa5b5-f99d-5ef5-b705-fd9f43989371:r1",
+  "assignment_id": "assignment:9402f2777dae42678f1934ef500442c2",
+  "execution_attempt_id": "4ba27c23-1f41-4c16-b744-aa21bd7782f8",
+  "worker_id": "worker:756ffcf2f974466abe0f46bedc34ee90",
+  "verifier_id": "verifier:0b66d418c9e74c6fb350d18bab19d06d",
+  "review_decision": "ACCEPTED",
+  "objective_state": "COMPLETED",
+  "proposal_execution_state": "completed",
+  "dispatch_count": 1,
+  "internal_api": "/api/v1/internal/resident-proposals",
+  "comms5_used": false,
+  "website_changed": false,
+  "transition_evidence": [
+    {
+      "transition": "proposal.draft.persisted",
+      "proposal_id": "proposal:e6915438-b554-4f38-965d-342285d18aed",
+      "revision": 1,
+      "content_sha256": "1d108dc0dc918d567b68b9ae215226cfc0eb101ba48ce7085f9cc05371ae42c7",
+      "status": "DRAFT",
+      "readback_verified": true
+    },
+    {
+      "transition": "proposal.steward_approved",
+      "proposal_id": "proposal:e6915438-b554-4f38-965d-342285d18aed",
+      "event_key": "website-clock-cross-repo-approval",
+      "status": "APPROVED"
+    },
+    {
+      "transition": "objective.promoted",
+      "objective_id": "objective:proposal:abdaa5b5-f99d-5ef5-b705-fd9f43989371:r1",
+      "status": "GROUNDED"
+    },
+    {
+      "transition": "assignment.dispatched",
+      "assignment_id": "assignment:9402f2777dae42678f1934ef500442c2",
+      "dispatch_count": 1
+    },
+    {
+      "transition": "engineering.executed",
+      "assignment_id": "assignment:9402f2777dae42678f1934ef500442c2",
+      "attempt_id": "4ba27c23-1f41-4c16-b744-aa21bd7782f8",
+      "status": "AWAITING_VERIFICATION"
+    },
+    {
+      "transition": "independent_review.recorded",
+      "assignment_id": "assignment:9402f2777dae42678f1934ef500442c2",
+      "attempt_id": "4ba27c23-1f41-4c16-b744-aa21bd7782f8",
+      "decision": "ACCEPTED"
+    },
+    {
+      "transition": "objective.accepted_completion",
+      "objective_id": "objective:proposal:abdaa5b5-f99d-5ef5-b705-fd9f43989371:r1",
+      "assignment_id": "assignment:9402f2777dae42678f1934ef500442c2",
+      "status": "COMPLETED"
+    }
+  ]
+}
