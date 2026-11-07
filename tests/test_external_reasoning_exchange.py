@@ -608,8 +608,10 @@ class ExternalReasoningExchangePostgresTests(unittest.TestCase):
     def tearDown(self):
         if self.real_authority_fixture is not None:
             registry = self.real_authority_fixture[0]
-            if not registry.db.closed:
-                registry.db.close()
+            # AuthorityRegistry owns a thread-scoped connection provider, not
+            # one psycopg connection with a public ``closed`` attribute. Its
+            # close method is idempotent and drains all tracked connections.
+            registry.close()
         if getattr(self, "ledger", None) and not self.ledger.db.closed:
             self.ledger.close()
         if getattr(self, "admin", None) and not self.admin.closed:
