@@ -452,8 +452,9 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 (proposal_id,))
             self.assertEqual(cur.fetchone()["count"], 1)
 
-    @unittest.skipUnless(os.environ.get("R3_SOURCE_ROOT"),
-        "R3_SOURCE_ROOT is required for the cross-repository native-tool acceptance test")
+    @unittest.skipUnless(os.environ.get("R3_SOURCE_ROOT") and
+                         os.environ.get("R3_HR_SOURCE_ROOT"),
+        "R3_SOURCE_ROOT and R3_HR_SOURCE_ROOT are required for the cross-repository native-tool acceptance test")
     def test_r3_native_tool_internal_registry_to_verified_engineering_completion(self):
         import importlib
         import sqlite3
@@ -461,13 +462,23 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         import time
         from http.server import ThreadingHTTPServer
         r3_root = Path(os.environ["R3_SOURCE_ROOT"]).resolve()
+        hr_root = Path(os.environ["R3_HR_SOURCE_ROOT"]).resolve()
         sys.path.insert(0, str(r3_root))
         self.addCleanup(lambda: sys.path.remove(str(r3_root)) if str(r3_root) in sys.path else None)
+        import runtime
+        runtime.__path__ = list(runtime.__path__)
+        hr_runtime_path = str(hr_root / "runtime")
+        if not (Path(hr_runtime_path) / "hr_store.py").is_file():
+            self.fail("R3_HR_SOURCE_ROOT must contain the authoritative HRStore implementation")
+        runtime.__path__.append(hr_runtime_path)
+        self.addCleanup(lambda: runtime.__path__.remove(hr_runtime_path)
+            if hr_runtime_path in runtime.__path__ else None)
         authority_module = importlib.import_module("runtime.capability_authority")
         identity_module = importlib.import_module("runtime.resident_identity")
         native_module = importlib.import_module("runtime.native_tools")
-        proposal_module = importlib.import_module("runtime.institutional_proposals")
         tool_server_module = importlib.import_module("runtime.tool_server")
+        hr_store_module = importlib.import_module("runtime.hr_store")
+        hr_records_module = importlib.import_module("runtime.hr_records")
 
         from riverview_core.resident_execution.proposals import ResidentProposalDraftService
         from riverview_core.status_dashboard.server import DashboardHTTPServer
@@ -493,6 +504,41 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
 
         r3_db = Path(self.temp.name) / "r3-authority.db"
         tool_db = Path(self.temp.name) / "r3-tool-audit.db"
+        hr_db = Path(self.temp.name) / "r3-hr.db"
+        resident_principal = "resident:fixture-" + uuid4().hex
+        r3_principal = "resident:r3-fixture-" + uuid4().hex
+        hr_resident_id = "r3:fixture-" + uuid4().hex
+        resident_credential = "test-" + uuid4().hex + uuid4().hex
+        institutional_write_grant_id = "grant:rv-proposal-write-" + uuid4().hex
+        institutional_read_grant_id = "grant:rv-proposal-read-" + uuid4().hex
+        r3_write_grant_id = "grant:r3-proposal-write-" + uuid4().hex
+        r3_read_grant_id = "grant:r3-proposal-read-" + uuid4().hex
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.institutional_principals
+            (principal_id,principal_kind) VALUES (%s,'resident')""").format(
+                self.sql.Identifier(self.schema)), (resident_principal,))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.principal_credentials
+            (credential_id,principal_id,credential_sha256) VALUES (%s,%s,%s)""").format(
+                self.sql.Identifier(self.schema)), (uuid4(), resident_principal,
+                hashlib.sha256(resident_credential.encode()).digest()))
+        for action, grant_id in (("proposal.draft.submit", institutional_write_grant_id),
+                                 ("proposal.status.read", institutional_read_grant_id)):
+            self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+                (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+                VALUES (%s,%s,%s,'institution:proposal-drafts','steward:authorized',
+                    'rv.policy:proposal-lifecycle-test.v1')""").format(
+                        self.sql.Identifier(self.schema)),
+                (grant_id, resident_principal, action))
+        hr_store = hr_store_module.HRStore(hr_db)
+        hr_record = hr_records_module.ResidentHRRecord(
+            resident_id=hr_resident_id, display_name="Test Resident", office="office:grace",
+            status="active", extensions={
+                "r3_principal": hr_records_module.HRField(
+                    r3_principal, "confidential"),
+                "authority_principal": hr_records_module.HRField(
+                    resident_principal, "confidential"),
+            })
+        hr_store.put(hr_record)
+        hr_store.close()
         authority_module.initialize_empty_schema(r3_db)
         resident_id = uuid4().hex
         r3_credential = identity_module.PREFIX + "." + resident_id + "." + "A" * 43
@@ -501,25 +547,26 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
             db.execute("""INSERT INTO resident_credentials
                 (credential_id,principal,secret_hash,created_at,expires_at,revoked_at,
                  issued_by,idempotency_key) VALUES (?,?,?,?,?,?,?,?)""",
-                (resident_id, "resident:grace",
+                (resident_id, r3_principal,
                  identity_module.digest_secret(resident_id, r3_credential), now,
                  now + 3600, None, "human:steward:test", "cross-system-clock-test"))
             db.executemany("""INSERT INTO capability_grants
                 (grant_id,principal,resource_ref,action,operation,scope_ref,active,approved_by)
                 VALUES (?,?,?,?,?,?,1,?)""", [
-                ("grant:cross-proposal-write", "resident:grace",
+                (r3_write_grant_id, r3_principal,
                  "riverview:institutional-proposals", "proposal.draft.submit", "write",
                  "institution:proposal-drafts", "human:steward:test"),
-                ("grant:cross-proposal-read", "resident:grace",
+                (r3_read_grant_id, r3_principal,
                  "riverview:institutional-proposals", "proposal.status.read", "read",
                  "institution:proposal-drafts", "human:steward:test")])
         institutional_credential = Path(self.temp.name) / "resident-credential"
-        institutional_credential.write_text(self.tokens["resident:grace"], encoding="ascii")
+        institutional_credential.write_text(resident_credential, encoding="ascii")
         institutional_credential.chmod(0o600)
         router = tool_server_module.build_router(audit_db=tool_db, authority_db=r3_db,
             institutional_proposal_url=(f"http://127.0.0.1:{dashboard.server_port}"
                 "/api/v1/internal/resident-proposals"),
-            institutional_proposal_credential_file=institutional_credential)
+            institutional_proposal_credential_file=institutional_credential,
+            hr_database=hr_db)
         native_server = ThreadingHTTPServer(("127.0.0.1", 0),
             tool_server_module.handler_for(router))
         native_thread = threading.Thread(target=native_server.serve_forever, daemon=True)
@@ -545,7 +592,7 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         self.assertEqual(status["lifecycle_status"], "DRAFT")
         self.assertEqual(status["content_sha256"], submitted["content_sha256"])
         persisted = self.registry.get(proposal_id)
-        self.assertEqual(persisted["proposal"]["created_by"], "resident:grace")
+        self.assertEqual(persisted["proposal"]["created_by"], resident_principal)
         self.assertEqual(persisted["revision"]["content_sha256"], submitted["content_sha256"])
         self.registry.transition(proposal_id, 1, "READY_FOR_REVIEW",
             actor_id="service:review-queue", reason="Independent review queued")
@@ -590,14 +637,15 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
         self.assertEqual(final["events"][-1]["payload"]["status"], "completed")
         evidence = {"schema_version": "riverview.grace.internal-autonomy-e2e.v1",
             "recorded_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "r3_principal": "resident:grace",
-            "r3_write_grant_id": "grant:cross-proposal-write",
-            "r3_read_grant_id": "grant:cross-proposal-read",
-            "institutional_write_grant_id": "resident:grace-proposal.draft.submit",
-            "institutional_read_grant_id": "resident:grace-proposal.status.read",
+            "r3_principal": r3_principal,
+            "hr_resident_id": hr_resident_id,
+            "r3_write_grant_id": r3_write_grant_id,
+            "r3_read_grant_id": r3_read_grant_id,
+            "institutional_write_grant_id": institutional_write_grant_id,
+            "institutional_read_grant_id": institutional_read_grant_id,
             "proposal_id": proposal_id, "proposal_revision": 1,
             "proposal_sha256": submitted["content_sha256"],
-            "proposal_author": "resident:grace", "proposal_state": "APPROVED",
+            "proposal_author": resident_principal, "proposal_state": "APPROVED",
             "steward_decision_event_key": "website-clock-cross-repo-approval",
             "objective_id": promoted["objective_id"], "assignment_id": assignment_id,
             "execution_attempt_id": execution["attempt_id"],
