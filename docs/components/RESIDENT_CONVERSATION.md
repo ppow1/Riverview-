@@ -195,6 +195,38 @@ This Camrui Firefox verification does not prove the Steward's Windows browser pr
 
 The account login is linked to the active `steward:camrui` institutional principal, which already holds both exact `office:office:grace` conversation grants. The former browser connector required the legacy principal credential separately and did not use the account session. The revised dashboard obtains the linked principal only from the currently validated account session and calls a protected principal-keyed exact-grant function for both actions. The same check runs for every conversation operation; there is no role-derived grant, grant issuance, or alternate conversation authorization store. The recovery-token bearer and legacy Connect flow remain available. Migration `0004_exact_principal_grant_authorization.sql` and the boundary provisioner provide runtime execute access while leaving the manager unable to call either authorization function. Deployment and live browser acceptance are reported separately from this source contract.
 
+### Conversation workspace and image input
+
+The authenticated V2 workspace reuses the owner-scoped conversation ledger.
+`GET /api/v1/resident/conversations?archived=false&q=...` lists or searches
+the caller's active threads; `archived=true` selects archived threads. The
+`POST /api/v1/resident/conversations/{id}/rename`, `/archive`, `/restore`, and
+`/delete` routes require the existing exact conversation send grant and
+revalidate ownership. Delete is an access tombstone, not an event purge:
+messages, linked institutional records, attachment bytes, and management audit
+history remain retained. `GET /api/v1/resident/conversations/{id}/attachments/{attachment_id}`
+requires the exact conversation read grant and owner check; responses are
+private/no-store and never expose filesystem paths.
+
+The send route accepts up to four PNG, JPEG, or WebP images with a 4 MiB total
+byte limit. It validates encoded size and image magic bytes, persists each image
+against the corresponding immutable user event, and returns attachment
+metadata in history. Clipboard paste, file selection, and drag-and-drop all
+feed that same API. An image-bearing turn is routed only to the configured
+vision provider; unavailable or unapproved vision routing fails closed rather
+than dropping the image or using a text-only model. The current approved model
+binding is Huihui Qwen3-VL-30B-A3B-Instruct, GGUF IQ3_XS; the provider's
+configured OpenAI-compatible `/v1/chat/completions` endpoint receives the
+multimodal request. Runtime endpoint selection remains server configuration,
+not frontend code.
+
+The Capability Registry declarations `resident.conversation.read` and
+`resident.conversation.send` describe the existing exact-grant operations,
+input schemas, Grace office resource, and API implementation. Registry
+reconciliation adds metadata only; it creates no principal, permission profile,
+or grant. Resident Permissions and Grace discovery continue to consume the
+canonical registry and authority decisions.
+
 ## Model adapter and binding
 
 The existing `LocalReasoningProvider` has been extended with a plain-text completion operation using its existing loopback-only `/v1/chat/completions` endpoint validation, model-name check, configured model SHA binding, bounded request and response sizes, timeout, and sanitized failures. It does not expose tools or an execution interface. `provider_ref` in the current office binding selects the adapter; the bound implementation revision must exactly equal its configured model SHA-256. A replacement model is selected by a new existing resident implementation and office binding. The office/occupant identity and conversation tables remain independent of the model. An optional, UTF-8 bounded `RIVERVIEW_GRACE_CHAT_PREFIX` is passed into the provider; it modifies only the provider's copy of the latest user message and is never persisted as conversation content.

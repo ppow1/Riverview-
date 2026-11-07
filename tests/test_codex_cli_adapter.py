@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_codex_cli_adapter.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.13
+# Revision: 1.2.15
+# Changed: 2026-10-25 UTC | RV-GRACE-ASSIGNMENT-EVIDENCE-HANDOFF-20261025 | Cover requirement-selected S3/S4/S5 evidence and pre-attempt evidence gating.
+# Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Prove non-S3 rework avoids the S3-only CME recovery evidence reader and still attaches its exact performance evaluation.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-HANDOFF-20261025 | Verify only bounded server-derived Luna evaluation facts are attached to S4 rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Forward verified durable CME recovery exchange evidence into bounded same-assignment artifact rework.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Ensure original Steward instructions remain separate from formal execution criteria
@@ -55,6 +57,7 @@ from riverview_core.resident_execution.codex_cli import (
 from riverview_core.resident_execution.codex_workflow import (
     CodexArtifactVerifier, CodexWorkAction,
 )
+from riverview_core.worker_adapter.continuous import ContinuousWorker
 from riverview_core.worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
 from riverview_core.worker_adapter.recovery import _codex_artifact_files
 
@@ -229,7 +232,8 @@ class CodexCLIAdapterTests(unittest.TestCase):
                         "source_sha256":"a"*64},"proposal":{"steps":[{}]}}
             def proposal_step_for_assignment(_self, _objective_id, _assignment_id):
                 return {"objective":"Write a truthful recovery artifact",
-                    "acceptance_criteria":criteria,"artifact_requirements":requirements}
+                    "step_id":"s3","acceptance_criteria":criteria,
+                    "artifact_requirements":requirements}
             def latest_rework_instruction(_self, value):
                 self.assertEqual(value, assignment_id)
                 return {"decision":"REWORK_PROPOSED","assignment_id":assignment_id,
@@ -241,6 +245,9 @@ class CodexCLIAdapterTests(unittest.TestCase):
             def cme_recovery_runtime_evidence_for_assignment(_self, oid, aid):
                 self.assertEqual((oid,aid),(objective_id,assignment_id))
                 return evidence
+            def performance_evaluation_runtime_evidence_for_assignment(
+                    _self, *_args):
+                self.fail("unrequested S4 evaluation evidence was read for S3")
 
         captured = {}
         adapter = self.adapter()
@@ -257,8 +264,11 @@ class CodexCLIAdapterTests(unittest.TestCase):
                 artifacts=(), rework_verification_id=verification_id, detail_code="produced",
                 execution_started=True)
         adapter.execute = execute
-        CodexWorkAction(Pipeline(),adapter,"repo://example/test",5)(
-            {"id":assignment_id,"objective_ref":objective_id},grounded)
+        action = CodexWorkAction(Pipeline(),adapter,"repo://example/test",5)
+        self.assertIs(action.preflight_assignment(
+            {"id":assignment_id,"objective_ref":objective_id}).status,
+            KnowledgeStatus.VERIFIED)
+        action({"id":assignment_id,"objective_ref":objective_id},grounded)
         request = captured["request"]
         self.assertEqual(dict(request.runtime_evidence),evidence)
         prompt = CodexCLIExecutionAdapter._prompt(request)
@@ -296,7 +306,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
                         "source_sha256":"a"*64},"proposal":{"steps":[{}]}}
             def proposal_step_for_assignment(_self, oid, aid):
                 self.assertEqual((oid,aid),(objective_id,assignment_id))
-                return {"objective":"Report persisted Luna evaluation evidence",
+                return {"step_id":"s4","objective":"Report persisted Luna evaluation evidence",
                     "acceptance_criteria":criteria,"artifact_requirements":requirements}
             def latest_rework_instruction(_self, aid):
                 return {"decision":"REWORK_PROPOSED","assignment_id":aid,
@@ -306,7 +316,7 @@ class CodexCLIAdapterTests(unittest.TestCase):
                     "acceptance_criteria_sha256":hashlib.sha256(json.dumps(criteria,
                         ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()}
             def cme_recovery_runtime_evidence_for_assignment(_self, _oid, _aid):
-                return None
+                self.fail("non-S3 rework must not invoke the S3-only CME evidence reader")
             def performance_evaluation_runtime_evidence_for_assignment(_self, oid, aid):
                 self.assertEqual((oid,aid),(objective_id,assignment_id))
                 return evidence
@@ -322,13 +332,86 @@ class CodexCLIAdapterTests(unittest.TestCase):
         grounded=KnowledgeResult(KnowledgeStatus.VERIFIED,
             source_references=("repo://docs/example.md",),source_revision=self.revision,
             source_sha256="c"*64,retrieval_complete=True)
-        CodexWorkAction(Pipeline(),adapter,"repo://example/test",5)(
-            {"id":assignment_id,"objective_ref":objective_id},grounded)
+        action = CodexWorkAction(Pipeline(),adapter,"repo://example/test",5)
+        self.assertIs(action.preflight_assignment(
+            {"id":assignment_id,"objective_ref":objective_id}).status,
+            KnowledgeStatus.VERIFIED)
+        action({"id":assignment_id,"objective_ref":objective_id},grounded)
         runtime=dict(captured["request"].runtime_evidence)
         self.assertEqual(runtime,evidence)
         self.assertFalse(runtime["evaluation"]["authority_granted"])
         self.assertIn("98ca464e-23b8-5511-8ca0-cd8c528cdffa",
             CodexCLIExecutionAdapter._prompt(captured["request"]))
+
+    def test_s5_final_dependency_does_not_infer_s3_or_s4_runtime_evidence(self):
+        # Match the pinned five-step scheduler fixture's actual S5 acceptance,
+        # dependencies, and empty artifact contract.
+        s5 = {"step_id": "s5", "objective": "final dependent step",
+            "acceptance_criteria": ["s5"], "depends_on": ["s3", "s4"],
+            "artifact_requirements": []}
+        self.assertEqual(s5["acceptance_criteria"], ["s5"])
+        self.assertEqual(s5["depends_on"], ["s3", "s4"])
+        self.assertEqual(CodexWorkAction._required_runtime_evidence(s5), ())
+        s5_with_evidence_requirements = {"step_id": "s5",
+            "objective": "Compare the Luna evaluation grade with historical reasoning attempts",
+            "acceptance_criteria": ["Report the evaluation rubric and reasoning attempts.",
+                "Explain how the state transition event history supports the result."],
+            "artifact_requirements": []}
+        self.assertEqual(CodexWorkAction._required_runtime_evidence(
+            s5_with_evidence_requirements), ("diagnostic", "performance_evaluation"))
+        s5_cme_wording = {"step_id": "s5", "objective": "Summarize the Luna request outcome",
+            "acceptance_criteria": ["Record the actual Luna request outcome and evaluation grade."],
+            "artifact_requirements": []}
+        self.assertEqual(CodexWorkAction._required_runtime_evidence(s5_cme_wording),
+            ("performance_evaluation",))
+
+    def test_missing_required_evidence_blocks_before_worker_attempt(self):
+        class Scheduler:
+            def __init__(self):
+                self.transitions = []
+            def transition_with_lease(self, *args):
+                self.transitions.append(args)
+
+        class Adapter:
+            def __init__(self):
+                self.scheduler = Scheduler()
+                self.started = []
+                self.observations = []
+                self.ledger = SimpleNamespace(get=lambda _assignment_id: None)
+            def claim_next(self, *_args, **_kwargs):
+                return {"assignment": {"id": "assignment:s5", "version": 1},
+                    "lease": {"generation": 1}}
+            def record_knowledge_observation(self, *args, **kwargs):
+                self.observations.append((args, kwargs))
+            def start_assignment(self, *args, **kwargs):
+                self.started.append((args, kwargs))
+
+        class Knowledge:
+            @staticmethod
+            def verified():
+                return KnowledgeResult(KnowledgeStatus.VERIFIED,
+                    source_references=("repo://docs/example.md",),
+                    retrieval_complete=True)
+            def ground_assignment(self, _assignment):
+                return self.verified()
+            def preflight_action(self, _assignment, _action):
+                return self.verified()
+
+        class Action:
+            def preflight_assignment(self, _assignment):
+                return KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
+            def __call__(self, *_args):
+                raise AssertionError("Engineering action must not start without evidence")
+
+        adapter = Adapter()
+        worker = ContinuousWorker(adapter, "worker:test", "credential:test",
+            knowledge=Knowledge(), action=Action(),
+            action_capability="engineering.codex-cli-artifact.v1")
+        result = worker.run_once(assignment_id="assignment:s5")
+        self.assertEqual(result["status"], "WAITING_FOR_EVIDENCE")
+        self.assertEqual(result["operation"], "preflight_assignment_evidence")
+        self.assertEqual(adapter.started, [])
+        self.assertEqual(len(adapter.scheduler.transitions), 1)
 
     def test_prompt_preserves_steward_instructions_separately_from_formal_criteria(self):
         request = self.assignment(steward_instructions=(

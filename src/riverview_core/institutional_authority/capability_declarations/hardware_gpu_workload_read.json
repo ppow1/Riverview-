@@ -1,0 +1,32 @@
+{
+  "capability_id": "hardware.gpu.workload.read",
+  "description": "Read verified state and progress for a registered GPU workload host",
+  "operation": "hardware.gpu.workload.read",
+  "owner_office": "office:steward",
+  "implementation_ref": "dashboard.gpu_workload_routes.read",
+  "dependencies": [
+    "riverview.status-dashboard"
+  ],
+  "approval_default": false,
+  "enabled": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "host_id"
+    ],
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{1,62}$"
+      }
+    }
+  },
+  "authorization_contract": {
+    "mode": "exact_grant",
+    "action": "hardware.gpu.workload.read",
+    "scope_policy": "exact_scope"
+  },
+  "availability_policy": "executor_and_worker_health",
+  "registration_blocker": null
+}

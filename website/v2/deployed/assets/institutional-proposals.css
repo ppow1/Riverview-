@@ -1,0 +1,41 @@
+/*
+Revision: 1.0.0
+*/
+.institutional-proposals{max-width:1280px;margin:0 auto;padding:4px 0 30px;color:var(--ink)}
+.institutional-proposals[hidden]{display:none!important}
+.proposal-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}
+.proposal-heading h2{margin:5px 0;font:500 27px Georgia,"Times New Roman",serif}
+.proposal-heading p:not(.eyebrow),.proposal-boundary{max-width:780px;color:var(--muted);font-size:12px;line-height:1.55}
+.proposal-heading button,.proposal-tools button{min-height:36px;padding:8px 13px;border:0;border-radius:7px;background:var(--teal);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.proposal-tools{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:14px 0}
+.proposal-tools label{display:grid;gap:5px;min-width:190px;color:var(--muted);font-size:11px;font-weight:650}
+.proposal-tools input,.proposal-tools select{min-height:37px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);font:inherit}
+.proposal-status{min-height:1.5em;color:var(--muted);font-size:12px}
+.proposal-columns{display:grid;grid-template-columns:minmax(270px,.78fr) minmax(0,1.6fr);gap:14px;align-items:start}
+.proposal-list-panel,.proposal-detail-panel{min-width:0;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.proposal-list-panel h3,.proposal-detail-panel h3{margin:0 0 10px;font-size:16px}
+.proposal-list{display:grid;gap:8px;max-height:70vh;overflow:auto}
+.proposal-row{display:grid;gap:7px;width:100%;padding:11px;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);cursor:pointer}
+.proposal-row[aria-pressed="true"]{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.proposal-row-heading{display:flex;justify-content:space-between;gap:8px;align-items:start}
+.proposal-state-pill{flex:0 0 auto;padding:3px 6px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:10px;font-weight:700}
+.proposal-row-meta,.proposal-row-summary{color:var(--muted);font-size:11px;line-height:1.4}
+.proposal-detail{overflow-wrap:anywhere}
+.proposal-fields{display:grid;grid-template-columns:minmax(120px,.35fr) minmax(0,1fr);gap:8px 12px;margin:12px 0}
+.proposal-fields dt{color:var(--muted);font-size:11px;font-weight:700}
+.proposal-fields dd{margin:0;white-space:pre-wrap;line-height:1.5}
+.proposal-evidence{margin-top:16px;padding-top:10px;border-top:1px solid var(--line)}
+.proposal-evidence h4{margin:0 0 8px;font-size:14px}
+.proposal-evidence-card{padding:9px 0;border-bottom:1px solid var(--line)}
+.proposal-evidence-card p{margin:5px 0;color:var(--muted);font-size:12px}
+.proposal-evidence-card small{color:var(--muted)}
+.proposal-empty{margin:0;padding:12px;color:var(--muted);font-size:12px}
+.proposal-decision-panel{margin-top:18px;padding:14px;border:1px solid var(--line);border-radius:9px;background:var(--soft)}
+.proposal-decision-panel h4{margin:0 0 8px;font-size:14px}
+.proposal-decision-panel p{max-width:75ch;color:var(--muted);font-size:12px;line-height:1.5}
+.proposal-decision-panel label{display:grid;gap:5px;margin:10px 0;color:var(--muted);font-size:11px;font-weight:650}
+.proposal-decision-panel select,.proposal-decision-panel input,.proposal-decision-panel textarea{width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);font:inherit}
+.proposal-decision-submit{min-height:38px;padding:8px 13px;border:0;border-radius:7px;background:var(--teal);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.proposal-decision-submit:disabled{opacity:.55;cursor:wait}
+@media(max-width:760px){.proposal-columns{grid-template-columns:1fr}.proposal-list{max-height:40vh}.proposal-heading{display:block}.proposal-heading button{margin-top:8px}}
+@media(max-width:440px){.proposal-tools label{width:100%;min-width:0}.proposal-tools button{width:100%}.proposal-fields{grid-template-columns:1fr;gap:4px}.proposal-fields dd{margin-bottom:8px}}

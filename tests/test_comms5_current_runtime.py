@@ -1,6 +1,6 @@
 """Focused tests for Comms5 operations on current Riverview services.
 
-File Revision: 1.0.6
+File Revision: 1.0.10
 Component: COMMS5-CURRENT-RUNTIME-OPERATIONS-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify intent/authority projection and combined durable objective/proposal listing.
@@ -9,6 +9,9 @@ Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify durable CME 
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Update runtime catalog and verify new policy tool accounting.
 Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Cover persisted policy projections and fixed operation dispatch without mutable MCP routing.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Count the four bounded Steward exchange operations in live backend implementation status.
+Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Account for preserved direct dispatch and fixed command gateway tools.
+Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Route async task operations through the existing host-scoped grant boundary.
+Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Verify Comms5 cancellation dispatch stays within the same host-scoped Gateway boundary.
 """
 
 import unittest
@@ -168,6 +171,40 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         return {"seed_text": "A bounded idea for Riverview.", "idempotency_key": "seed-1",
                 "client_id": "client", "client_type": "chat", "client_name": "ChatGPT",
                 "authenticated_principal": "resident:attacker"}
+
+    def test_async_command_tools_dispatch_through_host_grant_authority(self):
+        from riverview_core.comms5.command_gateway import WindowsCommandGateway
+
+        class Gateway:
+            def submit_task(self, principal, arguments):
+                return {"status": "queued", "principal": principal,
+                        "host_id": arguments["host_id"]}
+            def cancel_task(self, principal, arguments):
+                return {"status": "cancelled", "principal": principal,
+                        "host_id": arguments["host_id"]}
+
+        grant_authority = object()
+        pipeline = SimpleNamespace(authorizer=object(), ledger=SimpleNamespace(db=object()))
+        operations = Comms5Operations(self.registry, self.lifecycle,
+            objective_pipeline=pipeline, authority_registry=object(),
+            delegation_grant_requests=grant_authority)
+        arguments = {"host_id": "camrui", "command": "hostname",
+            "privilege_level": "standard", "execution_grant_id": "grant:camrui",
+            "idempotency_key": "async-route-test"}
+        with patch.object(WindowsCommandGateway, "from_environment", return_value=Gateway()) as factory:
+            result = operations.execute("comms5_command_task_submit", arguments,
+                principal_id="service:chatgpt", delegated_authorized=True)
+        self.assertEqual(result, {"status": "queued", "principal": "service:chatgpt",
+                                  "host_id": "camrui"})
+        self.assertIs(factory.call_args.kwargs["command_grant_authority"], grant_authority)
+        cancel_arguments = {"host_id": "camrui", "command_sha256": "a" * 64,
+            "privilege_level": "standard", "idempotency_key": "async-route-cancel-test"}
+        with patch.object(WindowsCommandGateway, "from_environment", return_value=Gateway()) as factory:
+            cancelled = operations.execute("comms5_command_task_cancel", cancel_arguments,
+                principal_id="service:chatgpt", delegated_authorized=True)
+        self.assertEqual(cancelled, {"status": "cancelled", "principal": "service:chatgpt",
+                                     "host_id": "camrui"})
+        self.assertIs(factory.call_args.kwargs["command_grant_authority"], grant_authority)
 
     def test_experiment_grant_requires_one_explicit_attested_steward_action(self):
         tool = "comms5_authorize_grace_experiment"
@@ -546,9 +583,9 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
         application = Comms5Application("x" * 48, backend=Backend())
         status = {name: application.implementation_status(name)
                   for name in application.implemented_tools}
-        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 32)
+        self.assertEqual(sum(value == "IMPLEMENTED" for value in status.values()), 42)
         self.assertEqual(sum(value == "PARTIALLY_IMPLEMENTED" for value in status.values()), 0)
-        self.assertEqual(32 - len(status), 0)
+        self.assertEqual(42 - len(status), 0)
 
     def test_dashboard_internal_route_requires_service_token_and_comms5_attestation(self):
         from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler
@@ -585,6 +622,87 @@ class Comms5CurrentRuntimeTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+    def test_delegated_comms5_path_requires_canonical_authorization_before_operation(self):
+        from riverview_core.status_dashboard.server import _BoundedHTTPServer, make_handler
+        from riverview_core.institutional_authority.registry import AuthorityDenied
+        registry = _Registry()
+        class DelegationAuthority:
+            def __init__(self): self.calls=[]; self.allowed=True
+            def authorize_operation(self, *, principal_id, tool, operation_ref):
+                self.calls.append((principal_id,tool,operation_ref))
+                if not self.allowed:
+                    raise AuthorityDenied("no active grant")
+                return {"status":"authorized","principal_id":principal_id}
+        authority=DelegationAuthority()
+        server = _BoundedHTTPServer(("127.0.0.1", 0), make_handler(), token="d" * 48,
+            projection=None, notification_service=None, objective_pipeline=None,
+            conversation_service=None, account_auth_service=None, permission_store=None,
+            static_dir="/nonexistent", proposal_registry=registry,
+            delegation_grant_requests=authority)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            headers={"Content-Type":"application/json","Authorization":"Bearer " + "d"*48,
+                "X-Riverview-Comms5":"1","X-Riverview-Comms5-Principal":"service:chatgpt"}
+            auth_url=f"http://127.0.0.1:{server.server_port}/api/v1/internal/comms5/authorization"
+            auth_body=json.dumps({"operation":"comms5_submit_steward_seed","operation_ref":"safe-readonly-test"}).encode()
+            request=Request(auth_url,data=auth_body,headers=headers)
+            with urlopen(request,timeout=2) as response:
+                self.assertEqual(json.loads(response.read())["status"],"authorized")
+            operation_url=f"http://127.0.0.1:{server.server_port}/api/v1/internal/comms5/operation"
+            operation_body=json.dumps({"tool":"comms5_submit_steward_seed","arguments":self.seed()}).encode()
+            request=Request(operation_url,data=operation_body,headers=headers)
+            with urlopen(request,timeout=2) as response:
+                self.assertEqual(json.loads(response.read())["status"],"draft_saved")
+            self.assertEqual(registry.created[1]["created_by"],"service:chatgpt")
+            created_before_denial=registry.created
+            authority.allowed=False
+            denied_body=json.dumps({"tool":"comms5_submit_steward_seed","arguments":self.seed()}).encode()
+            request=Request(operation_url,data=denied_body,headers=headers)
+            with self.assertRaises(HTTPError) as denied:
+                urlopen(request,timeout=2)
+            self.assertEqual(denied.exception.code,403)
+            self.assertEqual(registry.created,created_before_denial)
+            self.assertEqual(len(authority.calls),3)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+    def test_direct_codex_task_requires_delegation_and_stops_before_execution(self):
+        from riverview_core.resident_execution.pipeline import ObjectiveStateError
+
+        class IsolatedPipeline:
+            authorizer = object()
+            def __init__(self): self.record = None; self.submissions = []
+            def get_objective(self, objective_id): return self.record
+            def submit_objective(self, objective_id, request, criteria, *, scope_ref,
+                                 principal, criteria_source):
+                self.submissions.append((objective_id, principal.principal_id, scope_ref))
+                self.record = {"submitter_id":principal.principal_id,"scope_ref":scope_ref,
+                    "request":request,"acceptance_criteria":criteria,
+                    "status":"WAITING_FOR_EVIDENCE","evidence":{"status":"unavailable"}}
+            def ground_objective(self, objective_id): raise ObjectiveStateError()
+
+        pipeline=IsolatedPipeline()
+        operations=Comms5Operations(self.registry,self.lifecycle,objective_pipeline=pipeline)
+        args={"task":"Prepare an isolated acceptance fixture.",
+            "repository_reference":"repo://ppow1/Riverview-",
+            "repository_revision":"a"*40,"authorized_paths":["tests/test_fixture.py"],
+            "test_targets":["tests/test_fixture.py"],
+            "acceptance_criteria":["No production records are changed."],
+            "evidence_requirements":["Return the isolated fixture identifier."],
+            "idempotency_key":"codex-isolated-acceptance-0001"}
+        with self.assertRaises(PermissionError):
+            operations.execute("comms5_submit_direct_engineering_task",args,
+                principal_id="service:chatgpt")
+        self.assertEqual(pipeline.submissions,[])
+        result=operations.execute("comms5_submit_direct_engineering_task",args,
+            principal_id="service:chatgpt",delegated_authorized=True)
+        self.assertEqual(result["status"],"waiting_for_evidence")
+        self.assertEqual(result["idempotent"],False)
+        self.assertEqual(pipeline.submissions[0][1:],("service:chatgpt","work-order:engineering"))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,53 @@
+{
+  "schema_version": "rv.website-acceptance.v1",
+  "timestamp": "2026-10-26T14:02:09Z",
+  "candidate_base": "42f76dc521b5ecfcd214274aa6dfcda6146a5bab",
+  "production_dashboard": "42f76dc521b5ecfcd214274aa6dfcda6146a5bab",
+  "production_v2": "RV-WEB-V2-GPU-HOSTS-42f76dc5",
+  "overall": "BLOCKED",
+  "summary": "Local focused verification passed. The existing production full browser suite passed its tested checks with intentional skips. Delegation acceptance remains blocked because no authenticated institutional Steward browser identity is available; no candidate release was deployed.",
+  "checks": [
+    {
+      "name": "delegation_routes_policy_and_comms5_unit_tests",
+      "status": "PASS",
+      "passed": 53,
+      "failed": 0,
+      "evidence": "PYTHONPATH=src python3 -m unittest tests.test_delegation_routes tests.test_comms5_current_runtime tests.test_gpu_workload_control -q"
+    },
+    {
+      "name": "delegation_ui_refresh_and_failure_rendering_tests",
+      "status": "PASS",
+      "passed": 2,
+      "failed": 0,
+      "evidence": "PYTHONPATH=src pytest -q tests/test_v2_delegation_refresh.py"
+    },
+    {
+      "name": "dashboard_regression_tests",
+      "status": "WARNING",
+      "passed": 76,
+      "failed": 0,
+      "skipped": 13,
+      "reason": "PostgreSQL-backed tests require RIVERVIEW_TEST_PG_DSN, which was not configured."
+    },
+    {
+      "name": "production_full_authenticated_browser_baseline",
+      "status": "WARNING",
+      "passed": 62,
+      "failed": 0,
+      "skipped": 4,
+      "release": "RV-WEB-V2-GPU-HOSTS-42f76dc5",
+      "source_commit": "42f76dc521b5ecfcd214274aa6dfcda6146a5bab",
+      "evidence": "/var/lib/riverview-website-acceptance/latest.json",
+      "reason": "The reserved test Steward has no institutional principal/grant. The suite does not contain delegation feature acceptance."
+    },
+    {
+      "name": "delegation_authenticated_steward_browser_acceptance",
+      "status": "BLOCKED",
+      "reason": "No supported authenticated Steward browser session or isolated institutionally authorized test principal is available. No request, grant, approval, or revocation was created. Candidate screenshots are unavailable because the candidate is not deployed."
+    }
+  ],
+  "deployment": {
+    "status": "NOT_DEPLOYED",
+    "reason": "The feature requires authenticated browser acceptance before release; this evidence is still missing."
+  }
+}

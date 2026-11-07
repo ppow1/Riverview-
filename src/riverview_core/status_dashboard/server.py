@@ -2,7 +2,15 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/status_dashboard/server.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.3.42
+# Revision: 1.3.51
+# Changed: 2026-10-27 UTC | C2-359-ENCODED-DELEGATION-ID | Route percent-encoded delegation ID delimiters to the authenticated approval handler.
+# Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Route authenticated host-scoped cancellation through the existing Gateway authorization boundary.
+# Changed: 2026-10-27 UTC | C1-COMMAND-AGENT-POST-DIAGNOSTIC | Preserve only bounded agent HTTP status and sanitized error identifiers for authenticated Comms5 command failures.
+# Changed: 2026-10-26 UTC | COMMS5-COMMAND-GATEWAY-IDENTITY | Route one confirmed service:command-gateway identity.manage registration action.
+# Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Route host-scoped command tools to their independent exact-grant boundary without broad project delegation.
+# Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Route one confirmed identity.manage registration action through the protected delegation adapter.
+# Changed: 2026-10-26 UTC | RV-PR342-COMMS5-AUTHORITY-EXCLUSION | Classify internal Comms5 authorization ingress as excluded from resident-executable capability registration
+# Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Expose a non-sensitive eligibility hint to hide recovery controls from unlinked sessions
 # Changed: 2026-10-25 UTC | C3-CAPABILITY-DECLARATION-GATE | Bind the status API operation to its catalog declaration
 # Changed: 2026-10-24 UTC | RV-GRACE-CAPABILITY-REGISTRY-BRIDGE-20261024 | Wire the authenticated resident credential and existing objective pipeline into Grace's registry bridge.
 # Changed: 2026-10-22 UTC | RIVERVIEW-COMFYUI-ENGINEERING-INTEGRATION | Accept stable assignment identifiers in verified ComfyUI artifact routes.
@@ -67,6 +75,8 @@
 from __future__ import annotations
 
 import hmac
+import base64
+import binascii
 import ipaddress
 import json
 import logging
@@ -100,11 +110,16 @@ _NOTICE_WRITE = re.compile(
 _NOTIFICATION_SETTINGS = "/api/v1/notification-settings"
 _GRACE_RECOVERY_DECISION = re.compile(
     r"^/api/v1/grace-recovery/([0-9a-fA-F-]{36})/decision$")
+_COMMS5_AUTHORIZATION = "/api/v1/internal/comms5/authorization"  # capability-exclusion: fixed Comms5 ingress authorization check; no execution and canonical grant authority required
+_COMMS5_PRINCIPAL = re.compile(r"^(?:steward|resident|human|service|worker):[A-Za-z0-9._:@-]{1,240}$")
 _OBJECTIVE_DETAIL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})$")
 _OBJECTIVE_PROPOSAL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/proposal$")
 _OBJECTIVE_CANCEL = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/cancel$")
 _OBJECTIVE_REREVIEW = re.compile(r"^/api/v1/objectives/(objective:[A-Za-z0-9._:-]{1,120})/result-rereview$")
 _CONVERSATION_ID = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})$")
+_CONVERSATION_MANAGE = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/(rename|archive|restore|delete)$")
+_CONVERSATION_ATTACHMENT = re.compile(r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/attachments/([0-9a-fA-F-]{36})$")
+_CONVERSATION_SEARCH = "/api/v1/resident/conversations/search"
 _CONVERSATION_STREAM_ACTIVITY = re.compile(
     r"^/api/v1/resident/conversations/([0-9a-fA-F-]{36})/stream-activity$")
 _CONVERSATION_SESSION = "/api/v1/resident/conversation-session"
@@ -134,6 +149,7 @@ class WorkOrderOriginConflict(Exception):
 
 
 _MAX_CHAT_BODY = 12 * 1024
+_MAX_MULTIMODAL_CHAT_BODY = 6 * 1024 * 1024
 _MAX_OBJECTIVE_BODY = 16 * 1024
 _MAX_ACCOUNT_BODY = 8 * 1024
 _ACCOUNT_SESSION_COOKIE = "rv_account_session"
@@ -268,7 +284,7 @@ class _BoundedHTTPServer(HTTPServer):
                  permission_store, static_dir, proposal_registry,
                  steward_review_exchange=None, resource_telemetry=None,
                  snapshot_archive=None, authority_registry=None,
-                 resident_proposal_service=None):
+                 resident_proposal_service=None, delegation_grant_requests=None):
         self._token = token
         self._projection = projection
         self._notification_service = notification_service
@@ -286,14 +302,16 @@ class _BoundedHTTPServer(HTTPServer):
             from riverview_core.resident_execution.proposal_lifecycle import ProposalLifecycle
             self._proposal_lifecycle = ProposalLifecycle(proposal_registry, objective_pipeline)
         self._comms5_operations = None
-        if proposal_registry is not None or steward_review_exchange is not None:
+        if (proposal_registry is not None or steward_review_exchange is not None or
+                delegation_grant_requests is not None):
             from riverview_core.resident_execution.comms5_operations import Comms5Operations
             from riverview_core.resident_execution.external_reasoning_mcp import StewardReviewBridge
             self._comms5_operations = Comms5Operations(
                 proposal_registry, self._proposal_lifecycle, objective_pipeline,
                 steward_review_bridge=(StewardReviewBridge(steward_review_exchange)
                     if steward_review_exchange is not None else None),
-                authority_registry=authority_registry)
+                authority_registry=authority_registry,
+                delegation_grant_requests=delegation_grant_requests)
         self._static_dir = Path(static_dir)
         self._resource_telemetry = resource_telemetry
         self._slots = threading.BoundedSemaphore(_MAX_THREADS)
@@ -607,6 +625,11 @@ def make_handler():
         def _dispatch(self):
             request_id = secrets.token_hex(12)
             parsed = urlsplit(self.path)
+            # Browser URL builders may percent-encode the colon in the exact
+            # opaque delegation request ID. Normalize this one delimiter so
+            # the authenticated POST reaches its existing hash-bound handler.
+            from .delegation_routes import canonicalize_delegation_path
+            parsed = parsed._replace(path=canonicalize_delegation_path(parsed.path))
             notification_write = (_NOTICE_WRITE.fullmatch(parsed.path)
                                   if self.command == "POST" else None)
             notification_settings_get = (parsed.path == _NOTIFICATION_SETTINGS and
@@ -643,6 +666,10 @@ def make_handler():
                                  and self.command == "POST")
             conversation_stream_send = (parsed.path == "/api/v1/resident/conversations/stream"
                                         and self.command == "POST")
+            conversation_manage = (_CONVERSATION_MANAGE.fullmatch(parsed.path)  # capability-operation: resident.conversation.send
+                                   if self.command == "POST" else None)
+            conversation_attachment = (_CONVERSATION_ATTACHMENT.fullmatch(parsed.path)  # capability-operation: resident.conversation.read
+                                       if self.command in {"GET","HEAD"} else None)
             conversation_work_order = (_CONVERSATION_WORK_ORDER.fullmatch(parsed.path)
                                        if self.command == "POST" else None)
             proposal_create = (parsed.path == _PROPOSAL_COLLECTION and self.command == "POST")
@@ -661,7 +688,37 @@ def make_handler():
             resident_proposal_read = (_RESIDENT_PROPOSAL_ITEM.fullmatch(parsed.path)
                                       if self.command in {"GET", "HEAD"} else None)
             comms5_operation = parsed.path == _COMMS5_OPERATION and self.command == "POST"
+            comms5_delegation_authorization = (
+                parsed.path == _COMMS5_AUTHORIZATION and self.command == "POST")  # capability-exclusion: internal Comms5 authorization decision; not a resident-invocable executable operation
             snapshot_archive = parsed.path == _SNAPSHOT_ARCHIVE and self.command == "POST"
+            delegation_revoke = (re.fullmatch(
+                r"^/api/v1/steward/delegated-grants/(grant:[A-Za-z0-9._:-]{1,128})/revoke$",
+                parsed.path) if self.command == "POST" else None)  # capability-exclusion: Steward administrative revocation; not resident-invocable
+            delegation_decision = (re.fullmatch(
+                r"^/api/v1/steward/delegation-grant-requests/(delegation-request:[A-Za-z0-9._:-]{1,128})/decision$",
+                parsed.path) if self.command == "POST" else None)  # capability-exclusion: Steward hash-bound request decision; not resident-invocable
+            delegation_request_create = (parsed.path == "/api/v1/steward/delegation-grant-requests"
+                                         and self.command == "POST")  # capability-exclusion: Steward request creation; not resident-invocable
+            chatgpt_principal_registration = (
+                parsed.path == "/api/v1/steward/service-principals/chatgpt/register"  # capability-exclusion: institution-scoped Steward identity management; not resident-invocable
+                and self.command == "POST")
+            command_gateway_principal_registration = (
+                parsed.path == "/api/v1/steward/service-principals/command-gateway/register"  # capability-exclusion: institution-scoped Steward identity management; not resident-invocable
+                and self.command == "POST")
+            delegation_route = (
+                self.command in {"GET", "HEAD"} and (
+                    parsed.path in {"/api/v1/steward/delegation-grant-requests", "/api/v1/steward/delegation-grant-requests/options",  # capability-exclusion: Steward administrative projection; not resident-invocable
+                                    "/api/v1/steward/delegated-grants"} or
+                    re.fullmatch(r"^/api/v1/steward/delegation-grant-requests/"
+                                 r"delegation-request:[A-Za-z0-9._:-]{1,128}$", parsed.path))  # capability-exclusion: Steward administrative projection; not resident-invocable
+            ) or delegation_revoke is not None or delegation_request_create or delegation_decision is not None or chatgpt_principal_registration or command_gateway_principal_registration
+            gpu_workload_read = (parsed.path == "/api/v1/hardware/workloads" and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
+            gpu_workload_job = (re.fullmatch(r"^/api/v1/hardware/workloads/jobs/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", parsed.path) is not None and self.command in {"GET", "HEAD"})  # capability-operation: hardware.gpu.workload.read
+            gpu_workload_start = (parsed.path == "/api/v1/hardware/workloads/start" and self.command == "POST")  # capability-operation: hardware.gpu.workload.start
+            gpu_workload_stop = (parsed.path == "/api/v1/hardware/workloads/stop" and self.command == "POST")  # capability-operation: hardware.gpu.workload.stop
+            gpu_workload_switch = (parsed.path == "/api/v1/hardware/workloads/switch" and self.command == "POST")  # capability-operation: hardware.gpu.workload.switch
+            gpu_workload_route = (gpu_workload_read or gpu_workload_job or gpu_workload_start
+                                  or gpu_workload_stop or gpu_workload_switch)
             conversation_session = (parsed.path == _CONVERSATION_SESSION
                                      and self.command in {"POST", "DELETE"})
             if not self._host_ok():
@@ -673,12 +730,20 @@ def make_handler():
                     and not objective_submit and not objective_proposal and not objective_cancel
                     and not objective_rereview
                     and not conversation_send and not conversation_stream_send and not conversation_session and not public_auth
+                    and not conversation_manage
                     and not conversation_work_order and not proposal_create
                     and not proposal_revision and not proposal_decision
                     and not proposal_work_orders and not proposal_command
                     and not comms5_operation
                     and not resident_proposal_create
+                    and not comms5_delegation_authorization
                     and not snapshot_archive
+                    and not delegation_revoke
+                    and not delegation_decision
+                    and not delegation_request_create
+                    and not chatgpt_principal_registration
+                    and not command_gateway_principal_registration
+                    and not gpu_workload_route
                     and not auth_logout and not account_decision and not account_user
                     and not permission_profile and not permission_transition
                     and not account_email_save and not account_email_test):
@@ -708,7 +773,7 @@ def make_handler():
                 except ValueError:
                     self._error(503, "v2_ui_invalid_document", request_id)
                 return
-            v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js)", parsed.path)
+            v2_asset = re.fullmatch(r"/v2/assets/(favicon\.svg|workspace\.css|fixtures\.js|workspace\.js|snapshot\.js|gpu-workload-controls\.css|gpu-workload-controls\.js)", parsed.path)
             if v2_asset:
                 release_root = _release_root()
                 path = release_root / "website" / "v2" / "assets" / v2_asset.group(1)
@@ -872,6 +937,14 @@ def make_handler():
                 if self.command != "HEAD":
                     self.wfile.write(body)
                 return
+            if delegation_route:
+                from riverview_core.status_dashboard.delegation_routes import dispatch
+                dispatch(self, parsed, request_id)
+                return
+            if gpu_workload_route:
+                from riverview_core.status_dashboard.gpu_workload_routes import dispatch
+                dispatch(self, parsed, request_id)
+                return
             if snapshot_archive:
                 identity = getattr(self, "_account_identity", None)
                 if (not getattr(self, "_account_cookie_authenticated", False) or not identity
@@ -920,9 +993,48 @@ def make_handler():
                 return
             try:
                 query = parse_qs(parsed.query, keep_blank_values=False, max_num_fields=12)
+                if comms5_delegation_authorization:
+                    principal = self.headers.get("X-Riverview-Comms5-Principal", "")
+                    from riverview_core.comms5.delegation_policy import is_delegable_tool
+                    if (self.headers.get("X-Riverview-Comms5") != "1" or
+                            not _COMMS5_PRINCIPAL.fullmatch(principal) or principal == "steward" or
+                            principal.startswith("steward:")):
+                        self._error(403, "comms5_transport_attestation_required", request_id)
+                        return
+                    operations = self.server._comms5_operations
+                    adapter = getattr(operations, "delegation_grant_requests", None) if operations else None
+                    if adapter is None:
+                        self._error(503, "delegation_authority_unavailable", request_id)
+                        return
+                    try:
+                        data = self._json_body(_MAX_CHAT_BODY)
+                        if (set(data) != {"operation", "operation_ref"} or
+                                not isinstance(data["operation"], str) or
+                                not isinstance(data["operation_ref"], str) or
+                                not is_delegable_tool(data["operation"])):
+                            raise ValueError("invalid_delegated_operation")
+                        result = adapter.authorize_operation(principal_id=principal,
+                            tool=data["operation"], operation_ref=data["operation_ref"])
+                        self._json(200, result, request_id)
+                    except (ValueError, TypeError):
+                        self._error(400, "invalid_delegated_operation", request_id)
+                    except Exception as exc:
+                        from riverview_core.institutional_authority.registry import (
+                            AuthorityDenied, RegistryUnavailable)
+                        if isinstance(exc, AuthorityDenied):
+                            self._error(403, "delegated_operation_not_authorized", request_id)
+                        elif isinstance(exc, RegistryUnavailable):
+                            self._error(503, "delegation_authority_unavailable", request_id)
+                        else:
+                            self._error(503, "delegation_authorization_unavailable", request_id)
+                    return
                 if comms5_operation:
-                    if (self.headers.get("X-Riverview-Comms5") != "1"
-                            or self.headers.get("X-Riverview-Comms5-Principal") != "steward"):
+                    attested_principal = self.headers.get("X-Riverview-Comms5-Principal", "")
+                    principal_valid = (attested_principal == "steward" or
+                                       bool(_COMMS5_PRINCIPAL.fullmatch(attested_principal)))
+                    is_steward = (attested_principal == "steward" or
+                                  attested_principal.startswith("steward:"))
+                    if (self.headers.get("X-Riverview-Comms5") != "1" or not principal_valid):
                         self._error(403, "comms5_transport_attestation_required", request_id)
                         return
                     if self.server._comms5_operations is None:
@@ -934,13 +1046,47 @@ def make_handler():
                             or not isinstance(data["arguments"], dict)):
                         self._error(400, "invalid_comms5_operation", request_id)
                         return
+                    delegated_adapter = getattr(self.server._comms5_operations,
+                        "delegation_grant_requests", None)
+                    if not is_steward:
+                        from riverview_core.comms5.delegation_policy import is_delegable_tool
+                        exact_command_tool = data["tool"] in {
+                            "comms5_command_submit", "comms5_command_status",
+                            "comms5_command_task_submit", "comms5_command_task_status",
+                            "comms5_command_task_cancel"}
+                        self_surrender = data["tool"] == "comms5_revoke_delegation_grant"
+                        if not is_delegable_tool(data["tool"]) and not self_surrender and not exact_command_tool:
+                            self._error(403, "comms5_operation_not_authorized", request_id)
+                            return
+                        if delegated_adapter is None and not exact_command_tool:
+                            self._error(503, "delegation_authority_unavailable", request_id)
+                            return
+                        if not exact_command_tool and not self_surrender and data["tool"] not in {
+                                "comms5_request_delegation_grant", "comms5_get_delegation_grant_status"}:
+                            try:
+                                delegated_adapter.authorize_operation(principal_id=attested_principal,
+                                    tool=data["tool"], operation_ref=request_id)
+                            except Exception as exc:
+                                from riverview_core.institutional_authority.registry import (
+                                    AuthorityDenied, RegistryUnavailable)
+                                if isinstance(exc, AuthorityDenied):
+                                    self._error(403, "comms5_operation_not_authorized", request_id)
+                                elif isinstance(exc, RegistryUnavailable):
+                                    self._error(503, "delegation_authority_unavailable", request_id)
+                                else:
+                                    self._error(503, "delegation_authorization_unavailable", request_id)
+                                return
                     try:
                         result = self.server._comms5_operations.execute(
-                            data["tool"], data["arguments"], principal_id="steward:camrui")
+                            data["tool"], data["arguments"],
+                            principal_id=("steward:camrui" if attested_principal == "steward"
+                                          else attested_principal),
+                            delegated_authorized=not is_steward)
                         self._json(200, result, request_id)
                     except PermissionError:
                         self._error(403, "comms5_operation_not_authorized", request_id)
                     except Exception as exc:
+                        from riverview_core.comms5.command_gateway import CommandAgentUnavailable
                         from riverview_core.resident_execution.proposals import (
                             ProposalConflict, ProposalNotFound, ProposalValidationError)
                         from riverview_core.resident_execution.pipeline import ObjectiveNotAuthorized
@@ -963,6 +1109,14 @@ def make_handler():
                             self._error(409, "proposal_lifecycle_conflict", request_id)
                         elif isinstance(exc, (ValueError, TypeError, ProposalValidationError)):
                             self._error(400, "invalid_comms5_operation", request_id)
+                        elif isinstance(exc, CommandAgentUnavailable):
+                            diagnostic = str(exc)
+                            if not re.fullmatch(
+                                    r"command_agent_http_[1-5][0-9]{2}_[a-z][a-z0-9_]{0,63}",
+                                    diagnostic):
+                                diagnostic = "command_agent_failure_unclassified"
+                            self._json(503, {"error": "command_agent_unavailable",
+                                "diagnostic": diagnostic, "request_id": request_id}, request_id)
                         else:
                             self._error(503, "comms5_operation_unavailable", request_id)
                     return
@@ -972,6 +1126,12 @@ def make_handler():
                     else:
                         identity = {key:self._account_identity[key] for key in
                                     ("account_id", "email", "roles") if key in self._account_identity}
+                        # This is only a UI capability hint. The decision POST
+                        # repeats these checks before recording anything.
+                        identity["can_decide_grace_recovery"] = (
+                            self._account_cookie_authenticated
+                            and "steward" in self._account_identity.get("roles", ())
+                            and bool(self._account_identity.get("authority_principal_id")))
                         self._json(200, {"status": "authenticated", "identity": identity}, request_id)
                     return
                 elif auth_logout:
@@ -1898,17 +2058,77 @@ def make_handler():
                                 self._error(503, "notification_settings_unavailable", request_id)
                             else:
                                 raise
-                elif parsed.path == "/api/v1/resident/conversations" and self.command in {"GET", "HEAD"}:
+                elif conversation_attachment:
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        item=service.get_attachment(self._conversation_authority(),
+                            conversation_attachment.group(1),conversation_attachment.group(2))
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
+                        return
+                    self._send(200,item["image_bytes"],item["media_type"],request_id,
+                        extra_headers=(("Content-Disposition","inline; filename=\""+
+                            item["file_name"].replace('"',"")+"\""),
+                            ("Cache-Control","private, no-store"),
+                            ("X-Content-Type-Options","nosniff")))
+                elif parsed.path == "/api/v1/resident/conversations" and self.command in {"GET", "HEAD"}:  # capability-operation: resident.conversation.read
                     service = self.server._conversation_service
                     if service is None:
                         self._error(503, "resident_conversation_unavailable", request_id)
                         return
                     try:
-                        result = service.list_conversations(self._conversation_authority())
+                        if set(query)-{"q","archived","limit"} or any(len(v)!=1 for v in query.values()):
+                            raise ValueError("invalid conversation query")
+                        archived_value=query.get("archived",["false"])[0]
+                        if archived_value not in {"true","false"}:
+                            raise ValueError("invalid archive filter")
+                        raw_limit=query.get("limit",["50"])[0]
+                        if not raw_limit.isdigit() or len(raw_limit)>3:
+                            raise ValueError("invalid conversation limit")
+                        result = service.list_conversations(self._conversation_authority(),
+                            archived=archived_value=="true",query=query.get("q",[""])[0],
+                            limit=int(raw_limit))
                     except Exception as exc:
                         self._conversation_error(exc, request_id)
                         return
                     self._json(200, result, request_id)
+                elif parsed.path == _CONVERSATION_SEARCH and self.command in {"GET","HEAD"}:  # capability-operation: resident.conversation.read
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        if set(query)-{"q","limit"} or any(len(v)!=1 for v in query.values()):
+                            raise ValueError("invalid conversation search query")
+                        raw_limit=query.get("limit",["50"])[0]
+                        if not raw_limit.isdigit() or len(raw_limit)>3:
+                            raise ValueError("invalid conversation search limit")
+                        result=service.search_conversations(self._conversation_authority(),
+                            query.get("q",[""])[0],limit=int(raw_limit))
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
+                        return
+                    self._json(200,result,request_id)
+                elif conversation_manage:
+                    service=self.server._conversation_service
+                    if service is None:
+                        self._error(503,"resident_conversation_unavailable",request_id)
+                        return
+                    try:
+                        data=self._json_body(4096)
+                        expected={"title"} if conversation_manage.group(2)=="rename" else set()
+                        if not isinstance(data,dict) or set(data)!=expected:
+                            raise ValueError("invalid conversation management request")
+                        result=service.manage_conversation(self._conversation_authority(),
+                            conversation_manage.group(1),action=conversation_manage.group(2),
+                            title=data.get("title"))
+                    except Exception as exc:
+                        self._conversation_error(exc,request_id)
+                        return
+                    self._json(200,result,request_id)
                 elif conversation_send:
                     service = self.server._conversation_service
                     if service is None:
@@ -1918,19 +2138,31 @@ def make_handler():
                         self._error(400, "conversation_request_length_required", request_id)
                         return
                     length = int(self.headers["Content-Length"])
-                    if not 1 <= length <= _MAX_CHAT_BODY:
+                    if not 1 <= length <= _MAX_MULTIMODAL_CHAT_BODY:
                         self._error(413, "conversation_request_too_large", request_id)
                         return
                     try:
                         data = json.loads(self.rfile.read(length))
                         if (not isinstance(data, dict)
-                                or set(data) - {"conversation_id", "client_message_id", "message"}
-                                or not isinstance(data.get("message"), str)):
+                                or set(data) - {"conversation_id", "client_message_id", "message","attachments"}
+                                or not isinstance(data.get("message"), str)
+                                or not isinstance(data.get("attachments",[]),list)):
                             raise ValueError("invalid conversation request")
+                        attachments=[]
+                        for item in data.get("attachments",[]):
+                            if not isinstance(item,dict) or set(item)!={"file_name","media_type","data"} or not isinstance(item["data"],str):
+                                raise ValueError("invalid image attachment")
+                            if len(item["data"])>5_600_000:
+                                raise ValueError("image attachment is too large")
+                            try:
+                                raw=base64.b64decode(item["data"],validate=True)
+                            except (ValueError,binascii.Error):
+                                raise ValueError("image attachment encoding is invalid") from None
+                            attachments.append({"file_name":item["file_name"],"media_type":item["media_type"],"image_bytes":raw})
                         result = service.send(
                             self._conversation_authority(),
                             message=data["message"], conversation_id=data.get("conversation_id"),
-                            client_message_id=data.get("client_message_id"))
+                            client_message_id=data.get("client_message_id"),attachments=attachments)
                         status = (201 if result.get("status") == "completed" else
                                   202 if result.get("status") == "deferred" else 503)
                         self._json(status, result, request_id)
@@ -2366,7 +2598,7 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                  permission_store=None, proposal_registry=None,
                  steward_review_exchange=None, resource_telemetry=None,
                  snapshot_archive=None, authority_registry=None,
-                 resident_proposal_service=None):
+                 resident_proposal_service=None, delegation_grant_requests=None):
         if host not in {"127.0.0.1", "::1"}:
             raise ValueError("dashboard bind host must be a loopback IP literal")
         if not isinstance(port, int) or not 8700 <= port <= 8799:
@@ -2385,7 +2617,8 @@ class DashboardHTTPServer(_BoundedHTTPServer):
                          resource_telemetry=resource_telemetry,
                          snapshot_archive=snapshot_archive,
                          authority_registry=authority_registry,
-                         resident_proposal_service=resident_proposal_service)
+                         resident_proposal_service=resident_proposal_service,
+                         delegation_grant_requests=delegation_grant_requests)
 
 
 def _release_commit() -> str:
@@ -2537,6 +2770,7 @@ def main():
     conversation_store = None
     authority_registry = None
     comms5_authority_registry = None
+    comms5_delegation_adapter = None
     proposal_registry = None
     schema = os.environ.get("RIVERVIEW_DATABASE_SCHEMA", "riverview_dev")
     try:
@@ -2698,6 +2932,20 @@ def main():
         resident_proposal_service = ResidentProposalDraftService(proposal_registry,
             ExactGrantAuthorizer(os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority")),
             lambda: psycopg.connect(dsn, connect_timeout=2))
+    comms5_delegation_adapter = None
+    try:
+        from riverview_core.institutional_authority.comms5_adapter import (
+            Comms5DelegationAuthorityAdapter)
+        credential_dir = Path(os.environ.get("CREDENTIALS_DIRECTORY", ""))
+        if not credential_dir.is_dir():
+            raise RuntimeError("systemd authority credentials are required")
+        comms5_delegation_adapter = Comms5DelegationAuthorityAdapter(
+            dsn, schema=os.environ.get("RIVERVIEW_AUTHORITY_SCHEMA", "riverview_authority"),
+            manager_passfile=credential_dir / "authority-manager-pgpass",
+            steward_token_file=credential_dir / "authority-steward-token")
+    except Exception as exc:
+        print(json.dumps({"event": "comms5_delegation_authority_unavailable",
+                          "error_type": type(exc).__name__}), flush=True)
     server = DashboardHTTPServer(host, port, token_path, projection,
                                  notification_service=notification_service,
                                  objective_pipeline=objective_pipeline,
@@ -2709,7 +2957,8 @@ def main():
                                  resource_telemetry=resource_telemetry,
                                  snapshot_archive=snapshot_archive,
                                  authority_registry=comms5_authority_registry,
-                                 resident_proposal_service=resident_proposal_service)
+                                 resident_proposal_service=resident_proposal_service,
+                                 delegation_grant_requests=comms5_delegation_adapter)
     print(json.dumps({"event": "dashboard_started", "host": host, "port": port,
                       "source_commit": projection.source_commit,
                       "deployment_id": projection.deployment_id}), flush=True)
@@ -2727,6 +2976,8 @@ def main():
             authority_registry.close()
         if comms5_authority_registry is not None:
             comms5_authority_registry.close()
+        if comms5_delegation_adapter is not None:
+            comms5_delegation_adapter.close()
 
 
 if __name__ == "__main__":

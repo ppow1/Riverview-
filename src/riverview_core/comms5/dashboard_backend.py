@@ -1,7 +1,7 @@
 # Riverview Controlled Source
 # File: src/riverview_core/comms5/dashboard_backend.py
 # Component: COMMS5-CAMRUI-ADAPTER
-# Revision: 1.0.9
+# Revision: 1.2.3
 # Purpose: Expose bounded current-runtime operations through Comms5
 # Authority: Existing dashboard credential plus ingress-attested Steward principal
 # Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Route proposal and complete bounded status operations through the fixed authenticated internal dashboard contract.
@@ -10,6 +10,12 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Route stale-base recovery and durable worker policy operations through the existing authenticated operation endpoint.
 # Changed: 2026-10-17 UTC | RV-COMMS5-PR100-CORRELATION-HEADER-20261017 | Keep ordinary status reads compatible with responses lacking optional request-correlation headers.
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Allow only the four review-exchange names through the existing attested Steward dashboard operation route.
+# Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Route fixed read-only command tools and preserve direct Engineering dispatch in the authenticated Comms5 surface.
+# Changed: 2026-10-26 UTC | C1-COMMS5-DELEGATION-ROUTE | Route the four generalized delegation operations through the existing authenticated Dashboard operation contract.
+# Changed: 2026-10-26 UTC | COMMS5-OPERATIONAL-COMMAND-EXECUTION | Register host-scoped task command submit/status operations.
+# Changed: 2026-10-27 UTC | C1-COMMAND-AGENT-POST-DIAGNOSTIC | Preserve bounded agent HTTP status and sanitized error codes through the internal Comms5 operation result.
+# Changed: 2026-10-27 UTC | C1-ISSUE-356-COMMS5-RECOVERY | Allow bounded command submission to wait beyond its 12-second agent deadline while preserving the ordinary dashboard timeout.
+# Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Expose bounded host-task cancellation through the authenticated Dashboard operation bridge.
 # History: New file; no predecessor existed.
 """Narrow authenticated bridge to Riverview's existing dashboard API."""
 
@@ -49,6 +55,12 @@ _INTERNAL_TOOLS = _PROPOSAL_TOOLS | {
     "comms5_authorize_grace_supervision",
     "comms5_grace_supervision_status",
     "comms5_revoke_grace_supervision",
+    "comms5_submit_direct_engineering_task",
+    "comms5_command_submit", "comms5_command_status",
+    "comms5_request_delegation_grant", "comms5_get_delegation_grant_status",
+    "comms5_revoke_delegation_grant", "comms5_request_delegation_grant_change",
+    "comms5_command_task_submit", "comms5_command_task_status",
+    "comms5_command_task_cancel",
     "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
     "reasoning_exchange_submit_response", "reasoning_exchange_status",
 }
@@ -103,6 +115,16 @@ class DashboardReadBackend:
         "comms5_authorize_grace_supervision": "IMPLEMENTED",
         "comms5_grace_supervision_status": "IMPLEMENTED",
         "comms5_revoke_grace_supervision": "IMPLEMENTED",
+        "comms5_submit_direct_engineering_task": "IMPLEMENTED",
+        "comms5_command_submit": "IMPLEMENTED",
+        "comms5_command_status": "IMPLEMENTED",
+        "comms5_request_delegation_grant": "IMPLEMENTED",
+        "comms5_get_delegation_grant_status": "IMPLEMENTED",
+        "comms5_revoke_delegation_grant": "IMPLEMENTED",
+        "comms5_request_delegation_grant_change": "IMPLEMENTED",
+        "comms5_command_task_submit": "IMPLEMENTED",
+        "comms5_command_task_status": "IMPLEMENTED",
+        "comms5_command_task_cancel": "IMPLEMENTED",
         "reasoning_exchange_list_requests": "IMPLEMENTED",
         "reasoning_exchange_claim_request": "IMPLEMENTED",
         "reasoning_exchange_submit_response": "IMPLEMENTED",
@@ -157,8 +179,8 @@ class DashboardReadBackend:
         self.timeout = float(timeout)
         self._opener = build_opener(_NoRedirect())
 
-    def _open(self, request):
-        return self._opener.open(request, timeout=self.timeout)
+    def _open(self, request, *, timeout=None):
+        return self._opener.open(request, timeout=self.timeout if timeout is None else timeout)
 
     def _post_operation(self, tool, arguments):
         request = Request(self._base_url + "/api/v1/internal/comms5/operation",
@@ -170,7 +192,12 @@ class DashboardReadBackend:
                      "X-Riverview-Comms5": "1",
                      "X-Riverview-Comms5-Principal": "steward"}, method="POST")
         try:
-            with self._open(request) as response:
+            # PowerShell startup and bounded host execution can exceed the ordinary
+            # three-second dashboard read timeout; leave margin over the 12-second
+            # Gateway execution deadline so Comms5 receives the durable result.
+            timeout = 25.0 if tool == "comms5_command_task_submit" else None
+            with (self._open(request, timeout=timeout) if timeout is not None
+                  else self._open(request)) as response:
                 if response.status != 200 or response.headers.get_content_type() != "application/json":
                     raise DashboardBackendUnavailable("dashboard_operation_http_status")
                 payload = response.read(1_048_577)
@@ -190,6 +217,12 @@ class DashboardReadBackend:
                 raise DashboardOperationConflict("proposal_lifecycle_conflict") from None
             if code == "invalid_comms5_operation":
                 raise ValueError("invalid_comms5_operation") from None
+            if code == "command_agent_unavailable":
+                diagnostic = error.get("diagnostic") if isinstance(error, dict) else None
+                if (isinstance(diagnostic, str) and re.fullmatch(
+                        r"command_agent_http_[1-5][0-9]{2}_[a-z][a-z0-9_]{0,63}", diagnostic)):
+                    raise DashboardBackendUnavailable(diagnostic) from None
+                raise DashboardBackendUnavailable("command_agent_failure_unclassified") from None
             raise DashboardBackendUnavailable("dashboard_operation_http_status") from None
         except (URLError, TimeoutError, OSError):
             raise DashboardBackendUnavailable("dashboard_operation_unavailable") from None

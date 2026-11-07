@@ -377,5 +377,20 @@ class PasswordSetupTests(unittest.TestCase):
                 write_password_file(path, password)
 
 
+class DeployedDeepLinkTests(unittest.TestCase):
+    def test_work_and_notification_links_open_exact_existing_read_views(self):
+        html = (ROOT / "website/v2/deployed/index.html").read_text()
+        workspace = (ROOT / "website/v2/deployed/assets/workspace.js").read_text()
+        inbox = (ROOT / "website/v2/deployed/assets/operational-inbox.js").read_text()
+        self.assertIn('workspace.js?rev=ntfy-deep-links-20261026', html)
+        self.assertIn('operational-inbox.js?rev=ntfy-deep-links-20261026', html)
+        self.assertIn('new URLSearchParams(location.search)', workspace)
+        self.assertIn('search.value = assignmentId', workspace)
+        self.assertIn('new URLSearchParams(location.search)', inbox)
+        self.assertIn('details.open = true', inbox)
+        self.assertIn('inbox-deep-link-target', inbox)
+        self.assertNotIn('data-notificationReceiptAction = "acknowledge"', inbox)
+
+
 if __name__ == "__main__":
     unittest.main()

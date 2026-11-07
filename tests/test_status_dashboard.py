@@ -2,7 +2,10 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_status_dashboard.py
 # Component: STEWARD-DASHBOARD
-# Revision: 1.0.76
+# Revision: 1.0.79
+# Changed: 2026-10-27 UTC | RV-ISSUE-359-PARALLEL-DASHBOARD | Verify the existing launcher retains its service-specific passfile defaults after enabling the isolated parallel launcher.
+# Changed: 2026-10-26 UTC | RV-ISSUE268-OBJECTIVE-PROJECTION-REPAIR | Cover outputless completed attempt projection and distinguish canonical objective status from a blocked assignment.
+# Changed: 2026-10-25 UTC | RV-V2-OBJECTIVE-OPERATIONAL-STATUS-OUTPUTS | Cover persisted operational status and safe multi-output assignment projection.
 # Changed: 2026-10-25 UTC | RV-FULL-CHECKOUT-REPAIR | Build Grace objective, conversation, and step relations from source migrations in Dashboard PostgreSQL tests.
 # Changed: 2026-10-24 UTC | RV-DELIVER-GRACE-BLOCKED-ESCALATION-20261024 | Verify dashboard presents correlated blocked-objective recovery guidance without authorizing retry.
 # Changed: 2026-10-23 UTC | RV-WORKER-HEALTH-SNAPSHOT-20261023 | Verify idle worker health requires matching active engineering registration.
@@ -426,7 +429,7 @@ class DashboardDeploymentContractTests(unittest.TestCase):
         self.assertIn("Environment=RIVERVIEW_SOURCE_COMMIT=8556598b19a7da4aa191a600c767d79d24432afe", unit)
         self.assertIn("Environment=RIVERVIEW_DEPLOYMENT_ID=m3.1-camrui-docs-d2c145c", unit)
         self.assertIn("scripts/run_status_dashboard.py", unit)
-        self.assertIn("copy_systemd_credential(source, PASSFILE, identity.pw_uid)", launcher)
+        self.assertIn("copy_systemd_credential(source, passfile, identity.pw_uid)", launcher)
         self.assertNotIn("Environment=PGPASSFILE=%d/pgpass", unit)
 
     def test_launcher_validates_service_credential_and_runtime_identity(self):
@@ -667,6 +670,23 @@ class DashboardHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("GET", "/v2/assets/snapshot.js")[0], 200)
         self.assertEqual(self.request("GET", "/v2/assets/../../src/riverview_core/status_dashboard/server.py")[0], 404)
         self.assertEqual(self.request("GET", "/v2/assets/server.py")[0], 404)
+
+    def test_v2_gpu_controls_assets_are_served_from_the_immutable_release(self):
+        from riverview_core.status_dashboard import server as dashboard_server
+        with tempfile.TemporaryDirectory() as root:
+            assets = Path(root) / "website" / "v2" / "assets"
+            assets.mkdir(parents=True)
+            (assets / "gpu-workload-controls.js").write_text("window.gpuControlsLoaded = true;")
+            (assets / "gpu-workload-controls.css").write_text(".gpu-workload-controls{display:grid}")
+            with mock.patch.object(dashboard_server, "_release_root", return_value=Path(root)):
+                self.assertEqual(self.request("GET", "/v2/assets/gpu-workload-controls.js?rev=check")[0], 200)
+                self.assertEqual(self.request("GET", "/v2/assets/gpu-workload-controls.css?rev=check")[0], 200)
+                self.assertEqual(self.request("GET", "/v2/assets/gpu-workload-controls.js/extra")[0], 404)
+
+    def test_gpu_workload_state_rejects_dashboard_bearer_without_steward_session(self):
+        status, _, body = self.request("GET", "/api/v1/hardware/workloads", token=self.token)
+        self.assertEqual(status, 403)
+        self.assertEqual(json.loads(body)["error"], "steward_gpu_workload_authority_required")
 
     def test_v2_snapshot_mode_is_injected_only_by_dashboard_route(self):
         source = (Path(__file__).resolve().parents[1] / "website/v2/index.html").read_bytes()
@@ -1697,6 +1717,8 @@ class DashboardPostgresTests(unittest.TestCase):
         self.assertNotIn("acceptance_criteria", item)
         self.assertNotIn("source_sha256", item)
         self.assertNotIn("performance_evaluation", item)
+        self.assertIn("operational_status", item)
+        self.assertNotIn("related_outputs", item)
         steward_view = self.projection.objectives(limit=10, objective_id=own_objective)["items"][0]
         self.assertEqual(steward_view["performance_evaluation"]["grade"], 4)
         self.assertEqual(steward_view["performance_evaluation"]["grade_explanation"],
@@ -1725,6 +1747,101 @@ class DashboardPostgresTests(unittest.TestCase):
             cur.execute("UPDATE cme_monitor_health SET last_heartbeat_at=clock_timestamp()+interval '2 minutes' "
                         "WHERE service_id='cme.monitor.v1'")
         self.assertEqual(self.projection.status()["cme"]["status"], "unverified")
+
+    def test_objective_operational_status_tracks_persisted_events_without_changing_lifecycle(self):
+        objective_id = "objective:" + uuid4().hex
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO grace_objectives
+                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,revision)
+                VALUES (%s,'status projection test','work-order:engineering','steward:test',
+                    '[]'::jsonb,'GROUNDED',4)""", (objective_id,))
+            cur.execute("""INSERT INTO grace_objective_events
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'objective.grounded',%s,'service:test','{}'::jsonb)""",
+                (objective_id, "grounded:" + objective_id))
+        item = self.projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["status"], "GROUNDED")
+        self.assertEqual(item["operational_status"]["label"], "Awaiting authorization")
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO grace_objective_events
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'execution.reasoning_attempted',%s,'service:test','{}'::jsonb)""",
+                (objective_id, "attempt:" + objective_id))
+        item = self.projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["status"], "GROUNDED")
+        self.assertEqual(item["operational_status"]["label"], "Reasoning in progress")
+        with self.admin.cursor() as cur:
+            cur.execute("UPDATE grace_objective_events SET occurred_at=clock_timestamp()-interval '2 minutes' "
+                        "WHERE objective_id=%s AND event_type='execution.reasoning_attempted'", (objective_id,))
+        item = self.projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["operational_status"]["label"], "Unknown")
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO grace_objective_events
+                (objective_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,'execution.reasoning_failed',%s,'service:test',%s::jsonb)""",
+                (objective_id, "criteria-failed:" + objective_id, json.dumps({
+                    "detail_code": "PROPOSAL_CRITERIA_BINDING_REJECTED", "status": "BLOCKED",
+                    "objective_revision": "4"})))
+        item = self.projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["operational_status"]["label"],
+                         "Blocked — proposal criteria binding")
+        assignment_id = "status-running-" + uuid4().hex
+        self.ledger.create(assignment_id, "engineering", "create:" + assignment_id,
+            authority_ref="grant:test-secret", objective_ref=objective_id, actor_id="worker:test")
+        self.ledger.transition(assignment_id, "ready", "dispatch", "ready:" + assignment_id,
+                               actor_id="processor")
+        self.ledger.transition(assignment_id, "running", "execute", "running:" + assignment_id,
+                               actor_id="worker")
+        with self.admin.cursor() as cur:
+            cur.execute("UPDATE grace_objectives SET assignment_id=%s WHERE objective_id=%s",
+                        (assignment_id, objective_id))
+        item = self.projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["operational_status"]["label"], "Engineering executing")
+        self.assertEqual(item["operational_status"]["source"], "assignments.state")
+        self.assertIsNotNone(item["operational_status"]["occurred_at"])
+        with self.admin.cursor() as cur:
+            cur.execute("UPDATE grace_objectives SET status='COMPLETED' WHERE objective_id=%s",
+                        (objective_id,))
+        item = self.projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["operational_status"]["label"], "Completed")
+        self.assertIsNotNone(item["operational_status"]["occurred_at"])
+        self.assertEqual(item["status"], "COMPLETED")
+
+    def test_objective_projection_handles_attempt_without_outputs_and_keeps_assignment_state_separate(self):
+        """An assignment result may exist without a registered deliverable."""
+        assignment_id = self.create("result-without-output")
+        objective_id = "objective:" + uuid4().hex
+        attempt_id = uuid4()
+        result = {"summary": "Attempt recorded without a registered artifact."}
+        result_digest = hashlib.sha256(json.dumps(result, sort_keys=True,
+            separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+        now = datetime.now(timezone.utc)
+        with self.admin.cursor() as cur:
+            cur.execute("""INSERT INTO grace_objectives
+                (objective_id,request,scope_ref,submitter_id,acceptance_criteria,status,revision,assignment_id)
+                VALUES (%s,'projection regression fixture','work-order:engineering','steward:test',
+                    '[]'::jsonb,'WORK_ORDER_CREATED',1,%s)""", (objective_id, assignment_id))
+            cur.execute("UPDATE assignments SET state='blocked' WHERE id=%s", (assignment_id,))
+            cur.execute("INSERT INTO worker_registry(worker_id,credential_sha256,capabilities,scope_ref) "
+                        "VALUES ('outputless-executor',%s,'[]','scope')", (b"o" * 32,))
+            cur.execute("""INSERT INTO worker_attempts(attempt_id,assignment_id,worker_id,lease_generation,
+                         capability,idempotency_key,input_sha256,status,started_at,finished_at)
+                         VALUES (%s,%s,'outputless-executor',1,'engineering','outputless-attempt',%s,
+                            'succeeded',%s,%s)""",
+                        (attempt_id, assignment_id, "a" * 64,
+                         now - timedelta(seconds=2), now))
+            cur.execute("INSERT INTO worker_results(attempt_id,result,result_sha256) VALUES (%s,%s,%s)",
+                        (attempt_id, json.dumps(result), result_digest))
+
+        item = self.projection.objectives(objective_id=objective_id)["items"][0]
+        self.assertEqual(item["objective_id"], objective_id)
+        self.assertEqual(item["status"], "WORK_ORDER_CREATED")
+        self.assertEqual(item["lifecycle_status"], "work_order_created")
+        self.assertEqual(item["lifecycle_stage"], "Engineering assignment blocked")
+        self.assertEqual(item["assignment_state"], "blocked")
+        self.assertEqual(item["artifact"]["sha256"], result_digest)
+        self.assertIsNone(item["artifact"]["reference"])
+        self.assertEqual(item["related_outputs"], [])
 
     def test_workers_have_individual_bounded_health_and_summary_counts(self):
         from psycopg import sql
@@ -1983,9 +2100,27 @@ class DashboardPostgresTests(unittest.TestCase):
                        "verifier_revision,decision,criteria,evidence_references,summary,idempotency_key) "
                        "VALUES (%s,%s,'executor','verifier','rev-1','ACCEPTED','{}','[\"secret://private\"]',"
                        "'accepted','verify-key')", (attempt_id,assignment_id))
+            result = {"artifacts": [
+                {"name": "summary.md", "media_type": "text/markdown", "bytes": 12,
+                 "sha256": "a" * 64, "summary": "Verified project summary"},
+                {"name": "release.zip", "media_type": "application/zip", "bytes": 64,
+                 "sha256": "b" * 64,
+                 "published_url": "https://github.com/example/project/releases/tag/v1"}
+            ]}
+            result_digest = hashlib.sha256(json.dumps(result, sort_keys=True,
+                separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+            db.execute("INSERT INTO worker_results(attempt_id,result,result_sha256) VALUES (%s,%s,%s)",
+                       (attempt_id, json.dumps(result), result_digest))
         detail = self.projection.assignment_detail(assignment_id)
         self.assertEqual(detail["attempts"][0]["status"], "succeeded")
         self.assertEqual(detail["verifications"][0]["decision"], "ACCEPTED")
         self.assertEqual(detail["verifications"][0]["evidence_count"], 1)
         self.assertNotIn("secret://private", json.dumps(detail))
+        self.assertEqual(len(detail["outputs"]), 2)
+        self.assertEqual(detail["outputs"][0]["verification_status"], "ACCEPTED")
+        self.assertEqual(detail["outputs"][0]["availability"], "no_authorized_download_route")
+        self.assertEqual(detail["outputs"][1]["location_status"], "recorded_not_verified")
+        self.assertEqual(detail["outputs"][1]["location_url"],
+                         "https://github.com/example/project/releases/tag/v1")
+        self.assertNotIn("artifact_path", json.dumps(detail))
 

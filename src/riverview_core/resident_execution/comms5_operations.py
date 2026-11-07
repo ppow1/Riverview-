@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/comms5_operations.py
 # Component: COMMS5-CURRENT-RUNTIME-OPERATIONS
-# Revision: 1.0.7
+# Revision: 1.1.1
 # Purpose: Share authenticated Comms5 proposal operations with Riverview callers
 # Execution Model: Request-driven; durable state remains in existing proposal/objective stores
 # Observability: Proposal registry events and linked objective lifecycle events
@@ -15,6 +15,9 @@
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Require fresh trusted repository grounding for stale-base rework and preserve dependency/completion semantics.
 # Changed: 2026-10-18 UTC | RV-COMMS5-COMPLETION-20261017 | Make repeated policy transitions auditable after intervening changes without losing retry safety.
 # Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Route four advisory exchange tools through an explicit authenticated Steward bridge.
+# Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Dispatch fixed command operations after existing authenticated Steward/delegation checks.
+# Changed: 2026-10-27 UTC | COMMS5-ASYNC-COMMAND-TASKS-357 | Dispatch host-task submit/status through the existing exact-grant Gateway and allow only host-scoped delegated operations.
+# Changed: 2026-10-27 UTC | C2-357-COMBINED-CANCEL | Expose authenticated, host-scoped task cancellation through Comms5.
 # Contracts: docs/components/INSTITUTIONAL_PROPOSALS.md; Comms5 contract 5.0
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -25,6 +28,19 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime, timezone
+
+from ..institutional_authority.grants import InstitutionalPrincipal
+
+
+_UNSET = object()
+from ..comms5.delegation_policy import is_delegable_tool
+
+HOST_SCOPED_COMMAND_TOOLS = frozenset({
+    "comms5_command_submit", "comms5_command_status",
+    "comms5_command_task_submit", "comms5_command_task_status",
+    "comms5_command_task_cancel",
+})
 
 from .proposals import ProposalConflict
 
@@ -59,22 +75,38 @@ class Comms5Operations:
         "comms5_authorize_grace_supervision",
         "comms5_grace_supervision_status",
         "comms5_revoke_grace_supervision",
+        "comms5_submit_direct_engineering_task",
+        "comms5_request_delegation_grant", "comms5_get_delegation_grant_status",
+        "comms5_revoke_delegation_grant", "comms5_request_delegation_grant_change",
+        "comms5_command_submit", "comms5_command_status",
+        "comms5_command_task_submit", "comms5_command_task_status",
+        "comms5_command_task_cancel",
         "reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
         "reasoning_exchange_submit_response", "reasoning_exchange_status",
     })
 
+    DELEGATION_OPERATION_IDS = {
+        "comms5_request_delegation_grant": "comms5.delegation_grant.request",
+        "comms5_get_delegation_grant_status": "comms5.delegation_grant.status.read",
+        "comms5_revoke_delegation_grant": "comms5.delegation_grant.surrender",
+        "comms5_request_delegation_grant_change": "comms5.delegation_grant.change.request",
+    }
+
     def __init__(self, proposal_registry, proposal_lifecycle, objective_pipeline=None,
-                 steward_review_bridge=None, authority_registry=None):
+                 steward_review_bridge=None, authority_registry=None,
+                 delegation_grant_requests=None):
         self.registry = proposal_registry
         self.lifecycle = proposal_lifecycle
         self.pipeline = objective_pipeline
         self.steward_review_bridge = steward_review_bridge
         self.authority_registry = authority_registry
+        self.delegation_grant_requests = delegation_grant_requests
 
     def create_draft_record(self, content, *, actor_id, origin_kind,
-                            source_references, provenance, idempotency_key):
+                            source_references, provenance, idempotency_key,
+                            delegated_authorized=False):
         """Single persistence path shared by Grace proposal drafting and Comms5."""
-        actor = self._actor(actor_id)
+        actor = self._attested_grantee(actor_id) if delegated_authorized else self._actor(actor_id)
         return self.registry.create_draft(content, created_by=actor,
             origin_kind=origin_kind, source_references=source_references,
             provenance=provenance, idempotency_key=idempotency_key)
@@ -84,6 +116,14 @@ class Comms5Operations:
         if (not isinstance(principal_id, str) or not principal_id.startswith("steward:")
                 or len(principal_id) > 256):
             raise PermissionError("authenticated Steward principal required")
+        return principal_id
+
+    @staticmethod
+    def _attested_grantee(principal_id):
+        if (not isinstance(principal_id, str) or len(principal_id) > 256 or
+                not re.fullmatch(r"(?:steward|resident|human|service|worker):[A-Za-z0-9._:@-]{1,240}",
+                                 principal_id)):
+            raise PermissionError("authenticated grantee principal required")
         return principal_id
 
     @staticmethod
@@ -100,6 +140,60 @@ class Comms5Operations:
         return value
 
     @staticmethod
+    def _delegation_action(value):
+        if (not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", value)
+                or "*" in value or value in {"authority.grant", "identity.manage", "office.manage"}):
+            raise ValueError("delegated_action_must_be_exact_and_non_management")
+        return value
+
+    @staticmethod
+    def _delegation_scope(value):
+        if not isinstance(value, str) or not re.fullmatch(
+                r"(?:project:[A-Za-z0-9._-]{1,128}|issue:[A-Za-z0-9._-]{1,128}/[A-Za-z0-9._-]{1,128}|host:[a-z][a-z0-9-]{1,62})", value):
+            raise ValueError("delegation_scope_must_be_project_issue_or_registered_host")
+        return value
+
+    @staticmethod
+    def _delegation_validity(arguments, *, allow_preserve=False):
+        max_uses = (_UNSET if allow_preserve and "max_uses" not in arguments
+                    else arguments.get("max_uses"))
+        if (max_uses is not _UNSET and max_uses is not None and
+                (type(max_uses) is not int or not 1 <= max_uses <= 1_000_000)):
+            raise ValueError("delegation_max_uses_invalid")
+        valid_until = (_UNSET if allow_preserve and "valid_until" not in arguments
+                       else arguments.get("valid_until"))
+        if valid_until is not None and valid_until is not _UNSET:
+            if not isinstance(valid_until, str) or len(valid_until) > 64:
+                raise ValueError("delegation_expiry_invalid")
+            try:
+                valid_until = datetime.fromisoformat(valid_until.replace("Z", "+00:00"))
+            except ValueError:
+                raise ValueError("delegation_expiry_invalid") from None
+            if valid_until.tzinfo is None or valid_until <= datetime.now(timezone.utc):
+                raise ValueError("delegation_expiry_must_be_future_and_timezone_aware")
+        duration_spec = arguments.get("duration_spec")
+        if duration_spec is not None:
+            from ..institutional_authority.registry import normalize_grant_duration
+            duration_spec = normalize_grant_duration(duration_spec)
+            if valid_until is not None and valid_until is not _UNSET:
+                raise ValueError("delegation_duration_and_absolute_expiry_are_mutually_exclusive")
+        if (max_uses is None and valid_until is None and duration_spec is None
+                and not allow_preserve):
+            raise ValueError("delegation_grant_requires_use_limit_or_expiry")
+        return max_uses, valid_until, duration_spec
+
+    def _delegation_request_service(self):
+        if self.delegation_grant_requests is None:
+            raise RuntimeError("delegation_grant_request_service_unavailable")
+        return self.delegation_grant_requests
+
+    @staticmethod
+    def _delegation_reason(value):
+        if not isinstance(value, str) or not value.strip() or len(value) > 256:
+            raise ValueError("delegation_request_reference_invalid")
+        return value.strip()
+
+    @staticmethod
     def _receipt(result):
         proposal = result["proposal"]
         revision = result["revision"]
@@ -110,10 +204,36 @@ class Comms5Operations:
                 "lifecycle_status": proposal["lifecycle_status"],
                 "content_sha256": revision["content_sha256"]}
 
-    def execute(self, tool, arguments, *, principal_id):
-        actor = self._actor(principal_id)
+    def execute(self, tool, arguments, *, principal_id, delegated_authorized=False):
+        if type(delegated_authorized) is not bool:
+            raise ValueError("delegated_authorization_context_invalid")
+        if delegated_authorized and not (is_delegable_tool(tool) or
+                tool == "comms5_revoke_delegation_grant" or
+                tool in HOST_SCOPED_COMMAND_TOOLS):
+            raise PermissionError("Comms5 operation is excluded from delegated authority")
+        actor = self._attested_grantee(principal_id) if delegated_authorized else self._actor(principal_id)
         if tool not in self.SUPPORTED:
             raise ValueError("operation_not_supported")
+        if tool in HOST_SCOPED_COMMAND_TOOLS:
+            if self.pipeline is None or self.authority_registry is None:
+                raise RuntimeError("command_gateway_authority_unavailable")
+            from ..comms5.command_gateway import WindowsCommandGateway
+            gateway = WindowsCommandGateway.from_environment(
+                authority_registry=self.authority_registry,
+                authorizer=self.pipeline.authorizer,
+                ledger_db=self.pipeline.ledger.db,
+                command_grant_authority=self.delegation_grant_requests)
+            if tool == "comms5_command_submit":
+                return gateway.submit(actor, arguments)
+            if tool == "comms5_command_status":
+                return gateway.status(actor, arguments)
+            if tool == "comms5_command_task_submit":
+                return gateway.submit_task(actor, arguments)
+            if tool == "comms5_command_task_status":
+                return gateway.task_status(actor, arguments)
+            if tool == "comms5_command_task_cancel":
+                return gateway.cancel_task(actor, arguments)
+            raise ValueError("command_gateway_operation_not_supported")
         if tool == "comms5_authorize_grace_experiment":
             if arguments.get("explicit_steward_confirmation") is not True:
                 raise PermissionError("explicit Steward confirmation is required")
@@ -180,6 +300,73 @@ class Comms5Operations:
                 actor_id=actor, authorization_id=arguments["authorization_id"],
                 explicit_steward_confirmation=arguments["explicit_steward_confirmation"],
                 idempotency_key=self._idempotency(arguments["idempotency_key"]))
+        if tool == "comms5_request_delegation_grant":
+            required = {"principal_id", "action", "scope_ref", "policy_ref", "request_ref", "idempotency_key"}
+            optional = {"max_uses", "valid_until", "duration_spec"}
+            if not required <= set(arguments) or set(arguments) - required - optional:
+                raise ValueError("delegation_grant_request_fields_invalid")
+            if (not isinstance(arguments["principal_id"], str) or
+                    not 1 <= len(arguments["principal_id"]) <= 256 or
+                    not isinstance(arguments["policy_ref"], str) or
+                    not re.fullmatch(r"policy:[A-Za-z0-9._:-]{1,128}", arguments["policy_ref"])):
+                raise ValueError("delegation_grant_request_identity_invalid")
+            max_uses, valid_until, duration_spec = self._delegation_validity(arguments)
+            return self._delegation_request_service().request_grant(
+                requester_id=actor, principal_id=arguments["principal_id"],
+                action=self._delegation_action(arguments["action"]),
+                scope_ref=self._delegation_scope(arguments["scope_ref"]),
+                policy_ref=arguments["policy_ref"], max_uses=max_uses,
+                valid_until=valid_until, duration_spec=duration_spec,
+                request_ref=self._delegation_reason(arguments["request_ref"]),
+                idempotency_key=self._idempotency(arguments["idempotency_key"]))
+        if tool == "comms5_get_delegation_grant_status":
+            if set(arguments) not in ({"request_id"}, {"grant_id"}):
+                raise ValueError("delegation_status_requires_one_exact_id")
+            identifier_name = "request_id" if "request_id" in arguments else "grant_id"
+            identifier = arguments[identifier_name]
+            if not isinstance(identifier, str) or not 1 <= len(identifier) <= 128:
+                raise ValueError("delegation_status_identity_invalid")
+            return self._delegation_request_service().get_status(
+                requester_id=actor, **{identifier_name: identifier})
+        if tool == "comms5_revoke_delegation_grant":
+            required = {"grant_id", "idempotency_key"}
+            optional = {"reason_code"}
+            if not required <= set(arguments) or set(arguments) - required - optional:
+                raise ValueError("delegation_surrender_fields_invalid")
+            grant_id = arguments["grant_id"]
+            if not isinstance(grant_id, str) or not 1 <= len(grant_id) <= 128:
+                raise ValueError("delegation_grant_identity_invalid")
+            reason_code = arguments.get("reason_code", "grantee_surrendered")
+            if not isinstance(reason_code, str) or not re.fullmatch(r"[a-z0-9_]{1,64}", reason_code):
+                raise ValueError("delegation_surrender_reason_invalid")
+            return self._delegation_request_service().surrender_grant(
+                grantee_id=actor, grant_id=grant_id, reason_code=reason_code,
+                idempotency_key=self._idempotency(arguments["idempotency_key"]))
+        if tool == "comms5_request_delegation_grant_change":
+            required = {"grant_id", "action", "scope_ref", "policy_ref", "request_ref", "idempotency_key"}
+            optional = {"max_uses", "valid_until", "duration_spec", "change_kind"}
+            if not required <= set(arguments) or set(arguments) - required - optional:
+                raise ValueError("delegation_grant_change_fields_invalid")
+            if (not isinstance(arguments["grant_id"], str) or
+                    not 1 <= len(arguments["grant_id"]) <= 128 or
+                    not isinstance(arguments["policy_ref"], str) or
+                    not re.fullmatch(r"policy:[A-Za-z0-9._:-]{1,128}", arguments["policy_ref"])):
+                raise ValueError("delegation_grant_change_identity_invalid")
+            max_uses, valid_until, duration_spec = self._delegation_validity(
+                arguments, allow_preserve=True)
+            change = {}
+            if max_uses is not _UNSET:
+                change["max_uses"] = max_uses
+            if valid_until is not _UNSET:
+                change["valid_until"] = valid_until
+            return self._delegation_request_service().request_change(
+                requester_id=actor, grant_id=arguments["grant_id"],
+                action=self._delegation_action(arguments["action"]),
+                scope_ref=self._delegation_scope(arguments["scope_ref"]),
+                policy_ref=arguments["policy_ref"], duration_spec=duration_spec,
+                change_kind=arguments.get("change_kind"),
+                request_ref=self._delegation_reason(arguments["request_ref"]),
+                idempotency_key=self._idempotency(arguments["idempotency_key"]), **change)
         if tool.startswith("reasoning_exchange_"):
             if self.steward_review_bridge is None:
                 raise RuntimeError("external_reasoning_exchange_unavailable")
@@ -258,7 +445,8 @@ class Comms5Operations:
                 "constraints": ["Submission does not approve or dispatch work."],
                 "acceptance_criteria": [], "tags": ["comms5", "steward-seed"]},
                 actor_id=actor, origin_kind="steward_authored", source_references=refs,
-                provenance=provenance, idempotency_key=arguments["idempotency_key"])
+                provenance=provenance, idempotency_key=arguments["idempotency_key"],
+                delegated_authorized=delegated_authorized)
             return {**self._receipt(record), "status": "draft_saved", "executed": True}
 
         if tool == "comms5_objective_status":
@@ -339,6 +527,95 @@ class Comms5Operations:
                 "event_lineage": [{"event_type": row["event_type"],
                     "actor_id": row["actor_id"], "occurred_at": row["occurred_at"].isoformat()}
                     for row in events]}
+
+        if tool == "comms5_submit_direct_engineering_task":
+            required = {"task", "repository_reference", "repository_revision",
+                "authorized_paths", "test_targets", "acceptance_criteria",
+                "evidence_requirements", "idempotency_key"}
+            if set(arguments) != required or self.pipeline is None:
+                raise ValueError("direct_engineering_task_fields_invalid")
+            task, repository, revision = (arguments["task"], arguments["repository_reference"],
+                                          arguments["repository_revision"])
+            paths, tests = arguments["authorized_paths"], arguments["test_targets"]
+            criteria, evidence = arguments["acceptance_criteria"], arguments["evidence_requirements"]
+            idem = self._idempotency(arguments["idempotency_key"])
+            if (not isinstance(task, str) or not task.strip() or len(task.encode("utf-8")) > 4000
+                    or not isinstance(repository, str) or not re.fullmatch(r"repo://[A-Za-z0-9._/-]{1,240}", repository)
+                    or not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", revision)
+                    or not isinstance(paths, list) or not 1 <= len(paths) <= 32
+                    or any(not isinstance(path, str) or not re.fullmatch(r"(?:src|tests|docs)/[A-Za-z0-9._/-]{1,240}", path)
+                           or ".." in path.split("/") or ".git" in path.split("/") for path in paths)
+                    or len(set(paths)) != len(paths)
+                    or not isinstance(tests, list) or not 1 <= len(tests) <= 32
+                    or any(not isinstance(path, str) or not path.startswith("tests/") for path in tests)
+                    or not set(tests) <= set(paths)
+                    or not isinstance(criteria, list) or not 1 <= len(criteria) <= 20
+                    or any(not isinstance(item, str) or not item.strip() or len(item) > 1000 for item in criteria)
+                    or len(set(criteria)) != len(criteria)
+                    or not isinstance(evidence, list) or not 1 <= len(evidence) <= 20
+                    or any(not isinstance(item, str) or not item.strip() or len(item) > 1000 for item in evidence)):
+                raise ValueError("direct_engineering_task_out_of_bounds")
+            if self.pipeline.authorizer is None:
+                raise RuntimeError("direct_engineering_authorizer_unavailable")
+            from uuid import NAMESPACE_URL, uuid5
+            objective_id = "objective:" + str(uuid5(NAMESPACE_URL,
+                "riverview-comms5-direct-engineering:" + actor + ":" + idem))
+            request = (task.strip() + "\nTarget repository: " + repository + " at " + revision
+                + "\nAuthorized paths: " + ", ".join(paths) + "\nTest targets: " + ", ".join(tests)
+                + "\nRequired evidence: " + "; ".join(item.strip() for item in evidence))
+            existing = self.pipeline.get_objective(objective_id)
+            created = existing is None
+            if created:
+                self.pipeline.submit_objective(objective_id, request, criteria,
+                    scope_ref="work-order:engineering", principal=InstitutionalPrincipal(actor),
+                    criteria_source="steward_supplied")
+                existing = self.pipeline.get_objective(objective_id)
+            elif (existing.get("submitter_id") != actor or existing.get("scope_ref") != "work-order:engineering"
+                    or existing.get("request") != request or existing.get("acceptance_criteria") != criteria):
+                raise ProposalConflict("direct-dispatch idempotency key is bound to different input")
+            if existing.get("status") in {"RECEIVED", "WAITING_FOR_EVIDENCE"}:
+                try:
+                    existing = self.pipeline.ground_objective(objective_id)
+                except Exception as exc:
+                    from .pipeline import ObjectiveStateError
+                    if not isinstance(exc, ObjectiveStateError):
+                        raise
+                    existing = self.pipeline.get_objective(objective_id)
+                    if not existing or existing.get("status") != "WAITING_FOR_EVIDENCE":
+                        raise
+                    return {"status":"waiting_for_evidence", "executed":True,
+                        "objective_id":objective_id,
+                        "evidence_status":(existing.get("evidence") or {}).get("status"),
+                        "idempotent":not created}
+            if existing.get("status") == "GROUNDED":
+                verified = existing.get("evidence") or {}
+                if (verified.get("status") != "VERIFIED" or verified.get("retrieval_complete") is not True
+                        or not verified.get("source_references")):
+                    raise ProposalConflict("verified grounding evidence is incomplete")
+                from ..resident_reasoning import PlanProposal, PlanStep
+                proposal = PlanProposal(task.strip()[:4000], (PlanStep(
+                    "direct-engineering", (task.strip() + "\nRequired evidence: " + "; ".join(evidence))[:4000],
+                    tuple(criteria), execution_capability="engineering.codex-cli-source-change.v1",
+                    authorized_paths=tuple(paths), test_targets=tuple(tests),
+                    repository_reference=repository, repository_revision=revision),), 0)
+                self.pipeline.record_proposal(objective_id, proposal, actor_id=actor)
+                existing = self.pipeline.get_objective(objective_id)
+            if existing.get("status") == "PROPOSED":
+                event_key = "comms5-direct-dispatch:" + hashlib.sha256((actor + "\0" + idem).encode()).hexdigest()
+                with self.pipeline.ledger.db.transaction():
+                    with self.pipeline.ledger.db.cursor() as cur:
+                        self.pipeline.ledger._set_search_path(cur)
+                        self.pipeline._event(cur, objective_id, "comms5.direct_codex_dispatch_submitted",
+                                             event_key, actor, {"repository_reference":repository,
+                            "repository_revision":revision,"authorized_path_count":len(paths),
+                            "test_target_count":len(tests),"evidence_requirement_count":len(evidence)})
+                return {"status":"submitted", "executed":True,"objective_id":objective_id,
+                        "work_order_status":"awaiting_existing_dispatcher","idempotent":not created}
+            if existing.get("status") == "WORK_ORDER_CREATED":
+                return {"status":"already_dispatched", "executed":True,"objective_id":objective_id,
+                        "assignment_id":existing.get("assignment_id"),"idempotent":True}
+            return {"status":"waiting_for_evidence", "executed":True,"objective_id":objective_id,
+                    "evidence_status":(existing.get("evidence") or {}).get("status"),"idempotent":True}
 
         if tool == "comms5_form_and_queue_work":
             if arguments.get("explicit_steward_confirmation") is not True:
@@ -886,7 +1163,8 @@ class Comms5Operations:
                     if isinstance(form.get("acceptance_criteria", []), list) else [],
                 "tags": ["comms5", "specification"]},
                 actor_id=actor, origin_kind="steward_authored", source_references=refs,
-                provenance=provenance, idempotency_key=arguments["idempotency_key"])
+                provenance=provenance, idempotency_key=arguments["idempotency_key"],
+                delegated_authorized=delegated_authorized)
             return {**self._receipt(record), "status": "specification_stored", "executed": True}
 
         if tool in {"comms5_seed_status", "comms5_seed_lineage"}:

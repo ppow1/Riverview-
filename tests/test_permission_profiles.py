@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_permission_profiles.py
 # Component: RESIDENT-PERMISSION-PROFILES
-# Revision: 1.0.6
+# Revision: 1.0.7
 # Purpose: Verify deterministic resident profile policy and fail-closed validation
 # Execution Model: unittest policy tests plus disposable PostgreSQL integration
 # Observability: Explicit allow/deny reasons
@@ -252,6 +252,55 @@ class ResidentPermissionPostgresTests(unittest.TestCase):
         self.assertEqual(revoked["status"], "revoked")
         self.assertEqual(self.evaluate()["reason"], "profile_not_active")
 
+    def test_newly_registered_catalog_operation_is_returned_without_website_changes(self):
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.capability_catalog
+            (capability_id,description,authority_action,owner_office,implementation_ref,dependencies,
+             input_schema,authorization_contract,declaration_source,declaration_source_commit)
+            VALUES (%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s,%s)""").format(
+                self.sql.Identifier(self.schema)),
+            ("test.dynamic.operation", "Dynamically added operation", "test.dynamic.invoke",
+             "office:test", "test.executor.v1", '["service:test"]', "{}",
+             '{"mode":"exact_grant","action":"test.dynamic.invoke","scope_policy":"exact_scope"}',
+             "test-declaration", "test-commit"))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.resource_catalog
+            (resource_id,resource_kind,description,classification,owner_office)
+            VALUES ('service:test','service','Test resource','internal','office:test')""").format(self.sql.Identifier(self.schema)))
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.capability_resources
+            (capability_id,resource_id,implementation_ref)
+            VALUES ('test.dynamic.operation','service:test','test.executor.v1')""").format(self.sql.Identifier(self.schema)))
+        result = self.store.list_profiles("steward:profile-test")
+        capability = next(item for item in result["capabilities"]
+                          if item["capability_id"] == "test.dynamic.operation")
+        self.assertEqual(capability["authority_action"], "test.dynamic.invoke")
+        self.assertEqual(capability["implementation_ref"], "test.executor.v1")
+        self.assertEqual(capability["resource_ids"], ["service:test"])
+        self.assertEqual(capability["authorization_contract"]["mode"], "exact_grant")
+        profile = next(item for item in result["profiles"]
+                       if item["principal_id"] == "resident:profile-test")
+        effective = next(item for item in profile["effective_permissions"]
+                         if item["capability_id"] == "test.dynamic.operation")
+        self.assertEqual(effective["effective_status"], "denied")
+        self.assertEqual(effective["exact_grant_status"], "missing")
+        self.admin.execute(self.sql.SQL("""INSERT INTO {}.authority_grants
+            (grant_id,principal_id,action,scope_ref,granted_by,policy_ref)
+            VALUES ('profile-test-dynamic','resident:profile-test','test.dynamic.invoke',
+                    'service:test','steward:profile-test','test:dynamic')""").format(self.sql.Identifier(self.schema)))
+        authorized = self.store.list_profiles("steward:profile-test")
+        profile = next(item for item in authorized["profiles"]
+                       if item["principal_id"] == "resident:profile-test")
+        effective = next(item for item in profile["effective_permissions"]
+                         if item["capability_id"] == "test.dynamic.operation")
+        self.assertEqual(effective["effective_status"], "authorized")
+        self.assertEqual(effective["grant_id"], "profile-test-dynamic")
+
+    def test_registered_operation_does_not_authorize_execution_without_exact_grant(self):
+        class Cursor:
+            def execute(self, *_args): pass
+            def fetchone(self): return None
+        with self.assertRaises(GrantDenied):
+            ExactGrantAuthorizer(self.schema).require_principal(
+                Cursor(), "resident:profile-test", "test.dynamic.invoke", "service:test")
+
     def test_explicit_deny_wins_and_classification_and_history_are_durable(self):
         self.store.save_profile("steward:profile-test", "resident:profile-test", 0,
                                 self.document(effect="deny"))
@@ -266,6 +315,11 @@ class ResidentPermissionPostgresTests(unittest.TestCase):
         self.assertEqual(profile["tier"], "observer")
         self.assertEqual([event["event_type"] for event in profile["audit"]],
                          ["profile_approved", "profile_saved"])
+        decision = next(item for item in profile["effective_permissions"]
+                        if item["capability_id"] == "resident.status.read"
+                        and item["resource_id"] == "institution:riverview")
+        self.assertEqual(decision["effective_status"], "denied")
+        self.assertEqual(decision["policy_decision"]["reason"], "explicit_deny")
 
 if __name__ == "__main__":
     unittest.main()

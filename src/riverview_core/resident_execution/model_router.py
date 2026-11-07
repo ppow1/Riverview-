@@ -63,7 +63,7 @@ class GraceModelRouter:
         r"^\s*(?:define\s+.{1,100}|what does\s+.{1,100}\s+mean\??|"
         r"what is\s+.{1,100}|who is\s+.{1,100}|where is\s+.{1,100}|"
         r"when is\s+.{1,100}|how many\s+.{1,100})[.!?\s]*$", re.IGNORECASE)
-    TIMEOUTS = {"autonomic": 60, "interim_30b": 15, "reasoning": 60}
+    TIMEOUTS = {"autonomic": 60, "interim_30b": 15, "reasoning": 60, "vision": 60}
     TOKEN_LIMITS = {"autonomic": 32}
     OPERATIONAL_CONTEXT_PREFIX = "Read-only Riverview operational context follows as JSON data."
     # LocalReasoningProvider accepts at most 18 messages. One is reserved for the
@@ -88,6 +88,11 @@ class GraceModelRouter:
             "This response uses your 80B reasoning capability; it is not a separate "
             "resident, office, or agent. Preserve uncertainty, distinguish supplied facts "
             "from inference, and do not claim actions or authority that were not performed."),
+        "vision": (
+            "You are Grace, Riverview's continuing resident and Director of Operations. "
+            "Answer the user's question using the attached image and supplied conversation context. "
+            "State uncertainty when the image does not support a conclusion. Do not claim actions "
+            "or authority that were not performed."),
     }
     _SAFE_ERRORS = frozenset({"endpoint_busy", "endpoint_timeout", "endpoint_unavailable",
         "endpoint_loading", "endpoint_http_503", "endpoint_http_502", "endpoint_http_504",
@@ -159,7 +164,15 @@ class GraceModelRouter:
             return ProposalValidationFailure("PROPOSAL_PROVENANCE_INVALID")
         return proposal
 
-    def select(self, messages, *, required_capability=None):
+    def select(self, messages, *, required_capability=None, image_required=False):
+        if image_required:
+            provider=self.providers["vision"]
+            if not getattr(provider,"supports_vision",False):
+                raise LocalReasoningUnavailable("vision_capability_unavailable")
+            state=provider.readiness()
+            if state.state!="READY":
+                raise ReasoningDeferred(state.state)
+            return "vision",provider
         if required_capability is not None:
             if required_capability != "grace.reasoning.80b":
                 raise ReasoningDeferred("UNSUPPORTED_CAPABILITY")
@@ -196,12 +209,12 @@ class GraceModelRouter:
 
     def complete_chat(self, messages, *, max_tokens, expected_revision,
                       timeout_seconds=120, required_capability=None,
-                      response_schema=None):
+                      response_schema=None,image_required=False):
         if expected_revision != self.model_sha256:
             raise LocalReasoningUnavailable("router_binding_mismatch")
         try:
             stage, provider = self.select(messages,
-                required_capability=required_capability)
+                required_capability=required_capability,image_required=image_required)
         except ReasoningDeferred:
             raise
         system = self.STAGE_INSTRUCTIONS[stage]
@@ -267,6 +280,8 @@ class GraceModelRouter:
             completion_kwargs = {"max_tokens": stage_max_tokens,
                 "expected_revision": provider.model_sha256,
                 "timeout_seconds": min(timeout_seconds, self.TIMEOUTS[stage])}
+            if image_required:
+                completion_kwargs["image_required"] = True
             if response_schema is not None:
                 if stage != "reasoning":
                     raise LocalReasoningUnavailable("request_contract_invalid")
@@ -586,7 +601,9 @@ class GraceModelRouter:
                 or any(not isinstance(message, dict)
                        or set(message) != {"role", "content"}
                        or message.get("role") not in {"system", "user", "assistant"}
-                       or not isinstance(message.get("content"), str)
+                       or (not isinstance(message.get("content"), str) and not
+                           (stage=="vision" and message.get("role")=="user" and
+                            LocalReasoningProvider._valid_multimodal_content(message.get("content"))))
                        for message in messages)):
             raise LocalReasoningUnavailable("request_contract_invalid")
         system_messages = [message for message in messages
@@ -625,11 +642,15 @@ class GraceModelRouter:
         durable history is untouched. If those protected messages alone exceed the
         provider contract, fail with the specific bounded diagnostic.
         """
+        multimodal=any(isinstance(item,dict) and isinstance(item.get("content"),list)
+                       for item in messages) if isinstance(messages,list) else False
         if (not isinstance(messages, list)
                 or any(not isinstance(item, dict)
                        or set(item) != {"role", "content"}
                        or item.get("role") not in {"system", "user", "assistant"}
-                       or not isinstance(item.get("content"), str)
+                       or (not isinstance(item.get("content"), str) and not
+                           (multimodal and item.get("role")=="user" and
+                            LocalReasoningProvider._valid_multimodal_content(item.get("content"))))
                        for item in messages)):
             raise LocalReasoningUnavailable("request_contract_invalid")
         latest_user = next((item for item in reversed(messages)
@@ -650,7 +671,9 @@ class GraceModelRouter:
                                   separators=(",", ":")).encode("utf-8"))
 
         bounded = list(messages)
-        while encoded_size(bounded) > LocalReasoningProvider.MAX_PROMPT_BYTES:
+        prompt_limit=(LocalReasoningProvider.MAX_MULTIMODAL_PROMPT_BYTES if multimodal else
+                      LocalReasoningProvider.MAX_PROMPT_BYTES)
+        while encoded_size(bounded) > prompt_limit:
             latest_index = max(index for index, item in enumerate(bounded)
                                if item is latest_user)
             removable = next((index for index, item in enumerate(bounded)

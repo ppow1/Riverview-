@@ -203,9 +203,9 @@ class GraceModelRouterTests(unittest.TestCase):
 
         tools = GraceInternalTools(backend=CatalogBackend())
         catalog = tools.catalog()
-        self.assertEqual(len(catalog), 32)
+        self.assertEqual(len(catalog), 42)
         self.assertEqual(len(json.dumps(catalog, sort_keys=True,
-            separators=(",", ":"), ensure_ascii=False).encode()), 32902)
+            separators=(",", ":"), ensure_ascii=False).encode()), 49977)
         self.router.internal_tools = tools
         self.reasoner.chat_prefix = "/no_think\n"
         # These bounded, synthetic system messages mirror the live 12 KiB base

@@ -2,7 +2,8 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_grace_execution.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.0.81
+# Revision: 1.0.82
+# Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Cover a legitimately consumed S5 CME-recovery evaluation as runtime evidence for same-assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVAL-TRIGGER-20261025 | Exercise S4 rejection-trigger evaluation provenance and remove the historical S3 request pin from the one-use exception path.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-REPLAY-CORRELATION-20261025 | Verify historical S3 event persistence after pointer advancement and reject cross-objective assignment references.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-RECOVERY-20261025 | Exercise exact consumed Luna exchange provenance and evaluation lifecycle evidence through PostgreSQL.
@@ -2567,6 +2568,64 @@ class GraceExecutionTests(unittest.TestCase):
         self.assertTrue(evidence["evaluation"]["feedback_consumed"])
         self.assertFalse(evidence["evaluation"]["authority_granted"])
         self.assertNotIn("advisory",json.dumps(evidence))
+
+        # S5 evaluations are triggered by the durable CME recovery review, not
+        # the S4 retry-limit escalation event above.
+        request_id, correlation_id = str(uuid4()), str(uuid4())
+        trigger_event_id = str(uuid4())
+        cme_event_id = str(uuid4())
+        trigger_payload = {"request_id":str(uuid4()),
+            "correlation_id":str(uuid4()),"cme_event_id":cme_event_id,
+            "assignment_id":assignment_id,"recovery_action":"REWORK_PROPOSED",
+            "response_sha256":"f"*64}
+        original["assignment"]["evaluation_trigger_event_id"] = trigger_event_id
+        request = {"request_type":"performance_evaluation","original_request":original}
+        response_sha256 = "e"*64
+        provenance = {"response_id":"resp_s5_fixture","provider_model":"gpt-6-luna",
+            "usage":usage}
+        self.admin.execute("""INSERT INTO """ + self.schema + """.external_reasoning_exchanges
+            (request_id,correlation_id,original_request_id,originating_resident_id,
+             objective_id,conversation_id,message_sequence,request_schema,response_schema,
+             reason,context_sha256,classification,provider_id,idempotency_key,
+             request_sha256,request_payload,delivery_state,deadline_at,response_payload,
+             response_sha256,response_provenance,response_idempotency_key,response_received_at,
+             consumption_key,consumed_at,consumption_result)
+            VALUES (%s,%s,%s,%s,%s,%s,1,'rv.external-reasoning.request.v1',
+             'rv.external-reasoning.response.v1','task_complexity',%s,'institutional',
+             'gpt-6-luna',%s,%s,%s::jsonb,'grace_consumed',clock_timestamp()+interval '1 hour',
+             %s::jsonb,%s,%s::jsonb,%s,clock_timestamp(),%s,clock_timestamp(),%s::jsonb)""",
+            (request_id,correlation_id,"request:s5-fixture","resident:grace",objective_id,
+             str(uuid4()),"b"*64,"exchange:s5-fixture", "c"*64,
+             json.dumps(request),json.dumps(response),response_sha256,json.dumps(provenance),
+             "response:s5-fixture",f"external-reasoning-consumed:{request_id}",
+             json.dumps({"advisory_sha256":response_sha256})))
+        for seq,(event_type,payload) in enumerate((
+                ("provider_attempt_started",{"provider_id":"gpt-6-luna",
+                    "provider_model":"gpt-6-luna","attempt":1}),
+                ("provider_attempt_settled",{"status":"settled","usage":usage}),
+                ("response_received",{"response_sha256":response_sha256}),
+                ("grace_consumed",{"state":"grace_consumed"})),1):
+            self.admin.execute("""INSERT INTO """ + self.schema + """.external_reasoning_exchange_events
+                (request_id,correlation_id,event_type,idempotency_key,actor_id,payload)
+                VALUES (%s,%s,%s,%s,'service:test',%s::jsonb)""",
+                (request_id,correlation_id,event_type,f"event:s5-fixture:{seq}",
+                 json.dumps(payload)))
+        self.admin.execute("""INSERT INTO """ + self.schema + """.grace_objective_events
+            (event_id,objective_id,event_type,idempotency_key,actor_id,payload)
+            VALUES (%s,%s,'resident.reasoning.cme_recovery_evaluated',%s,'office:grace',%s::jsonb)""",
+            (trigger_event_id,objective_id,"s5-trigger:"+trigger_event_id,
+             json.dumps(trigger_payload)))
+        evaluation["response_sha256"] = response_sha256
+        evaluation["evaluation_trigger_event_id"] = trigger_event_id
+        for event_type,suffix in (("resident.performance.evaluation_recorded","grade"),
+                ("resident.performance.feedback_consumed","feedback")):
+            self.pipeline.record_supervisory_event(objective_id,assignment_id,
+                event_type=event_type,request_id=request_id,correlation_id=correlation_id,
+                idempotency_key=f"s5-eval:{suffix}:{request_id}",payload=evaluation)
+        evidence=self.pipeline.performance_evaluation_runtime_evidence_for_assignment(
+            objective_id,assignment_id)
+        self.assertEqual(evidence["exchange"]["request_id"],request_id)
+        self.assertEqual(evidence["evaluation"]["trigger_event_id"],trigger_event_id)
 
     def test_uncommissioned_rejection_review_provider_records_pending_without_requeue(self):
         from riverview_core.resident_execution.service import GraceExecutionService

@@ -1,0 +1,38 @@
+{
+  "capability_id": "hardware.gpu.workload.start",
+  "description": "Start a registered GPU workload after host-local conflict and memory checks",
+  "operation": "hardware.gpu.workload.start",
+  "owner_office": "office:steward",
+  "implementation_ref": "dashboard.gpu_workload_routes.start",
+  "dependencies": [
+    "riverview.status-dashboard"
+  ],
+  "approval_default": false,
+  "enabled": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "host_id",
+      "service"
+    ],
+    "properties": {
+      "host_id": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{1,62}$"
+      },
+      "service": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    }
+  },
+  "authorization_contract": {
+    "mode": "exact_grant",
+    "action": "hardware.gpu.workload.start",
+    "scope_policy": "exact_scope"
+  },
+  "availability_policy": "executor_and_worker_health",
+  "registration_blocker": null
+}

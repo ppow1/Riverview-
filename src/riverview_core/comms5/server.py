@@ -1,12 +1,13 @@
 """Loopback Comms5 MCP compatibility endpoint.
 
-File Revision: 1.1.4
+File Revision: 1.1.5
 Component: COMMS5-CAMRUI-ADAPTER
 Authority: OAuth is validated at the Ionoge ingress; this service accepts only
            the Caddy-injected principal marker and a separate protected hop token.
 Purpose: Preserve the historical Comms5 tool contract while incrementally
          mapping tools to current Camrui services.
 History: New file; no predecessor existed.
+Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Validate enum constraints for bounded command operation inputs.
 """
 
 from __future__ import annotations
@@ -59,6 +60,8 @@ def _valid(schema: dict[str, Any], value: Any, root: dict[str, Any] | None = Non
             return False
         return _valid(target, value, root)
     kind = schema.get("type")
+    if "enum" in schema and value not in schema["enum"]:
+        return False
     if kind == "object":
         if not isinstance(value, dict):
             return False
@@ -81,6 +84,40 @@ def _valid(schema: dict[str, Any], value: Any, root: dict[str, Any] | None = Non
     if kind == "boolean":
         return isinstance(value, bool)
     return True
+
+
+def _valid_duration_spec(value: Any) -> bool:
+    """Validate the duration union exposed in the simpler connector schema."""
+    if not isinstance(value, dict) or set(value) - {"unit", "value", "seconds"}:
+        return False
+    unit = value.get("unit")
+    limits = {
+        "minutes": (1, 52560000), "hours": (1, 876000), "days": (1, 36500),
+        "weeks": (1, 5200), "months": (1, 1200), "quarters": (1, 400),
+        "years": (1, 100),
+    }
+    if unit == "indefinite":
+        return set(value) == {"unit"}
+    if unit == "custom":
+        seconds = value.get("seconds")
+        return (set(value) == {"unit", "seconds"} and isinstance(seconds, int)
+                and not isinstance(seconds, bool) and 1 <= seconds <= 3153600000)
+    bounds = limits.get(unit)
+    amount = value.get("value")
+    return (bounds is not None and set(value) == {"unit", "value"}
+            and isinstance(amount, int) and not isinstance(amount, bool)
+            and bounds[0] <= amount <= bounds[1])
+
+
+def _valid_delegation_validity(arguments: dict[str, Any]) -> bool:
+    if "max_uses" in arguments:
+        max_uses = arguments["max_uses"]
+        if max_uses is not None and (
+            not isinstance(max_uses, int) or isinstance(max_uses, bool)
+            or not 1 <= max_uses <= 1_000_000
+        ):
+            return False
+    return "duration_spec" not in arguments or _valid_duration_spec(arguments["duration_spec"])
 
 
 class Comms5Application:
@@ -155,6 +192,9 @@ class Comms5Application:
                 return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Unknown tool"}}
             if not _valid(tool["inputSchema"], arguments, tool["inputSchema"]):
                 return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Arguments do not match the published tool schema"}}
+            if (name in {"comms5_request_delegation_grant", "comms5_request_delegation_grant_change"}
+                    and not _valid_delegation_validity(arguments)):
+                return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "Delegation count or duration does not match the published contract"}}
             if name not in self.implemented_tools:
                 result_value = {
                     "status": "NOT_IMPLEMENTED", "executed": False,

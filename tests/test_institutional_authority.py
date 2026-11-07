@@ -1,7 +1,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: tests/test_institutional_authority.py
 # Component: INSTITUTIONAL-AUTHORITY
-# Revision: 1.0.19
+# Revision: 1.0.24
+# Changed: 2026-10-26 UTC | RV-V2-CHATGPT-PRINCIPAL-REGISTRATION | Verify write-ahead secret persistence with the canonical create_principal transaction in an isolated schema.
+# Changed: 2026-10-26 UTC | RV-V2-CHAT-VISION-AUTHORITY-ORDER | Expect the additive conversation capability migration after declaration enforcement.
 # Changed: 2026-10-25 UTC | C3-AUTOMATIC-CAPABILITY-REGISTRATION | Test migration 0015 reconciliation and declaration updates
 # Purpose: Verify durable identity separation and fail-closed exact scoped grants
 # Execution Model: PostgreSQL integration tests in rvtest_* disposable schemas
@@ -17,6 +19,7 @@
 # Changed: 2026-10-13 UTC | RV-GRACE-ACCOUNT-AUTHORITY | Include linked-principal exact-grant migration in migration sequence assertion
 # Changed: 2026-10-14 UTC | RV-GRACE-DEFERRED-ROUTER-UPGRADE | Require and checksum-apply the audited successor migration in authority fixtures
 # Changed: 2026-10-14 UTC | RV-GRACE-DOPS-ROLE-CONTEXT-001 | Verify Steward-only office-role CAS, audit event, and binding/occupant preservation
+# Changed: 2026-10-27 UTC | RV-ISSUE-359-TRANSACTION-OWNERSHIP | Verify concurrent decision isolation, commit visibility, rollback, idempotency, exact authorization and audit durability.
 # Changed: 2026-10-16 UTC | RV-WORKER-REGISTRY-RETIRE-001 | Include worker retirement audit migration in authority sequence
 # Contracts: docs/components/INSTITUTIONAL_AUTHORITY.md
 # Tests: This file
@@ -86,12 +89,16 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0008_resident_permission_profiles",
             "0009_worker_registration_retirement_event",
             "0010_grace_autonomy_experiment_grant",
-            "0011_exact_grace_luna_escalation_check",
+                        "0011_exact_grace_luna_escalation_check",
             "0012_grace_supervisory_authority",
             "0013_grace_capability_registry_read",
             "0014_resident_status_read_schema",
             "0015_deployed_capability_declarations",
+            "0016_resident_conversation_workspace_capability",
             "0017_resident_proposal_capability_resources",
+            "0017_reusable_scoped_grants",
+            "0018_delegated_host_scopes",
+            "0019_generalized_delegation_lifecycle",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         with self.admin.cursor() as cur:
@@ -143,6 +150,136 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         else:
             with self.assertRaises(IdentityConflict):
                 self.registry.bootstrap_steward("steward:second")
+
+    def test_generalized_grant_activation_extension_and_lineage(self):
+        """Typed lifetimes and successor changes persist through the real authority API."""
+        from datetime import datetime, timedelta, timezone
+
+        grantee_token = self.registry.create_principal(
+            self.steward_token, "chatgpt:issue343-test", "service")
+        pending = self.registry.request_grant(
+            requester_id="steward:test", principal_id="chatgpt:issue343-test",
+            action="comms5.proposal.promote", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:test",
+            max_uses=1, duration_spec={"unit": "minutes", "value": 30},
+            idempotency_key="issue343:initial")
+        approved = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=pending["request_id"],
+            decision="approve", expected_request_sha256=pending["request_sha256"],
+            idempotency_key="issue343:approve-initial", approval_ref="steward:issue343:initial")
+        original_id = approved["grant_id"]
+        original = self.registry.get_status(
+            requester_id="steward:test", grant_id=original_id)
+        self.assertEqual(original["duration_spec"], {"unit": "minutes", "value": 30})
+        activation = datetime.fromisoformat(original["approved_at"])
+        expiry = datetime.fromisoformat(original["valid_until"])
+        self.assertGreaterEqual(expiry - activation, timedelta(minutes=29, seconds=59))
+        self.assertLessEqual(expiry - activation, timedelta(minutes=30, seconds=1))
+
+        reservation = self.registry.reserve_delegated_grant(
+            grantee_token, original_id, "comms5.proposal.promote", "project:Riverview",
+            "work-order:issue343:test", idempotency_key="issue343:use-1")
+        self.registry.consume_delegated_grant(
+            grantee_token, reservation["reservation_id"], "result:issue343:test")
+
+        change = self.registry.request_change(
+            requester_id="steward:test", grant_id=original_id,
+            action="objective.submit", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:combined-change",
+            max_uses=None, duration_spec={"unit": "days", "value": 7},
+            change_kind="extend_upgrade", idempotency_key="issue343:combined-change")
+        changed = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=change["request_id"],
+            decision="approve", expected_request_sha256=change["request_sha256"],
+            idempotency_key="issue343:approve-change", approval_ref="steward:issue343:change")
+        successor = self.registry.get_status(
+            requester_id="steward:test", grant_id=changed["grant_id"])
+        predecessor = self.registry.get_status(
+            requester_id="steward:test", grant_id=original_id)
+        self.assertEqual(successor["supersedes_grant_id"], original_id)
+        self.assertEqual(successor["used_count"], 1)
+        self.assertEqual(successor["max_uses"], None)
+        self.assertEqual(successor["duration_spec"], {"unit": "days", "value": 7})
+        self.assertEqual(successor["action"], "objective.submit")
+        successor_expiry = datetime.fromisoformat(successor["valid_until"])
+        self.assertGreater(successor_expiry, expiry + timedelta(days=6, hours=23))
+        self.assertEqual(predecessor["status"], "revoked")
+
+        indefinite_request = self.registry.request_grant(
+            requester_id="steward:test", principal_id="chatgpt:issue343-test",
+            action="comms5.proposal.promote", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:indefinite-upgrade",
+            max_uses=None, duration_spec={"unit": "indefinite"},
+            idempotency_key="issue343:indefinite-upgrade-source")
+        indefinite_approval = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=indefinite_request["request_id"],
+            decision="approve", expected_request_sha256=indefinite_request["request_sha256"],
+            idempotency_key="issue343:indefinite-upgrade-source-approve",
+            approval_ref="steward:issue343:indefinite-source")
+        indefinite_change = self.registry.request_change(
+            requester_id="steward:test", grant_id=indefinite_approval["grant_id"],
+            action="objective.submit", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:indefinite-upgrade",
+            change_kind="upgrade", idempotency_key="issue343:indefinite-upgrade")
+        indefinite_successor = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=indefinite_change["request_id"],
+            decision="approve", expected_request_sha256=indefinite_change["request_sha256"],
+            idempotency_key="issue343:indefinite-upgrade-approve",
+            approval_ref="steward:issue343:indefinite-upgraded")
+        indefinite_status = self.registry.get_status(
+            requester_id="steward:test", grant_id=indefinite_successor["grant_id"])
+        self.assertIsNone(indefinite_status["valid_until"])
+        self.assertIsNone(indefinite_status["max_uses"])
+        self.assertEqual(indefinite_status["duration_spec"], {"unit": "indefinite"})
+
+        outstanding = self.registry.reserve_delegated_grant(
+            grantee_token, changed["grant_id"], "objective.submit", "project:Riverview",
+            "work-order:issue343:revoke", idempotency_key="issue343:pending-revocation")
+        self.registry.revoke_grant(self.steward_token, changed["grant_id"],
+                                   reason_code="issue343_verified")
+        self.assertEqual(self.registry.consume_delegated_grant(
+            grantee_token, outstanding["reservation_id"], "result:after-revoke")["status"],
+            "released")
+        self.assertEqual(self.registry.get_status(
+            requester_id="steward:test", grant_id=changed["grant_id"])["status"], "revoked")
+
+        rejected_request = self.registry.request_grant(
+            requester_id="steward:test", principal_id="chatgpt:issue343-test",
+            action="comms5.proposal.promote", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:denial-example",
+            max_uses=1, duration_spec={"unit": "indefinite"},
+            idempotency_key="issue343:rejected-request")
+        rejected = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=rejected_request["request_id"],
+            decision="reject", expected_request_sha256=rejected_request["request_sha256"],
+            idempotency_key="issue343:reject", approval_ref=None)
+        self.assertEqual(rejected["status"], "rejected")
+        self.assertIsNone(rejected["grant_id"])
+
+        surrender_request = self.registry.request_grant(
+            requester_id="steward:test", principal_id="chatgpt:issue343-test",
+            action="comms5.proposal.promote", scope_ref="project:Riverview",
+            policy_ref="policy:delegation.v1", request_ref="issue:343:surrender-example",
+            max_uses=1, duration_spec={"unit": "indefinite"},
+            idempotency_key="issue343:surrender-request")
+        surrender_approval = self.registry.decide_request(
+            steward_token=self.steward_token, request_id=surrender_request["request_id"],
+            decision="approve", expected_request_sha256=surrender_request["request_sha256"],
+            idempotency_key="issue343:surrender-approve", approval_ref="steward:issue343:surrender")
+        surrendered = self.registry.surrender_grant(
+            grantee_id="chatgpt:issue343-test", grant_id=surrender_approval["grant_id"],
+            idempotency_key="issue343:surrender")
+        self.assertEqual(surrendered["status"], "surrendered")
+        self.assertEqual(self.registry.surrender_grant(
+            grantee_id="chatgpt:issue343-test", grant_id=surrender_approval["grant_id"],
+            idempotency_key="issue343:surrender"), surrendered)
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT count(*) FROM {self.schema}.institutional_authority_events "
+                        "WHERE grant_id=%s AND event_type IN "
+                        "('authority_delegation_grant_extended','authority_delegation_grant_upgraded')",
+                        (changed["grant_id"],))
+            self.assertEqual(cur.fetchone()[0], 2)
+
 
     def test_deployed_declarations_register_update_and_record_blockers(self):
         import psycopg
@@ -406,6 +543,270 @@ class InstitutionalAuthorityTests(unittest.TestCase):
         self.registry.revoke_grant(self.steward_token, grant)
         with self.assertRaises(AuthorityDenied):
             self.registry.authorize(token, "worker.run", "scope:one")
+
+    def test_codex_delegation_is_exact_scoped_and_expires_after_activation(self):
+        from riverview_core.institutional_authority import AuthorityDenied
+        from riverview_core.institutional_authority.service_principal_credentials import (
+            ProtectedChatGPTCredentialStore,
+        )
+        unprivileged = self.registry.create_principal(self.steward_token,
+            "service:registration-test", "service")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.create_principal(unprivileged, "service:chatgpt", "service")
+        with tempfile.TemporaryDirectory() as root:
+            os.chmod(root, 0o700)
+            credential_store = ProtectedChatGPTCredentialStore(
+                Path(root) / "service-chatgpt.credential")
+            with credential_store.registration_lock():
+                one_time_credential = credential_store.load_or_create()
+                issued_credential = self.registry.create_principal(
+                    self.steward_token, "service:chatgpt", "service",
+                    credential=one_time_credential)
+            self.assertEqual(issued_credential, one_time_credential)
+            self.assertEqual(credential_store.path.read_text().strip(), issued_credential)
+        self.assertGreaterEqual(len(issued_credential), 32)
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT event_type FROM {self.schema}.institutional_authority_events WHERE subject_id=%s", ("service:chatgpt",))
+            self.assertIn("principal_created", [item[0] for item in cur.fetchall()])
+        request = self.registry.request_grant(requester_id="steward:test",
+            principal_id="service:chatgpt", action="comms5.operations.non_destructive.v1",
+            scope_ref="project:Riverview", policy_ref="policy:delegation.v1",
+            request_ref="Isolated Codex delegation authorization fixture",
+            max_uses=None, valid_until=datetime.now(timezone.utc)+timedelta(hours=24),
+            idempotency_key="codex-integration-request-0001")
+        self.assertEqual(request["status"], "pending")
+        decision = self.registry.decide_request(steward_token=self.steward_token,
+            request_id=request["request_id"], decision="approve",
+            expected_request_sha256=request["request_sha256"],
+            idempotency_key="codex-integration-decision-0001",
+            approval_ref="isolated PostgreSQL acceptance fixture")
+        self.assertEqual(decision["status"], "approved")
+        grant_id = decision["grant_id"]
+        allowed = self.registry.authorize_delegated_principal_operation(
+            "service:chatgpt", "comms5.operations.non_destructive.v1",
+            "project:Riverview", "policy:delegation.v1", "codex-call:fixture-1")
+        self.assertEqual(allowed["grant_id"], grant_id)
+        self.assertEqual(allowed["status"], "authorized")
+        self.assertEqual(allowed["use_limit"], "unlimited")
+        grant = self.registry.get_status(requester_id="steward:test", grant_id=grant_id)
+        activated_for = (datetime.fromisoformat(grant["valid_until"]) -
+                         datetime.fromisoformat(grant["approved_at"]))
+        self.assertLessEqual(abs(activated_for - timedelta(hours=24)), timedelta(seconds=2))
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize_delegated_principal_operation(
+                "service:chatgpt", "comms5.operations.non_destructive.v1",
+                "host:octominer1", "policy:delegation.v1", "codex-call:wrong-scope")
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT event_type FROM {self.schema}.institutional_authority_events WHERE grant_id=%s", (grant_id,))
+            events = [item[0] for item in cur.fetchall()]
+            self.assertIn("authority_grant_used", events)
+            cur.execute(f"UPDATE {self.schema}.authority_grants SET valid_from=clock_timestamp()-interval '2 hours', valid_until=clock_timestamp()-interval '1 hour' WHERE grant_id=%s", (grant_id,))
+        with self.assertRaises(AuthorityDenied):
+            self.registry.authorize_delegated_principal_operation(
+                "service:chatgpt", "comms5.operations.non_destructive.v1",
+                "project:Riverview", "policy:delegation.v1", "codex-call:expired")
+
+    def test_finite_delegation_use_is_reserved_consumed_exhausted_and_revocable(self):
+        from riverview_core.institutional_authority import AuthorityDenied
+        grantee_token = self.registry.create_principal(self.steward_token,
+            "service:finite-delegation-test", "service")
+        action, scope = "hardware.gpu.workload.start", "host:octominer1"
+        request = self.registry.request_grant(requester_id="steward:test",
+            principal_id="service:finite-delegation-test", action=action,
+            scope_ref=scope, policy_ref="policy:delegation.v1",
+            request_ref="One-use disposable delegated grant fixture", max_uses=1,
+            valid_until=None, idempotency_key="finite-integration-request-0001")
+        decision = self.registry.decide_request(steward_token=self.steward_token,
+            request_id=request["request_id"], decision="approve",
+            expected_request_sha256=request["request_sha256"],
+            idempotency_key="finite-integration-decision-0001",
+            approval_ref="isolated PostgreSQL acceptance fixture")
+        grant_id = decision["grant_id"]
+        reserved = self.registry.reserve_delegated_grant(grantee_token, grant_id,
+            action, scope, "workload-job:fixture-1", idempotency_key="finite-use-0001")
+        self.assertEqual(reserved["status"], "reserved")
+        consumed = self.registry.consume_delegated_grant(grantee_token,
+            reserved["reservation_id"], "fixture-result:started")
+        self.assertEqual(consumed["status"], "consumed")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.reserve_delegated_grant(grantee_token, grant_id,
+                action, scope, "workload-job:fixture-2", idempotency_key="finite-use-0002")
+        self.registry.revoke_grant(self.steward_token, grant_id,
+            reason_code="isolated_acceptance_revoked")
+        with self.assertRaises(AuthorityDenied):
+            self.registry.reserve_delegated_grant(grantee_token, grant_id,
+                action, scope, "workload-job:fixture-3", idempotency_key="finite-use-0003")
+
+    def _delegation_request_fixture(self, suffix, *, action="comms5.command.execute.task.camrui.standard"):
+        principal = "service:issue359-" + suffix
+        token = self.registry.create_principal(self.steward_token, principal, "service")
+        request = self.registry.request_grant(requester_id="steward:test",
+            principal_id=principal, action=action, scope_ref="host:camrui",
+            policy_ref="policy:delegation.v1", request_ref="issue:359/transaction-test",
+            max_uses=1, valid_until=None,
+            idempotency_key="issue359-request-" + suffix)
+        return principal, token, action, request
+
+    def test_delegation_decision_commits_before_success_and_is_idempotent(self):
+        import psycopg
+        from psycopg.rows import dict_row
+
+        principal, grantee_token, action, request = self._delegation_request_fixture("commit")
+        decision_args = dict(steward_token=self.steward_token,
+            request_id=request["request_id"], decision="approve",
+            expected_request_sha256=request["request_sha256"],
+            idempotency_key="issue359-decision-commit-0001",
+            approval_ref="isolated transaction ownership test")
+        decision = self.registry.decide_request(**decision_args)
+        self.assertEqual(decision["status"], "approved")
+        grant_id = decision["grant_id"]
+
+        # A separate connection must observe the committed request, grant,
+        # authorization decision, and audit event before decide_request returns.
+        with psycopg.connect(DSN, autocommit=True, row_factory=dict_row) as observer:
+            row = observer.execute(
+                f"SELECT status,grant_id,request_sha256 FROM {self.schema}.delegated_grant_requests WHERE request_id=%s",
+                (request["request_id"],)).fetchone()
+            self.assertEqual(row["status"], "approved")
+            self.assertEqual(row["grant_id"], grant_id)
+            self.assertEqual(row["request_sha256"], request["request_sha256"])
+            status = self.registry.get_status(requester_id="steward:test",
+                                              request_id=request["request_id"])
+            self.assertEqual(status["status"], row["status"])
+            self.assertEqual(status["grant_id"], row["grant_id"])
+            events = observer.execute(
+                f"SELECT event_type,payload FROM {self.schema}.institutional_authority_events WHERE grant_id=%s AND event_type='authority_delegation_request_decided'",
+                (grant_id,)).fetchall()
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["payload"]["request_sha256"], request["request_sha256"])
+            self.assertEqual(events[0]["payload"]["approval_ref"], decision_args["approval_ref"])
+
+        runtime = self.registry.reserve_delegated_grant(grantee_token, grant_id,
+            action, "host:camrui", "issue:359/runtime-authorization-test",
+            idempotency_key="issue359-runtime-reservation-0001")
+        self.assertEqual(runtime["status"], "reserved")
+        self.assertTrue(runtime["reservation_id"])
+        self.assertEqual(self.registry.get_status(requester_id="steward:test",
+            grant_id=grant_id)["status"], "active")
+
+        replay = self.registry.decide_request(**decision_args)
+        self.assertEqual(replay, decision)
+        with psycopg.connect(DSN, autocommit=True, row_factory=dict_row) as observer:
+            count = observer.execute(
+                f"SELECT count(*) AS n FROM {self.schema}.institutional_authority_events WHERE grant_id=%s AND event_type='authority_delegation_request_decided'",
+                (grant_id,)).fetchone()["n"]
+        self.assertEqual(count, 1)
+
+    def test_concurrent_approval_does_not_join_another_request_transaction(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+        import psycopg
+        from psycopg.rows import dict_row
+
+        slow_principal, _, _, slow = self._delegation_request_fixture("slow")
+        fast_principal, _, fast_action, fast = self._delegation_request_fixture(
+            "fast", action="comms5.command.execute.task.camrui.standard")
+        slow_entered = threading.Event()
+        release_slow = threading.Event()
+        original_event = self.registry._event
+
+        def pause_after_slow_audit(cur, *, event_type, actor_id, subject_id=None,
+                                   grant_id=None, office_id=None, payload=None):
+            original_event(cur, event_type=event_type, actor_id=actor_id,
+                subject_id=subject_id, grant_id=grant_id, office_id=office_id,
+                payload=payload)
+            if (event_type == "authority_delegation_request_decided" and payload and
+                    payload.get("request_id") == slow["request_id"]):
+                slow_entered.set()
+                if not release_slow.wait(10):
+                    raise TimeoutError("slow test transaction release timed out")
+
+        self.registry._event = pause_after_slow_audit
+        try:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                slow_future = pool.submit(self.registry.decide_request,
+                    steward_token=self.steward_token, request_id=slow["request_id"],
+                    decision="approve", expected_request_sha256=slow["request_sha256"],
+                    idempotency_key="issue359-decision-slow-0001",
+                    approval_ref="concurrent isolation test")
+                self.assertTrue(slow_entered.wait(5), "slow approval did not reach its audit write")
+                fast_future = pool.submit(self.registry.decide_request,
+                    steward_token=self.steward_token, request_id=fast["request_id"],
+                    decision="approve", expected_request_sha256=fast["request_sha256"],
+                    idempotency_key="issue359-decision-fast-0001",
+                    approval_ref="concurrent isolation test")
+                fast_result = fast_future.result(timeout=10)
+                with psycopg.connect(DSN, autocommit=True, row_factory=dict_row) as observer:
+                    fast_row = observer.execute(
+                        f"SELECT status,grant_id FROM {self.schema}.delegated_grant_requests WHERE request_id=%s",
+                        (fast["request_id"],)).fetchone()
+                    slow_row = observer.execute(
+                        f"SELECT status,grant_id FROM {self.schema}.delegated_grant_requests WHERE request_id=%s",
+                        (slow["request_id"],)).fetchone()
+                self.assertEqual(fast_row["status"], "approved")
+                self.assertEqual(fast_row["grant_id"], fast_result["grant_id"])
+                self.assertEqual(slow_row["status"], "pending")
+                release_slow.set()
+                slow_result = slow_future.result(timeout=10)
+                self.assertEqual(slow_result["status"], "approved")
+        finally:
+            release_slow.set()
+            self.registry._event = original_event
+
+        with psycopg.connect(DSN, autocommit=True, row_factory=dict_row) as observer:
+            statuses = observer.execute(
+                f"SELECT request_id,status,grant_id FROM {self.schema}.delegated_grant_requests WHERE request_id=ANY(%s)",
+                ([fast["request_id"], slow["request_id"]],)).fetchall()
+        by_id = {row["request_id"]: row for row in statuses}
+        self.assertEqual(by_id[slow["request_id"]]["status"], "approved")
+        self.assertEqual(by_id[fast["request_id"]]["status"], "approved")
+        self.assertNotEqual(by_id[slow["request_id"]]["grant_id"],
+                            by_id[fast["request_id"]]["grant_id"])
+        self.assertEqual(slow_principal, "service:issue359-slow")
+        self.assertEqual(fast_principal, "service:issue359-fast")
+        self.assertTrue(fast_action.endswith("camrui.standard"))
+
+    def test_failed_decision_rolls_back_grant_request_and_audit_together(self):
+        import psycopg
+        from psycopg.rows import dict_row
+        from riverview_core.institutional_authority import RegistryUnavailable
+
+        principal, _, action, request = self._delegation_request_fixture("rollback")
+        original_event = self.registry._event
+
+        def fail_after_decision_audit(cur, *, event_type, actor_id, subject_id=None,
+                                      grant_id=None, office_id=None, payload=None):
+            original_event(cur, event_type=event_type, actor_id=actor_id,
+                subject_id=subject_id, grant_id=grant_id, office_id=office_id,
+                payload=payload)
+            if event_type == "authority_delegation_request_decided":
+                raise RuntimeError("injected failure after audit insert")
+
+        self.registry._event = fail_after_decision_audit
+        try:
+            with self.assertRaises(RegistryUnavailable):
+                self.registry.decide_request(steward_token=self.steward_token,
+                    request_id=request["request_id"], decision="approve",
+                    expected_request_sha256=request["request_sha256"],
+                    idempotency_key="issue359-decision-rollback-0001",
+                    approval_ref="injected rollback test")
+        finally:
+            self.registry._event = original_event
+
+        with psycopg.connect(DSN, autocommit=True, row_factory=dict_row) as observer:
+            row = observer.execute(
+                f"SELECT status,grant_id FROM {self.schema}.delegated_grant_requests WHERE request_id=%s",
+                (request["request_id"],)).fetchone()
+            self.assertEqual(row["status"], "pending")
+            self.assertIsNone(row["grant_id"])
+            grants = observer.execute(
+                f"SELECT count(*) AS n FROM {self.schema}.authority_grants WHERE principal_id=%s AND action=%s AND scope_ref='host:camrui' AND grant_kind='delegated'",
+                (principal, action)).fetchone()["n"]
+            audit = observer.execute(
+                f"SELECT count(*) AS n FROM {self.schema}.institutional_authority_events WHERE event_type='authority_delegation_request_decided' AND payload->>'request_id'=%s",
+                (request["request_id"],)).fetchone()["n"]
+        self.assertEqual(grants, 0)
+        self.assertEqual(audit, 0)
 
     def test_credential_rotation_and_revocation_preserve_steward_recovery(self):
         from riverview_core.institutional_authority import AuthorityDenied, IdentityConflict

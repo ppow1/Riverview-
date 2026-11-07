@@ -2,7 +2,7 @@
 # RIVERVIEW~ CONTROLLED TEST
 # File: tests/test_account_auth_http.py
 # Component: WEBSITE-ACCOUNT-AUTH
-# Revision: 1.1.0
+# Revision: 1.1.1
 # Purpose: Verify account cookie, CSRF, role and enrollment HTTP boundaries
 # Execution Model: Loopback HTTP component test with an in-memory service double
 # Observability: unittest HTTP status and response assertions
@@ -12,6 +12,7 @@
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001 | Supply bounded account health projection in server tests
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-AUTH-001-CSRF-PATH | Assert dashboard-readable CSRF cookie scope
 # Changed: 2026-10-12 UTC | RV-ACCOUNT-ACCESS-REFINEMENT | Exercise password sign-in and server-side grant checks
+# Changed: 2026-10-25 UTC | RV-WEB-V2-GRACE-RECOVERY-SESSION-CAPABILITY | Verify recovery UI hint requires a linked Steward without exposing its principal ID
 # Contracts: docs/components/ACCOUNT_AUTHENTICATION.md
 # Tests: This file
 # History: Git and revision/backup manifest
@@ -180,6 +181,7 @@ class AccountAuthHTTPTests(unittest.TestCase):
         status, _, body = self.request("GET", "/api/v1/auth/session", cookie=cookie)
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(body)["identity"]["account_id"], "account-1")
+        self.assertFalse(json.loads(body)["identity"]["can_decide_grace_recovery"])
         status, _, body = self.request("POST", "/api/v1/notifications/00000000-0000-0000-0000-000000000000/acknowledge",
                                        cookie=cookie, body={})
         self.assertEqual(status, 403)
@@ -188,6 +190,23 @@ class AccountAuthHTTPTests(unittest.TestCase):
                                        cookie=cookie, csrf="C"*43, body={})
         self.assertEqual(status, 403)
         self.assertEqual(json.loads(body)["error"], "not_authorized")
+
+    def test_recovery_decision_capability_hint_requires_linked_steward(self):
+        cookie = "rv_account_session=" + "S"*43
+        self.accounts.identity = {"account_id":"account-2", "email":"steward@example.org",
+                                  "roles":["steward"]}
+        status, _, body = self.request("GET", "/api/v1/auth/session", cookie=cookie)
+        self.assertEqual(status, 200)
+        identity = json.loads(body)["identity"]
+        self.assertFalse(identity["can_decide_grace_recovery"])
+        self.assertNotIn("authority_principal_id", identity)
+
+        self.accounts.identity["authority_principal_id"] = "steward:fixture"
+        status, _, body = self.request("GET", "/api/v1/auth/session", cookie=cookie)
+        self.assertEqual(status, 200)
+        identity = json.loads(body)["identity"]
+        self.assertTrue(identity["can_decide_grace_recovery"])
+        self.assertNotIn("authority_principal_id", identity)
 
     def test_steward_routes_deny_viewer_sessions(self):
         cookie = "rv_account_session=" + "S"*43

@@ -1,15 +1,17 @@
 """Comms5 Camrui compatibility adapter tests.
 
-File Revision: 1.1.6
+File Revision: 1.1.10
 Component: COMMS5-CAMRUI-ADAPTER-TESTS
 History: New file; no predecessor existed.
 Changed: 2026-10-17 UTC | RV-COMMS5-FUNCTIONAL-20261017 | Verify authenticated internal operation routing for full objective status and submission listing.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify transport probes return caller and dashboard correlation evidence and reject unauthenticated direct use.
 Changed: 2026-10-17 UTC | RV-COMMS5-REMAINING-OPS-20261017 | Verify the Steward queue request uses the attested dashboard operation bridge and preserves its truthful queued state.
 Changed: 2026-10-18 UTC | RV-GRACE-CHATGPT-P0-C4-STEWARD-COMMS5-BRIDGE | Verify the 25-tool catalog, preserved legacy catalog, and authenticated reasoning bridge dispatch.
+Changed: 2026-10-26 UTC | C2-COMMAND-GATEWAY-COMBINED | Verify command tools and restored direct-dispatch catalog on the generalized delegation baseline.
 """
 
 import hashlib
+import io
 import json
 import tempfile
 import threading
@@ -37,13 +39,64 @@ def rpc(method, params=None, request_id=1):
 
 
 class Comms5MCPTests(unittest.TestCase):
+    def test_command_task_discovery_matches_schemas_and_exact_grants(self):
+        class CommandBackend:
+            supported_tools = {"comms5_command_task_submit", "comms5_command_task_status",
+                               "comms5_command_task_cancel"}
+            IMPLEMENTATION_STATUS = {name: "IMPLEMENTED" for name in supported_tools}
+
+        application = Comms5Application("x" * 48, backend=CommandBackend())
+        listed = application.handle(rpc("tools/list"))["result"]["tools"]
+        schemas = {tool["name"].removeprefix("comms5_"): tool["inputSchema"]
+                   for tool in listed if tool["name"] in {
+                       "comms5_command_task_submit", "comms5_command_task_status",
+                       "comms5_command_task_cancel"}}
+        capabilities = application.handle(rpc("tools/call", {
+            "name": "comms5_capabilities", "arguments": {}}))["result"]["structuredContent"]
+        help_value = application.handle(rpc("tools/call", {
+            "name": "comms5_help", "arguments": {}}))["result"]["structuredContent"]
+        examples = application.handle(rpc("tools/call", {
+            "name": "comms5_examples", "arguments": {}}))["result"]["structuredContent"]
+        operations = {item["name"]: item for item in capabilities["operations"]}
+        help_operations = {item["name"]: item for item in help_value["capabilities"]["operations"]}
+        for name, authorization in (
+                ("command_task_submit", "EXACT_HOST_CALLER_AND_EXECUTOR_GRANTS"),
+                ("command_task_status", "EXACT_HOST_CALLER_GRANT"),
+                ("command_task_cancel", "EXACT_HOST_CALLER_GRANT")):
+            with self.subTest(operation=name):
+                self.assertIn(name, schemas)
+                self.assertEqual(operations[name]["authorization"], authorization)
+                self.assertEqual(operations[name]["required"], schemas[name]["required"])
+                self.assertEqual(help_operations[name]["authorization"], authorization)
+                self.assertEqual(help_operations[name]["required"], schemas[name]["required"])
+                self.assertIn(name, examples)
+                described = application.handle(rpc("tools/call", {
+                    "name": "comms5_describe_operation",
+                    "arguments": {"operation": name}}))["result"]["structuredContent"]
+                self.assertEqual(described["authorization"], authorization)
+                self.assertEqual(described["required"], schemas[name]["required"])
+                self.assertEqual(described["camrui_implementation_status"], "IMPLEMENTED")
+                description = operations[name]["description"].lower()
+                if name.endswith("submit"):
+                    self.assertIn("asynchronously", description)
+                elif name.endswith("status"):
+                    self.assertIn("poll", description)
+                else:
+                    self.assertIn("cancel", description)
+
     def test_historical_catalog_is_complete_and_contract_metadata_works(self):
         catalog = json.loads(CATALOG.read_text())
         canonical = json.dumps(catalog["tools"][:21], separators=(",", ":"), ensure_ascii=False).encode()
         self.assertEqual(hashlib.sha256(canonical).hexdigest(), "d13698b1ad415d152f481c1a5360166ef1519b4ebd74944f0836f3341701a807")
         result = app().handle(rpc("tools/list"))["result"]["tools"]
-        self.assertEqual(len(result), 32)
+        self.assertEqual(len(result), 42)
         self.assertIn("comms5_authorize_grace_experiment", [tool["name"] for tool in result])
+        self.assertIn("comms5_submit_direct_engineering_task", [tool["name"] for tool in result])
+        self.assertIn("comms5_command_submit", [tool["name"] for tool in result])
+        self.assertIn("comms5_command_status", [tool["name"] for tool in result])
+        self.assertIn("comms5_command_task_submit", [tool["name"] for tool in result])
+        self.assertIn("comms5_command_task_status", [tool["name"] for tool in result])
+        self.assertIn("comms5_command_task_cancel", [tool["name"] for tool in result])
         self.assertEqual([tool["name"] for tool in result], [tool["name"] for tool in catalog["tools"]])
         exchange_names = ["reasoning_exchange_list_requests", "reasoning_exchange_claim_request",
             "reasoning_exchange_submit_response", "reasoning_exchange_status"]
@@ -84,7 +137,7 @@ class Comms5MCPTests(unittest.TestCase):
         help_result = application.handle(rpc("tools/call", {"name": "comms5_help", "arguments": {}}))
         help_value = json.loads(help_result["result"]["content"][0]["text"])
         self.assertEqual(help_value["contract"]["contract"], "riverview-comms-contract:5.0")
-        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 23)
+        self.assertEqual(help_value["camrui_migration_notice"]["not_implemented_tool_count"], 33)
         capabilities = application.handle(rpc("tools/call", {"name": "comms5_capabilities", "arguments": {}}))
         capability_value = json.loads(capabilities["result"]["content"][0]["text"])
         self.assertEqual(sum(op["camrui_implementation_status"] == "IMPLEMENTED" for op in capability_value["operations"]), 5)
@@ -117,6 +170,41 @@ class Comms5MCPTests(unittest.TestCase):
         extra = application.handle(rpc("tools/call", {"name": "comms5_contract_info", "arguments": {"unexpected": True}}))
         self.assertEqual(missing["error"]["code"], -32602)
         self.assertEqual(extra["error"]["code"], -32602)
+
+    def test_command_tools_accept_only_fixed_operations_and_authenticated_steward_route(self):
+        application = app()
+        missing_grant = application.handle(rpc("tools/call", {
+            "name": "comms5_command_submit", "arguments": {
+                "operation": "powershell_identity", "idempotency_key": "acceptance-1"}}))
+        self.assertEqual(missing_grant["error"]["code"], -32602)
+        arbitrary = application.handle(rpc("tools/call", {
+            "name": "comms5_command_submit", "arguments": {
+                "operation": "powershell -Command whoami", "execution_grant_id": "grant-1",
+                "idempotency_key": "acceptance-1"}}))
+        self.assertEqual(arbitrary["error"]["code"], -32602)
+
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("a" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            operation = {"status": "completed", "executed": True, "execution_id": "exec-1"}
+            with patch.object(backend, "_post_operation", return_value=operation) as dispatch:
+                authorized = backend.call_authenticated("comms5_command_submit", {
+                    "operation": "powershell_identity", "execution_grant_id": "grant-1",
+                    "idempotency_key": "acceptance-1"}, principal="steward")
+                self.assertEqual(authorized["execution_id"], "exec-1")
+                dispatch.assert_called_once_with("comms5_command_submit", {
+                    "operation": "powershell_identity", "execution_grant_id": "grant-1",
+                    "idempotency_key": "acceptance-1"})
+                cancel_arguments = {"host_id": "camrui", "command_sha256": "a" * 64,
+                    "privilege_level": "standard", "idempotency_key": "command-task-1"}
+                cancelled = backend.call_authenticated("comms5_command_task_cancel",
+                    cancel_arguments, principal="steward")
+                self.assertEqual(cancelled["execution_id"], "exec-1")
+                dispatch.assert_called_with("comms5_command_task_cancel", cancel_arguments)
+            with self.assertRaises(PermissionError):
+                backend.call_authenticated("comms5_command_submit", {}, principal="provider")
 
     def test_initialization_versions_and_notifications(self):
         application = app()
@@ -260,6 +348,41 @@ class Comms5MCPTests(unittest.TestCase):
             self.assertEqual(statuses["comms5_submit_steward_seed"], "IMPLEMENTED")
             self.assertEqual(statuses["comms5_confirm_and_promote_seed"], "IMPLEMENTED")
 
+    def test_command_task_timeout_exceeds_agent_probe_deadline(self):
+        class Response:
+            status = 200
+            headers = type("Headers", (), {"get_content_type": lambda self: "application/json"})()
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, size): return b'{"status":"queued"}'
+
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("t" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            with patch.object(backend, "_open", return_value=Response()) as opened:
+                result = backend._post_operation("comms5_command_task_submit", {})
+            self.assertEqual(result["status"], "queued")
+            self.assertEqual(opened.call_args.kwargs["timeout"], 25.0)
+
+    def test_command_agent_error_preserves_only_sanitized_http_diagnostic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            credential = Path(directory) / "dashboard-token"
+            credential.write_text("t" * 48)
+            credential.chmod(0o600)
+            backend = DashboardReadBackend(credential_file=credential)
+            for diagnostic, expected in (
+                    ("command_agent_http_503_service_unavailable", "command_agent_http_503_service_unavailable"),
+                    ("secret-token-value", "command_agent_failure_unclassified")):
+                body = json.dumps({"error": "command_agent_unavailable",
+                                   "diagnostic": diagnostic}).encode()
+                error = HTTPError("http://127.0.0.1/", 503, "unavailable", {}, io.BytesIO(body))
+                with self.subTest(diagnostic=diagnostic), \
+                        patch.object(backend, "_open", side_effect=error), \
+                        self.assertRaisesRegex(DashboardBackendUnavailable, expected):
+                    backend._post_operation("comms5_command_task_submit", {})
+
     def test_dashboard_backend_rejects_noncanonical_objective_list_paths(self):
         with tempfile.TemporaryDirectory() as directory:
             credential = Path(directory) / "dashboard-token"
@@ -381,7 +504,7 @@ class Comms5MCPTests(unittest.TestCase):
             with urlopen(request, timeout=2) as response:
                 result = json.loads(response.read())
                 self.assertEqual(response.status, 200)
-            self.assertEqual(len(result["result"]["tools"]), 32)
+            self.assertEqual(len(result["result"]["tools"]), 42)
         finally:
             server.shutdown()
             server.server_close()

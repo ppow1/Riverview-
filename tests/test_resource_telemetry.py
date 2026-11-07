@@ -136,6 +136,33 @@ class ResourceTelemetryTests(unittest.TestCase):
         self.assertEqual(result["slot_context"]["state"], "unavailable")
         self.assertEqual(result["slot_context"]["slots"], [])
 
+    def test_comfyui_projection_reports_state_queue_counts_and_vram_without_queue_payloads(self):
+        telemetry = DashboardResourceTelemetry(credential_directory=self.credentials)
+        prompt_text = "private Comfy prompt text"
+        telemetry._read_json = lambda url: (
+            {"system": {"comfyui_version": "0.9.2"},
+             "devices": [{"name": "cuda:0 NVIDIA GeForce RTX 4090", "type": "cuda",
+                          "index": 0, "vram_total": 24000, "vram_free": 17000}]}
+            if url.endswith("/system_stats") else
+            {"queue_running": [[1, "secret-id", {}, {"prompt": prompt_text}]],
+             "queue_pending": [[2, "secret-id-2", {}, {"prompt": prompt_text}]]})
+        result = telemetry._comfyui_source()
+        self.assertEqual(result["state"], "ready")
+        self.assertEqual(result["version"], "0.9.2")
+        self.assertEqual(result["queue"], {"state": "measured", "running": 1, "pending": 1})
+        self.assertEqual(result["devices"][0]["vram_free_bytes"], 17000)
+        serialized = json.dumps(result)
+        for private_value in (prompt_text, "secret-id"):
+            self.assertNotIn(private_value, serialized)
+
+    def test_comfyui_bad_or_unavailable_source_is_explicit(self):
+        telemetry = DashboardResourceTelemetry(credential_directory=self.credentials)
+        telemetry._read_json = lambda _url: (_ for _ in ()).throw(OSError("offline"))
+        result = telemetry._comfyui_source()
+        self.assertEqual(result["state"], "unavailable")
+        self.assertIsNone(result["queue"]["running"])
+        self.assertEqual(result["error_code"], "comfyui_source_unavailable")
+
     def test_invalid_slot_counters_remain_unavailable_instead_of_becoming_zero(self):
         telemetry = DashboardResourceTelemetry(credential_directory=self.credentials)
         telemetry._read_json = lambda url: (
@@ -171,9 +198,15 @@ class ResourceTelemetryTests(unittest.TestCase):
         telemetry=DashboardResourceTelemetry(credential_directory=self.credentials,local_storage_reader=lambda _host:local)
         telemetry._gpu_source=lambda:{"state":"unavailable","observed_at":None,"error_code":"offline","devices":[],"storage":{"state":"unavailable","observed_at":None,"volumes":[],"error_code":"offline"}}
         telemetry._model_source=lambda source:{"service_id":source["service_id"],"state":"unavailable","observed_at":None}
+        telemetry._comfyui_source=lambda:{"service_id":"riverview-comfyui","display_name":"ComfyUI",
+            "state":"ready","version":"0.9.2","observed_at":"2026-10-22T19:00:00Z",
+            "devices":[{"name":"cuda:0 NVIDIA GeForce RTX 4090","type":"cuda","index":0,
+                        "vram_total_bytes":24000,"vram_free_bytes":17000}],
+            "queue":{"state":"measured","running":0,"pending":0},"error_code":None}
         result=telemetry.read()
         errors=list(Draft202012Validator(schema).iter_errors(result))
         self.assertEqual(errors,[],[error.message for error in errors])
+        self.assertEqual(result["comfyui"]["queue"]["running"],0)
         self.assertEqual(result["hosts"][0]["storage"]["volumes"][0]["filesystem_id"],volume["filesystem_id"])
         self.assertEqual(result["hosts"][2]["storage"]["state"],"unavailable")
 
@@ -184,6 +217,9 @@ class ResourceTelemetryTests(unittest.TestCase):
                  "error_code": None}
         telemetry = DashboardResourceTelemetry(
             credential_directory=self.credentials, local_storage_reader=lambda _host: local)
+        telemetry._comfyui_source = lambda: {"service_id":"riverview-comfyui","display_name":"ComfyUI",
+            "state":"unavailable","version":None,"observed_at":None,"devices":[],
+            "queue":{"state":"unavailable","running":None,"pending":None},"error_code":"offline"}
         telemetry._gpu_source = lambda: {"state": "healthy", "observed_at": "2026-10-22T19:00:00Z",
                                          "error_code": None, "devices": [],
                                          "storage": {"state": "unavailable", "observed_at": None,

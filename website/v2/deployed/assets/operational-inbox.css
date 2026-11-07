@@ -1,0 +1,45 @@
+/*
+Revision: 1.0.1
+*/
+.operational-inbox{padding:17px;border:1px solid var(--line);border-radius:9px;background:var(--surface,#fff);color:var(--ink)}
+.operational-inbox-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.operational-inbox-heading h3{margin:0 0 6px;font:500 19px Georgia,"Times New Roman",serif}
+.operational-inbox-heading .muted{max-width:750px;font-size:11px;line-height:1.5}
+.operational-inbox-heading button,.inbox-work-link{padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
+.operational-inbox-heading button:disabled{opacity:.55;cursor:wait}
+.inbox-freshness{margin:12px 0;color:var(--muted);font-size:10px;line-height:1.5}
+.inbox-action-status{margin:8px 0;color:var(--muted);font-size:10px;line-height:1.5}
+.inbox-dispatcher-health{margin:8px 0;color:var(--muted);font-size:10px;line-height:1.5}
+.inbox-receipt-action{margin-top:6px;padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px;cursor:pointer}
+.inbox-receipt-action:disabled{opacity:.55;cursor:wait}
+.inbox-receipt-note{display:block;margin-top:6px;color:var(--muted);font-size:9px}
+.inbox-source-status{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 14px}
+.inbox-event-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:10px}
+.inbox-table-wrap details{margin-top:6px;font-size:10px}
+.inbox-notification-details{margin-top:7px}
+.inbox-recovery-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px}
+.inbox-recovery-decision{padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px;cursor:pointer}
+.inbox-recovery-decision:disabled{opacity:.55;cursor:wait}
+.inbox-recovery-consequential{border-color:#b7792b}
+.inbox-recovery-actions small,.inbox-recovery-unavailable{flex-basis:100%;color:var(--muted);font-size:9px;line-height:1.45}
+.inbox-table-wrap details summary{cursor:pointer;color:var(--accent,#385c7a)}
+.inbox-table-wrap details dl{display:grid;grid-template-columns:minmax(100px,auto) minmax(0,1fr);gap:3px 9px;margin:8px 0}
+.inbox-table-wrap details dt{font-weight:650}
+.inbox-table-wrap details dd{margin:0;overflow-wrap:anywhere}
+.inbox-source{padding:5px 8px;border:1px solid var(--line);border-radius:99px;color:var(--muted);font-size:9px}
+.inbox-source-available{border-color:#9cc7b3;color:#28704e}.inbox-source-unavailable,.inbox-source-unauthenticated,.inbox-source-denied{border-color:#dfad9f;color:#9a4434}
+.inbox-filters{display:grid;grid-template-columns:minmax(180px,2fr) repeat(4,minmax(120px,1fr));gap:9px;margin:14px 0}
+.inbox-filters label{display:grid;gap:5px;color:var(--muted);font-size:10px;font-weight:650}
+.inbox-filters input,.inbox-filters select{width:100%;min-height:35px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:10px}
+.inbox-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:7px}
+.inbox-table-wrap table{width:100%;min-width:850px;border-collapse:collapse;text-align:left;font-size:10px}
+.inbox-table-wrap th{padding:10px 9px;background:#f5f7f7;color:#71808a;font-weight:650;white-space:nowrap}
+.inbox-table-wrap td{padding:10px 9px;border-top:1px solid var(--line);vertical-align:top;line-height:1.45}
+.inbox-table-wrap td strong,.inbox-description,.inbox-meta{display:block}.inbox-description{margin-top:4px}.inbox-meta{margin-top:5px;color:var(--muted);font-size:9px}
+.inbox-table-wrap code{display:block;max-width:210px;overflow-wrap:anywhere;color:var(--muted);font-size:9px}
+.inbox-state{white-space:nowrap;text-transform:capitalize}.inbox-empty{margin:0;padding:20px 12px;text-align:center;color:var(--muted);font-size:10px;line-height:1.5}
+@media(max-width:900px){.inbox-filters{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.operational-inbox{padding:12px}.operational-inbox-heading{flex-direction:column}.inbox-filters{grid-template-columns:1fr}.inbox-table-wrap table{min-width:750px}}
+:root[data-theme="dark"] .inbox-table-wrap th{background:#293238}
+
+.inbox-deep-link-target{outline:2px solid var(--accent,#438b7d);outline-offset:-2px;scroll-margin:1rem}

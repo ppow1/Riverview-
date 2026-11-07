@@ -2,7 +2,9 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/resident_execution/codex_workflow.py
 # Component: RESIDENT-ORCHESTRATION
-# Revision: 1.2.19
+# Revision: 1.2.22
+# Changed: 2026-10-25 UTC | RV-GRACE-ASSIGNMENT-EVIDENCE-HANDOFF-20261025 | Select validated runtime evidence from persisted assignment requirements and preflight it before worker execution.
+# Changed: 2026-10-25 UTC | RV-GRACE-S5-EVIDENCE-RETRY-20261025 | Restrict the S3-only CME retry evidence reader to the exact S3 step; S5 uses its separately validated evaluation exchange.
 # Changed: 2026-10-25 UTC | RV-GRACE-S4-EVIDENCE-HANDOFF-20261025 | Supply validated durable Luna evaluation facts to exact assignment rework.
 # Changed: 2026-10-25 UTC | RV-GRACE-S3-RUNTIME-EVIDENCE-20261025 | Supply verified durable CME recovery facts to the existing bounded artifact rework.
 # Changed: 2026-10-21 UTC | RV-W4-GRACE-CRITERIA-CLASSIFICATION-20261021 | Forward immutable objective request separately into authorized Engineering execution
@@ -94,6 +96,111 @@ class CodexWorkAction:
         self.adapter = adapter
         self.repository_reference = repository_reference
         self.timeout_seconds = timeout_seconds
+        self._runtime_evidence_preflight = {}
+
+    @staticmethod
+    def _required_runtime_evidence(step):
+        """Select controller evidence from persisted assignment requirements."""
+        requirement_text = " ".join([
+            *(str(value) for value in step.get("acceptance_criteria", ())),
+            *(str(item.get("name", "")) + " " + " ".join(
+                str(value) for value in item.get("acceptance_criteria", ()))
+              for item in step.get("artifact_requirements", ())),
+        ]).casefold()
+        required = []
+        if ("reasoning attempt" in requirement_text and
+                ("state transition" in requirement_text or "event history" in requirement_text)):
+            required.append("diagnostic")
+        if ("luna" in requirement_text and "request" in requirement_text and
+                any(term in requirement_text for term in ("actual outcome", "exchange", "response")) and
+                step.get("step_id") == "s3"):
+            required.append("cme_recovery")
+        if ("evaluation" in requirement_text and
+                any(term in requirement_text for term in ("luna", "grade", "rubric", "feedback"))):
+            required.append("performance_evaluation")
+        return tuple(required)
+
+    @staticmethod
+    def _validate_runtime_evidence(kind, evidence, objective_id, assignment_id):
+        if not isinstance(evidence, Mapping) or evidence.get("read_only") is not True:
+            raise CodexActionFailure("assignment_runtime_evidence_invalid")
+        if kind == "diagnostic":
+            historical = evidence.get("referenced_historical_objectives", [])
+            valid = (evidence.get("schema") == "rv.grace-diagnostic-runtime-evidence.v1" and
+                any(item.get("status") == "CANCELLED" and
+                    item.get("event_counts", {}).get("execution.reasoning_attempted", 0) >= 599 and
+                    item.get("event_counts", {}).get("execution.reasoning_failed", 0) >= 599
+                    for item in historical if isinstance(item, Mapping)))
+        elif kind == "cme_recovery":
+            exchange = evidence.get("exchange")
+            valid = (evidence.get("schema") == "rv.grace.cme-recovery-runtime-evidence.v1" and
+                evidence.get("objective_id") == objective_id and
+                evidence.get("assignment_id") == assignment_id and
+                isinstance(exchange, Mapping) and exchange.get("provider_attempt_count") == 1 and
+                exchange.get("delivery_state") == "grace_consumed")
+        else:
+            exchange, evaluation = evidence.get("exchange"), evidence.get("evaluation")
+            valid = (evidence.get("schema") ==
+                "rv.grace.performance-evaluation-runtime-evidence.v1" and
+                evidence.get("objective_id") == objective_id and
+                evidence.get("assignment_id") == assignment_id and
+                isinstance(exchange, Mapping) and isinstance(evaluation, Mapping) and
+                exchange.get("delivery_state") == "grace_consumed" and
+                evaluation.get("feedback_consumed") is True and
+                evaluation.get("authority_granted") is False)
+        if not valid:
+            raise CodexActionFailure("assignment_runtime_evidence_invalid")
+        return dict(evidence)
+
+    def _assignment_runtime_evidence(self, objective_id, assignment_id, step):
+        selected = self._required_runtime_evidence(step)
+        if not selected:
+            return None
+        readers = {
+            "diagnostic": ("diagnostic_runtime_evidence", (objective_id,)),
+            "cme_recovery": ("cme_recovery_runtime_evidence_for_assignment",
+                             (objective_id, assignment_id)),
+            "performance_evaluation": (
+                "performance_evaluation_runtime_evidence_for_assignment",
+                (objective_id, assignment_id)),
+        }
+        evidence = {}
+        for kind in selected:
+            method_name, args = readers[kind]
+            reader = getattr(self.pipeline, method_name, None)
+            if not callable(reader):
+                raise CodexActionFailure("assignment_runtime_evidence_unavailable")
+            value = reader(*args)
+            evidence[kind] = self._validate_runtime_evidence(
+                kind, value, objective_id, assignment_id)
+        if len(evidence) == 1:
+            return next(iter(evidence.values()))
+        return {"schema": "rv.grace.codex-runtime-evidence.v1",
+            **{f"{kind}_evidence": value for kind, value in evidence.items()}}
+
+    def preflight_assignment(self, assignment):
+        """Validate required read-only controller evidence before an execution attempt."""
+        from ..worker_adapter.knowledge import KnowledgeResult, KnowledgeStatus
+        try:
+            objective_id = assignment.get("objective_ref")
+            objective = self.pipeline.get_objective(objective_id)
+            resolver = getattr(self.pipeline, "proposal_step_for_assignment", None)
+            step = resolver(objective_id, assignment.get("id")) if callable(resolver) else None
+            if not isinstance(objective, Mapping) or not isinstance(step, Mapping):
+                raise CodexActionFailure("persisted_work_order_step_missing")
+            rework_reader = getattr(self.pipeline, "latest_rework_instruction", None)
+            rework = rework_reader(assignment["id"]) if callable(rework_reader) else None
+            evidence = self._assignment_runtime_evidence(
+                objective_id, assignment["id"], step)
+            self._runtime_evidence_preflight[assignment["id"]] = (
+                assignment.get("version"), assignment.get("workflow_step"),
+                rework.get("verification_id") if isinstance(rework, Mapping) else None,
+                evidence)
+            return KnowledgeResult(KnowledgeStatus.VERIFIED,
+                source_references=("urn:rv:assignment-runtime-evidence",),
+                retrieval_complete=True)
+        except Exception:
+            return KnowledgeResult(KnowledgeStatus.UNAVAILABLE)
 
     def __call__(self, assignment, grounded):
         if (grounded.status is not KnowledgeStatus.VERIFIED or
@@ -177,54 +284,27 @@ class CodexWorkAction:
                         item.get("event_counts", {}).get("execution.reasoning_failed", 0) >= 599
                         for item in historical)):
                 raise CodexActionFailure("diagnostic_history_evidence_incomplete")
-        if rework is not None:
-            evidence_reader = getattr(
-                self.pipeline, "cme_recovery_runtime_evidence_for_assignment", None)
-            if callable(evidence_reader):
-                cme_evidence = evidence_reader(objective_id, assignment["id"])
-                if cme_evidence is not None:
-                    exchange_evidence = (cme_evidence.get("exchange")
-                        if isinstance(cme_evidence, Mapping) else None)
-                    if (not isinstance(cme_evidence, Mapping) or
-                            cme_evidence.get("schema") !=
-                                "rv.grace.cme-recovery-runtime-evidence.v1" or
-                            cme_evidence.get("read_only") is not True or
-                            cme_evidence.get("objective_id") != objective_id or
-                            cme_evidence.get("assignment_id") != assignment["id"] or
-                            not isinstance(exchange_evidence, Mapping) or
-                            exchange_evidence.get("provider_attempt_count") != 1 or
-                            exchange_evidence.get("delivery_state") !=
-                                "grace_consumed"):
-                        raise CodexActionFailure("cme_recovery_runtime_evidence_invalid")
-                    if runtime_evidence is None:
-                        runtime_evidence = cme_evidence
-                    else:
-                        runtime_evidence = {"schema": "rv.grace.codex-runtime-evidence.v1",
-                            "objective_runtime_evidence": runtime_evidence,
-                            "cme_recovery_evidence": cme_evidence}
-            evaluation_reader = getattr(
-                self.pipeline, "performance_evaluation_runtime_evidence_for_assignment", None)
-            if callable(evaluation_reader):
-                evaluation_evidence = evaluation_reader(objective_id, assignment["id"])
-                if evaluation_evidence is not None:
-                    if (not isinstance(evaluation_evidence, Mapping) or
-                            evaluation_evidence.get("schema") !=
-                                "rv.grace.performance-evaluation-runtime-evidence.v1" or
-                            evaluation_evidence.get("read_only") is not True or
-                            evaluation_evidence.get("objective_id") != objective_id or
-                            evaluation_evidence.get("assignment_id") != assignment["id"] or
-                            not isinstance(evaluation_evidence.get("exchange"), Mapping) or
-                            not isinstance(evaluation_evidence.get("evaluation"), Mapping) or
-                            evaluation_evidence["exchange"].get("delivery_state") !=
-                                "grace_consumed" or
-                            evaluation_evidence["evaluation"].get("feedback_consumed") is not True or
-                            evaluation_evidence["evaluation"].get("authority_granted") is not False):
-                        raise CodexActionFailure(
-                            "performance_evaluation_runtime_evidence_invalid")
-                    runtime_evidence = ({"schema": "rv.grace.codex-runtime-evidence.v1",
-                        "objective_runtime_evidence": runtime_evidence,
-                        "performance_evaluation_evidence": evaluation_evidence}
-                        if runtime_evidence is not None else evaluation_evidence)
+        cached_evidence = self._runtime_evidence_preflight.pop(assignment["id"], None)
+        if (cached_evidence is not None and
+                cached_evidence[:3] == (assignment.get("version"),
+                    assignment.get("workflow_step"),
+                    rework.get("verification_id") if isinstance(rework, Mapping) else None)):
+            preflight_evidence = cached_evidence[3]
+            if preflight_evidence is not None:
+                runtime_evidence = (runtime_evidence if runtime_evidence == preflight_evidence else
+                    preflight_evidence if runtime_evidence is None else {
+                    "schema": "rv.grace.codex-runtime-evidence.v1",
+                    "objective_runtime_evidence": runtime_evidence,
+                    "assignment_runtime_evidence": preflight_evidence})
+        else:
+            preflight_evidence = self._assignment_runtime_evidence(
+                objective_id, assignment["id"], step)
+            if preflight_evidence is not None:
+                runtime_evidence = (runtime_evidence if runtime_evidence == preflight_evidence else
+                    preflight_evidence if runtime_evidence is None else {
+                    "schema": "rv.grace.codex-runtime-evidence.v1",
+                    "objective_runtime_evidence": runtime_evidence,
+                    "assignment_runtime_evidence": preflight_evidence})
         try:
             repository_revision = self.adapter.repository_revision()
         except Exception as exc:

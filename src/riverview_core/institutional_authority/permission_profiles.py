@@ -2,12 +2,13 @@
 # RIVERVIEW~ CONTROLLED SOURCE
 # File: src/riverview_core/institutional_authority/permission_profiles.py
 # Component: RESIDENT-PERMISSION-PROFILES
-# Revision: 1.0.2
-# Purpose: Evaluate versioned resident permission profiles alongside exact grants
+# Revision: 1.0.3
+# Purpose: Evaluate and project effective resident permissions alongside exact grants
 # Execution Model: Request-driven, PostgreSQL SECURITY DEFINER profile API
 # Observability: Audited profile revisions and explicit policy decisions
 # Dependencies: PostgreSQL authority migration 0008; psycopg 3
 # Authority: Profiles can narrow exact grants; they never create authority grants
+# Changed: 2026-10-25 UTC | RV-DYNAMIC-PERMISSIONS-20261025 | Add server-evaluated resident/action/resource decisions to the Steward's existing catalog response.
 # Tests: tests/test_permission_profiles.py
 # History: Git and .riverview-backups/manifest.jsonl
 # =============================================================================
@@ -23,15 +24,27 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import psycopg
 from psycopg import sql
+from .grants import _access_level
 
 
 _SCHEMA = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,62}$")
 TIERS = ("observer", "operator", "administrator", "institutional_administrator")
 ACCESS_LEVELS = ("read", "write", "execute", "administer", "delegate")
 CLASSIFICATIONS = ("public", "internal", "confidential", "restricted")
+
+
+def _permission_time(value):
+    if isinstance(value, datetime):
+        result = value
+    else:
+        result = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    if result.tzinfo is None:
+        result = result.replace(tzinfo=timezone.utc)
+    return result
 
 
 @dataclass(frozen=True)
@@ -129,12 +142,76 @@ class ResidentPermissionStore:
     def list_profiles(self, steward_principal_id):
         query = sql.SQL("SELECT {}.list_resident_permission_profiles(%s) AS result").format(
             sql.Identifier(self.schema))
+        evaluator = sql.SQL("SELECT {}.evaluate_resident_permission(%s,%s,%s,%s,%s,false) AS result").format(
+            sql.Identifier(self.schema))
         try:
             with self.connect() as connection, connection.cursor() as cursor:
                 cursor.execute(query, (steward_principal_id,))
                 row = cursor.fetchone()
-                return row[0] if not hasattr(row, "keys") else row["result"]
+                result = row[0] if not hasattr(row, "keys") else row["result"]
+                if not isinstance(result, dict):
+                    raise RuntimeError("resident_permission_registry_unavailable")
+                resources = {item.get("resource_id"): item for item in result.get("resources", [])
+                             if isinstance(item, dict)}
+                now = datetime.now(timezone.utc)
+                for profile in result.get("profiles", []):
+                    effective = []
+                    grants = profile.get("standing_grants", [])
+                    for capability in result.get("capabilities", []):
+                        action = capability.get("authority_action")
+                        if not isinstance(action, str) or not action:
+                            continue
+                        level = _access_level(action)
+                        for resource_id in capability.get("resource_ids", []):
+                            resource = resources.get(resource_id)
+                            if resource is None:
+                                continue
+                            matching_grants = [grant for grant in grants
+                                if grant.get("action") == action and grant.get("scope_ref") == resource_id]
+                            matched_grant = next((grant for grant in matching_grants
+                                if not grant.get("revoked_at")
+                                and (not grant.get("valid_from") or _permission_time(grant["valid_from"]) <= now)
+                                and (not grant.get("valid_until") or _permission_time(grant["valid_until"]) > now)), None)
+                            grant_state = "active" if matched_grant else "missing"
+                            if not matched_grant and matching_grants:
+                                if any(grant.get("revoked_at") for grant in matching_grants):
+                                    grant_state = "revoked"
+                                elif any(grant.get("valid_from") and _permission_time(grant["valid_from"]) > now
+                                         for grant in matching_grants):
+                                    grant_state = "not_yet_valid"
+                                elif any(grant.get("valid_until") and _permission_time(grant["valid_until"]) <= now
+                                         for grant in matching_grants):
+                                    grant_state = "expired"
+                                else:
+                                    grant_state = "inactive"
+                            cursor.execute(evaluator, (profile["principal_id"], action,
+                                resource_id, level, resource.get("classification") or "internal"))
+                            decision_row = cursor.fetchone()
+                            decision = (decision_row[0] if not hasattr(decision_row, "keys")
+                                        else decision_row["result"])
+                            if isinstance(decision, str):
+                                decision = json.loads(decision)
+                            policy_allowed = isinstance(decision, dict) and decision.get("allowed") is True
+                            approval_required = bool(decision.get("approval_required")) if isinstance(decision, dict) else False
+                            effective.append({
+                                "capability_id": capability.get("capability_id"),
+                                "authority_action": action,
+                                "resource_id": resource_id,
+                                "access_level": level,
+                                "classification": resource.get("classification") or "internal",
+                                "export": False,
+                                "policy_decision": decision,
+                                "exact_grant_status": grant_state,
+                                "grant_id": matched_grant.get("grant_id") if matched_grant else None,
+                                "effective_status": ("authorized" if policy_allowed and matched_grant and not approval_required
+                                                     else "approval_required" if policy_allowed and matched_grant and approval_required
+                                                     else "denied"),
+                            })
+                    profile["effective_permissions"] = effective
+                return result
         except psycopg.Error:
+            raise RuntimeError("resident_permission_registry_unavailable") from None
+        except (ValueError, TypeError, KeyError, IndexError):
             raise RuntimeError("resident_permission_registry_unavailable") from None
 
     def save_profile(self, steward_principal_id, resident_principal_id,
