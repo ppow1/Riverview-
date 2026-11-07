@@ -91,6 +91,7 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "0013_grace_capability_registry_read",
             "0014_resident_status_read_schema",
             "0015_deployed_capability_declarations",
+            "0017_resident_proposal_capability_resources",
         ])
         self.assertEqual(apply_migrations(DSN, schema=self.schema, migrations_dir=migration), [])
         with self.admin.cursor() as cur:
@@ -101,6 +102,30 @@ class InstitutionalAuthorityTests(unittest.TestCase):
             "type": "object", "additionalProperties": False,
             "required": [], "properties": {},
         })
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT capability_id,resource_id,implementation_ref "
+                        f"FROM {self.schema}.capability_resources "
+                        "WHERE resource_id='riverview:institutional-proposals' "
+                        "ORDER BY capability_id")
+            proposal_resources = cur.fetchall()
+        self.assertEqual(proposal_resources, [
+            ("proposal.draft.submit", "riverview:institutional-proposals",
+             "institutional.proposal-registry.v1"),
+            ("proposal.status.read", "riverview:institutional-proposals",
+             "institutional.proposal-registry-status.v1"),
+        ])
+        with self.admin.cursor() as cur:
+            cur.execute(f"SELECT capability_id,authority_action,implementation_ref,enabled "
+                        f"FROM {self.schema}.capability_catalog "
+                        "WHERE capability_id IN ('proposal.draft.submit','proposal.status.read') "
+                        "ORDER BY capability_id")
+            proposal_capabilities = cur.fetchall()
+        self.assertEqual(proposal_capabilities, [
+            ("proposal.draft.submit", "proposal.draft.submit",
+             "institutional.proposal-registry.v1", True),
+            ("proposal.status.read", "proposal.status.read",
+             "institutional.proposal-registry-status.v1", True),
+        ])
         with self.admin.cursor() as cur:
             cur.execute(f"SELECT authority_action,implementation_ref,authorization_contract,"
                         f"registration_blocker,declaration_source "

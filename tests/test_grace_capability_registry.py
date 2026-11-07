@@ -313,6 +313,95 @@ class GraceCapabilityRegistryTests(unittest.TestCase):
             [{"name": "riverview_capability_discover", "inputSchema": {}}])
         self.assertEqual(selected, "riverview_capability_discover")
 
+    def test_explicit_proposal_submission_selects_registered_authorized_capability(self):
+        catalog = [{"name": "proposal.draft.submit", "inputSchema": {}}]
+        selected = GraceModelRouter._required_internal_tool(
+            [{"role": "user", "content": "Prepare and submit a proposal for the website clock."}],
+            catalog)
+        self.assertEqual(selected, "proposal.draft.submit")
+
+    def test_proposal_submission_tool_is_not_selected_when_user_withholds_submission(self):
+        catalog = [{"name": "proposal.draft.submit", "inputSchema": {}}]
+        selected = GraceModelRouter._required_internal_tool(
+            [{"role": "user", "content": "Prepare a proposal draft, but do not submit it."}],
+            catalog)
+        self.assertIsNone(selected)
+
+    def test_proposal_status_lookup_selects_exact_registered_capability(self):
+        catalog = [{"name": "proposal.status.read", "inputSchema": {}}]
+        selected = GraceModelRouter._required_internal_tool(
+            [{"role": "user", "content": "Read proposal:00000000-0000-0000-0000-000000000000 status."}],
+            catalog)
+        self.assertEqual(selected, "proposal.status.read")
+
+    def test_proposal_request_forces_model_tool_call_and_records_result(self):
+        class Tools:
+            def __init__(self): self.calls = []
+            def catalog(self):
+                return [{"name": "proposal.draft.submit",
+                         "inputSchema": {"type": "object", "required": ["content"]}}]
+            def call(self, name, arguments):
+                self.calls.append((name, arguments))
+                return {"status": "ok", "tool": name,
+                        "result": {"proposal_id": "proposal:00000000-0000-0000-0000-000000000000",
+                                   "revision": 1, "lifecycle_status": "DRAFT",
+                                   "readback_verified": True}}
+
+        provider = _Provider([
+            '<rv-tool-call>{"name":"proposal.draft.submit","arguments":{"content":{}}}</rv-tool-call>',
+            "The draft was persisted and is awaiting Steward approval.",
+        ])
+        tools = Tools()
+        router = GraceModelRouter(autonomic=provider, vision=provider,
+            reasoning=provider, internal_tools=tools)
+        result = router.complete_chat(
+            [{"role": "user", "content": "Prepare and submit a proposal for a date/time clock."}],
+            max_tokens=128, expected_revision=router.model_sha256,
+            required_capability="grace.reasoning.80b")
+        self.assertEqual([name for name, _ in tools.calls], ["proposal.draft.submit"])
+        self.assertEqual(result.internal_tool_results[0]["result"]["lifecycle_status"], "DRAFT")
+        self.assertIn("proposal.draft.submit", provider.calls[0][0]["content"])
+        self.assertIn("do not approve, promote, dispatch, or implement it",
+                      provider.calls[0][0]["content"].lower())
+        self.assertTrue(any('"proposal_id":"proposal:00000000-0000-0000-0000-000000000000"'
+                            in message.get("content", "")
+                            for call in provider.calls for message in call))
+
+    def test_proposal_status_executor_returns_bounded_receipt_for_author(self):
+        class Proposals:
+            def get(self, _proposal_id):
+                return {"proposal": {"proposal_id": "proposal:00000000-0000-0000-0000-000000000000",
+                    "created_by": "resident:grace", "lifecycle_status": "DRAFT"},
+                    "revision": {"revision": 1, "content_sha256": "a" * 64,
+                                 "title": "clock"}}
+
+        self.registry.proposal_registry = Proposals()
+        receipt = self.registry._read_proposal_status(
+            scope_ref="institution:proposal-drafts",
+            inputs={"proposal_id": "proposal:00000000-0000-0000-0000-000000000000"},
+            credential="r" * 48,
+            grant={"principal_id": "resident:grace"})
+        self.assertEqual(receipt, {
+            "proposal_id": "proposal:00000000-0000-0000-0000-000000000000",
+            "revision": 1, "content_sha256": "a" * 64,
+            "author_principal_id": "resident:grace", "lifecycle_status": "DRAFT",
+            "approval": "awaiting_steward_decision", "readback_verified": True})
+        self.assertNotIn("title", receipt)
+
+    def test_proposal_status_executor_does_not_disclose_another_authors_record(self):
+        class Proposals:
+            def get(self, _proposal_id):
+                return {"proposal": {"proposal_id": "proposal:00000000-0000-0000-0000-000000000000",
+                    "created_by": "resident:other", "lifecycle_status": "DRAFT"},
+                    "revision": {"revision": 1, "content_sha256": "a" * 64}}
+
+        self.registry.proposal_registry = Proposals()
+        with self.assertRaisesRegex(PermissionError, "proposal_not_found"):
+            self.registry._read_proposal_status(
+                scope_ref="institution:proposal-drafts",
+                inputs={"proposal_id": "proposal:00000000-0000-0000-0000-000000000000"},
+                credential="r" * 48, grant={"principal_id": "resident:grace"})
+
 
 if __name__ == "__main__":
     unittest.main()

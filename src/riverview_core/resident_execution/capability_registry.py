@@ -126,6 +126,9 @@ class GraceCapabilityRegistry:
             self.executors.setdefault("grace.execution-pipeline.v1", self._submit_work_order)
         if proposal_registry is not None and callable(getattr(proposal_registry, "create_draft", None)):
             self.executors.setdefault("institutional.proposal-registry.v1", self._create_proposal_draft)
+        if proposal_registry is not None and callable(getattr(proposal_registry, "get", None)):
+            self.executors.setdefault("institutional.proposal-registry-status.v1",
+                                      self._read_proposal_status)
 
     def _catalog(self):
         try:
@@ -449,6 +452,28 @@ class GraceCapabilityRegistry:
             "persistence": "durably_persisted",
             "approval": "awaiting_steward_decision",
             "readback_verified": True}
+
+    def _read_proposal_status(self, *, scope_ref, inputs, credential, grant):
+        """Return a bounded receipt for a proposal authored by this principal."""
+        if scope_ref != "institution:proposal-drafts":
+            raise PermissionError("proposal_draft_scope_required")
+        principal = grant.get("principal_id")
+        if not isinstance(principal, str) or not principal:
+            raise PermissionError("authenticated_resident_identity_required")
+        record = self.proposal_registry.get(inputs["proposal_id"])
+        proposal = record.get("proposal", {})
+        revision = record.get("revision", {})
+        if proposal.get("created_by") != principal:
+            # Do not disclose whether a non-owned proposal exists.
+            raise PermissionError("proposal_not_found")
+        return {"proposal_id": proposal["proposal_id"],
+                "revision": revision["revision"],
+                "content_sha256": revision["content_sha256"],
+                "author_principal_id": principal,
+                "lifecycle_status": proposal["lifecycle_status"],
+                "approval": ("awaiting_steward_decision"
+                             if proposal["lifecycle_status"] == "DRAFT" else "not_pending"),
+                "readback_verified": True}
 
     @staticmethod
     def _error(capability_id, code, *, call=None):

@@ -68,6 +68,29 @@ explicit supported session authorization contract before they can be invoked
 through a website adapter; a browser session is never converted into a Grace
 grant.
 
+### Resident proposal capabilities
+
+Grace's `proposal.draft.submit` and `proposal.status.read` are registered in
+this same catalog and bound to the shared `riverview:institutional-proposals`
+resource. The existing resident conversation runtime exposes them only when
+the authenticated principal has the matching active exact scope and the
+existing proposal-registry executor is wired. The model router requires the
+submission tool only for an explicit proposal submission request; a request to
+prepare a proposal without submitting it does not trigger the write.
+
+Registration and resource binding are metadata. They do not associate an HR
+identity, issue an authority grant, approve a proposal, promote it, or authorize
+Engineering work. Identity must come from the authoritative HR association;
+operation access must come from the existing institutional authorization
+decision. The proposal executor persists a DRAFT and verifies a bounded
+readback. The status tool returns a bounded receipt only for a draft authored
+by the authenticated principal. Steward decision and proposal promotion stay
+on their existing Steward-controlled lifecycle routes.
+
+New service code must consume these registered definitions and authority
+decisions. It must not add a second resident allowlist, infer identity, or
+silently make capability registration equivalent to permission.
+
 ## Identity model
 
 Institutional identity is durable and distinct from what currently occupies or

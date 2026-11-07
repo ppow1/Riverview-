@@ -1,0 +1,25 @@
+{
+  "capability_id": "proposal.status.read",
+  "description": "Read a bounded status receipt for a proposal draft authored by the authenticated resident.",
+  "operation": "proposal.status.read",
+  "owner_office": "office:grace",
+  "implementation_ref": "institutional.proposal-registry-status.v1",
+  "dependencies": ["institutional-proposal-registry", "exact-proposal-status-grant"],
+  "approval_default": false,
+  "enabled": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["proposal_id"],
+    "properties": {
+      "proposal_id": {"type": "string", "minLength": 45, "maxLength": 45}
+    }
+  },
+  "authorization_contract": {
+    "mode": "exact_grant",
+    "action": "proposal.status.read",
+    "scope_policy": "exact_scope"
+  },
+  "availability_policy": "executor_and_worker_health",
+  "registration_blocker": null
+}

@@ -219,6 +219,63 @@ class ProposalPromotionPostgresTests(unittest.TestCase):
                 scope_ref="institution:proposal-drafts")})
         self.assertEqual(tool_result["result"]["author_principal_id"], "resident:grace")
         self.assertTrue(tool_result["result"]["readback_verified"])
+        status_spec = next(item for item in specs if item["name"] == "proposal.status.read")
+        self.assertEqual(status_spec["inputSchema"]["properties"]["scope_ref"]["enum"],
+            ["institution:proposal-drafts"])
+        status_result = tools.invoke("proposal.status.read", {
+            "scope_ref": "institution:proposal-drafts",
+            "input": {"proposal_id": tool_result["result"]["proposal_id"]}})
+        self.assertEqual(status_result["status"], "ok", status_result)
+        self.assertEqual(status_result["result"]["lifecycle_status"], "DRAFT")
+        self.assertEqual(status_result["result"]["content_sha256"],
+                         tool_result["result"]["content_sha256"])
+        self.assertEqual(status_result["result"]["author_principal_id"], "resident:grace")
+
+        # Exercise the same catalog -> model-router directive -> native capability
+        # executor path used by Grace, with a controlled model response and the real
+        # exact-grant authority and proposal PostgreSQL registries above.
+        from riverview_core.local_reasoning_provider import ChatCompletion, ProviderReadiness
+        from riverview_core.resident_execution.internal_tools import GraceInternalTools
+        from riverview_core.resident_execution.model_router import GraceModelRouter
+
+        class Model:
+            model = "controlled-proposal-model"
+            model_sha256 = "b" * 64
+            provider_id = "test.controlled-proposal-model"
+            def __init__(self, responses): self.responses, self.calls = list(responses), []
+            def readiness(self): return ProviderReadiness("READY", self.model, "ready")
+            def complete_chat(self, messages, *, max_tokens, expected_revision,
+                              timeout_seconds=120):
+                self.calls.append(messages)
+                return ChatCompletion(self.responses.pop(0), self.model, 10, 8, "stop",
+                    provider_id=self.provider_id)
+
+        content = {**self.content, "title": "Model-routed clock proposal"}
+        directive = {"name": "proposal.draft.submit", "arguments": {
+            "scope_ref": "institution:proposal-drafts", "input": {
+                "content": content, "correlation_id": "model-router-clock-e2e",
+                "idempotency_key": "model-router-clock-e2e-v1"}}}
+        model = Model(["<rv-tool-call>" + json.dumps(directive, separators=(",", ":")) +
+                       "</rv-tool-call>",
+                       "The proposal draft was persisted and awaits Steward review."])
+        class EmptyBackend:
+            supported_tools = frozenset()
+            def call(self, *_args, **_kwargs): raise AssertionError("no Comms5 tool call expected")
+        internal_tools = GraceInternalTools(backend=EmptyBackend(), capability_registry=tools)
+        router = GraceModelRouter(autonomic=model, vision=model, reasoning=model,
+                                  internal_tools=internal_tools)
+        completion = router.complete_chat([{"role": "user", "content":
+            "Prepare and submit a date/time clock proposal for Steward approval."}],
+            max_tokens=128, expected_revision=router.model_sha256,
+            required_capability="grace.reasoning.80b")
+        self.assertEqual(len(completion.internal_tool_results), 1)
+        model_receipt = completion.internal_tool_results[0]["result"]
+        persisted_model_proposal = self.registry.get(model_receipt["proposal_id"])
+        self.assertEqual(model_receipt["lifecycle_status"], "DRAFT")
+        self.assertTrue(model_receipt["readback_verified"])
+        self.assertEqual(persisted_model_proposal["proposal"]["created_by"], "resident:grace")
+        self.assertEqual(persisted_model_proposal["revision"]["content_sha256"],
+                         model_receipt["content_sha256"])
 
     def test_authenticated_resident_http_proposal_api_uses_the_internal_registry(self):
         from riverview_core.resident_execution.proposals import ResidentProposalDraftService

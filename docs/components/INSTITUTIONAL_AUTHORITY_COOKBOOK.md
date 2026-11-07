@@ -895,6 +895,15 @@ added dashboard API dispatches have a declaration marker or a documented
 exclusion, and full-source packaging carries the migration and declaration
 files. No grant is created by registration.
 
+Grace's proposal submit and status-read capabilities also require additive
+resource bindings in the existing `capability_resources` registry.
+`0017_resident_proposal_capability_resources.sql` seeds the shared proposal
+resource and catalog identities before the release declarations are
+reconciled. It creates no resident grant or profile. The model router selects
+the submit tool only for an explicit submission request and only from the
+authorized tool catalog. Submission returns a durable DRAFT receipt; Steward
+decision and promotion remain on their existing authority-controlled routes.
+
 The release command is `scripts/migrate_institutional_authority.py`, run from
 the staged release as the local PostgreSQL administrator before activating the
 dashboard package:

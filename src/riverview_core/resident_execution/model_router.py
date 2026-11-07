@@ -233,6 +233,22 @@ class GraceModelRouter:
         if tool_catalog:
             catalog = json.dumps(tool_catalog, sort_keys=True,
                                  separators=(",", ":"), ensure_ascii=False)
+            proposal_guidance = ""
+            if required_tool == "proposal.draft.submit":
+                proposal_guidance = (
+                    " The user explicitly requested a proposal draft to be submitted. "
+                    "First reason out the complete proposal content from the request, "
+                    "then call proposal.draft.submit with every field in its schema, "
+                    "a stable correlation_id, and an idempotency_key. Submit only a "
+                    "DRAFT; do not approve, promote, dispatch, or implement it. Use the "
+                    "tool receipt as the source of proposal ID, revision, digest, author, "
+                    "and lifecycle status. If submission fails, report the exact tool "
+                    "error and retain the proposal text in the response.")
+            elif required_tool == "proposal.status.read":
+                proposal_guidance = (
+                    " The user requested proposal status. Call proposal.status.read "
+                    "with the exact proposal_id supplied by the user, and report only "
+                    "the returned status and receipt.")
             routed[0]["content"] += "\n\n" + (
                 "For any user request that asks for current Riverview status, records, "
                 "inventory, or recent operations covered by an available tool, you MUST "
@@ -242,7 +258,7 @@ class GraceModelRouter:
                 "as your entire first response. The tool result will be supplied for you "
                 "to consume in a follow-up. Available internal tools: " + catalog + ". "
                 "Do not invent tool names or arguments, and do not provide a status answer "
-                "until the matching tool result is available.")
+                "until the matching tool result is available." + proposal_guidance)
         routed = self._bound_provider_bytes(routed, provider=provider)
         attempts = []
         try:
@@ -431,6 +447,18 @@ class GraceModelRouter:
         if ("comms5_recent_steward_submissions" in names
                 and re.search(r"\b(recent|latest)\b.*\b(steward|submission|proposal)\b", text)):
             return "comms5_recent_steward_submissions"
+        # Proposal submission is a model action, not a lookup. Select only for an
+        # explicit request to persist/submit a proposal, and only when the exact
+        # registered capability is present in the caller's authorized catalog.
+        if ("proposal.draft.submit" in names
+                and re.search(r"\b(proposal|propose|proposal draft)\b", text)
+                and re.search(r"\b(submit|save|create|draft|prepare)\b", text)
+                and not re.search(r"\b(do not|don't|never|without)\s+(submit|save|create)\b", text)):
+            return "proposal.draft.submit"
+        if ("proposal.status.read" in names
+                and re.search(r"\b(proposal|proposal id)\b", text)
+                and re.search(r"\b(status|state|revision|digest|read back|retrieve)\b", text)):
+            return "proposal.status.read"
         return None
 
     @staticmethod
